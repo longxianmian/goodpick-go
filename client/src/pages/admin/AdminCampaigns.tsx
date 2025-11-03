@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -40,6 +41,7 @@ type CampaignFormData = {
 
 export default function AdminCampaigns() {
   const { adminToken, logoutAdmin } = useAuth();
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isStoreDialogOpen, setIsStoreDialogOpen] = useState(false);
@@ -130,12 +132,12 @@ export default function AdminCampaigns() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/campaigns'] });
-      toast({ title: '成功', description: '活动创建成功' });
+      toast({ title: t('common.success'), description: t('campaigns.createSuccess') });
       setIsDialogOpen(false);
       resetForm();
     },
     onError: (error: Error) => {
-      toast({ title: '错误', description: error.message || '创建活动失败', variant: 'destructive' });
+      toast({ title: t('common.error'), description: error.message || t('campaigns.createError'), variant: 'destructive' });
     },
   });
 
@@ -164,12 +166,12 @@ export default function AdminCampaigns() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/campaigns'] });
-      toast({ title: '成功', description: '活动更新成功' });
+      toast({ title: t('common.success'), description: t('campaigns.updateSuccess') });
       setIsDialogOpen(false);
       resetForm();
     },
     onError: (error: Error) => {
-      toast({ title: '错误', description: error.message || '更新活动失败', variant: 'destructive' });
+      toast({ title: t('common.error'), description: error.message || t('campaigns.updateError'), variant: 'destructive' });
     },
   });
 
@@ -183,10 +185,10 @@ export default function AdminCampaigns() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/campaigns'] });
-      toast({ title: '成功', description: '活动删除成功' });
+      toast({ title: t('common.success'), description: t('campaigns.deleteSuccess') });
     },
     onError: () => {
-      toast({ title: '错误', description: '删除活动失败', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('campaigns.deleteError'), variant: 'destructive' });
     },
   });
 
@@ -204,11 +206,11 @@ export default function AdminCampaigns() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/campaigns', selectedCampaignId, 'stores'] });
-      toast({ title: '成功', description: '门店关联更新成功' });
+      toast({ title: t('common.success'), description: t('campaigns.storesUpdateSuccess') });
       setIsStoreDialogOpen(false);
     },
     onError: () => {
-      toast({ title: '错误', description: '更新门店关联失败', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('campaigns.storesUpdateError'), variant: 'destructive' });
     },
   });
 
@@ -240,11 +242,11 @@ export default function AdminCampaigns() {
           descriptionTh: data.campaign.descriptionTh || '',
         });
       }
-      toast({ title: '成功', description: 'AI翻译完成' });
+      toast({ title: t('common.success'), description: t('campaigns.translateSuccess') });
       setIsTranslating(false);
     },
     onError: () => {
-      toast({ title: '错误', description: 'AI翻译失败', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('campaigns.translateError'), variant: 'destructive' });
       setIsTranslating(false);
     },
   });
@@ -343,11 +345,11 @@ export default function AdminCampaigns() {
 
   const getDiscountTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
-      final_price: '特价',
-      gift_card: '礼品卡',
-      cash_voucher: '现金券',
-      full_reduction: '满减',
-      percentage_off: '折扣',
+      final_price: t('campaigns.finalPrice'),
+      gift_card: t('campaigns.giftCard'),
+      cash_voucher: t('campaigns.cashVoucher'),
+      full_reduction: t('campaigns.fullReduction'),
+      percentage_off: t('campaigns.percentageOff'),
     };
     return labels[type] || type;
   };
@@ -361,10 +363,10 @@ export default function AdminCampaigns() {
     <div className="p-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <CardTitle data-testid="text-page-title">活动管理</CardTitle>
+          <CardTitle data-testid="text-page-title">{t('campaigns.title')}</CardTitle>
           <Button onClick={handleCreate} data-testid="button-create-campaign">
             <Plus className="w-4 h-4 mr-2" />
-            新建活动
+            {t('campaigns.createNew')}
           </Button>
         </CardHeader>
         <CardContent>
@@ -378,13 +380,13 @@ export default function AdminCampaigns() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>标题</TableHead>
-                  <TableHead>券类型</TableHead>
-                  <TableHead>券值</TableHead>
-                  <TableHead>开始时间</TableHead>
-                  <TableHead>结束时间</TableHead>
-                  <TableHead>状态</TableHead>
-                  <TableHead className="text-right">操作</TableHead>
+                  <TableHead>{t('campaigns.campaignTitle')}</TableHead>
+                  <TableHead>{t('campaigns.couponType')}</TableHead>
+                  <TableHead>{t('campaigns.couponValue')}</TableHead>
+                  <TableHead>{t('campaigns.startDate')}</TableHead>
+                  <TableHead>{t('campaigns.endDate')}</TableHead>
+                  <TableHead>{t('campaigns.status')}</TableHead>
+                  <TableHead className="text-right">{t('campaigns.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -407,7 +409,7 @@ export default function AdminCampaigns() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={campaign.isActive ? 'default' : 'secondary'}>
-                        {campaign.isActive ? '启用' : '禁用'}
+                        {campaign.isActive ? t('campaigns.active') : t('campaigns.inactive')}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -443,7 +445,7 @@ export default function AdminCampaigns() {
                 {(!campaignsData?.campaigns || campaignsData.campaigns.length === 0) && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center text-muted-foreground">
-                      暂无活动数据
+                      {t('campaigns.noCampaigns')}
                     </TableCell>
                   </TableRow>
                 )}
@@ -458,17 +460,17 @@ export default function AdminCampaigns() {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle data-testid="text-dialog-title">
-              {editingCampaign ? '编辑活动' : '新建活动'}
+              {editingCampaign ? t('campaigns.editCampaign') : t('campaigns.createNew')}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* 基本信息 */}
             <div className="space-y-4">
-              <h3 className="font-medium">基本信息</h3>
+              <h3 className="font-medium">{t('campaigns.basicInfo')}</h3>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="titleSourceLang">标题主语言</Label>
+                  <Label htmlFor="titleSourceLang">{t('campaigns.titleLang')}</Label>
                   <Select
                     value={formData.titleSourceLang}
                     onValueChange={(value: any) => setFormData({ ...formData, titleSourceLang: value })}
@@ -477,15 +479,15 @@ export default function AdminCampaigns() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="zh-cn">中文</SelectItem>
-                      <SelectItem value="en-us">English</SelectItem>
-                      <SelectItem value="th-th">ไทย</SelectItem>
+                      <SelectItem value="zh-cn">{t('common.chinese')}</SelectItem>
+                      <SelectItem value="en-us">{t('common.english')}</SelectItem>
+                      <SelectItem value="th-th">{t('common.thai')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="titleSource">标题 *</Label>
+                  <Label htmlFor="titleSource">{t('campaigns.campaignTitle')} *</Label>
                   <Input
                     id="titleSource"
                     value={formData.titleSource}
@@ -497,7 +499,7 @@ export default function AdminCampaigns() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="descriptionSource">描述 *</Label>
+                <Label htmlFor="descriptionSource">{t('campaigns.description')} *</Label>
                 <Textarea
                   id="descriptionSource"
                   value={formData.descriptionSource}
@@ -517,18 +519,18 @@ export default function AdminCampaigns() {
                   data-testid="button-auto-translate"
                 >
                   <Wand2 className="w-4 h-4 mr-2" />
-                  {isTranslating ? 'AI翻译中...' : 'AI自动翻译'}
+                  {isTranslating ? t('campaigns.translating') : t('campaigns.autoTranslate')}
                 </Button>
               )}
             </div>
 
             {/* 多语言翻译 */}
             <div className="space-y-4">
-              <h3 className="font-medium">多语言内容（可选）</h3>
+              <h3 className="font-medium">{t('campaigns.multiLanguageContent')}</h3>
               
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="titleZh">中文标题</Label>
+                  <Label htmlFor="titleZh">{t('campaigns.titleChinese')}</Label>
                   <Input
                     id="titleZh"
                     value={formData.titleZh}
@@ -537,7 +539,7 @@ export default function AdminCampaigns() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="titleEn">英文标题</Label>
+                  <Label htmlFor="titleEn">{t('campaigns.titleEnglish')}</Label>
                   <Input
                     id="titleEn"
                     value={formData.titleEn}
@@ -546,7 +548,7 @@ export default function AdminCampaigns() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="titleTh">泰文标题</Label>
+                  <Label htmlFor="titleTh">{t('campaigns.titleThai')}</Label>
                   <Input
                     id="titleTh"
                     value={formData.titleTh}
@@ -558,7 +560,7 @@ export default function AdminCampaigns() {
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="descriptionZh">中文描述</Label>
+                  <Label htmlFor="descriptionZh">{t('campaigns.descriptionChinese')}</Label>
                   <Textarea
                     id="descriptionZh"
                     value={formData.descriptionZh}
@@ -568,7 +570,7 @@ export default function AdminCampaigns() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="descriptionEn">英文描述</Label>
+                  <Label htmlFor="descriptionEn">{t('campaigns.descriptionEnglish')}</Label>
                   <Textarea
                     id="descriptionEn"
                     value={formData.descriptionEn}
@@ -578,7 +580,7 @@ export default function AdminCampaigns() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="descriptionTh">泰文描述</Label>
+                  <Label htmlFor="descriptionTh">{t('campaigns.descriptionThai')}</Label>
                   <Textarea
                     id="descriptionTh"
                     value={formData.descriptionTh}
@@ -592,11 +594,11 @@ export default function AdminCampaigns() {
 
             {/* 券设置 */}
             <div className="space-y-4">
-              <h3 className="font-medium">券设置</h3>
+              <h3 className="font-medium">{t('campaigns.couponSettings')}</h3>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="discountType">券类型 *</Label>
+                  <Label htmlFor="discountType">{t('campaigns.couponType')} *</Label>
                   <Select
                     value={formData.discountType}
                     onValueChange={(value: any) => setFormData({ ...formData, discountType: value })}
@@ -605,17 +607,17 @@ export default function AdminCampaigns() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="final_price">特价</SelectItem>
-                      <SelectItem value="gift_card">礼品卡</SelectItem>
-                      <SelectItem value="cash_voucher">现金券</SelectItem>
-                      <SelectItem value="full_reduction">满减</SelectItem>
-                      <SelectItem value="percentage_off">折扣</SelectItem>
+                      <SelectItem value="final_price">{t('campaigns.finalPrice')}</SelectItem>
+                      <SelectItem value="gift_card">{t('campaigns.giftCard')}</SelectItem>
+                      <SelectItem value="cash_voucher">{t('campaigns.cashVoucher')}</SelectItem>
+                      <SelectItem value="full_reduction">{t('campaigns.fullReduction')}</SelectItem>
+                      <SelectItem value="percentage_off">{t('campaigns.percentageOff')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="couponValue">券值 *</Label>
+                  <Label htmlFor="couponValue">{t('campaigns.couponValue')} *</Label>
                   <Input
                     id="couponValue"
                     type="number"
@@ -630,7 +632,7 @@ export default function AdminCampaigns() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="startAt">开始时间 *</Label>
+                  <Label htmlFor="startAt">{t('campaigns.startDate')} *</Label>
                   <Input
                     id="startAt"
                     type="datetime-local"
@@ -642,7 +644,7 @@ export default function AdminCampaigns() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="endAt">结束时间 *</Label>
+                  <Label htmlFor="endAt">{t('campaigns.endDate')} *</Label>
                   <Input
                     id="endAt"
                     type="datetime-local"
@@ -656,7 +658,7 @@ export default function AdminCampaigns() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="maxPerUser">每人限领 *</Label>
+                  <Label htmlFor="maxPerUser">{t('campaigns.maxPerUser')} *</Label>
                   <Input
                     id="maxPerUser"
                     type="number"
@@ -669,7 +671,7 @@ export default function AdminCampaigns() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="maxTotal">总库存（留空=无限）</Label>
+                  <Label htmlFor="maxTotal">{t('campaigns.maxTotal')}</Label>
                   <Input
                     id="maxTotal"
                     type="number"
@@ -688,16 +690,16 @@ export default function AdminCampaigns() {
                   onCheckedChange={(checked) => setFormData({ ...formData, isActive: !!checked })}
                   data-testid="checkbox-is-active"
                 />
-                <Label htmlFor="isActive" className="cursor-pointer">启用活动</Label>
+                <Label htmlFor="isActive" className="cursor-pointer">{t('campaigns.enableCampaign')}</Label>
               </div>
             </div>
 
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} data-testid="button-cancel">
-                取消
+                {t('common.cancel')}
               </Button>
               <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-save">
-                {createMutation.isPending || updateMutation.isPending ? '保存中...' : '保存'}
+                {createMutation.isPending || updateMutation.isPending ? t('common.saving') : t('common.save')}
               </Button>
             </div>
           </form>
@@ -708,7 +710,7 @@ export default function AdminCampaigns() {
       <Dialog open={isStoreDialogOpen} onOpenChange={setIsStoreDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle data-testid="text-store-dialog-title">门店关联管理</DialogTitle>
+            <DialogTitle data-testid="text-store-dialog-title">{t('campaigns.manageStores')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="max-h-96 overflow-y-auto space-y-2">
@@ -731,10 +733,10 @@ export default function AdminCampaigns() {
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setIsStoreDialogOpen(false)} data-testid="button-cancel-stores">
-                取消
+                {t('common.cancel')}
               </Button>
               <Button onClick={handleSaveStores} disabled={updateStoresMutation.isPending} data-testid="button-save-stores">
-                {updateStoresMutation.isPending ? '保存中...' : '保存'}
+                {updateStoresMutation.isPending ? t('common.saving') : t('common.save')}
               </Button>
             </div>
           </div>
