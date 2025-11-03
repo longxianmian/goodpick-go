@@ -85,11 +85,19 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ProtectedAdminRoute({ component: Component }: { component: React.ComponentType }) {
+function ProtectedAdminRoutes() {
   const { isAdminAuthenticated, admin, isLoading } = useAuth();
+  const [location] = useLocation();
   
   if (isLoading) {
-    return null;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
   }
   
   if (!isAdminAuthenticated || !admin) {
@@ -98,7 +106,17 @@ function ProtectedAdminRoute({ component: Component }: { component: React.Compon
   
   return (
     <AdminLayout>
-      <Component />
+      <Switch location={location}>
+        <Route path="/admin/stores" component={AdminStores} />
+        <Route path="/admin/campaigns" component={AdminCampaigns} />
+        <Route path="/admin/dashboard">
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold">Dashboard</h2>
+            <p className="text-muted-foreground mt-2">Coming Soon</p>
+          </div>
+        </Route>
+        <Redirect to="/admin/stores" />
+      </Switch>
     </AdminLayout>
   );
 }
@@ -108,10 +126,8 @@ function Router() {
     <Switch>
       <Route path="/" component={() => <Redirect to="/admin/login" />} />
       <Route path="/admin/login" component={AdminLogin} />
-      <Route path="/admin/stores" component={() => <ProtectedAdminRoute component={AdminStores} />} />
-      <Route path="/admin/campaigns" component={() => <ProtectedAdminRoute component={AdminCampaigns} />} />
-      <Route path="/admin/dashboard">
-        {() => <ProtectedAdminRoute component={() => <div>Dashboard - Coming Soon</div>} />}
+      <Route path="/admin/:rest*">
+        <ProtectedAdminRoutes />
       </Route>
       <Route component={NotFound} />
     </Switch>
