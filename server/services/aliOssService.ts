@@ -1,37 +1,33 @@
-// @ts-ignore - ali-oss doesn't have TypeScript definitions
 import OSS from 'ali-oss';
 import { Readable } from 'stream';
 
 export class AliOssService {
   private client: OSS;
+  private publicBaseUrl: string;
 
   constructor() {
-    const region = process.env.OSS_REGION || 'oss-cn-hangzhou';
-    const accessKeyId = process.env.OSS_ACCESS_KEY_ID;
-    const accessKeySecret = process.env.OSS_ACCESS_KEY_SECRET;
-    const bucket = process.env.OSS_BUCKET;
+    const region = process.env.ALI_OSS_REGION || 'oss-ap-southeast-1';
+    const endpoint = process.env.ALI_OSS_ENDPOINT;
+    const accessKeyId = process.env.ALI_OSS_ACCESS_KEY_ID;
+    const accessKeySecret = process.env.ALI_OSS_ACCESS_KEY_SECRET;
+    const bucket = process.env.ALI_OSS_BUCKET;
+    this.publicBaseUrl = process.env.ALI_OSS_PUBLIC_BASE_URL || '';
 
     if (!accessKeyId || !accessKeySecret || !bucket) {
       throw new Error(
-        'OSS credentials not configured. Please set OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, and OSS_BUCKET environment variables.'
+        'OSS credentials not configured. Please set ALI_OSS_ACCESS_KEY_ID, ALI_OSS_ACCESS_KEY_SECRET, and ALI_OSS_BUCKET environment variables.'
       );
     }
 
     this.client = new OSS({
       region,
+      endpoint,
       accessKeyId,
       accessKeySecret,
       bucket,
     });
   }
 
-  /**
-   * 上传文件到OSS
-   * @param objectName - OSS中的对象名称/路径
-   * @param buffer - 文件内容（Buffer）
-   * @param contentType - 文件MIME类型
-   * @returns 文件的公网访问URL
-   */
   async uploadFile(
     objectName: string,
     buffer: Buffer,
@@ -43,12 +39,13 @@ export class AliOssService {
       const result = await this.client.putStream(objectName, stream, {
         headers: {
           'Content-Type': contentType,
-          'x-oss-object-acl': 'public-read', // 设置为公共读
+          'x-oss-object-acl': 'public-read',
         },
       });
 
-      // 返回文件URL
-      // 阿里云OSS URL格式: https://{bucket}.{region}.aliyuncs.com/{objectName}
+      if (this.publicBaseUrl) {
+        return `${this.publicBaseUrl}/${objectName}`;
+      }
       return result.url;
     } catch (error) {
       console.error('OSS upload error:', error);
@@ -56,10 +53,6 @@ export class AliOssService {
     }
   }
 
-  /**
-   * 删除OSS中的文件
-   * @param objectName - OSS中的对象名称/路径
-   */
   async deleteFile(objectName: string): Promise<void> {
     try {
       await this.client.delete(objectName);
@@ -69,12 +62,6 @@ export class AliOssService {
     }
   }
 
-  /**
-   * 获取文件的签名URL（用于临时访问私有文件）
-   * @param objectName - OSS中的对象名称/路径
-   * @param expiresInSeconds - 过期时间（秒），默认3600秒（1小时）
-   * @returns 签名后的临时访问URL
-   */
   async getSignedUrl(objectName: string, expiresInSeconds: number = 3600): Promise<string> {
     try {
       const url = this.client.signatureUrl(objectName, {
@@ -87,11 +74,6 @@ export class AliOssService {
     }
   }
 
-  /**
-   * 检查文件是否存在
-   * @param objectName - OSS中的对象名称/路径
-   * @returns 文件是否存在
-   */
   async fileExists(objectName: string): Promise<boolean> {
     try {
       await this.client.head(objectName);
@@ -104,12 +86,6 @@ export class AliOssService {
     }
   }
 
-  /**
-   * 列出指定前缀的文件
-   * @param prefix - 对象名称前缀
-   * @param maxKeys - 最大返回数量
-   * @returns 文件列表
-   */
   async listFiles(prefix: string = '', maxKeys: number = 100): Promise<OSS.ObjectMeta[]> {
     try {
       const result = await this.client.list({

@@ -3,7 +3,7 @@ import { createInsertSchema } from 'drizzle-zod';
 import { z } from 'zod';
 
 // Enums
-export const discountTypeEnum = pgEnum('discount_type', ['final_price', 'gift_card', 'cash_voucher', 'full_reduction', 'percentage_off']);
+export const discountTypeEnum = pgEnum('discount_type', ['final_price', 'percentage_off', 'cash_voucher']);
 export const couponStatusEnum = pgEnum('coupon_status', ['unused', 'used', 'expired']);
 export const languageEnum = pgEnum('language', ['zh-cn', 'en-us', 'th-th']);
 export const channelEnum = pgEnum('channel', ['line_menu', 'tiktok', 'facebook', 'ig', 'youtube', 'other']);
@@ -36,8 +36,8 @@ export const stores = pgTable('stores', {
   address: text('address').notNull(),
   latitude: decimal('latitude', { precision: 10, scale: 7 }),
   longitude: decimal('longitude', { precision: 10, scale: 7 }),
-  rating: decimal('rating', { precision: 3, scale: 2 }),
   phone: text('phone'),
+  imageUrl: text('image_url'),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -51,24 +51,43 @@ export const insertStoreSchema = createInsertSchema(stores).omit({
 export type InsertStore = z.infer<typeof insertStoreSchema>;
 export type Store = typeof stores.$inferSelect;
 
-// Campaigns table - simplified single-language design
+// Campaigns table - multi-language with OpenAI translation
 export const campaigns = pgTable('campaigns', {
   id: serial('id').primaryKey(),
   
-  // Basic content fields (single language)
-  title: text('title').notNull(),
-  description: text('description').notNull(),
+  // Multi-language content fields
+  titleSourceLang: languageEnum('title_source_lang').notNull().default('th-th'),
+  titleSource: text('title_source').notNull(),
+  titleZh: text('title_zh'),
+  titleEn: text('title_en'),
+  titleTh: text('title_th'),
   
-  // Business fields
+  descriptionSourceLang: languageEnum('description_source_lang').notNull().default('th-th'),
+  descriptionSource: text('description_source').notNull(),
+  descriptionZh: text('description_zh'),
+  descriptionEn: text('description_en'),
+  descriptionTh: text('description_th'),
+  
+  // Media
   bannerImageUrl: text('banner_image_url'),
+  mediaUrls: text('media_urls').array(),
+  
+  // Coupon rules
   couponValue: decimal('coupon_value', { precision: 10, scale: 2 }).notNull(),
   discountType: discountTypeEnum('discount_type').notNull(),
+  originalPrice: decimal('original_price', { precision: 10, scale: 2 }),
+  
+  // Time & limits
   startAt: timestamp('start_at').notNull(),
   endAt: timestamp('end_at').notNull(),
-  isActive: boolean('is_active').notNull().default(true),
   maxPerUser: integer('max_per_user').notNull().default(1),
   maxTotal: integer('max_total'),
+  currentClaimed: integer('current_claimed').notNull().default(0),
   
+  // Promotion channel (optional)
+  channel: channelEnum('channel'),
+  
+  isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -77,6 +96,7 @@ export const insertCampaignSchema = createInsertSchema(campaigns).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  currentClaimed: true,
 });
 export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
 export type Campaign = typeof campaigns.$inferSelect;
@@ -94,13 +114,13 @@ export const insertCampaignStoreSchema = createInsertSchema(campaignStores).omit
 export type InsertCampaignStore = z.infer<typeof insertCampaignStoreSchema>;
 export type CampaignStore = typeof campaignStores.$inferSelect;
 
-// Users table (LINE-based)
+// Users table (LINE-based) - Default language: Thai
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   lineUserId: text('line_user_id').notNull().unique(),
   displayName: text('display_name'),
   avatarUrl: text('avatar_url'),
-  language: languageEnum('language').notNull().default('zh-cn'),
+  language: languageEnum('language').notNull().default('th-th'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -113,7 +133,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
-// Coupons table (user coupon records)
+// Coupons table (user claimed coupons)
 export const coupons = pgTable('coupons', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -124,11 +144,13 @@ export const coupons = pgTable('coupons', {
   usedAt: timestamp('used_at'),
   expiredAt: timestamp('expired_at').notNull(),
   channel: channelEnum('channel').notNull().default('other'),
-  storeId: integer('store_id').references(() => stores.id),
+  redeemedStoreId: integer('redeemed_store_id').references(() => stores.id),
+  notes: text('notes'),
 });
 
 export const insertCouponSchema = createInsertSchema(coupons).omit({
   id: true,
+  issuedAt: true,
 });
 export type InsertCoupon = z.infer<typeof insertCouponSchema>;
 export type Coupon = typeof coupons.$inferSelect;
