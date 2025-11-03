@@ -79,11 +79,15 @@ export class DbStorage implements IStorage {
 
   // Store methods
   async getStores(): Promise<Store[]> {
-    return await db.select().from(stores).orderBy(desc(stores.createdAt));
+    return await db.select().from(stores)
+      .where(eq(stores.isActive, true))
+      .orderBy(desc(stores.createdAt));
   }
 
   async getStore(id: number): Promise<Store | undefined> {
-    const result = await db.select().from(stores).where(eq(stores.id, id)).limit(1);
+    const result = await db.select().from(stores)
+      .where(and(eq(stores.id, id), eq(stores.isActive, true)))
+      .limit(1);
     return result[0];
   }
 
@@ -116,11 +120,15 @@ export class DbStorage implements IStorage {
 
   // Campaign methods
   async getCampaigns(): Promise<Campaign[]> {
-    return await db.select().from(campaigns).orderBy(desc(campaigns.createdAt));
+    return await db.select().from(campaigns)
+      .where(eq(campaigns.isActive, true))
+      .orderBy(desc(campaigns.createdAt));
   }
 
   async getCampaign(id: number): Promise<Campaign | undefined> {
-    const result = await db.select().from(campaigns).where(eq(campaigns.id, id)).limit(1);
+    const result = await db.select().from(campaigns)
+      .where(and(eq(campaigns.id, id), eq(campaigns.isActive, true)))
+      .limit(1);
     return result[0];
   }
 
