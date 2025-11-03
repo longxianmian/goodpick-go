@@ -1,7 +1,9 @@
 import OpenAI from 'openai';
 
+// Using Replit's AI Integrations service for OpenAI access
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
 });
 
 const languageMap: Record<string, string> = {
@@ -24,7 +26,8 @@ export async function translateText(
     const targetLanguage = languageMap[targetLang] || 'English';
 
     const response = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL_TRANSLATE || 'gpt-4o-mini',
+      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -36,6 +39,7 @@ export async function translateText(
         },
       ],
       temperature: 0.3,
+      max_completion_tokens: 8192,
     });
 
     return response.choices[0]?.message?.content?.trim() || text;
