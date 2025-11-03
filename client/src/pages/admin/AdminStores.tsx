@@ -73,9 +73,9 @@ export default function AdminStores() {
           city: data.city.trim(),
           address: data.address.trim(),
           phone: data.phone.trim() || null,
-          latitude: data.latitude ? parseFloat(data.latitude) : null,
-          longitude: data.longitude ? parseFloat(data.longitude) : null,
-          rating: data.rating ? parseFloat(data.rating) : null,
+          latitude: data.latitude ? data.latitude.toString() : null,
+          longitude: data.longitude ? data.longitude.toString() : null,
+          rating: data.rating ? data.rating.toString() : null,
           isActive: true,
         }),
       });
@@ -106,9 +106,9 @@ export default function AdminStores() {
           city: data.city.trim(),
           address: data.address.trim(),
           phone: data.phone.trim() || null,
-          latitude: data.latitude ? parseFloat(data.latitude) : null,
-          longitude: data.longitude ? parseFloat(data.longitude) : null,
-          rating: data.rating ? parseFloat(data.rating) : null,
+          latitude: data.latitude ? data.latitude.toString() : null,
+          longitude: data.longitude ? data.longitude.toString() : null,
+          rating: data.rating ? data.rating.toString() : null,
         }),
       });
       return res.json();
