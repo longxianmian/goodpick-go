@@ -5,6 +5,7 @@ import { adminAuthMiddleware } from "./middleware/adminAuth";
 import { userAuthMiddleware } from "./middleware/userAuth";
 import { verifyLineIdToken } from "./services/lineService";
 import { translateText } from "./services/translationService";
+import { googleMapsService } from "./services/googleMapsService";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
@@ -342,6 +343,91 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Update campaign stores error:', error);
       res.status(500).json({ ok: false, message: "Internal server error" });
+    }
+  });
+
+  // ==================== Google Maps Places API Routes ====================
+
+  app.get("/api/admin/places/autocomplete", adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { input } = req.query;
+      
+      if (!input || typeof input !== 'string' || input.trim().length < 2) {
+        return res.json({ ok: true, suggestions: [] });
+      }
+
+      const suggestions = await googleMapsService.getPlaceAutocomplete(input, {
+        types: 'establishment',
+        components: 'country:th',
+        language: 'th',
+      });
+
+      res.json({ ok: true, suggestions });
+    } catch (error) {
+      console.error('Places autocomplete error:', error);
+      res.status(500).json({ ok: false, message: 'Failed to fetch place suggestions' });
+    }
+  });
+
+  app.get("/api/admin/places/details", adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { placeId } = req.query;
+      
+      if (!placeId || typeof placeId !== 'string') {
+        return res.status(400).json({ ok: false, message: 'placeId is required' });
+      }
+
+      const placeDetails = await googleMapsService.getPlaceDetails(placeId, {
+        fields: 'name,formatted_address,geometry,rating,opening_hours,formatted_phone_number,website,address_components',
+        language: 'th',
+      });
+
+      if (!placeDetails) {
+        return res.status(404).json({ ok: false, message: 'Place not found' });
+      }
+
+      let city = '';
+      
+      if (placeDetails.addressComponents) {
+        city = googleMapsService.extractCityFromComponents(placeDetails.addressComponents);
+      }
+      
+      if (!city && placeDetails.address) {
+        const addressParts = placeDetails.address.split(',').map(part => part.trim());
+        if (addressParts.length >= 2) {
+          city = addressParts[addressParts.length - 2];
+          city = city.replace(/\d{5}.*$/, '').trim();
+        }
+      }
+      
+      if (!city && placeDetails.lat && placeDetails.lng) {
+        try {
+          const geocodeResult = await googleMapsService.reverseGeocode(placeDetails.lat, placeDetails.lng);
+          if (geocodeResult) {
+            city = googleMapsService.extractCityFromComponents(geocodeResult.addressComponents);
+          }
+        } catch (error) {
+          console.log('Reverse geocoding failed, but already tried other methods for city');
+        }
+      }
+
+      const enrichedDetails = {
+        name: placeDetails.name,
+        address: placeDetails.address,
+        city,
+        lat: placeDetails.lat,
+        lng: placeDetails.lng,
+        rating: placeDetails.rating,
+        phone: placeDetails.phone,
+        website: placeDetails.website,
+        openingHours: placeDetails.openingHours,
+        placeId,
+      };
+
+      res.json({ ok: true, details: enrichedDetails });
+    } catch (error) {
+      console.error('Places details error:', error);
+      res.status(500).json({ ok: false, message: 'Failed to fetch place details' });
     }
   });
 
