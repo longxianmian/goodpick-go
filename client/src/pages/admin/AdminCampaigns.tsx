@@ -251,14 +251,8 @@ export default function AdminCampaigns() {
 
   const handleManageStores = (campaign: Campaign) => {
     setSelectedCampaignId(campaign.id);
+    setSelectedStoreIds(campaignStoresData?.stores.map(s => s.id) || []);
     setIsStoreDialogOpen(true);
-  };
-
-  const handleAutoTranslate = () => {
-    if (editingCampaign) {
-      setIsTranslating(true);
-      autoTranslateMutation.mutate(editingCampaign.id);
-    }
   };
 
   const handleStoreToggle = (storeId: number) => {
@@ -283,11 +277,6 @@ export default function AdminCampaigns() {
     };
     return labels[type] || type;
   };
-
-  // 当门店对话框打开时，设置已选门店
-  if (isStoreDialogOpen && campaignStoresData && selectedStoreIds.length === 0) {
-    setSelectedStoreIds(campaignStoresData.stores.map(s => s.id));
-  }
 
   return (
     <div className="p-6">

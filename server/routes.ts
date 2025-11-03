@@ -433,81 +433,11 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // ==================== Campaign Translation Routes ====================
-
-  app.post("/api/admin/campaigns/:id/auto-translate", adminAuthMiddleware, async (req: Request, res: Response) => {
-    try {
-      const id = parseInt(req.params.id);
-      const { fields, targetLangs } = req.body;
-
-      if (!Array.isArray(fields) || !Array.isArray(targetLangs)) {
-        return res.status(400).json({ ok: false, message: "fields and targetLangs must be arrays" });
-      }
-
-      const campaign = await storage.getCampaign(id);
-      
-      if (!campaign) {
-        return res.status(404).json({ ok: false, message: "Campaign not found" });
-      }
-
-      const translations: any = {};
-
-      for (const targetLang of targetLangs) {
-        if (fields.includes('title') && campaign.titleSource) {
-          const translated = await translateText(
-            campaign.titleSource,
-            campaign.titleSourceLang,
-            targetLang
-          );
-          const fieldName = `title${targetLang.replace('-', '').replace(/^(.)/, (c) => c.toUpperCase())}`;
-          if (fieldName === 'titleZhcn') translations.titleZh = translated;
-          else if (fieldName === 'titleEnus') translations.titleEn = translated;
-          else if (fieldName === 'titleThth') translations.titleTh = translated;
-        }
-
-        if (fields.includes('description') && campaign.descriptionSource) {
-          const translated = await translateText(
-            campaign.descriptionSource,
-            campaign.descriptionSourceLang,
-            targetLang
-          );
-          const fieldName = `description${targetLang.replace('-', '').replace(/^(.)/, (c) => c.toUpperCase())}`;
-          if (fieldName === 'descriptionZhcn') translations.descriptionZh = translated;
-          else if (fieldName === 'descriptionEnus') translations.descriptionEn = translated;
-          else if (fieldName === 'descriptionThth') translations.descriptionTh = translated;
-        }
-      }
-
-      const updatedCampaign = await storage.updateCampaign(id, translations);
-
-      res.json({ ok: true, campaign: updatedCampaign });
-    } catch (error) {
-      console.error('Auto-translate error:', error);
-      res.status(500).json({ ok: false, message: "Internal server error" });
-    }
-  });
-
   // ==================== Public Routes ====================
-
-  function getCampaignLocalizedContent(campaign: any, lang: string) {
-    let title = campaign.titleSource;
-    let description = campaign.descriptionSource;
-
-    if (lang === 'zh-cn' && campaign.titleZh) title = campaign.titleZh;
-    else if (lang === 'en-us' && campaign.titleEn) title = campaign.titleEn;
-    else if (lang === 'th-th' && campaign.titleTh) title = campaign.titleTh;
-
-    if (lang === 'zh-cn' && campaign.descriptionZh) description = campaign.descriptionZh;
-    else if (lang === 'en-us' && campaign.descriptionEn) description = campaign.descriptionEn;
-    else if (lang === 'th-th' && campaign.descriptionTh) description = campaign.descriptionTh;
-
-    return { title, description };
-  }
 
   app.get("/api/public/campaigns/:id", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
-      const lang = (req.query.lang as string) || 'zh-cn';
       
       const campaign = await storage.getCampaign(id);
       
@@ -516,30 +446,13 @@ export function registerRoutes(app: Express): Server {
       }
 
       const stores = await storage.getCampaignStores(id);
-      const { title, description } = getCampaignLocalizedContent(campaign, lang);
 
       res.json({
         ok: true,
         campaign: {
           id: campaign.id,
-          title,
-          description,
-          raw: {
-            title: {
-              sourceLang: campaign.titleSourceLang,
-              source: campaign.titleSource,
-              'zh-cn': campaign.titleZh,
-              'en-us': campaign.titleEn,
-              'th-th': campaign.titleTh,
-            },
-            description: {
-              sourceLang: campaign.descriptionSourceLang,
-              source: campaign.descriptionSource,
-              'zh-cn': campaign.descriptionZh,
-              'en-us': campaign.descriptionEn,
-              'th-th': campaign.descriptionTh,
-            },
-          },
+          title: campaign.title,
+          description: campaign.description,
           bannerImageUrl: campaign.bannerImageUrl,
           couponValue: campaign.couponValue,
           discountType: campaign.discountType,
