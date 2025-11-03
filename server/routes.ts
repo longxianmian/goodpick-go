@@ -11,7 +11,7 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { insertStoreSchema, insertCampaignSchema } from "@shared/schema";
 import multer from "multer";
-import { ObjectStorageService } from "./objectStorage";
+import { AliOssService } from "./services/aliOssService";
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change_this_to_strong_secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
@@ -189,7 +189,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // ==================== Admin Upload Routes ====================
+  // ==================== Admin Upload Routes (阿里云OSS) ====================
 
   app.post("/api/admin/upload/campaign-media", adminAuthMiddleware, upload.array('files', 10), async (req: Request, res: Response) => {
     try {
@@ -200,7 +200,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       const uploadedFiles: Array<{ url: string; type: string; size: number }> = [];
-      const objectStorageService = new ObjectStorageService();
+      const ossService = new AliOssService();
 
       for (const file of files) {
         const timestamp = Date.now();
@@ -209,7 +209,7 @@ export function registerRoutes(app: Express): Server {
         const filename = `campaign-media/${timestamp}-${randomStr}.${extension}`;
 
         try {
-          const fileUrl = await objectStorageService.uploadFile(
+          const fileUrl = await ossService.uploadFile(
             filename,
             file.buffer,
             file.mimetype
@@ -238,23 +238,6 @@ export function registerRoutes(app: Express): Server {
         ok: false,
         message: error instanceof Error ? error.message : "File upload failed",
       });
-    }
-  });
-
-  // ==================== Public Object Serving ====================
-
-  app.get("/public-objects/:filePath(*)", async (req: Request, res: Response) => {
-    const filePath = req.params.filePath;
-    const objectStorageService = new ObjectStorageService();
-    try {
-      const file = await objectStorageService.searchPublicObject(filePath);
-      if (!file) {
-        return res.status(404).json({ error: "File not found" });
-      }
-      objectStorageService.downloadObject(file, res);
-    } catch (error) {
-      console.error("Error searching for public object:", error);
-      return res.status(500).json({ error: "Internal server error" });
     }
   });
 
