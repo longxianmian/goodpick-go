@@ -1,0 +1,398 @@
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
+type Language = 'zh-cn' | 'en-us' | 'th-th';
+
+interface LanguageContextType {
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  t: (key: string) => string;
+}
+
+const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+
+const translations: Record<Language, Record<string, string>> = {
+  'zh-cn': {
+    // Common
+    'common.logout': '登出',
+    'common.cancel': '取消',
+    'common.save': '保存',
+    'common.delete': '删除',
+    'common.edit': '编辑',
+    'common.create': '创建',
+    'common.search': '搜索',
+    'common.loading': '加载中...',
+    'common.saving': '保存中...',
+    'common.success': '成功',
+    'common.error': '错误',
+    'common.confirm': '确认',
+    'common.welcome': '欢迎',
+    
+    // Navigation
+    'nav.stores': '门店管理',
+    'nav.campaigns': '活动管理',
+    'nav.dashboard': '数据面板',
+    
+    // Login
+    'login.title': '管理后台登录',
+    'login.email': '邮箱',
+    'login.password': '密码',
+    'login.submit': '登录',
+    'login.emailPlaceholder': '请输入邮箱',
+    'login.passwordPlaceholder': '请输入密码',
+    
+    // Stores
+    'stores.title': '门店管理',
+    'stores.addStore': '新建门店',
+    'stores.allStores': '所有门店',
+    'stores.name': '名称',
+    'stores.brand': '品牌',
+    'stores.city': '城市',
+    'stores.address': '地址',
+    'stores.phone': '电话',
+    'stores.latitude': '纬度',
+    'stores.longitude': '经度',
+    'stores.status': '状态',
+    'stores.actions': '操作',
+    'stores.active': '启用',
+    'stores.inactive': '禁用',
+    'stores.createTitle': '新建门店',
+    'stores.editTitle': '编辑门店',
+    'stores.deleteConfirm': '确定要删除此门店吗？',
+    'stores.createSuccess': '门店创建成功',
+    'stores.updateSuccess': '门店更新成功',
+    'stores.deleteSuccess': '门店删除成功',
+    'stores.createError': '创建门店失败',
+    'stores.updateError': '更新门店失败',
+    'stores.deleteError': '删除门店失败',
+    'stores.noData': '暂无门店数据',
+    
+    // Campaigns
+    'campaigns.title': '活动管理',
+    'campaigns.addCampaign': '新建活动',
+    'campaigns.allCampaigns': '所有活动',
+    'campaigns.campaignTitle': '标题',
+    'campaigns.couponType': '券类型',
+    'campaigns.couponValue': '券值',
+    'campaigns.startTime': '开始时间',
+    'campaigns.endTime': '结束时间',
+    'campaigns.status': '状态',
+    'campaigns.actions': '操作',
+    'campaigns.active': '启用',
+    'campaigns.inactive': '禁用',
+    'campaigns.createTitle': '新建活动',
+    'campaigns.editTitle': '编辑活动',
+    'campaigns.deleteConfirm': '确定要删除此活动吗？',
+    'campaigns.createSuccess': '活动创建成功',
+    'campaigns.updateSuccess': '活动更新成功',
+    'campaigns.deleteSuccess': '活动删除成功',
+    'campaigns.createError': '创建活动失败',
+    'campaigns.updateError': '更新活动失败',
+    'campaigns.deleteError': '删除活动失败',
+    'campaigns.noData': '暂无活动数据',
+    'campaigns.manageStores': '门店关联管理',
+    'campaigns.autoTranslate': 'AI自动翻译',
+    'campaigns.translating': 'AI翻译中...',
+    'campaigns.translateSuccess': 'AI翻译完成',
+    'campaigns.translateError': 'AI翻译失败',
+    
+    // Campaign Form
+    'campaignForm.basicInfo': '基本信息',
+    'campaignForm.titleLang': '标题主语言',
+    'campaignForm.title': '标题',
+    'campaignForm.description': '描述',
+    'campaignForm.multiLang': '多语言内容（可选）',
+    'campaignForm.titleZh': '中文标题',
+    'campaignForm.titleEn': '英文标题',
+    'campaignForm.titleTh': '泰文标题',
+    'campaignForm.descriptionZh': '中文描述',
+    'campaignForm.descriptionEn': '英文描述',
+    'campaignForm.descriptionTh': '泰文描述',
+    'campaignForm.couponSettings': '券设置',
+    'campaignForm.discountType': '券类型',
+    'campaignForm.couponValue': '券值',
+    'campaignForm.startAt': '开始时间',
+    'campaignForm.endAt': '结束时间',
+    'campaignForm.maxPerUser': '每人限领',
+    'campaignForm.maxTotal': '总库存（留空=无限）',
+    'campaignForm.isActive': '启用活动',
+    
+    // Discount Types
+    'discountType.final_price': '特价',
+    'discountType.gift_card': '礼品卡',
+    'discountType.cash_voucher': '现金券',
+    'discountType.full_reduction': '满减',
+    'discountType.percentage_off': '折扣',
+    
+    // Languages
+    'language.zh-cn': '中文',
+    'language.en-us': 'English',
+    'language.th-th': 'ไทย',
+  },
+  'en-us': {
+    // Common
+    'common.logout': 'Logout',
+    'common.cancel': 'Cancel',
+    'common.save': 'Save',
+    'common.delete': 'Delete',
+    'common.edit': 'Edit',
+    'common.create': 'Create',
+    'common.search': 'Search',
+    'common.loading': 'Loading...',
+    'common.saving': 'Saving...',
+    'common.success': 'Success',
+    'common.error': 'Error',
+    'common.confirm': 'Confirm',
+    'common.welcome': 'Welcome',
+    
+    // Navigation
+    'nav.stores': 'Stores',
+    'nav.campaigns': 'Campaigns',
+    'nav.dashboard': 'Dashboard',
+    
+    // Login
+    'login.title': 'Admin Login',
+    'login.email': 'Email',
+    'login.password': 'Password',
+    'login.submit': 'Login',
+    'login.emailPlaceholder': 'Enter email',
+    'login.passwordPlaceholder': 'Enter password',
+    
+    // Stores
+    'stores.title': 'Stores Management',
+    'stores.addStore': 'Add Store',
+    'stores.allStores': 'All Stores',
+    'stores.name': 'Name',
+    'stores.brand': 'Brand',
+    'stores.city': 'City',
+    'stores.address': 'Address',
+    'stores.phone': 'Phone',
+    'stores.latitude': 'Latitude',
+    'stores.longitude': 'Longitude',
+    'stores.status': 'Status',
+    'stores.actions': 'Actions',
+    'stores.active': 'Active',
+    'stores.inactive': 'Inactive',
+    'stores.createTitle': 'Create Store',
+    'stores.editTitle': 'Edit Store',
+    'stores.deleteConfirm': 'Are you sure you want to delete this store?',
+    'stores.createSuccess': 'Store created successfully',
+    'stores.updateSuccess': 'Store updated successfully',
+    'stores.deleteSuccess': 'Store deleted successfully',
+    'stores.createError': 'Failed to create store',
+    'stores.updateError': 'Failed to update store',
+    'stores.deleteError': 'Failed to delete store',
+    'stores.noData': 'No stores available',
+    
+    // Campaigns
+    'campaigns.title': 'Campaigns Management',
+    'campaigns.addCampaign': 'Add Campaign',
+    'campaigns.allCampaigns': 'All Campaigns',
+    'campaigns.campaignTitle': 'Title',
+    'campaigns.couponType': 'Type',
+    'campaigns.couponValue': 'Value',
+    'campaigns.startTime': 'Start Time',
+    'campaigns.endTime': 'End Time',
+    'campaigns.status': 'Status',
+    'campaigns.actions': 'Actions',
+    'campaigns.active': 'Active',
+    'campaigns.inactive': 'Inactive',
+    'campaigns.createTitle': 'Create Campaign',
+    'campaigns.editTitle': 'Edit Campaign',
+    'campaigns.deleteConfirm': 'Are you sure you want to delete this campaign?',
+    'campaigns.createSuccess': 'Campaign created successfully',
+    'campaigns.updateSuccess': 'Campaign updated successfully',
+    'campaigns.deleteSuccess': 'Campaign deleted successfully',
+    'campaigns.createError': 'Failed to create campaign',
+    'campaigns.updateError': 'Failed to update campaign',
+    'campaigns.deleteError': 'Failed to delete campaign',
+    'campaigns.noData': 'No campaigns available',
+    'campaigns.manageStores': 'Manage Store Association',
+    'campaigns.autoTranslate': 'Auto Translate (AI)',
+    'campaigns.translating': 'Translating...',
+    'campaigns.translateSuccess': 'Translation completed',
+    'campaigns.translateError': 'Translation failed',
+    
+    // Campaign Form
+    'campaignForm.basicInfo': 'Basic Information',
+    'campaignForm.titleLang': 'Title Language',
+    'campaignForm.title': 'Title',
+    'campaignForm.description': 'Description',
+    'campaignForm.multiLang': 'Multi-language Content (Optional)',
+    'campaignForm.titleZh': 'Chinese Title',
+    'campaignForm.titleEn': 'English Title',
+    'campaignForm.titleTh': 'Thai Title',
+    'campaignForm.descriptionZh': 'Chinese Description',
+    'campaignForm.descriptionEn': 'English Description',
+    'campaignForm.descriptionTh': 'Thai Description',
+    'campaignForm.couponSettings': 'Coupon Settings',
+    'campaignForm.discountType': 'Discount Type',
+    'campaignForm.couponValue': 'Coupon Value',
+    'campaignForm.startAt': 'Start Time',
+    'campaignForm.endAt': 'End Time',
+    'campaignForm.maxPerUser': 'Max Per User',
+    'campaignForm.maxTotal': 'Total Stock (Empty = Unlimited)',
+    'campaignForm.isActive': 'Enable Campaign',
+    
+    // Discount Types
+    'discountType.final_price': 'Final Price',
+    'discountType.gift_card': 'Gift Card',
+    'discountType.cash_voucher': 'Cash Voucher',
+    'discountType.full_reduction': 'Full Reduction',
+    'discountType.percentage_off': 'Percentage Off',
+    
+    // Languages
+    'language.zh-cn': '中文',
+    'language.en-us': 'English',
+    'language.th-th': 'ไทย',
+  },
+  'th-th': {
+    // Common
+    'common.logout': 'ออกจากระบบ',
+    'common.cancel': 'ยกเลิก',
+    'common.save': 'บันทึก',
+    'common.delete': 'ลบ',
+    'common.edit': 'แก้ไข',
+    'common.create': 'สร้าง',
+    'common.search': 'ค้นหา',
+    'common.loading': 'กำลังโหลด...',
+    'common.saving': 'กำลังบันทึก...',
+    'common.success': 'สำเร็จ',
+    'common.error': 'ข้อผิดพลาด',
+    'common.confirm': 'ยืนยัน',
+    'common.welcome': 'ยินดีต้อนรับ',
+    
+    // Navigation
+    'nav.stores': 'จัดการร้านค้า',
+    'nav.campaigns': 'จัดการแคมเปญ',
+    'nav.dashboard': 'แดชบอร์ด',
+    
+    // Login
+    'login.title': 'เข้าสู่ระบบผู้ดูแล',
+    'login.email': 'อีเมล',
+    'login.password': 'รหัสผ่าน',
+    'login.submit': 'เข้าสู่ระบบ',
+    'login.emailPlaceholder': 'กรุณากรอกอีเมล',
+    'login.passwordPlaceholder': 'กรุณากรอกรหัสผ่าน',
+    
+    // Stores
+    'stores.title': 'จัดการร้านค้า',
+    'stores.addStore': 'เพิ่มร้านค้า',
+    'stores.allStores': 'ร้านค้าทั้งหมด',
+    'stores.name': 'ชื่อ',
+    'stores.brand': 'แบรนด์',
+    'stores.city': 'เมือง',
+    'stores.address': 'ที่อยู่',
+    'stores.phone': 'โทรศัพท์',
+    'stores.latitude': 'ละติจูด',
+    'stores.longitude': 'ลองจิจูด',
+    'stores.status': 'สถานะ',
+    'stores.actions': 'การดำเนินการ',
+    'stores.active': 'เปิดใช้งาน',
+    'stores.inactive': 'ปิดใช้งาน',
+    'stores.createTitle': 'สร้างร้านค้า',
+    'stores.editTitle': 'แก้ไขร้านค้า',
+    'stores.deleteConfirm': 'คุณแน่ใจหรือไม่ที่จะลบร้านค้านี้?',
+    'stores.createSuccess': 'สร้างร้านค้าสำเร็จ',
+    'stores.updateSuccess': 'อัปเดตร้านค้าสำเร็จ',
+    'stores.deleteSuccess': 'ลบร้านค้าสำเร็จ',
+    'stores.createError': 'ไม่สามารถสร้างร้านค้าได้',
+    'stores.updateError': 'ไม่สามารถอัปเดตร้านค้าได้',
+    'stores.deleteError': 'ไม่สามารถลบร้านค้าได้',
+    'stores.noData': 'ไม่มีข้อมูลร้านค้า',
+    
+    // Campaigns
+    'campaigns.title': 'จัดการแคมเปญ',
+    'campaigns.addCampaign': 'เพิ่มแคมเปญ',
+    'campaigns.allCampaigns': 'แคมเปญทั้งหมด',
+    'campaigns.campaignTitle': 'ชื่อเรื่อง',
+    'campaigns.couponType': 'ประเภท',
+    'campaigns.couponValue': 'มูลค่า',
+    'campaigns.startTime': 'เวลาเริ่มต้น',
+    'campaigns.endTime': 'เวลาสิ้นสุด',
+    'campaigns.status': 'สถานะ',
+    'campaigns.actions': 'การดำเนินการ',
+    'campaigns.active': 'เปิดใช้งาน',
+    'campaigns.inactive': 'ปิดใช้งาน',
+    'campaigns.createTitle': 'สร้างแคมเปญ',
+    'campaigns.editTitle': 'แก้ไขแคมเปญ',
+    'campaigns.deleteConfirm': 'คุณแน่ใจหรือไม่ที่จะลบแคมเปญนี้?',
+    'campaigns.createSuccess': 'สร้างแคมเปญสำเร็จ',
+    'campaigns.updateSuccess': 'อัปเดตแคมเปญสำเร็จ',
+    'campaigns.deleteSuccess': 'ลบแคมเปญสำเร็จ',
+    'campaigns.createError': 'ไม่สามารถสร้างแคมเปญได้',
+    'campaigns.updateError': 'ไม่สามารถอัปเดตแคมเปญได้',
+    'campaigns.deleteError': 'ไม่สามารถลบแคมเปญได้',
+    'campaigns.noData': 'ไม่มีข้อมูลแคมเปญ',
+    'campaigns.manageStores': 'จัดการความสัมพันธ์ร้านค้า',
+    'campaigns.autoTranslate': 'แปลอัตโนมัติ (AI)',
+    'campaigns.translating': 'กำลังแปล...',
+    'campaigns.translateSuccess': 'แปลเสร็จสิ้น',
+    'campaigns.translateError': 'การแปลล้มเหลว',
+    
+    // Campaign Form
+    'campaignForm.basicInfo': 'ข้อมูลพื้นฐาน',
+    'campaignForm.titleLang': 'ภาษาหลักของชื่อเรื่อง',
+    'campaignForm.title': 'ชื่อเรื่อง',
+    'campaignForm.description': 'คำอธิบาย',
+    'campaignForm.multiLang': 'เนื้อหาหลายภาษา (ตัวเลือก)',
+    'campaignForm.titleZh': 'ชื่อเรื่องภาษาจีน',
+    'campaignForm.titleEn': 'ชื่อเรื่องภาษาอังกฤษ',
+    'campaignForm.titleTh': 'ชื่อเรื่องภาษาไทย',
+    'campaignForm.descriptionZh': 'คำอธิบายภาษาจีน',
+    'campaignForm.descriptionEn': 'คำอธิบายภาษาอังกฤษ',
+    'campaignForm.descriptionTh': 'คำอธิบายภาษาไทย',
+    'campaignForm.couponSettings': 'การตั้งค่าคูปอง',
+    'campaignForm.discountType': 'ประเภทส่วนลด',
+    'campaignForm.couponValue': 'มูลค่าคูปอง',
+    'campaignForm.startAt': 'เวลาเริ่มต้น',
+    'campaignForm.endAt': 'เวลาสิ้นสุด',
+    'campaignForm.maxPerUser': 'สูงสุดต่อผู้ใช้',
+    'campaignForm.maxTotal': 'สต็อกทั้งหมด (ว่าง = ไม่จำกัด)',
+    'campaignForm.isActive': 'เปิดใช้งานแคมเปญ',
+    
+    // Discount Types
+    'discountType.final_price': 'ราคาสุดท้าย',
+    'discountType.gift_card': 'บัตรของขวัญ',
+    'discountType.cash_voucher': 'บัตรกำนัลเงินสด',
+    'discountType.full_reduction': 'ลดเต็มจำนวน',
+    'discountType.percentage_off': 'เปอร์เซ็นต์ส่วนลด',
+    
+    // Languages
+    'language.zh-cn': '中文',
+    'language.en-us': 'English',
+    'language.th-th': 'ไทย',
+  },
+};
+
+export function LanguageProvider({ children }: { children: ReactNode }) {
+  const [language, setLanguageState] = useState<Language>(() => {
+    const stored = localStorage.getItem('language');
+    return (stored as Language) || 'zh-cn';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('language', language);
+  }, [language]);
+
+  const setLanguage = (lang: Language) => {
+    setLanguageState(lang);
+  };
+
+  const t = (key: string): string => {
+    return translations[language][key] || key;
+  };
+
+  return (
+    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+      {children}
+    </LanguageContext.Provider>
+  );
+}
+
+export function useLanguage() {
+  const context = useContext(LanguageContext);
+  if (context === undefined) {
+    throw new Error('useLanguage must be used within a LanguageProvider');
+  }
+  return context;
+}

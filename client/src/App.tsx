@@ -4,6 +4,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
+import { LanguageSelector } from "@/components/LanguageSelector";
 import NotFound from "@/pages/not-found";
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminStores from "@/pages/admin/AdminStores";
@@ -11,9 +13,11 @@ import AdminCampaigns from "@/pages/admin/AdminCampaigns";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import { Store, Tag, LogOut, LayoutDashboard } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 function AdminLayout({ children }: { children: React.ReactNode }) {
   const { logoutAdmin, admin } = useAuth();
+  const { t } = useLanguage();
 
   return (
     <SidebarProvider>
@@ -28,7 +32,7 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
                     <SidebarMenuButton asChild>
                       <a href="/admin/stores" data-testid="link-stores">
                         <Store />
-                        <span>Stores</span>
+                        <span>{t('nav.stores')}</span>
                       </a>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -36,7 +40,7 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
                     <SidebarMenuButton asChild>
                       <a href="/admin/campaigns" data-testid="link-campaigns">
                         <Tag />
-                        <span>Campaigns</span>
+                        <span>{t('nav.campaigns')}</span>
                       </a>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -44,7 +48,7 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
                     <SidebarMenuButton asChild>
                       <a href="/admin/dashboard" data-testid="link-dashboard">
                         <LayoutDashboard />
-                        <span>Dashboard</span>
+                        <span>{t('nav.dashboard')}</span>
                       </a>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -57,17 +61,20 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
           <header className="flex items-center justify-between p-4 border-b">
             <div className="flex items-center gap-2">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
-              <h2 className="text-lg font-semibold">Welcome, {admin?.name}</h2>
+              <h2 className="text-lg font-semibold">{t('common.welcome')}, {admin?.name}</h2>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              data-testid="button-logout"
-              onClick={logoutAdmin}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </Button>
+            <div className="flex items-center gap-2">
+              <LanguageSelector />
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="button-logout"
+                onClick={logoutAdmin}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                {t('common.logout')}
+              </Button>
+            </div>
           </header>
           <main className="flex-1 overflow-auto p-6">
             {children}
@@ -112,12 +119,14 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </AuthProvider>
+      </LanguageProvider>
     </QueryClientProvider>
   );
 }
