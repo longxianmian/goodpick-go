@@ -13,7 +13,14 @@ import { translateText } from './services/translationService';
 import type { Admin, User } from '@shared/schema';
 
 const upload = multer({ storage: multer.memoryStorage() });
-const ossService = new AliOssService();
+
+let ossService: AliOssService | null = null;
+function getOssService(): AliOssService {
+  if (!ossService) {
+    ossService = new AliOssService();
+  }
+  return ossService;
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change_this_to_strong_secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
@@ -918,7 +925,7 @@ export function registerRoutes(app: Express): Server {
       const ext = req.file.originalname.split('.').pop();
       const objectName = `public/${timestamp}-${randomStr}.${ext}`;
 
-      const fileUrl = await ossService.uploadFile(
+      const fileUrl = await getOssService().uploadFile(
         objectName,
         req.file.buffer,
         req.file.mimetype
