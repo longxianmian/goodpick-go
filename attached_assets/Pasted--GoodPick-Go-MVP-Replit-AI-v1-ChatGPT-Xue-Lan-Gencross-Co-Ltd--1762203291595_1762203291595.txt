@@ -1,0 +1,708 @@
+# GoodPick Go MVP 开发说明书（面向 Replit AI / 工程师）
+
+> 版本：v1 · 作者：ChatGPT（为 Xue Lan / Gencross Co., Ltd. 编写）
+> 目标：基于现有 ProDee 的门店管理 / 活动管理 / 卡券详情模块，开发一个可在 Replit 开发、阿里云新加坡部署的 GoodPick Go MVP。
+
+---
+
+## 0. 项目定位 & 业务目标
+
+**品牌名称：GoodPick Go 好物推荐**
+**运营公司：Gencross Co., Ltd.（泰国）**
+
+### 0.1 系统角色
+
+GoodPick Go 是一个「在线推荐好物 + 领券 → 线下到店消费」的平台：
+
+* 面向消费者：
+
+  * 通过 TikTok / Facebook / IG / YouTube / LINE 等渠道看到内容和广告；
+  * 点击进入 **活动落地页**（支持多语言），用 **LINE 一键登录**；
+  * 领取数字优惠券，在「我的卡券」页面查看和使用；
+  * 到合作门店出示卡券，享受优惠。
+
+* 面向运营（后台 Admin）：
+
+  * 管理门店（Stores）；
+  * 管理活动（Campaigns）；
+  * 为活动配置多语言文案、关联门店、上传 Banner / 商品图片；
+  * 一键调用 OpenAI 翻译活动文案为多语言；
+  * 查询用户领券数据（可选）。
+
+* 面向门店 / 品牌：
+
+  * 提供一个简单的「券核销」入口（可在 MVP 中先简化）。
+
+### 0.2 核心要求
+
+1. **不绑定具体品类**（不仅仅是儿童智能手表），活动文案必须是可配置的，代码里不写死任何产品名称；
+2. **以 LINE 为主要账号体系与入口**：
+
+   * 用户通过 LINE OA / LIFF 打开页面；
+   * 使用 LINE Login（id_token）完成一键登录；
+   * 后端以 `line_user_id` 作为用户唯一标识；
+3. **多语言系统**：
+
+   * 固定 UI 文案使用 Vue I18n（zh-cn / en-us / th-th）；
+   * 活动内容文案（标题 / 描述）使用 OpenAI API 在后台自动翻译；
+4. **开发环境与生产环境分离**：
+
+   * Replit 用于开发与测试；
+   * 阿里云新加坡 ECS + RDS 作为生产环境；
+   * 从一开始按生产要求设计配置与启动脚本。
+
+---
+
+## 1. 技术栈与整体架构
+
+### 1.1 后端
+
+* Node.js 20.x
+* Express.js
+* PostgreSQL（开发可用 Replit Postgres / 本地 / Docker，生产用阿里云 RDS）
+* Drizzle ORM（或沿用现有 `db/query.js` + `shared/schema.js`）
+* JSON Web Token（JWT）用于：
+
+  * 用户（LINE 登录）
+  * Admin 后台登录
+* 外部集成：
+
+  * LINE Login + LIFF
+  * OpenAI 翻译 API
+  * （预留）OSS 媒体存储 / 短信 / 其他第三方
+
+### 1.2 前端
+
+* Admin 后台（B 端）：
+
+  * Vue 3 + Vue Router + Element Plus
+  * 使用现有的 `AdminStores.vue`、`AdminCampaigns.vue` 做基础
+
+* 用户端 H5 / LIFF（C 端）：
+
+  * Vue 3 SPA
+  * 使用现有 `CouponDetail.vue`（活动详情）和 `UserCouponDetail.vue`（用户卡券详情）作为基础组件进行改造
+  * 新增「我的卡券列表」页面
+  * 集成 LINE LIFF SDK 实现一键登录
+
+* 多语言：
+
+  * Vue I18n：已有 `zh-cn.js / en-us.js / th-th.js` 三种语言文件
+  * 活动文案多语言由后端 + OpenAI 翻译生成
+
+### 1.3 部署
+
+* **开发环境**：Replit
+
+  * 使用 `npm run dev` / `npm run start` 进行开发与模拟生产
+
+* **生产环境**：阿里云 ECS（Ubuntu，新加坡）
+
+  * Node 20.x
+  * PM2 管理 Node 进程
+  * Nginx 作为反向代理 + HTTPS（Let’s Encrypt）
+  * PostgreSQL 在阿里云 RDS
+
+---
+
+## 2. 环境与配置约定
+
+### 2.1 Node & npm
+
+* 统一使用 Node 20.x
+* 在 `package.json` 中声明：
+
+```jsonc
+"engines": {
+  "node": "20.x"
+}
+```
+
+### 2.2 启动脚本
+
+```jsonc
+"scripts": {
+  "dev": "node src/server/index.js",
+  "start": "NODE_ENV=production node src/server/index.js"
+}
+```
+
+* Replit 开发：
+
+  * 功能开发：`npm run dev`
+  * 功能验证（生产模拟）：`cp .env.dev .env && npm run start`
+* 阿里云生产：
+
+  * `cp .env.prod .env`
+  * `pm2 start npm --name goodpick-go-backend -- start`
+
+### 2.3 环境变量（.env）
+
+规范：后端只读取 `.env` 文件，开发 / 生产分别维护：
+
+* `.env.dev` → Replit
+* `.env.prod` → 阿里云
+
+**必需变量（V1）**：
+
+```env
+# 通用
+NODE_ENV=development
+PORT=5001
+
+# 数据库
+DB_HOST=...
+DB_PORT=5432
+DB_USER=...
+DB_PASSWORD=...
+DB_NAME=goodpick_go
+
+# URL
+BASE_URL=http://localhost:5001             # 生产：https://api.goodpickgo.com
+H5_BASE_URL=http://localhost:5173          # 生产：https://h5.goodpickgo.com
+
+# LINE
+LINE_CHANNEL_ID=...
+LINE_CHANNEL_SECRET=...
+LINE_LIFF_ID_MAIN=...
+LINE_REDIRECT_URI=${BASE_URL}/api/auth/line/callback
+
+# JWT
+JWT_SECRET=change_this_to_strong_secret
+JWT_EXPIRES_IN=7d
+
+# OpenAI 翻译
+OPENAI_API_KEY=...
+OPENAI_MODEL_TRANSLATE=gpt-4o-mini        # 或其他适合翻译的轻量模型
+
+# OSS / 媒体（可选，参考原 ProDee 的 objectStorage 设计）
+OSS_ENDPOINT=...
+OSS_BUCKET=...
+OSS_ACCESS_KEY_ID=...
+OSS_ACCESS_KEY_SECRET=...
+```
+
+---
+
+## 3. 数据模型设计
+
+> 在原 ProDee 的 `stores / campaigns / coupons` 等表基础上，针对 GoodPick Go MVP 明确字段需求。
+
+### 3.1 stores（门店表）
+
+* `id` (PK)
+* `name`：门店名
+* `brand`：品牌名（例如 BaNANA / JIB），可选
+* `city`
+* `address`
+* `latitude`
+* `longitude`
+* `phone`
+* `is_active` (bool)
+* `created_at`
+* `updated_at`
+
+> 对应 AdminStores.vue 中的门店管理界面。
+
+### 3.2 campaigns（活动表）
+
+每个活动是一类“可领取的优惠券”，包含多语言文案。
+
+**多语言字段设计（结合 OpenAI 翻译）：**
+
+* 主语言设置：
+
+  * `title_source_lang`：`zh-cn | en-us | th-th`
+  * `title_source`：主语言标题
+  * `description_source_lang`
+  * `description_source`
+
+* 翻译结果存储：
+
+  * `title_zh`
+  * `title_en`
+  * `title_th`
+  * `description_zh`
+  * `description_en`
+  * `description_th`
+
+**其他业务字段：**
+
+* `id` (PK)
+* `banner_image_url`
+* `coupon_value`：数值，例如 450（单位单位说明在 UI 中做）
+* `discount_type`：`fixed | percentage | gift`
+* `start_at`
+* `end_at`
+* `is_active`
+* `max_per_user`：单用户可领数量上限（默认 1）
+* `max_total`：活动总发放上限（可选）
+* `created_at`
+* `updated_at`
+
+### 3.3 campaign_stores（活动-门店关联）
+
+* `id` (PK)
+* `campaign_id` (FK → campaigns)
+* `store_id` (FK → stores)
+
+> AdminCampaigns.vue 中选门店时使用此表。
+
+### 3.4 users（用户表，以 LINE 为主）
+
+* `id` (PK)
+* `line_user_id`：LINE userId（唯一索引）
+* `display_name`：LINE 昵称
+* `avatar_url`
+* `language`：`zh-cn | en-us | th-th`（用户偏好语言）
+* `created_at`
+* `updated_at`
+
+> 所有用户相关接口仅通过 JWT 中携带的 user_id / line_user_id 识别用户。
+
+### 3.5 coupons（用户券记录）
+
+* `id` (PK)
+* `user_id` (FK → users.id)
+* `campaign_id` (FK → campaigns.id)
+* `code`：券码（建议规则：活动前缀 + 随机字符串）
+* `status`：`unused | used | expired`
+* `issued_at`
+* `used_at`
+* `expired_at`
+* `channel`：来源渠道（line_menu / tiktok / facebook / ig / youtube / other）
+* `store_id`：如限定某一门店核销（可选）
+
+> `UserCouponDetail.vue` 展示的就是单条 `coupons` 记录加上活动与门店信息。
+
+---
+
+## 4. 后端结构与路由设计
+
+### 4.1 代码结构建议
+
+```text
+src/
+  server/
+    index.js              # Express 入口
+    routes/
+      admin.js            # Admin 后台 API（基于现有 admin.js 改造）
+      auth.js             # Admin 登录 + LINE 登录
+      user.js             # 用户端 API（领券 / 我的卡券）
+      public.js           # 无需登录的公开活动接口
+    middleware/
+      adminAuth.js        # Admin 权限中间件
+      auth.js             # 用户 JWT 权限中间件
+    db/
+      query.js            # 现有 SQL 封装（或 Drizzle 封装）
+    storage/
+      index.js            # PG / Drizzle 连接
+    services/
+      line.js             # LINE 登录 / 验证 id_token
+      translationService.js # 调用 OpenAI 翻译
+      couponService.js    # 券生成 / 查询 / 状态更新
+shared/
+  schema.js               # Drizzle schema：stores/campaigns/users/coupons/campaign_stores
+```
+
+### 4.2 Express 入口（index.js）
+
+职责：
+
+* 载入 `.env`
+* 创建 Express app
+* 中间件：
+
+  * `express.json()`
+  * CORS（允许 H5 / Admin 域名）
+  * 基础访问日志
+* 路由挂载：
+
+  * `/api/admin` → admin.js
+  * `/api/auth` → auth.js
+  * `/api/user` → user.js
+  * `/api/public` → public.js
+* 健康检查：
+
+  * `GET /healthz` → `{ ok: true, ts: ... }`
+* 监听 `PORT`
+
+### 4.3 Admin 路由（/api/admin）
+
+基于现有 `backend/admin.js` 改造，保留门店与活动逻辑，删除与本 MVP 无关模块。
+
+**权限**：所有 /api/admin/* 必须使用 `adminAuthMiddleware`。
+
+#### 4.3.1 Admin 登录
+
+* `POST /api/auth/admin/login`
+
+  * 请求：`{ email, password }`
+  * 响应：`{ ok: true, token, admin: {...} }`
+  * token 为 Admin JWT，后续 /api/admin/* 在 `Authorization: Bearer <token>` 中携带。
+
+#### 4.3.2 门店管理
+
+* `GET /api/admin/stores`
+* `POST /api/admin/stores`
+* `PUT /api/admin/stores/:id`
+* `DELETE /api/admin/stores/:id`（软删除 → is_active=false）
+
+#### 4.3.3 活动管理
+
+* `GET /api/admin/campaigns`
+
+* `GET /api/admin/campaigns/:id`
+
+* `POST /api/admin/campaigns`
+
+* `PUT /api/admin/campaigns/:id`
+
+* `DELETE /api/admin/campaigns/:id`
+
+* `GET /api/admin/campaigns/:id/stores`：获取活动关联门店
+
+* `POST /api/admin/campaigns/:id/stores`：更新活动关联门店
+
+#### 4.3.4 活动文案自动翻译（使用 OpenAI）
+
+* `POST /api/admin/campaigns/:id/auto-translate`
+
+  * 请求体示例：
+
+    ```json
+    {
+      "fields": ["title", "description"],
+      "targetLangs": ["zh-cn", "en-us", "th-th"]
+    }
+    ```
+  * 后端逻辑：
+
+    * 从 DB 读取该活动，取出 `title_source_lang` + `title_source`；
+    * 对于每个 targetLang ≠ sourceLang：
+
+      * 调用 `translationService.translateText({ text: title_source, sourceLang, targetLang })`；
+      * 写入 `title_zh / title_en / title_th` 对应字段；
+    * description 同理；
+    * 返回更新后的 campaign 对象。
+
+Admin 前端在活动编辑页提供一个「自动翻译」按钮，调用此接口，并刷新表单中的目标语言字段，允许运营手动微调翻译结果。
+
+### 4.4 Public 路由（/api/public）
+
+用于活动落地页在未登录状态下获取活动信息。
+
+* `GET /api/public/campaigns/:id`
+
+  * 请求：
+
+    * 可选 Query：`?lang=zh-cn|en-us|th-th`
+    * 或使用 `Accept-Language` 头
+  * 响应：
+
+    ```json
+    {
+      "id": 1,
+      "title": "当前语言优先的标题",
+      "description": "当前语言优先的描述",
+      "raw": {
+        "title": {
+          "source_lang": "zh-cn",
+          "source": "...",
+          "zh-cn": "...",
+          "en-us": "...",
+          "th-th": "..."
+        },
+        "description": { ... }
+      },
+      "banner_image_url": "...",
+      "coupon_value": 450,
+      "discount_type": "fixed",
+      "start_at": "...",
+      "end_at": "...",
+      "stores": [
+        { "id": 1, "name": "...", "city": "...", "address": "..." }
+      ]
+    }
+    ```
+
+后端内部用一个辅助函数，根据 locale 和 source_lang 优先级选择 `title/description` 字段。
+
+### 4.5 用户认证 & LINE 登录（/api/auth + /api/user）
+
+#### 4.5.1 LINE 登录接口
+
+* `POST /api/auth/line/login`
+
+  * 请求体：`{ idToken: "..." }`
+  * 处理流程：
+
+    1. 通过 LINE 官方接口验证 id_token：
+
+       * Endpoint: `https://api.line.me/oauth2/v2.1/verify`
+       * 携带 client_id（channel id）等参数；
+    2. 解析响应，获取：
+
+       * `sub` → `line_user_id`
+       * `name` / `picture` / `language` 等；
+    3. 在 users 表中查找 `line_user_id`：
+
+       * 不存在 → 插入新用户；
+       * 存在 → 更新昵称 / 头像 / 语言；
+    4. 使用 `JWT_SECRET` 生成 JWT：负载至少包含 `{ user_id, line_user_id }`；
+    5. 返回：
+
+       ```json
+       {
+         "ok": true,
+         "token": "JWT_TOKEN_STRING",
+         "user": {
+           "id": 1,
+           "line_user_id": "Uxxxxxxxx",
+           "display_name": "...",
+           "avatar_url": "...",
+           "language": "th-th"
+         }
+       }
+       ```
+
+前端 H5 / LIFF 在启动时调用此接口，拿到 JWT 后存入 localStorage / Pinia，并在后续请求的 Authorization 头中带上。
+
+#### 4.5.2 用户认证中间件（middleware/auth.js）
+
+实现 `userAuthMiddleware`：
+
+* 从 `Authorization: Bearer <token>` 中解析 JWT；
+* 验证签名与过期时间；
+* 将 `{ user_id, line_user_id }` 挂载到 `req.user`；
+* 验证失败 → 返回 401。
+
+所有 `/api/user/*` 接口必须使用此中间件。
+
+#### 4.5.3 用户侧领券 & 卡包接口（/api/user）
+
+* `POST /api/user/campaigns/:id/claim`
+
+  * 功能：当前用户为指定活动领取一张券；
+  * 逻辑：
+
+    * 检查活动是否存在且在有效期内；
+    * 检查用户是否已达到该活动 `max_per_user` 限制；
+    * 若未达到：
+
+      * 创建一条 `coupons` 记录（status=unused）；
+    * 返回这张券的详情（可选返回券详情页 URL）。
+
+* `GET /api/user/coupons`
+
+  * 返回当前用户所有券列表（可支持 status 过滤与分页）。
+
+* `GET /api/user/coupons/:id`
+
+  * 返回当前用户某张券的详细信息（确保券归属当前用户）。
+
+### 4.6 门店核销接口（MVP 可选简化）
+
+简单 MVP 版本：
+
+* `POST /api/admin/coupons/:id/redeem`
+
+  * 由 Admin / 门店登录后调用；
+  * 检查券状态：
+
+    * `unused` → 标记为 `used` + 写入 `used_at`；
+    * 其他状态 → 返回错误。
+
+后续可再扩展为门店专属账户及专用核销页面。
+
+---
+
+## 5. OpenAI 多语言翻译设计（重点）
+
+### 5.1 Translation Service（services/translationService.js）
+
+实现一个专门调用 OpenAI API 的服务，用于：
+
+* 将运营在主语言中填写的活动标题 / 描述翻译为其它语言；
+* 只在「创建 / 编辑活动」时调用，而不是每次用户访问时实时翻译。
+
+示意伪代码：
+
+```js
+import OpenAI from "openai"
+
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+const MODEL = process.env.OPENAI_MODEL_TRANSLATE || "gpt-4o-mini"
+
+export async function translateText({ text, sourceLang, targetLang }) {
+  const systemPrompt = `你是一个专业的营销文案翻译助手。请在忠实原意的前提下，翻译成自然、简洁、适合广告落地页的${targetLang}文案。不要添加新含义，不要出现你自己的品牌名。`
+
+  const userPrompt = `源语言：${sourceLang}\n目标语言：${targetLang}\n\n原文：\n${text}`
+
+  const res = await client.responses.create({
+    model: MODEL,
+    input: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt }
+    ]
+  })
+
+  // 按最新 SDK 解析 output
+  const output = res.output[0].content[0].text
+  return output.trim()
+}
+```
+
+**约束：**
+
+* 不允许在翻译 Prompt 中写死任何特定产品，如“儿童智能手表”；
+* 文案内容完全由活动原文决定，系统 Prompt 只负责语气和格式要求。
+
+### 5.2 Admin 活动自动翻译流程
+
+1. Admin 新建 / 编辑活动时：
+
+   * 选择 `title_source_lang` / `description_source_lang`；
+   * 填写 `title_source` / `description_source`；
+
+2. 点击「自动翻译」按钮：
+
+   * 前端调用 `POST /api/admin/campaigns/:id/auto-translate`；
+
+3. 后端按 4.3.4 描述：
+
+   * 对所有 targetLang ≠ sourceLang 调用 `translateText`；
+   * 将翻译结果写入对应语言的字段；
+   * 返回更新后的活动对象；
+
+4. Admin 前端刷新表单，展示翻译结果，运营可以人工微调；
+
+5. 用户端 H5 调用 `/api/public/campaigns/:id` 时，只用「当前 locale 对应字段」或回落到主语言字段，不再调用 OpenAI。
+
+---
+
+## 6. 前端设计
+
+### 6.1 用户端 H5 / LIFF（GoodPick Go）
+
+路由示例（Vue Router）：
+
+* `/campaigns/:id`
+
+  * 活动落地页（基于 CouponDetail.vue 改造）
+  * 功能：
+
+    * 未登录 → 使用 LIFF 登录；
+    * 登录后展示：活动图、规则、多语言文案、门店列表；
+    * 提供「立即领取」按钮，调用 `POST /api/user/campaigns/:id/claim`；
+    * 领取成功后跳转到 `/my/coupons/:couponId` 或显示成功提示。
+
+* `/my/coupons`
+
+  * 我的卡券列表（新增组件）
+  * 调用 `GET /api/user/coupons` 获取当前用户所有券，按状态 / 时间排序；
+
+* `/my/coupons/:id`
+
+  * 用户券详情页（基于 UserCouponDetail.vue 改造）
+  * 展示券码、二维码（可选）、有效期、适用门店与活动规则。
+
+#### 6.1.1 LIFF 初始化与 LINE 登录
+
+在 H5 前端入口（例如 `main.ts` 或专门的 `liff-init.ts`）中：
+
+```js
+import liff from "@line/liff"
+
+async function initLiffAndLogin() {
+  await liff.init({ liffId: import.meta.env.VITE_LINE_LIFF_ID_MAIN })
+
+  if (!liff.isLoggedIn()) {
+    liff.login()
+    return
+  }
+
+  const idToken = liff.getIDToken()
+  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/line/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken })
+  })
+
+  const data = await res.json()
+  if (data.ok) {
+    // 保存 data.token 到 localStorage / Pinia
+  }
+}
+```
+
+### 6.2 多语言界面（UI 固定文案）
+
+* 使用现有 `zh-cn.js / en-us.js / th-th.js`：
+
+  * 所有按钮、菜单、错误提示、状态文案通过 Vue I18n 实现；
+  * 活动内容（title/description）由后端返回已翻译好的字符串。
+
+示例：
+
+```vue
+<button>{{ $t('campaign.claimButton') }}</button>
+```
+
+### 6.3 Admin 后台
+
+* 路由：
+
+  * `/admin/stores` → `AdminStores.vue`
+  * `/admin/campaigns` → `AdminCampaigns.vue`
+
+在 `AdminCampaigns.vue` 中需要新增：
+
+* 主语言选择控件（select：zh-cn / en-us / th-th）；
+* 主语言标题与描述输入框；
+* “自动翻译”按钮，调用 `/api/admin/campaigns/:id/auto-translate`；
+* 多语言编辑区域：展示 `title_zh/en/th` / `description_zh/en/th` 结果，允许手动修改。
+
+---
+
+## 7. 部署与防坑要求（简要）
+
+### 7.1 Replit 开发
+
+1. `npm install`
+2. 配置 `.env.dev`（或使用 Replit Secrets 模拟）
+3. 开发阶段：`npm run dev`
+4. 每个大功能完成后：
+
+   ```bash
+   cp .env.dev .env
+   npm run start
+   ```
+
+   确保生产模式也能正常运行。
+
+### 7.2 阿里云生产
+
+1. 将代码拷贝到 `/opt/goodpick-go` 之类目录；
+2. `cp .env.prod .env`；
+3. `npm install --production`；
+4. `npm run start`（先不用 PM2）测试；
+5. 确认 `curl 127.0.0.1:PORT/healthz` 正常；
+6. 使用 PM2：
+
+   ```bash
+   pm2 start npm --name goodpick-go-backend -- start
+   pm2 save
+   ```
+7. Nginx 反向代理 + HTTPS 配置（略，按 ProDee 成熟方案即可）。
+
+---
+
+## 8. 给 Replit AI / 工程师的一句总任务
+
+> 在现有 ProDee 的门店管理（AdminStores.vue）、活动管理（AdminCampaigns.vue）、卡券详情页（CouponDetail.vue / UserCouponDetail.vue）以及后端 admin.js 基础上，按照本说明书：
+>
+> 1. 搭建 GoodPick Go 的后端（Express + PostgreSQL + JWT + LINE 登录 + OpenAI 翻译），实现 stores / campaigns / users / coupons / campaign_stores 的数据模型与 API；
+> 2. 完成 H5 / LIFF 用户端页面（活动落地页 + 我的卡券 + 券详情），整合 LINE 一键登录和多语言展示；
+> 3. 改造 Admin 后台，使运营可以管理门店、活动、多语言文案，并调用 OpenAI 自动翻译；
+> 4. 保证项目在 Replit 中可用 `npm run dev` 与 `npm run start` 运行，并可迁移到阿里云新加坡服务器部署为生产环境。
