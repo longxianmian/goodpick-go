@@ -76,15 +76,16 @@ Core entities:
 - **Admins**: Platform administrators with email/password authentication
 - **Users**: End consumers authenticated via LINE (lineUserId as unique identifier)
 - **Stores**: Physical locations with geocoding support
-- **Campaigns**: Marketing campaigns with multi-language content fields
+- **Campaigns**: Marketing campaigns with simple title and description fields
 - **CampaignStores**: Many-to-many relationship linking campaigns to stores
 - **Coupons**: User-claimed coupons with unique codes and redemption tracking
 - **MediaFiles**: Images and videos associated with campaigns
 
-Multi-language pattern:
-- Separate columns for each language (title_zh_cn, title_en_us, title_th_th)
-- Description fields follow same pattern
-- Fallback logic: if translation missing, use original field
+Important Design Decision:
+- Campaign content (title, description) uses **single-language** fields only
+- Multi-language support is for **UI interface** translation via i18n, not campaign data
+- Administrators input campaign content in one language of their choice
+- No automatic translation feature for campaign content
 
 Enums:
 - discount_type: final_price, gift_card, cash_voucher, full_reduction, percentage_off
