@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -8,11 +8,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { Store } from '@shared/schema';
+
+interface PlaceSuggestion {
+  placeId: string;
+  mainText: string;
+  secondaryText: string;
+  description: string;
+}
 
 export default function AdminStores() {
   const { adminToken, logoutAdmin } = useAuth();
@@ -28,7 +37,12 @@ export default function AdminStores() {
     phone: '',
     latitude: '',
     longitude: '',
+    rating: '',
   });
+  const [addressSearchOpen, setAddressSearchOpen] = useState(false);
+  const [addressSearchValue, setAddressSearchValue] = useState('');
+  const [placeSuggestions, setPlaceSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [searchingPlaces, setSearchingPlaces] = useState(false);
 
   const { data: stores, isLoading } = useQuery<{ ok: boolean; stores: Store[] }>({
     queryKey: ['/api/admin/stores'],
@@ -117,6 +131,58 @@ export default function AdminStores() {
     },
   });
 
+  const searchPlaces = useCallback(async (input: string) => {
+    if (!input || input.length < 2) {
+      setPlaceSuggestions([]);
+      return;
+    }
+
+    try {
+      setSearchingPlaces(true);
+      const res = await fetch(`/api/admin/places/autocomplete?input=${encodeURIComponent(input)}`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const data = await res.json();
+      
+      if (data.ok && data.suggestions) {
+        setPlaceSuggestions(data.suggestions);
+      }
+    } catch (error) {
+      console.error('Places search error:', error);
+    } finally {
+      setSearchingPlaces(false);
+    }
+  }, [adminToken]);
+
+  const selectPlace = async (place: PlaceSuggestion) => {
+    try {
+      const res = await fetch(`/api/admin/places/details?placeId=${encodeURIComponent(place.placeId)}`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const data = await res.json();
+      
+      if (data.ok && data.details) {
+        const details = data.details;
+        setFormData(prev => ({
+          ...prev,
+          name: prev.name || details.name || '',
+          address: details.address || '',
+          city: details.city || '',
+          latitude: details.lat ? String(details.lat) : '',
+          longitude: details.lng ? String(details.lng) : '',
+          rating: details.rating ? String(details.rating) : '',
+          phone: details.phone || prev.phone,
+        }));
+        setAddressSearchValue(details.address || '');
+        setAddressSearchOpen(false);
+        toast({ title: t('common.success'), description: t('stores.placeSelected') });
+      }
+    } catch (error) {
+      console.error('Place details error:', error);
+      toast({ title: t('common.error'), description: t('stores.placeDetailsError'), variant: 'destructive' });
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -126,7 +192,10 @@ export default function AdminStores() {
       phone: '',
       latitude: '',
       longitude: '',
+      rating: '',
     });
+    setAddressSearchValue('');
+    setPlaceSuggestions([]);
     setEditingStore(null);
   };
 
@@ -140,7 +209,9 @@ export default function AdminStores() {
       phone: store.phone || '',
       latitude: store.latitude || '',
       longitude: store.longitude || '',
+      rating: store.rating ? String(store.rating) : '',
     });
+    setAddressSearchValue(store.address);
     setIsDialogOpen(true);
   };
 
@@ -210,6 +281,65 @@ export default function AdminStores() {
                 </div>
               </div>
               <div className="space-y-2">
+                <Label>{t('stores.searchAddress')}</Label>
+                <Popover open={addressSearchOpen} onOpenChange={setAddressSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={addressSearchOpen}
+                      className="w-full justify-between"
+                      data-testid="button-search-address"
+                    >
+                      <span className="truncate">{addressSearchValue || t('stores.searchPlaceholder')}</span>
+                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[500px] p-0" align="start">
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder={t('stores.typeToSearch')}
+                        value={addressSearchValue}
+                        onValueChange={(value) => {
+                          setAddressSearchValue(value);
+                          searchPlaces(value);
+                        }}
+                        data-testid="input-search-place"
+                      />
+                      <CommandList>
+                        {searchingPlaces && (
+                          <div className="py-6 text-center text-sm text-muted-foreground">
+                            {t('common.loading')}
+                          </div>
+                        )}
+                        {!searchingPlaces && placeSuggestions.length === 0 && addressSearchValue.length >= 2 && (
+                          <CommandEmpty>{t('stores.noResults')}</CommandEmpty>
+                        )}
+                        {!searchingPlaces && placeSuggestions.length > 0 && (
+                          <CommandGroup>
+                            {placeSuggestions.map((place) => (
+                              <CommandItem
+                                key={place.placeId}
+                                value={place.description}
+                                onSelect={() => selectPlace(place)}
+                                data-testid={`place-item-${place.placeId}`}
+                              >
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{place.mainText}</span>
+                                  <span className="text-sm text-muted-foreground">{place.secondaryText}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        )}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <p className="text-sm text-muted-foreground">{t('stores.searchHelp')}</p>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="address">{t('stores.address')} *</Label>
                 <Input
                   id="address"
@@ -219,12 +349,14 @@ export default function AdminStores() {
                   required
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="latitude">{t('stores.latitude')}</Label>
                   <Input
                     id="latitude"
                     data-testid="input-store-latitude"
+                    type="number"
+                    step="any"
                     value={formData.latitude}
                     onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
                   />
@@ -234,8 +366,23 @@ export default function AdminStores() {
                   <Input
                     id="longitude"
                     data-testid="input-store-longitude"
+                    type="number"
+                    step="any"
                     value={formData.longitude}
                     onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="rating">{t('stores.rating')}</Label>
+                  <Input
+                    id="rating"
+                    data-testid="input-store-rating"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="5"
+                    value={formData.rating}
+                    onChange={(e) => setFormData({ ...formData, rating: e.target.value })}
                   />
                 </div>
               </div>
