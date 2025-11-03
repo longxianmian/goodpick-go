@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -15,6 +16,7 @@ import type { Store } from '@shared/schema';
 
 export default function AdminStores() {
   const { adminToken, logoutAdmin } = useAuth();
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStore, setEditingStore] = useState<Store | null>(null);
@@ -62,12 +64,12 @@ export default function AdminStores() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/stores'] });
-      toast({ title: 'Success', description: 'Store created successfully' });
+      toast({ title: t('common.success'), description: t('stores.createSuccess') });
       setIsDialogOpen(false);
       resetForm();
     },
     onError: () => {
-      toast({ title: 'Error', description: 'Failed to create store', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('stores.createError'), variant: 'destructive' });
     },
   });
 
@@ -89,12 +91,12 @@ export default function AdminStores() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/stores'] });
-      toast({ title: 'Success', description: 'Store updated successfully' });
+      toast({ title: t('common.success'), description: t('stores.updateSuccess') });
       setIsDialogOpen(false);
       resetForm();
     },
     onError: () => {
-      toast({ title: 'Error', description: 'Failed to update store', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('stores.updateError'), variant: 'destructive' });
     },
   });
 
@@ -108,10 +110,10 @@ export default function AdminStores() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/stores'] });
-      toast({ title: 'Success', description: 'Store deleted successfully' });
+      toast({ title: t('common.success'), description: t('stores.deleteSuccess') });
     },
     onError: () => {
-      toast({ title: 'Error', description: 'Failed to delete store', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('stores.deleteError'), variant: 'destructive' });
     },
   });
 
@@ -154,22 +156,22 @@ export default function AdminStores() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Stores Management</h1>
+        <h1 className="text-3xl font-bold">{t('stores.title')}</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-create-store" onClick={resetForm}>
               <Plus className="mr-2 h-4 w-4" />
-              Add Store
+              {t('stores.addStore')}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>{editingStore ? 'Edit Store' : 'Create New Store'}</DialogTitle>
+              <DialogTitle>{editingStore ? t('stores.editTitle') : t('stores.createTitle')}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Store Name *</Label>
+                  <Label htmlFor="name">{t('stores.name')} *</Label>
                   <Input
                     id="name"
                     data-testid="input-store-name"
@@ -179,7 +181,7 @@ export default function AdminStores() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="brand">Brand</Label>
+                  <Label htmlFor="brand">{t('stores.brand')}</Label>
                   <Input
                     id="brand"
                     data-testid="input-store-brand"
@@ -188,7 +190,7 @@ export default function AdminStores() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="city">City *</Label>
+                  <Label htmlFor="city">{t('stores.city')} *</Label>
                   <Input
                     id="city"
                     data-testid="input-store-city"
@@ -198,7 +200,7 @@ export default function AdminStores() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
+                  <Label htmlFor="phone">{t('stores.phone')}</Label>
                   <Input
                     id="phone"
                     data-testid="input-store-phone"
@@ -208,7 +210,7 @@ export default function AdminStores() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="address">Address *</Label>
+                <Label htmlFor="address">{t('stores.address')} *</Label>
                 <Input
                   id="address"
                   data-testid="input-store-address"
@@ -219,7 +221,7 @@ export default function AdminStores() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="latitude">Latitude</Label>
+                  <Label htmlFor="latitude">{t('stores.latitude')}</Label>
                   <Input
                     id="latitude"
                     data-testid="input-store-latitude"
@@ -228,7 +230,7 @@ export default function AdminStores() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="longitude">Longitude</Label>
+                  <Label htmlFor="longitude">{t('stores.longitude')}</Label>
                   <Input
                     id="longitude"
                     data-testid="input-store-longitude"
@@ -239,14 +241,14 @@ export default function AdminStores() {
               </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   type="submit"
                   data-testid="button-save-store"
                   disabled={createMutation.isPending || updateMutation.isPending}
                 >
-                  {editingStore ? 'Update' : 'Create'}
+                  {editingStore ? t('common.edit') : t('common.create')}
                 </Button>
               </div>
             </form>
@@ -256,7 +258,7 @@ export default function AdminStores() {
 
       <Card>
         <CardHeader>
-          <CardTitle>All Stores</CardTitle>
+          <CardTitle>{t('stores.allStores')}</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -269,12 +271,12 @@ export default function AdminStores() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Brand</TableHead>
-                  <TableHead>City</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t('stores.name')}</TableHead>
+                  <TableHead>{t('stores.brand')}</TableHead>
+                  <TableHead>{t('stores.city')}</TableHead>
+                  <TableHead>{t('stores.address')}</TableHead>
+                  <TableHead>{t('stores.phone')}</TableHead>
+                  <TableHead className="text-right">{t('stores.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

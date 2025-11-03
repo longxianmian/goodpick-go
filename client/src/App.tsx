@@ -89,7 +89,7 @@ function ProtectedAdminRoute({ component: Component }: { component: React.Compon
   const { isAdminAuthenticated, admin, isLoading } = useAuth();
   
   if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return null;
   }
   
   if (!isAdminAuthenticated || !admin) {
