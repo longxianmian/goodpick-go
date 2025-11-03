@@ -10,9 +10,38 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { insertStoreSchema, insertCampaignSchema } from "@shared/schema";
+import multer from "multer";
+import { ObjectStorageService } from "./objectStorage";
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change_this_to_strong_secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+
+// Multer configuration for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB limit
+  },
+  fileFilter: (_req, file, cb) => {
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'video/mp4',
+      'video/webm',
+      'video/ogg',
+      'video/quicktime',
+      'video/x-msvideo',
+    ];
+    
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only images and videos are allowed.'));
+    }
+  },
+});
 
 export function registerRoutes(app: Express): Server {
   // ==================== Admin Auth Routes ====================
@@ -157,6 +186,58 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('LINE login error:', error);
       res.status(500).json({ ok: false, message: "Internal server error" });
+    }
+  });
+
+  // ==================== Admin Upload Routes ====================
+
+  app.post("/api/admin/upload/campaign-media", adminAuthMiddleware, upload.array('files', 10), async (req: Request, res: Response) => {
+    try {
+      const files = req.files as Express.Multer.File[];
+      
+      if (!files || files.length === 0) {
+        return res.status(400).json({ ok: false, message: "No files uploaded" });
+      }
+
+      const uploadedFiles: Array<{ url: string; type: string; size: number }> = [];
+      const objectStorageService = new ObjectStorageService();
+
+      for (const file of files) {
+        const timestamp = Date.now();
+        const randomStr = Math.random().toString(36).substring(7);
+        const extension = file.originalname.split('.').pop();
+        const filename = `campaign-media/${timestamp}-${randomStr}.${extension}`;
+
+        try {
+          const fileUrl = await objectStorageService.uploadFile(
+            filename,
+            file.buffer,
+            file.mimetype
+          );
+
+          uploadedFiles.push({
+            url: fileUrl,
+            type: file.mimetype.startsWith('image/') ? 'image' : 'video',
+            size: file.size,
+          });
+        } catch (uploadError) {
+          console.error(`Error uploading file ${file.originalname}:`, uploadError);
+          throw new Error(`Failed to upload ${file.originalname}`);
+        }
+      }
+
+      res.json({
+        ok: true,
+        data: {
+          files: uploadedFiles,
+        },
+      });
+    } catch (error) {
+      console.error('File upload error:', error);
+      res.status(500).json({
+        ok: false,
+        message: error instanceof Error ? error.message : "File upload failed",
+      });
     }
   });
 
