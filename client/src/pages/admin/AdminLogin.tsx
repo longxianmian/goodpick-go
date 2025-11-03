@@ -23,7 +23,7 @@ export default function AdminLogin() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/admin/login', {
+      const response = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -31,7 +31,7 @@ export default function AdminLogin() {
 
       const data = await response.json();
 
-      if (data.ok) {
+      if (data.success) {
         loginAdmin(data.token, data.admin);
         toast({ title: t('login.welcome'), description: t('login.loginSuccess') });
         setTimeout(() => {
