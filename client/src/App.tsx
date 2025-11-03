@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import NotFound from "@/pages/not-found";
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminStores from "@/pages/admin/AdminStores";
+import AdminCampaigns from "@/pages/admin/AdminCampaigns";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import { Store, Tag, LogOut, LayoutDashboard } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -99,9 +100,7 @@ function Router() {
       <Route path="/" component={() => <Redirect to="/admin/login" />} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin/stores" component={() => <ProtectedAdminRoute component={AdminStores} />} />
-      <Route path="/admin/campaigns">
-        {() => <ProtectedAdminRoute component={() => <div>Campaigns - Coming Soon</div>} />}
-      </Route>
+      <Route path="/admin/campaigns" component={() => <ProtectedAdminRoute component={AdminCampaigns} />} />
       <Route path="/admin/dashboard">
         {() => <ProtectedAdminRoute component={() => <div>Dashboard - Coming Soon</div>} />}
       </Route>
