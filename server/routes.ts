@@ -190,11 +190,13 @@ export function registerRoutes(app: Express): Server {
 
   app.post("/api/admin/stores", adminAuthMiddleware, async (req: Request, res: Response) => {
     try {
+      console.log('Store creation request body:', JSON.stringify(req.body, null, 2));
       const validatedData = insertStoreSchema.parse(req.body);
       const store = await storage.createStore(validatedData);
       res.json({ ok: true, store });
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error('Store validation error:', JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ ok: false, message: "Validation error", errors: error.errors });
       }
       console.error('Create store error:', error);
