@@ -69,8 +69,9 @@ export default function AdminStores() {
         },
         body: JSON.stringify({
           ...data,
-          latitude: data.latitude ? data.latitude : null,
-          longitude: data.longitude ? data.longitude : null,
+          latitude: data.latitude ? parseFloat(data.latitude) : null,
+          longitude: data.longitude ? parseFloat(data.longitude) : null,
+          rating: data.rating ? parseFloat(data.rating) : null,
           isActive: true,
         }),
       });
@@ -97,8 +98,9 @@ export default function AdminStores() {
         },
         body: JSON.stringify({
           ...data,
-          latitude: data.latitude ? data.latitude : null,
-          longitude: data.longitude ? data.longitude : null,
+          latitude: data.latitude ? parseFloat(data.latitude) : null,
+          longitude: data.longitude ? parseFloat(data.longitude) : null,
+          rating: data.rating ? parseFloat(data.rating) : null,
         }),
       });
       return res.json();
