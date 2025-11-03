@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
-import { Plus, Pencil, Trash2, Store as StoreIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, Store as StoreIcon, MapPin } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,8 +16,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { MediaUploader } from '@/components/MediaUploader';
 import type { Campaign, Store as StoreType } from '@shared/schema';
 import { format } from 'date-fns';
+
+interface MediaFile {
+  type: 'image' | 'video';
+  url: string;
+}
 
 type CampaignFormData = {
   title: string;
@@ -29,6 +35,8 @@ type CampaignFormData = {
   maxPerUser: string;
   maxTotal: string;
   isActive: boolean;
+  mediaFiles: MediaFile[];
+  storeIds: number[];
 };
 
 export default function AdminCampaigns() {
@@ -40,6 +48,7 @@ export default function AdminCampaigns() {
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
   const [selectedStoreIds, setSelectedStoreIds] = useState<number[]>([]);
+  const [selectedCities, setSelectedCities] = useState<string[]>([]);
   
   const [formData, setFormData] = useState<CampaignFormData>({
     title: '',
@@ -51,6 +60,8 @@ export default function AdminCampaigns() {
     maxPerUser: '1',
     maxTotal: '',
     isActive: true,
+    mediaFiles: [],
+    storeIds: [],
   });
 
   const { data: campaignsData, isLoading } = useQuery<{ ok: boolean; campaigns: Campaign[] }>({
@@ -197,6 +208,65 @@ export default function AdminCampaigns() {
     },
   });
 
+  // 城市筛选逻辑
+  const availableCities = useMemo(() => {
+    const cities = new Set<string>();
+    storesData?.stores.forEach((store) => {
+      if (store.city) {
+        cities.add(store.city);
+      }
+    });
+    return Array.from(cities).sort();
+  }, [storesData]);
+
+  const filteredStoresByCity = useMemo(() => {
+    if (selectedCities.length === 0) {
+      return [];
+    }
+    return (storesData?.stores || [])
+      .filter((store) => selectedCities.includes(store.city || ''))
+      .sort((a, b) => {
+        if (a.city !== b.city) {
+          return (a.city || '').localeCompare(b.city || '');
+        }
+        return a.name.localeCompare(b.name);
+      });
+  }, [storesData, selectedCities]);
+
+  const allCitiesSelected = useMemo(() => {
+    return availableCities.length > 0 && selectedCities.length === availableCities.length;
+  }, [availableCities, selectedCities]);
+
+  const allFilteredStoresSelected = useMemo(() => {
+    if (filteredStoresByCity.length === 0) return false;
+    const filteredStoreIds = filteredStoresByCity.map((s) => s.id);
+    return filteredStoreIds.every((id) => formData.storeIds.includes(id));
+  }, [filteredStoresByCity, formData.storeIds]);
+
+  const toggleAllCities = () => {
+    if (allCitiesSelected) {
+      setSelectedCities([]);
+    } else {
+      setSelectedCities([...availableCities]);
+    }
+  };
+
+  const toggleAllStores = () => {
+    const filteredStoreIds = filteredStoresByCity.map((s) => s.id);
+    if (allFilteredStoresSelected) {
+      setFormData({
+        ...formData,
+        storeIds: formData.storeIds.filter((id) => !filteredStoreIds.includes(id)),
+      });
+    } else {
+      const newIds = filteredStoreIds.filter((id) => !formData.storeIds.includes(id));
+      setFormData({
+        ...formData,
+        storeIds: [...formData.storeIds, ...newIds],
+      });
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       title: '',
@@ -208,8 +278,11 @@ export default function AdminCampaigns() {
       maxPerUser: '1',
       maxTotal: '',
       isActive: true,
+      mediaFiles: [],
+      storeIds: [],
     });
     setEditingCampaign(null);
+    setSelectedCities([]);
   };
 
   const handleCreate = () => {
@@ -220,6 +293,10 @@ export default function AdminCampaigns() {
 
   const handleEdit = (campaign: Campaign) => {
     setEditingCampaign(campaign);
+    // TODO: Parse media_files from campaign
+    const mediaFiles: MediaFile[] = [];
+    const storeIds: number[] = [];
+    
     setFormData({
       title: campaign.title,
       description: campaign.description,
@@ -230,6 +307,8 @@ export default function AdminCampaigns() {
       maxPerUser: campaign.maxPerUser.toString(),
       maxTotal: campaign.maxTotal?.toString() || '',
       isActive: campaign.isActive,
+      mediaFiles,
+      storeIds,
     });
     setIsDialogOpen(true);
   };
@@ -510,6 +589,131 @@ export default function AdminCampaigns() {
                   data-testid="checkbox-is-active"
                 />
                 <Label htmlFor="isActive" className="cursor-pointer">{t('campaigns.enableCampaign')}</Label>
+              </div>
+            </div>
+
+            {/* 媒体文件 */}
+            <div className="space-y-4">
+              <h3 className="font-medium">媒体文件 (1-5张图片或1个视频)</h3>
+              <MediaUploader
+                value={formData.mediaFiles}
+                onChange={(files) => setFormData({ ...formData, mediaFiles: files })}
+                maxImages={5}
+                maxVideos={1}
+                uploadUrl="/api/admin/upload/campaign-media"
+                uploadHeaders={{ Authorization: `Bearer ${adminToken}` }}
+              />
+            </div>
+
+            {/* 参与门店 */}
+            <div className="space-y-4">
+              <h3 className="font-medium">参与门店</h3>
+              
+              {/* 城市筛选 */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>选择城市</Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="link"
+                    onClick={toggleAllCities}
+                    data-testid="button-toggle-all-cities"
+                  >
+                    {allCitiesSelected ? '取消全选城市' : '全选城市'}
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {availableCities.map((city) => (
+                    <div key={city} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`city-${city}`}
+                        checked={selectedCities.includes(city)}
+                        onCheckedChange={() => {
+                          if (selectedCities.includes(city)) {
+                            setSelectedCities(selectedCities.filter((c) => c !== city));
+                          } else {
+                            setSelectedCities([...selectedCities, city]);
+                          }
+                        }}
+                        data-testid={`checkbox-city-${city}`}
+                      />
+                      <Label htmlFor={`city-${city}`} className="cursor-pointer">
+                        {city} ({storesData?.stores.filter((s) => s.city === city).length || 0})
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 门店列表 */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    已选 {formData.storeIds.length} 个门店
+                    {filteredStoresByCity.length > 0 && (
+                      <span> （筛选后可选 {filteredStoresByCity.length} 个）</span>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="link"
+                    onClick={toggleAllStores}
+                    disabled={filteredStoresByCity.length === 0}
+                    data-testid="button-toggle-all-stores"
+                  >
+                    {allFilteredStoresSelected ? '取消全选门店' : '全选门店'}
+                  </Button>
+                </div>
+                
+                <div className="max-h-64 overflow-y-auto space-y-2 border rounded-md p-4">
+                  {filteredStoresByCity.length === 0 ? (
+                    <div className="text-center text-sm text-muted-foreground py-8">
+                      请先选择城市
+                    </div>
+                  ) : (
+                    filteredStoresByCity.map((store) => (
+                      <div
+                        key={store.id}
+                        className={`flex items-center space-x-2 p-2 rounded-md transition-colors ${
+                          formData.storeIds.includes(store.id) ? 'bg-primary/5' : ''
+                        } hover-elevate`}
+                      >
+                        <Checkbox
+                          id={`form-store-${store.id}`}
+                          checked={formData.storeIds.includes(store.id)}
+                          onCheckedChange={() => {
+                            if (formData.storeIds.includes(store.id)) {
+                              setFormData({
+                                ...formData,
+                                storeIds: formData.storeIds.filter((id) => id !== store.id),
+                              });
+                            } else {
+                              setFormData({
+                                ...formData,
+                                storeIds: [...formData.storeIds, store.id],
+                              });
+                            }
+                          }}
+                          data-testid={`checkbox-form-store-${store.id}`}
+                        />
+                        <Label htmlFor={`form-store-${store.id}`} className="flex-1 cursor-pointer">
+                          <div className="flex items-center gap-2">
+                            <StoreIcon className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">{store.name}</span>
+                            <Badge variant="secondary" className="text-xs">{store.code}</Badge>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                            <MapPin className="h-3 w-3" />
+                            <span>{store.city}</span>
+                            <span className="text-xs">{store.address}</span>
+                          </div>
+                        </Label>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
 
