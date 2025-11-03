@@ -32,7 +32,9 @@ export default function AdminLogin() {
       if (data.ok) {
         loginAdmin(data.token, data.admin);
         toast({ title: 'Welcome back!', description: 'Successfully logged in.' });
-        setLocation('/admin/stores');
+        setTimeout(() => {
+          setLocation('/admin/stores');
+        }, 100);
       } else {
         toast({
           title: 'Login failed',

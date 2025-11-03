@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -78,10 +78,12 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
 }
 
 function ProtectedAdminRoute({ component: Component }: { component: React.ComponentType }) {
-  const { isAdminAuthenticated } = useAuth();
+  const { isAdminAuthenticated, admin } = useAuth();
+  const [, setLocation] = useLocation();
   
-  if (!isAdminAuthenticated) {
-    return <Redirect to="/admin/login" />;
+  if (!isAdminAuthenticated || !admin) {
+    setLocation('/admin/login');
+    return null;
   }
   
   return (
