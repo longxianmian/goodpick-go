@@ -51,23 +51,13 @@ export const insertStoreSchema = createInsertSchema(stores).omit({
 export type InsertStore = z.infer<typeof insertStoreSchema>;
 export type Store = typeof stores.$inferSelect;
 
-// Campaigns table with multi-language support
+// Campaigns table - simplified single-language design
 export const campaigns = pgTable('campaigns', {
   id: serial('id').primaryKey(),
   
-  // Source language fields
-  titleSourceLang: languageEnum('title_source_lang').notNull().default('zh-cn'),
-  titleSource: text('title_source').notNull(),
-  descriptionSourceLang: languageEnum('description_source_lang').notNull().default('zh-cn'),
-  descriptionSource: text('description_source').notNull(),
-  
-  // Translated fields
-  titleZh: text('title_zh'),
-  titleEn: text('title_en'),
-  titleTh: text('title_th'),
-  descriptionZh: text('description_zh'),
-  descriptionEn: text('description_en'),
-  descriptionTh: text('description_th'),
+  // Basic content fields (single language)
+  title: text('title').notNull(),
+  description: text('description').notNull(),
   
   // Business fields
   bannerImageUrl: text('banner_image_url'),

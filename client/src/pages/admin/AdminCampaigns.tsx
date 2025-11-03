@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
-import { Plus, Pencil, Trash2, Wand2, Store as StoreIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, Store as StoreIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,16 +20,8 @@ import type { Campaign, Store as StoreType } from '@shared/schema';
 import { format } from 'date-fns';
 
 type CampaignFormData = {
-  titleSourceLang: 'zh-cn' | 'en-us' | 'th-th';
-  titleSource: string;
-  descriptionSourceLang: 'zh-cn' | 'en-us' | 'th-th';
-  descriptionSource: string;
-  titleZh: string;
-  titleEn: string;
-  titleTh: string;
-  descriptionZh: string;
-  descriptionEn: string;
-  descriptionTh: string;
+  title: string;
+  description: string;
   couponValue: string;
   discountType: 'final_price' | 'gift_card' | 'cash_voucher' | 'full_reduction' | 'percentage_off';
   startAt: string;
@@ -48,19 +40,10 @@ export default function AdminCampaigns() {
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
   const [selectedStoreIds, setSelectedStoreIds] = useState<number[]>([]);
-  const [isTranslating, setIsTranslating] = useState(false);
   
   const [formData, setFormData] = useState<CampaignFormData>({
-    titleSourceLang: 'zh-cn',
-    titleSource: '',
-    descriptionSourceLang: 'zh-cn',
-    descriptionSource: '',
-    titleZh: '',
-    titleEn: '',
-    titleTh: '',
-    descriptionZh: '',
-    descriptionEn: '',
-    descriptionTh: '',
+    title: '',
+    description: '',
     couponValue: '',
     discountType: 'cash_voucher',
     startAt: '',
@@ -214,55 +197,10 @@ export default function AdminCampaigns() {
     },
   });
 
-  const autoTranslateMutation = useMutation({
-    mutationFn: async (campaignId: number) => {
-      const res = await fetch(`/api/admin/campaigns/${campaignId}/auto-translate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${adminToken}`,
-        },
-        body: JSON.stringify({
-          fields: ['title', 'description'],
-          targetLangs: ['zh-cn', 'en-us', 'th-th'],
-        }),
-      });
-      return res.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/campaigns'] });
-      if (editingCampaign) {
-        setFormData({
-          ...formData,
-          titleZh: data.campaign.titleZh || '',
-          titleEn: data.campaign.titleEn || '',
-          titleTh: data.campaign.titleTh || '',
-          descriptionZh: data.campaign.descriptionZh || '',
-          descriptionEn: data.campaign.descriptionEn || '',
-          descriptionTh: data.campaign.descriptionTh || '',
-        });
-      }
-      toast({ title: t('common.success'), description: t('campaigns.translateSuccess') });
-      setIsTranslating(false);
-    },
-    onError: () => {
-      toast({ title: t('common.error'), description: t('campaigns.translateError'), variant: 'destructive' });
-      setIsTranslating(false);
-    },
-  });
-
   const resetForm = () => {
     setFormData({
-      titleSourceLang: 'zh-cn',
-      titleSource: '',
-      descriptionSourceLang: 'zh-cn',
-      descriptionSource: '',
-      titleZh: '',
-      titleEn: '',
-      titleTh: '',
-      descriptionZh: '',
-      descriptionEn: '',
-      descriptionTh: '',
+      title: '',
+      description: '',
       couponValue: '',
       discountType: 'cash_voucher',
       startAt: '',
@@ -283,16 +221,8 @@ export default function AdminCampaigns() {
   const handleEdit = (campaign: Campaign) => {
     setEditingCampaign(campaign);
     setFormData({
-      titleSourceLang: campaign.titleSourceLang,
-      titleSource: campaign.titleSource,
-      descriptionSourceLang: campaign.descriptionSourceLang,
-      descriptionSource: campaign.descriptionSource,
-      titleZh: campaign.titleZh || '',
-      titleEn: campaign.titleEn || '',
-      titleTh: campaign.titleTh || '',
-      descriptionZh: campaign.descriptionZh || '',
-      descriptionEn: campaign.descriptionEn || '',
-      descriptionTh: campaign.descriptionTh || '',
+      title: campaign.title,
+      description: campaign.description,
       couponValue: campaign.couponValue,
       discountType: campaign.discountType,
       startAt: campaign.startAt ? format(new Date(campaign.startAt), "yyyy-MM-dd'T'HH:mm") : '',
@@ -393,7 +323,7 @@ export default function AdminCampaigns() {
                 {campaignsData?.campaigns.map((campaign) => (
                   <TableRow key={campaign.id} data-testid={`row-campaign-${campaign.id}`}>
                     <TableCell data-testid={`text-title-${campaign.id}`}>
-                      {campaign.titleSource}
+                      {campaign.title}
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">{getDiscountTypeLabel(campaign.discountType)}</Badge>
@@ -468,127 +398,27 @@ export default function AdminCampaigns() {
             <div className="space-y-4">
               <h3 className="font-medium">{t('campaigns.basicInfo')}</h3>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="titleSourceLang">{t('campaigns.titleLang')}</Label>
-                  <Select
-                    value={formData.titleSourceLang}
-                    onValueChange={(value: any) => setFormData({ ...formData, titleSourceLang: value })}
-                  >
-                    <SelectTrigger data-testid="select-title-lang">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="zh-cn">{t('common.chinese')}</SelectItem>
-                      <SelectItem value="en-us">{t('common.english')}</SelectItem>
-                      <SelectItem value="th-th">{t('common.thai')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="titleSource">{t('campaigns.campaignTitle')} *</Label>
-                  <Input
-                    id="titleSource"
-                    value={formData.titleSource}
-                    onChange={(e) => setFormData({ ...formData, titleSource: e.target.value })}
-                    required
-                    data-testid="input-title"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="title">{t('campaigns.campaignTitle')} *</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  required
+                  data-testid="input-title"
+                />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="descriptionSource">{t('campaigns.description')} *</Label>
+                <Label htmlFor="description">{t('campaigns.description')} *</Label>
                 <Textarea
-                  id="descriptionSource"
-                  value={formData.descriptionSource}
-                  onChange={(e) => setFormData({ ...formData, descriptionSource: e.target.value })}
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   required
                   rows={3}
                   data-testid="input-description"
                 />
-              </div>
-
-              {editingCampaign && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleAutoTranslate}
-                  disabled={isTranslating}
-                  data-testid="button-auto-translate"
-                >
-                  <Wand2 className="w-4 h-4 mr-2" />
-                  {isTranslating ? t('campaigns.translating') : t('campaigns.autoTranslate')}
-                </Button>
-              )}
-            </div>
-
-            {/* 多语言翻译 */}
-            <div className="space-y-4">
-              <h3 className="font-medium">{t('campaigns.multiLanguageContent')}</h3>
-              
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="titleZh">{t('campaigns.titleChinese')}</Label>
-                  <Input
-                    id="titleZh"
-                    value={formData.titleZh}
-                    onChange={(e) => setFormData({ ...formData, titleZh: e.target.value })}
-                    data-testid="input-title-zh"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="titleEn">{t('campaigns.titleEnglish')}</Label>
-                  <Input
-                    id="titleEn"
-                    value={formData.titleEn}
-                    onChange={(e) => setFormData({ ...formData, titleEn: e.target.value })}
-                    data-testid="input-title-en"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="titleTh">{t('campaigns.titleThai')}</Label>
-                  <Input
-                    id="titleTh"
-                    value={formData.titleTh}
-                    onChange={(e) => setFormData({ ...formData, titleTh: e.target.value })}
-                    data-testid="input-title-th"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="descriptionZh">{t('campaigns.descriptionChinese')}</Label>
-                  <Textarea
-                    id="descriptionZh"
-                    value={formData.descriptionZh}
-                    onChange={(e) => setFormData({ ...formData, descriptionZh: e.target.value })}
-                    rows={2}
-                    data-testid="input-description-zh"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="descriptionEn">{t('campaigns.descriptionEnglish')}</Label>
-                  <Textarea
-                    id="descriptionEn"
-                    value={formData.descriptionEn}
-                    onChange={(e) => setFormData({ ...formData, descriptionEn: e.target.value })}
-                    rows={2}
-                    data-testid="input-description-en"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="descriptionTh">{t('campaigns.descriptionThai')}</Label>
-                  <Textarea
-                    id="descriptionTh"
-                    value={formData.descriptionTh}
-                    onChange={(e) => setFormData({ ...formData, descriptionTh: e.target.value })}
-                    rows={2}
-                    data-testid="input-description-th"
-                  />
-                </div>
               </div>
             </div>
 
