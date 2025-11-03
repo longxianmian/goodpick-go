@@ -1,3 +1,4 @@
+// @ts-ignore - ali-oss doesn't have TypeScript definitions
 import OSS from 'ali-oss';
 import { Readable } from 'stream';
 
