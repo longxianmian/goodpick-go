@@ -87,11 +87,9 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
 
 function ProtectedAdminRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAdminAuthenticated, admin } = useAuth();
-  const [, setLocation] = useLocation();
   
   if (!isAdminAuthenticated || !admin) {
-    setLocation('/admin/login');
-    return null;
+    return <Redirect to="/admin/login" />;
   }
   
   return (
