@@ -423,6 +423,7 @@ export default function AdminStores() {
                   <TableHead>{t('stores.city')}</TableHead>
                   <TableHead>{t('stores.address')}</TableHead>
                   <TableHead>{t('stores.phone')}</TableHead>
+                  <TableHead>{t('stores.rating')}</TableHead>
                   <TableHead className="text-right">{t('stores.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -434,6 +435,9 @@ export default function AdminStores() {
                     <TableCell>{store.city}</TableCell>
                     <TableCell>{store.address}</TableCell>
                     <TableCell>{store.phone || '-'}</TableCell>
+                    <TableCell data-testid={`text-rating-${store.id}`}>
+                      {store.rating ? `⭐ ${store.rating}` : '-'}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
