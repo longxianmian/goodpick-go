@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect, useLocation } from "wouter";
+import { Switch, Route, Redirect, useLocation, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -18,6 +18,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 function AdminLayout({ children }: { children: React.ReactNode }) {
   const { logoutAdmin, admin } = useAuth();
   const { t } = useLanguage();
+  const [location] = useLocation();
 
   return (
     <SidebarProvider>
@@ -29,27 +30,27 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <a href="/admin/stores" data-testid="link-stores">
+                    <SidebarMenuButton asChild isActive={location === '/admin/stores'}>
+                      <Link href="/admin/stores" data-testid="link-stores">
                         <Store />
                         <span>{t('nav.stores')}</span>
-                      </a>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <a href="/admin/campaigns" data-testid="link-campaigns">
+                    <SidebarMenuButton asChild isActive={location === '/admin/campaigns'}>
+                      <Link href="/admin/campaigns" data-testid="link-campaigns">
                         <Tag />
                         <span>{t('nav.campaigns')}</span>
-                      </a>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <a href="/admin/dashboard" data-testid="link-dashboard">
+                    <SidebarMenuButton asChild isActive={location === '/admin/dashboard'}>
+                      <Link href="/admin/dashboard" data-testid="link-dashboard">
                         <LayoutDashboard />
                         <span>{t('nav.dashboard')}</span>
-                      </a>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>
