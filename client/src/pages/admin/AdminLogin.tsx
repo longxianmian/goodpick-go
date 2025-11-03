@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +12,7 @@ import { Loader2 } from 'lucide-react';
 export default function AdminLogin() {
   const [, setLocation] = useLocation();
   const { loginAdmin } = useAuth();
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState('');
@@ -31,21 +33,21 @@ export default function AdminLogin() {
 
       if (data.ok) {
         loginAdmin(data.token, data.admin);
-        toast({ title: 'Welcome back!', description: 'Successfully logged in.' });
+        toast({ title: t('login.welcome'), description: t('login.loginSuccess') });
         setTimeout(() => {
           setLocation('/admin/stores');
         }, 100);
       } else {
         toast({
-          title: 'Login failed',
-          description: data.message || 'Invalid credentials',
+          title: t('login.loginFailed'),
+          description: data.message || t('login.invalidCredentials'),
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to connect to server',
+        title: t('common.error'),
+        description: t('login.connectionError'),
         variant: 'destructive',
       });
     } finally {
@@ -57,30 +59,30 @@ export default function AdminLogin() {
     <div className="flex items-center justify-center min-h-screen bg-background">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">GoodPick Go Admin</CardTitle>
-          <CardDescription>Sign in to manage stores and campaigns</CardDescription>
+          <CardTitle className="text-2xl">{t('login.title')}</CardTitle>
+          <CardDescription>{t('login.description')}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('login.email')}</Label>
               <Input
                 id="email"
                 type="email"
                 data-testid="input-email"
-                placeholder="admin@example.com"
+                placeholder={t('login.emailPlaceholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('login.password')}</Label>
               <Input
                 id="password"
                 type="password"
                 data-testid="input-password"
-                placeholder="Enter your password"
+                placeholder={t('login.passwordPlaceholder')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -95,10 +97,10 @@ export default function AdminLogin() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
+                  {t('login.signingIn')}
                 </>
               ) : (
-                'Sign In'
+                t('login.signIn')
               )}
             </Button>
           </form>
