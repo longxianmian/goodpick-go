@@ -1,16 +1,108 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import NotFound from "@/pages/not-found";
+import AdminLogin from "@/pages/admin/AdminLogin";
+import AdminStores from "@/pages/admin/AdminStores";
+import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
+import { Store, Tag, LogOut, LayoutDashboard } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+
+function AdminLayout({ children }: { children: React.ReactNode }) {
+  const { logoutAdmin, admin } = useAuth();
+
+  return (
+    <SidebarProvider>
+      <div className="flex h-screen w-full">
+        <Sidebar>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>GoodPick Go Admin</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <a href="/admin/stores" data-testid="link-stores">
+                        <Store />
+                        <span>Stores</span>
+                      </a>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <a href="/admin/campaigns" data-testid="link-campaigns">
+                        <Tag />
+                        <span>Campaigns</span>
+                      </a>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <a href="/admin/dashboard" data-testid="link-dashboard">
+                        <LayoutDashboard />
+                        <span>Dashboard</span>
+                      </a>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+        </Sidebar>
+        <div className="flex flex-col flex-1">
+          <header className="flex items-center justify-between p-4 border-b">
+            <div className="flex items-center gap-2">
+              <SidebarTrigger data-testid="button-sidebar-toggle" />
+              <h2 className="text-lg font-semibold">Welcome, {admin?.name}</h2>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="button-logout"
+              onClick={logoutAdmin}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </Button>
+          </header>
+          <main className="flex-1 overflow-auto p-6">
+            {children}
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function ProtectedAdminRoute({ component: Component }: { component: React.ComponentType }) {
+  const { isAdminAuthenticated } = useAuth();
+  
+  if (!isAdminAuthenticated) {
+    return <Redirect to="/admin/login" />;
+  }
+  
+  return (
+    <AdminLayout>
+      <Component />
+    </AdminLayout>
+  );
+}
 
 function Router() {
   return (
     <Switch>
-      {/* Add pages below */}
-      {/* <Route path="/" component={Home}/> */}
-      {/* Fallback to 404 */}
+      <Route path="/" component={() => <Redirect to="/admin/login" />} />
+      <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/admin/stores" component={() => <ProtectedAdminRoute component={AdminStores} />} />
+      <Route path="/admin/campaigns">
+        {() => <ProtectedAdminRoute component={() => <div>Campaigns - Coming Soon</div>} />}
+      </Route>
+      <Route path="/admin/dashboard">
+        {() => <ProtectedAdminRoute component={() => <div>Dashboard - Coming Soon</div>} />}
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -19,10 +111,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
