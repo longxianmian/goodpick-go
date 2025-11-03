@@ -86,7 +86,11 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
 }
 
 function ProtectedAdminRoute({ component: Component }: { component: React.ComponentType }) {
-  const { isAdminAuthenticated, admin } = useAuth();
+  const { isAdminAuthenticated, admin, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
   
   if (!isAdminAuthenticated || !admin) {
     return <Redirect to="/admin/login" />;

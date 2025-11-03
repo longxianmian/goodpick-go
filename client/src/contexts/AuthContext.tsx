@@ -25,6 +25,7 @@ interface AuthContextType {
   logoutUser: () => void;
   isAdminAuthenticated: boolean;
   isUserAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [adminToken, setAdminToken] = useState<string | null>(null);
   const [userToken, setUserToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const storedAdminToken = localStorage.getItem('adminToken');
@@ -50,6 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUserToken(storedUserToken);
       setUser(JSON.parse(storedUser));
     }
+    
+    setIsLoading(false);
   }, []);
 
   const loginAdmin = (token: string, adminData: Admin) => {
@@ -93,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logoutUser,
         isAdminAuthenticated: !!adminToken,
         isUserAuthenticated: !!userToken,
+        isLoading,
       }}
     >
       {children}
