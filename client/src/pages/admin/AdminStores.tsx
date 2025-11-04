@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -8,12 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
-import { Plus, Pencil, Trash2, Search } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Plus, Pencil, Trash2, Search, Shield, QrCode, UserCheck, UserX } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Badge } from '@/components/ui/badge';
 import type { Store } from '@shared/schema';
 
 interface PlaceSuggestion {
@@ -21,6 +22,21 @@ interface PlaceSuggestion {
   mainText: string;
   secondaryText: string;
   description: string;
+}
+
+interface StaffPreset {
+  id: number;
+  storeId: number;
+  name: string;
+  staffId: string;
+  phone: string;
+  authToken: string;
+  isBound: boolean;
+  boundUserId: number | null;
+  boundAt: string | null;
+  createdAt: string;
+  boundUserName: string | null;
+  boundUserPhone: string | null;
 }
 
 export default function AdminStores() {
@@ -44,6 +60,16 @@ export default function AdminStores() {
   const [addressSearchValue, setAddressSearchValue] = useState('');
   const [placeSuggestions, setPlaceSuggestions] = useState<PlaceSuggestion[]>([]);
   const [searchingPlaces, setSearchingPlaces] = useState(false);
+
+  const [staffDialogOpen, setStaffDialogOpen] = useState(false);
+  const [selectedStore, setSelectedStore] = useState<Store | null>(null);
+  const [newStaffForm, setNewStaffForm] = useState({
+    name: '',
+    staffId: '',
+    phone: '',
+  });
+  const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
+  const [selectedQrToken, setSelectedQrToken] = useState('');
 
   const { data: stores, isLoading } = useQuery<{ success: boolean; data: Store[] }>({
     queryKey: ['/api/admin/stores'],
@@ -142,6 +168,73 @@ export default function AdminStores() {
     },
     onError: () => {
       toast({ title: t('common.error'), description: t('stores.deleteError'), variant: 'destructive' });
+    },
+  });
+
+  const { data: staffPresets, isLoading: staffPresetsLoading } = useQuery<{ success: boolean; data: StaffPreset[] }>({
+    queryKey: ['/api/admin/stores', selectedStore?.id, 'staff-presets'],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/stores/${selectedStore!.id}/staff-presets`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      return res.json();
+    },
+    enabled: !!selectedStore && staffDialogOpen,
+  });
+
+  const createStaffMutation = useMutation({
+    mutationFn: async (data: typeof newStaffForm) => {
+      const res = await fetch(`/api/admin/stores/${selectedStore!.id}/staff-presets`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stores', selectedStore?.id, 'staff-presets'] });
+      toast({ title: t('common.success'), description: 'Staff authorization created successfully' });
+      setNewStaffForm({ name: '', staffId: '', phone: '' });
+    },
+    onError: () => {
+      toast({ title: t('common.error'), description: 'Failed to create staff authorization', variant: 'destructive' });
+    },
+  });
+
+  const deleteStaffMutation = useMutation({
+    mutationFn: async (presetId: number) => {
+      const res = await fetch(`/api/admin/staff-presets/${presetId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stores', selectedStore?.id, 'staff-presets'] });
+      toast({ title: t('common.success'), description: 'Staff authorization deleted successfully' });
+    },
+    onError: () => {
+      toast({ title: t('common.error'), description: 'Failed to delete staff authorization', variant: 'destructive' });
+    },
+  });
+
+  const unbindStaffMutation = useMutation({
+    mutationFn: async (presetId: number) => {
+      const res = await fetch(`/api/admin/staff-presets/${presetId}/unbind`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stores', selectedStore?.id, 'staff-presets'] });
+      toast({ title: t('common.success'), description: 'Staff unbounded successfully' });
+    },
+    onError: () => {
+      toast({ title: t('common.error'), description: 'Failed to unbind staff', variant: 'destructive' });
     },
   });
 
@@ -498,6 +591,17 @@ export default function AdminStores() {
                         <Button
                           size="sm"
                           variant="outline"
+                          data-testid={`button-staff-${store.id}`}
+                          onClick={() => {
+                            setSelectedStore(store);
+                            setStaffDialogOpen(true);
+                          }}
+                        >
+                          <Shield className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
                           data-testid={`button-edit-${store.id}`}
                           onClick={() => handleEdit(store)}
                         >
@@ -520,6 +624,212 @@ export default function AdminStores() {
           )}
         </CardContent>
       </Card>
+
+      {/* Staff Presets Management Dialog */}
+      <Dialog open={staffDialogOpen} onOpenChange={setStaffDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              <div className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Redemption Authorization - {selectedStore?.name}
+              </div>
+            </DialogTitle>
+            <DialogDescription>
+              Manage staff members who can redeem coupons at this store
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Add New Staff Form */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Add New Staff Authorization</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="staff-name">Staff Name</Label>
+                    <Input
+                      id="staff-name"
+                      data-testid="input-staff-name"
+                      value={newStaffForm.name}
+                      onChange={(e) => setNewStaffForm({ ...newStaffForm, name: e.target.value })}
+                      placeholder="Enter staff name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="staff-id">Staff ID</Label>
+                    <Input
+                      id="staff-id"
+                      data-testid="input-staff-id"
+                      value={newStaffForm.staffId}
+                      onChange={(e) => setNewStaffForm({ ...newStaffForm, staffId: e.target.value })}
+                      placeholder="Enter staff ID"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="staff-phone">Phone Number</Label>
+                    <Input
+                      id="staff-phone"
+                      data-testid="input-staff-phone"
+                      value={newStaffForm.phone}
+                      onChange={(e) => setNewStaffForm({ ...newStaffForm, phone: e.target.value })}
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Button
+                    data-testid="button-create-staff"
+                    onClick={() => createStaffMutation.mutate(newStaffForm)}
+                    disabled={!newStaffForm.name || !newStaffForm.staffId || !newStaffForm.phone || createStaffMutation.isPending}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Authorization
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Staff Presets List */}
+            <div>
+              <h3 className="text-sm font-medium mb-3">Active Staff Authorizations</h3>
+              {staffPresetsLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              ) : staffPresets?.data?.length === 0 ? (
+                <Card className="p-8 text-center text-muted-foreground">
+                  <p>No staff authorizations yet. Create one above to get started.</p>
+                </Card>
+              ) : (
+                <div className="space-y-2">
+                  {staffPresets?.data?.map((preset) => (
+                    <Card key={preset.id} className="p-4" data-testid={`card-staff-${preset.id}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <div>
+                            <div className="text-sm font-medium">{preset.name}</div>
+                            <div className="text-xs text-muted-foreground">ID: {preset.staffId}</div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-muted-foreground">Phone</div>
+                            <div className="text-sm">{preset.phone}</div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-muted-foreground">Status</div>
+                            {preset.isBound ? (
+                              <Badge variant="default" className="gap-1">
+                                <UserCheck className="h-3 w-3" />
+                                Bound
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="gap-1">
+                                <UserX className="h-3 w-3" />
+                                Pending
+                              </Badge>
+                            )}
+                          </div>
+                          {preset.isBound && (
+                            <div>
+                              <div className="text-sm text-muted-foreground">Bound User</div>
+                              <div className="text-sm">{preset.boundUserName || 'Unknown'}</div>
+                              <div className="text-xs text-muted-foreground">{preset.boundUserPhone}</div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          {!preset.isBound && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              data-testid={`button-qr-${preset.id}`}
+                              onClick={() => {
+                                setSelectedQrToken(preset.authToken);
+                                setQrCodeDialogOpen(true);
+                              }}
+                            >
+                              <QrCode className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {preset.isBound && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              data-testid={`button-unbind-${preset.id}`}
+                              onClick={() => unbindStaffMutation.mutate(preset.id)}
+                              disabled={unbindStaffMutation.isPending}
+                            >
+                              <UserX className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            data-testid={`button-delete-staff-${preset.id}`}
+                            onClick={() => deleteStaffMutation.mutate(preset.id)}
+                            disabled={deleteStaffMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Code Dialog */}
+      <Dialog open={qrCodeDialogOpen} onOpenChange={setQrCodeDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Staff Authorization QR Code</DialogTitle>
+            <DialogDescription>
+              Staff member should scan this QR code with their LINE account to complete authorization
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-6">
+            <div className="bg-white p-4 rounded-lg">
+              <QRCodeDisplay token={selectedQrToken} />
+            </div>
+            <div className="text-center space-y-2">
+              <p className="text-sm text-muted-foreground">
+                This authorization link will bind to the staff member's LINE account
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Phone number verification required
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
+}
+
+function QRCodeDisplay({ token }: { token: string }) {
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+
+  useEffect(() => {
+    if (token) {
+      import('qrcode').then((QRCode: any) => {
+        const bindUrl = `${window.location.origin}/staff/bind?token=${token}`;
+        QRCode.default.toDataURL(bindUrl, { width: 256, margin: 2 })
+          .then(setQrCodeUrl)
+          .catch(console.error);
+      });
+    }
+  }, [token]);
+
+  if (!qrCodeUrl) {
+    return <Skeleton className="h-64 w-64" />;
+  }
+
+  return <img src={qrCodeUrl} alt="QR Code" className="w-64 h-64" data-testid="img-qr-code" />;
 }
