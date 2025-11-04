@@ -339,7 +339,8 @@ export function registerRoutes(app: Express): Server {
       delete storedStates[state];
 
       // Build redirect URI (must match what was used in OAuth request)
-      const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/line/callback`;
+      // Force HTTPS for LINE OAuth (req.protocol may return 'http' due to reverse proxy)
+      const redirectUri = `https://${req.get('host')}/api/auth/line/callback`;
 
       // Exchange authorization code for tokens
       const tokens = await exchangeLineAuthCode(code as string, redirectUri);
