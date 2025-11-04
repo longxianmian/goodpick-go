@@ -37,6 +37,7 @@ export default function AdminStores() {
     phone: '',
     latitude: '',
     longitude: '',
+    rating: '',
     imageUrl: '',
   });
   const [addressSearchOpen, setAddressSearchOpen] = useState(false);
@@ -75,6 +76,7 @@ export default function AdminStores() {
           phone: data.phone.trim() || null,
           latitude: data.latitude ? data.latitude.toString() : null,
           longitude: data.longitude ? data.longitude.toString() : null,
+          rating: data.rating ? data.rating.toString() : null,
           imageUrl: data.imageUrl.trim() || null,
           isActive: true,
         }),
@@ -108,6 +110,7 @@ export default function AdminStores() {
           phone: data.phone.trim() || null,
           latitude: data.latitude ? data.latitude.toString() : null,
           longitude: data.longitude ? data.longitude.toString() : null,
+          rating: data.rating ? data.rating.toString() : null,
           imageUrl: data.imageUrl.trim() || null,
           isActive: true,
         }),
@@ -190,6 +193,7 @@ export default function AdminStores() {
           city: city || prev.city,
           latitude: details.latitude ? String(details.latitude) : '',
           longitude: details.longitude ? String(details.longitude) : '',
+          rating: details.rating ? String(details.rating) : '',
           imageUrl: details.imageUrl || '',
           phone: details.phone || prev.phone,
         }));
@@ -212,6 +216,7 @@ export default function AdminStores() {
       phone: '',
       latitude: '',
       longitude: '',
+      rating: '',
       imageUrl: '',
     });
     setAddressSearchValue('');
@@ -229,6 +234,7 @@ export default function AdminStores() {
       phone: store.phone || '',
       latitude: store.latitude || '',
       longitude: store.longitude || '',
+      rating: store.rating || '',
       imageUrl: store.imageUrl || '',
     });
     setAddressSearchValue(store.address);
@@ -369,7 +375,7 @@ export default function AdminStores() {
                   required
                 />
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="latitude">{t('stores.latitude')}</Label>
                   <Input
@@ -390,6 +396,22 @@ export default function AdminStores() {
                     step="any"
                     value={formData.longitude}
                     onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="rating">{t('stores.rating')}</Label>
+                  <Input
+                    id="rating"
+                    data-testid="input-store-rating"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="5"
+                    value={formData.rating}
+                    onChange={(e) => setFormData({ ...formData, rating: e.target.value })}
+                    placeholder="0.0 - 5.0"
                   />
                 </div>
                 <div className="space-y-2">
@@ -441,6 +463,7 @@ export default function AdminStores() {
                   <TableHead>{t('stores.city')}</TableHead>
                   <TableHead>{t('stores.address')}</TableHead>
                   <TableHead>{t('stores.phone')}</TableHead>
+                  <TableHead>{t('stores.rating')}</TableHead>
                   <TableHead className="text-right">{t('stores.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -452,6 +475,9 @@ export default function AdminStores() {
                     <TableCell>{store.city}</TableCell>
                     <TableCell>{store.address}</TableCell>
                     <TableCell>{store.phone || '-'}</TableCell>
+                    <TableCell data-testid={`text-rating-${store.id}`}>
+                      {store.rating ? `⭐ ${store.rating}` : '-'}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button

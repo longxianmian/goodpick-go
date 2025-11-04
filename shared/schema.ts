@@ -37,6 +37,7 @@ export const stores = pgTable('stores', {
   latitude: decimal('latitude', { precision: 10, scale: 7 }),
   longitude: decimal('longitude', { precision: 10, scale: 7 }),
   phone: text('phone'),
+  rating: decimal('rating', { precision: 2, scale: 1 }),
   imageUrl: text('image_url'),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),

@@ -507,7 +507,7 @@ export function registerRoutes(app: Express): Server {
 
   app.post('/api/admin/stores', adminAuthMiddleware, async (req: Request, res: Response) => {
     try {
-      const { name, brand, city, address, latitude, longitude, phone, imageUrl } = req.body;
+      const { name, brand, city, address, latitude, longitude, phone, rating, imageUrl } = req.body;
 
       if (!name || !city || !address) {
         return res.status(400).json({ success: false, message: 'Name, city, and address are required' });
@@ -523,6 +523,7 @@ export function registerRoutes(app: Express): Server {
           latitude,
           longitude,
           phone,
+          rating,
           imageUrl,
           isActive: true,
         })
@@ -538,7 +539,7 @@ export function registerRoutes(app: Express): Server {
   app.put('/api/admin/stores/:id', adminAuthMiddleware, async (req: Request, res: Response) => {
     try {
       const storeId = parseInt(req.params.id);
-      const { name, brand, city, address, latitude, longitude, phone, imageUrl, isActive } = req.body;
+      const { name, brand, city, address, latitude, longitude, phone, rating, imageUrl, isActive } = req.body;
 
       const [updatedStore] = await db
         .update(stores)
@@ -550,6 +551,7 @@ export function registerRoutes(app: Express): Server {
           latitude,
           longitude,
           phone,
+          rating,
           imageUrl,
           isActive,
           updatedAt: new Date(),
