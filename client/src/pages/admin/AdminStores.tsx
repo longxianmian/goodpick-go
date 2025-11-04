@@ -458,6 +458,7 @@ export default function AdminStores() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-24">{t('stores.image')}</TableHead>
                   <TableHead>{t('stores.name')}</TableHead>
                   <TableHead>{t('stores.brand')}</TableHead>
                   <TableHead>{t('stores.city')}</TableHead>
@@ -470,6 +471,20 @@ export default function AdminStores() {
               <TableBody>
                 {stores?.data?.map((store) => (
                   <TableRow key={store.id} data-testid={`row-store-${store.id}`}>
+                    <TableCell>
+                      {store.imageUrl ? (
+                        <img 
+                          src={store.imageUrl} 
+                          alt={store.name}
+                          className="w-16 h-16 object-cover rounded-md"
+                          data-testid={`img-store-${store.id}`}
+                        />
+                      ) : (
+                        <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">
+                          {t('stores.noImage')}
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">{store.name}</TableCell>
                     <TableCell>{store.brand || '-'}</TableCell>
                     <TableCell>{store.city}</TableCell>
