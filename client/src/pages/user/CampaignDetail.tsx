@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Autoplay from 'embla-carousel-autoplay';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Gift, Calendar, MapPin, Tag, Phone, Star } from 'lucide-react';
+import { Gift, Calendar, MapPin, Tag, Phone, Star, Navigation } from 'lucide-react';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useState, useEffect, useRef } from 'react';
 
@@ -326,6 +326,22 @@ export default function CampaignDetail() {
   const isSoldOut = campaign.maxTotal && campaign.currentClaimed >= campaign.maxTotal;
   const canClaim = campaign.canClaim && !isExpired && !isSoldOut;
 
+  // 生成Google Maps导航链接
+  const getNavigationUrl = (store: any) => {
+    // 优先使用经纬度，否则使用地址
+    if (store.latitude && store.longitude) {
+      return `https://www.google.com/maps/dir/?api=1&destination=${store.latitude},${store.longitude}`;
+    }
+    // 使用地址编码
+    const address = encodeURIComponent(`${store.address}, ${store.city}`);
+    return `https://www.google.com/maps/dir/?api=1&destination=${address}`;
+  };
+
+  // 检测是否为移动设备
+  const isMobileDevice = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  };
+
   // 按钮文案逻辑
   const getButtonText = () => {
     if (claimMutation.isPending) {
@@ -400,8 +416,8 @@ export default function CampaignDetail() {
             </CarouselContent>
             {campaign.mediaUrls.length > 1 && (
               <>
-                <CarouselPrevious />
-                <CarouselNext />
+                <CarouselPrevious className="h-8 w-8 left-2" data-testid="carousel-prev" />
+                <CarouselNext className="h-8 w-8 right-2" data-testid="carousel-next" />
               </>
             )}
           </Carousel>
@@ -420,7 +436,7 @@ export default function CampaignDetail() {
           <CardHeader>
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
-                <CardTitle className="text-2xl mb-2" data-testid="campaign-title">
+                <CardTitle className="text-xl md:text-2xl mb-2" data-testid="campaign-title">
                   {campaign.title}
                 </CardTitle>
               </div>
@@ -518,10 +534,10 @@ export default function CampaignDetail() {
         {campaign.stores && campaign.stores.length > 0 && (
           <Card data-testid="stores-section">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <h3 className="text-lg md:text-xl font-semibold flex items-center gap-2">
                 <MapPin className="h-5 w-5" />
                 {t('campaign.nearestStores')}
-              </CardTitle>
+              </h3>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -563,17 +579,38 @@ export default function CampaignDetail() {
                         {store.address}
                       </p>
                       
-                      {/* 电话 */}
-                      {(store as any).phone && (
+                      {/* 操作按钮 */}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {/* 电话 */}
+                        {(store as any).phone && (
+                          <a
+                            href={`tel:${(store as any).phone}`}
+                            className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                            data-testid={`store-phone-${store.id}`}
+                          >
+                            <Phone className="h-3.5 w-3.5" />
+                            <span>{(store as any).phone}</span>
+                          </a>
+                        )}
+                        
+                        {/* 导航按钮 */}
                         <a
-                          href={`tel:${(store as any).phone}`}
-                          className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 hover:underline"
-                          data-testid={`store-phone-${store.id}`}
+                          href={getNavigationUrl(store)}
+                          target={isMobileDevice() ? '_self' : '_blank'}
+                          rel="noopener noreferrer"
+                          aria-label={t('campaign.navigateAria', { store: store.name })}
+                          data-testid={`store-navigate-${store.id}`}
                         >
-                          <Phone className="h-3.5 w-3.5" />
-                          <span>{(store as any).phone}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-auto py-1 px-2"
+                          >
+                            <Navigation className="h-3.5 w-3.5 mr-1.5" />
+                            {t('campaign.navigate')}
+                          </Button>
                         </a>
-                      )}
+                      </div>
                     </div>
                   </div>
                 ))}

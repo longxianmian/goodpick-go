@@ -264,6 +264,8 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.viewRules': '查看活动规则',
     'campaign.nearestStores': '最近的门店',
     'campaign.callStore': '拨打电话',
+    'campaign.navigate': '导航',
+    'campaign.navigateAria': '导航至 {store}',
     
     // My Coupons Page
     'myCoupons.title': '我的优惠券',
@@ -540,6 +542,8 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.viewRules': 'View Campaign Rules',
     'campaign.nearestStores': 'Nearest Stores',
     'campaign.callStore': 'Call',
+    'campaign.navigate': 'Navigate',
+    'campaign.navigateAria': 'Navigate to {store}',
     
     // My Coupons Page
     'myCoupons.title': 'My Coupons',
@@ -816,6 +820,8 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.viewRules': 'ดูกฎกติกาแคมเปญ',
     'campaign.nearestStores': 'ร้านค้าใกล้ที่สุด',
     'campaign.callStore': 'โทร',
+    'campaign.navigate': 'นำทาง',
+    'campaign.navigateAria': 'นำทางไปยัง {store}',
     
     // My Coupons Page
     'myCoupons.title': 'คูปองของฉัน',
