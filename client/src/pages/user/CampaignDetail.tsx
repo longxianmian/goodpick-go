@@ -543,7 +543,7 @@ export default function CampaignDetail() {
               <DialogTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="w-full justify-start"
+                  className="w-full justify-start px-0"
                   data-testid="button-view-rules"
                 >
                   <AlertCircle className="mr-2 h-4 w-4 text-orange-500" />
