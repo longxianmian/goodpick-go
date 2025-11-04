@@ -56,11 +56,12 @@ export default function MyCoupons() {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
 
-    // Handle OAuth callback with token
-    if (token && !isUserAuthenticated) {
+    // Handle OAuth callback with token (always update token from OAuth)
+    if (token) {
       try {
         // Decode user data from token
         const payload = JSON.parse(atob(token.split('.')[1]));
+        // Always update token from OAuth callback (even if user was previously logged in)
         loginUser(token, {
           id: payload.id,
           lineUserId: payload.lineUserId,

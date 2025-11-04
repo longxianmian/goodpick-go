@@ -40,11 +40,12 @@ export default function CampaignDetail() {
     const token = urlParams.get('token');
     const autoClaim = urlParams.get('autoClaim');
 
-    // Handle OAuth callback with token
-    if (token && autoClaim === 'true' && !isUserAuthenticated) {
+    // Handle OAuth callback with token (always update token from OAuth)
+    if (token && autoClaim === 'true') {
       try {
         // Decode user data from token
         const payload = JSON.parse(atob(token.split('.')[1]));
+        // Always update token from OAuth callback (even if user was previously logged in)
         loginUser(token, {
           id: payload.id,
           lineUserId: payload.lineUserId,
@@ -69,18 +70,6 @@ export default function CampaignDetail() {
         });
         window.history.replaceState({}, '', window.location.pathname);
       }
-      return;
-    }
-
-    // Handle auto-claim if already logged in
-    if (autoClaim === 'true' && isUserAuthenticated) {
-      // Clean up URL
-      window.history.replaceState({}, '', window.location.pathname);
-      
-      // Auto-claim after a short delay
-      setTimeout(() => {
-        claimMutation.mutate();
-      }, 300);
       return;
     }
 
