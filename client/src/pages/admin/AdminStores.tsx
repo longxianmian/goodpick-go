@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
-import { Plus, Pencil, Trash2, Search, Shield, QrCode, UserCheck, UserX } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Shield, QrCode, UserCheck, UserX, Copy, Check } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -798,13 +798,19 @@ export default function AdminStores() {
             <div className="bg-white p-4 rounded-lg">
               <QRCodeDisplay token={selectedQrToken} language={language} />
             </div>
-            <div className="text-center space-y-2">
-              <p className="text-sm text-muted-foreground">
-                {t('staff.qrCodeLink')}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t('staff.phoneVerification')}
-              </p>
+            <div className="w-full space-y-3">
+              <div className="text-center space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  {t('staff.qrCodeLink')}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t('staff.phoneVerification')}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">{t('staff.authLink')}</Label>
+                <CopyLinkField token={selectedQrToken} language={language} />
+              </div>
             </div>
           </div>
         </DialogContent>
@@ -832,4 +838,49 @@ function QRCodeDisplay({ token, language }: { token: string; language: string })
   }
 
   return <img src={qrCodeUrl} alt="QR Code" className="w-64 h-64" data-testid="img-qr-code" />;
+}
+
+function CopyLinkField({ token, language }: { token: string; language: string }) {
+  const { t } = useLanguage();
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+  const bindUrl = `${window.location.origin}/staff/bind?token=${token}&lang=${language}`;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(bindUrl);
+      setCopied(true);
+      toast({
+        title: t('staff.linkCopied'),
+        description: t('staff.qrCodeLink'),
+      });
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  return (
+    <div className="flex gap-2">
+      <Input
+        value={bindUrl}
+        readOnly
+        className="text-sm"
+        data-testid="input-auth-link"
+      />
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={handleCopy}
+        data-testid="button-copy-link"
+        className="shrink-0"
+      >
+        {copied ? (
+          <Check className="h-4 w-4" />
+        ) : (
+          <Copy className="h-4 w-4" />
+        )}
+      </Button>
+    </div>
+  );
 }

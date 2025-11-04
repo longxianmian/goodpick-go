@@ -108,6 +108,9 @@ const translations: Record<Language, Record<string, string>> = {
     'staff.qrCodeLink': '此授权链接将绑定到员工的LINE账号',
     'staff.unknown': '未知',
     'staff.activeList': '激活的员工授权',
+    'staff.copyLink': '复制链接',
+    'staff.linkCopied': '链接已复制',
+    'staff.authLink': '授权链接',
     
     // Staff Binding
     'staffBind.title': '员工授权',
@@ -316,6 +319,9 @@ const translations: Record<Language, Record<string, string>> = {
     'staff.qrCodeLink': 'This authorization link will bind to the staff member\'s LINE account',
     'staff.unknown': 'Unknown',
     'staff.activeList': 'Active Staff Authorizations',
+    'staff.copyLink': 'Copy Link',
+    'staff.linkCopied': 'Link Copied',
+    'staff.authLink': 'Authorization Link',
     
     // Staff Binding
     'staffBind.title': 'Staff Authorization',
@@ -524,6 +530,9 @@ const translations: Record<Language, Record<string, string>> = {
     'staff.qrCodeLink': 'ลิงก์การอนุมัตินี้จะเชื่อมโยงกับบัญชี LINE ของพนักงาน',
     'staff.unknown': 'ไม่ทราบ',
     'staff.activeList': 'การอนุมัติพนักงานที่ใช้งานอยู่',
+    'staff.copyLink': 'คัดลอกลิงก์',
+    'staff.linkCopied': 'คัดลอกลิงก์แล้ว',
+    'staff.authLink': 'ลิงก์การอนุมัติ',
     
     // Staff Binding
     'staffBind.title': 'การอนุมัติพนักงาน',
