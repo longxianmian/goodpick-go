@@ -155,8 +155,12 @@ export default function AdminStores() {
       });
       const data = await res.json();
       
-      if (data.ok && data.suggestions) {
-        setPlaceSuggestions(data.suggestions);
+      if (data.success && data.predictions) {
+        const suggestions = data.predictions.map((p: any) => ({
+          placeId: p.place_id,
+          description: p.description,
+        }));
+        setPlaceSuggestions(suggestions);
       }
     } catch (error) {
       console.error('Places search error:', error);
@@ -167,21 +171,24 @@ export default function AdminStores() {
 
   const selectPlace = async (place: PlaceSuggestion) => {
     try {
-      const res = await fetch(`/api/admin/places/details?placeId=${encodeURIComponent(place.placeId)}`, {
+      const res = await fetch(`/api/admin/places/details/${encodeURIComponent(place.placeId)}`, {
         headers: { Authorization: `Bearer ${adminToken}` },
       });
       const data = await res.json();
       
-      if (data.ok && data.details) {
-        const details = data.details;
+      if (data.success && data.place) {
+        const details = data.place;
+        const addressParts = details.address?.split(',') || [];
+        const city = addressParts.length > 1 ? addressParts[addressParts.length - 2].trim() : '';
+        
         setFormData(prev => ({
           ...prev,
           name: prev.name || details.name || '',
           address: details.address || '',
-          city: details.city || '',
-          latitude: details.lat ? String(details.lat) : '',
-          longitude: details.lng ? String(details.lng) : '',
-          rating: details.rating ? String(details.rating) : '',
+          city: city || prev.city,
+          latitude: details.latitude ? String(details.latitude) : '',
+          longitude: details.longitude ? String(details.longitude) : '',
+          imageUrl: details.imageUrl || '',
           phone: details.phone || prev.phone,
         }));
         setAddressSearchValue(details.address || '');
