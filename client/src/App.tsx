@@ -10,6 +10,7 @@ import NotFound from "@/pages/not-found";
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminStores from "@/pages/admin/AdminStores";
 import AdminCampaigns from "@/pages/admin/AdminCampaigns";
+import StaffBind from "@/pages/user/StaffBind";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import { Store, Tag, LogOut, LayoutDashboard } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -127,6 +128,7 @@ function Router() {
     <Switch>
       <Route path="/" component={() => <Redirect to="/admin/login" />} />
       <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/staff/bind" component={StaffBind} />
       <Route path="/admin/:rest*">
         <ProtectedAdminRoutes />
       </Route>
