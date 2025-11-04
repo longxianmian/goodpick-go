@@ -206,10 +206,10 @@ export function registerRoutes(app: Express): Server {
         {
           id: existingUser.id,
           lineUserId: existingUser.lineUserId,
-          type: 'user',
+          type: 'user' as const,
         },
         JWT_SECRET,
-        { expiresIn: JWT_EXPIRES_IN }
+        { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
       );
 
       res.json({
@@ -445,9 +445,9 @@ export function registerRoutes(app: Express): Server {
       }
 
       const token = jwt.sign(
-        { id: admin.id, email: admin.email, type: 'admin' },
+        { id: admin.id, email: admin.email, type: 'admin' as const },
         JWT_SECRET,
-        { expiresIn: JWT_EXPIRES_IN }
+        { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
       );
 
       res.json({
