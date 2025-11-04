@@ -500,16 +500,15 @@ export default function CampaignDetail() {
               </div>
             </div>
 
-            {/* 活动时间 */}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="campaign-duration">
-              <Calendar className="h-4 w-4" />
-              <span>
-                {new Date(campaign.startAt).toLocaleDateString(language)} - {new Date(campaign.endAt).toLocaleDateString(language)}
-              </span>
-            </div>
-
             {/* 库存信息 - 合并到一行 */}
             <div className="flex items-center gap-4 text-sm flex-wrap">
+              {/* 活动日期 */}
+              <div data-testid="campaign-duration">
+                <span className="text-muted-foreground">{t('campaign.period')}:</span>
+                <span className="font-semibold ml-2">
+                  {new Date(campaign.startAt).toLocaleDateString(language)} - {new Date(campaign.endAt).toLocaleDateString(language)}
+                </span>
+              </div>
               {campaign.maxTotal && (
                 <div data-testid="stock-info">
                   <span className="text-muted-foreground">{t('campaign.stock')}:</span>
