@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Autoplay from 'embla-carousel-autoplay';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Gift, Calendar, MapPin, Tag, Phone, Star, Navigation, AlertCircle } from 'lucide-react';
+import { Gift, Calendar, MapPin, Tag, Phone, Star, Navigation, FileText } from 'lucide-react';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useState, useEffect, useRef } from 'react';
 
@@ -546,7 +546,7 @@ export default function CampaignDetail() {
                   className="w-full justify-start px-0"
                   data-testid="button-view-rules"
                 >
-                  <AlertCircle className="mr-2 h-4 w-4 text-orange-500" />
+                  <FileText className="mr-2 h-4 w-4 text-orange-500" />
                   {t('campaign.viewRules')}
                 </Button>
               </DialogTrigger>
