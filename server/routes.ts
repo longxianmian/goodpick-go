@@ -93,7 +93,7 @@ function optionalUserAuth(req: Request, res: Response, next: express.NextFunctio
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as { id: number; lineUserId: string; type: 'user' };
+      const decoded = jwt.verify(token, JWT_SECRET_VALUE) as { id: number; lineUserId: string; type: 'user' };
       if (decoded.type === 'user') {
         req.user = decoded as any;
       }
