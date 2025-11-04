@@ -426,9 +426,11 @@ export default function CampaignDetail() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container max-w-4xl mx-auto p-4 space-y-6">
-        {/* 媒体轮播（图片和视频） */}
+    <div className="h-screen flex flex-col bg-background">
+      {/* 滚动内容区域 */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="container max-w-4xl mx-auto p-4 space-y-6 pb-24">
+          {/* 媒体轮播（图片和视频） */}
         {campaign.mediaUrls && campaign.mediaUrls.length > 0 ? (
           <Carousel 
             className="w-full" 
@@ -529,7 +531,7 @@ export default function CampaignDetail() {
             </div>
           </CardContent>
 
-          <CardFooter className="flex-col gap-3 px-3 pt-0 pb-6">
+          <CardFooter className="px-3 pt-0 pb-6">
             {/* 活动规则按钮 */}
             <Dialog open={rulesDialogOpen} onOpenChange={setRulesDialogOpen}>
               <DialogTrigger asChild>
@@ -550,17 +552,6 @@ export default function CampaignDetail() {
                 </div>
               </DialogContent>
             </Dialog>
-
-            {/* 领取按钮 */}
-            <Button
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-              size="lg"
-              onClick={handleClaimClick}
-              disabled={!canClaim || claimMutation.isPending}
-              data-testid="button-claim"
-            >
-              {getButtonText()}
-            </Button>
           </CardFooter>
         </Card>
 
@@ -653,18 +644,34 @@ export default function CampaignDetail() {
           </Card>
         )}
 
-        {/* 查看我的优惠券 */}
-        {isUserAuthenticated && (
+          {/* 查看我的优惠券 */}
+          {isUserAuthenticated && (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setLocation('/my-coupons')}
+              data-testid="button-my-coupons"
+            >
+              <Tag className="mr-2 h-4 w-4" />
+              {t('campaign.viewMyCoupons')}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* 固定在底部的领取按钮 */}
+      <div className="border-t bg-background">
+        <div className="container max-w-4xl mx-auto p-4">
           <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => setLocation('/my-coupons')}
-            data-testid="button-my-coupons"
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+            size="lg"
+            onClick={handleClaimClick}
+            disabled={!canClaim || claimMutation.isPending}
+            data-testid="button-claim"
           >
-            <Tag className="mr-2 h-4 w-4" />
-            {t('campaign.viewMyCoupons')}
+            {getButtonText()}
           </Button>
-        )}
+        </div>
       </div>
     </div>
   );
