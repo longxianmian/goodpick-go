@@ -1202,6 +1202,54 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.get('/api/admin/campaigns/:id/stores', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+
+      const results = await db
+        .select({ store: stores })
+        .from(campaignStores)
+        .innerJoin(stores, eq(campaignStores.storeId, stores.id))
+        .where(eq(campaignStores.campaignId, campaignId));
+
+      const storeList = results.map(r => r.store);
+
+      res.json({ success: true, data: storeList });
+    } catch (error) {
+      console.error('Get campaign stores error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get campaign stores' });
+    }
+  });
+
+  app.post('/api/admin/campaigns/:id/stores', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const { storeIds } = req.body;
+
+      if (!Array.isArray(storeIds)) {
+        return res.status(400).json({ success: false, message: 'storeIds must be an array' });
+      }
+
+      // 删除现有关联
+      await db.delete(campaignStores).where(eq(campaignStores.campaignId, campaignId));
+
+      // 添加新关联
+      if (storeIds.length > 0) {
+        await db.insert(campaignStores).values(
+          storeIds.map((storeId: number) => ({
+            campaignId,
+            storeId,
+          }))
+        );
+      }
+
+      res.json({ success: true, message: 'Campaign stores updated' });
+    } catch (error) {
+      console.error('Update campaign stores error:', error);
+      res.status(500).json({ success: false, message: 'Failed to update campaign stores' });
+    }
+  });
+
   // ============ F. Admin - Coupon Management ============
 
   app.get('/api/admin/coupons', adminAuthMiddleware, async (req: Request, res: Response) => {

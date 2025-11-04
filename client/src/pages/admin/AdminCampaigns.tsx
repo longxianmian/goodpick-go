@@ -110,12 +110,19 @@ export default function AdminCampaigns() {
           Authorization: `Bearer ${adminToken}`,
         },
         body: JSON.stringify({
-          ...data,
+          titleSourceLang: 'th-th',
+          titleSource: data.title,
+          descriptionSourceLang: 'th-th',
+          descriptionSource: data.description,
           couponValue: data.couponValue,
+          discountType: data.discountType,
           maxPerUser: parseInt(data.maxPerUser) || 1,
           maxTotal: data.maxTotal ? parseInt(data.maxTotal) : null,
           startAt: new Date(data.startAt),
           endAt: new Date(data.endAt),
+          storeIds: data.storeIds,
+          mediaUrls: data.mediaFiles.map(f => f.url),
+          bannerImageUrl: data.mediaFiles.find(f => f.type === 'image')?.url || null,
         }),
       });
       if (!res.ok) {
@@ -137,20 +144,36 @@ export default function AdminCampaigns() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<CampaignFormData> }) => {
+      const payload: any = {};
+      
+      if (data.title) {
+        payload.titleSourceLang = 'th-th';
+        payload.titleSource = data.title;
+      }
+      if (data.description) {
+        payload.descriptionSourceLang = 'th-th';
+        payload.descriptionSource = data.description;
+      }
+      if (data.couponValue) payload.couponValue = data.couponValue;
+      if (data.discountType) payload.discountType = data.discountType;
+      if (data.maxPerUser) payload.maxPerUser = parseInt(data.maxPerUser);
+      if (data.maxTotal !== undefined) payload.maxTotal = data.maxTotal ? parseInt(data.maxTotal) : null;
+      if (data.startAt) payload.startAt = new Date(data.startAt);
+      if (data.endAt) payload.endAt = new Date(data.endAt);
+      if (data.storeIds !== undefined) payload.storeIds = data.storeIds;
+      if (data.mediaFiles !== undefined) {
+        payload.mediaUrls = data.mediaFiles.map(f => f.url);
+        payload.bannerImageUrl = data.mediaFiles.find(f => f.type === 'image')?.url || null;
+      }
+      if (data.isActive !== undefined) payload.isActive = data.isActive;
+
       const res = await fetch(`/api/admin/campaigns/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${adminToken}`,
         },
-        body: JSON.stringify({
-          ...data,
-          couponValue: data.couponValue,
-          maxPerUser: data.maxPerUser ? parseInt(data.maxPerUser) : undefined,
-          maxTotal: data.maxTotal ? parseInt(data.maxTotal) : null,
-          startAt: data.startAt ? new Date(data.startAt) : undefined,
-          endAt: data.endAt ? new Date(data.endAt) : undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const error = await res.json();
@@ -300,8 +323,8 @@ export default function AdminCampaigns() {
     const storeIds: number[] = [];
     
     setFormData({
-      title: campaign.title,
-      description: campaign.description,
+      title: campaign.titleSource,
+      description: campaign.descriptionSource,
       couponValue: campaign.couponValue,
       discountType: campaign.discountType,
       startAt: campaign.startAt ? format(new Date(campaign.startAt), "yyyy-MM-dd'T'HH:mm") : '',
@@ -393,7 +416,7 @@ export default function AdminCampaigns() {
                 {(campaignsData?.data || []).map((campaign) => (
                   <TableRow key={campaign.id} data-testid={`row-campaign-${campaign.id}`}>
                     <TableCell data-testid={`text-title-${campaign.id}`}>
-                      {campaign.title}
+                      {campaign.titleSource}
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">{getDiscountTypeLabel(campaign.discountType)}</Badge>
@@ -618,7 +641,7 @@ export default function AdminCampaigns() {
                   <Button
                     type="button"
                     size="sm"
-                    variant="link"
+                    variant="ghost"
                     onClick={toggleAllCities}
                     data-testid="button-toggle-all-cities"
                   >
@@ -660,7 +683,7 @@ export default function AdminCampaigns() {
                   <Button
                     type="button"
                     size="sm"
-                    variant="link"
+                    variant="ghost"
                     onClick={toggleAllStores}
                     disabled={filteredStoresByCity.length === 0}
                     data-testid="button-toggle-all-stores"
@@ -704,7 +727,7 @@ export default function AdminCampaigns() {
                           <div className="flex items-center gap-2">
                             <StoreIcon className="h-4 w-4 text-muted-foreground" />
                             <span className="font-medium">{store.name}</span>
-                            <Badge variant="secondary" className="text-xs">{store.code}</Badge>
+                            {store.brand && <Badge variant="secondary" className="text-xs">{store.brand}</Badge>}
                           </div>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                             <MapPin className="h-3 w-3" />
