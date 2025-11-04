@@ -372,7 +372,12 @@ export default function CampaignDetail() {
 
   const isExpired = new Date(campaign.endAt) < new Date();
   const isSoldOut = campaign.maxTotal && campaign.currentClaimed >= campaign.maxTotal;
-  const canClaim = campaign.canClaim && !isExpired && !isSoldOut;
+  
+  // 判断用户是否可以领取
+  // 未登录时：允许点击（用于触发登录）
+  // 已登录时：检查是否达到个人限制
+  const userReachedLimit = isUserAuthenticated && campaign.userClaimedCount !== undefined && campaign.userClaimedCount >= campaign.maxPerUser;
+  const canClaim = !isExpired && !isSoldOut && !userReachedLimit;
 
   // 生成Google Maps导航链接
   const getNavigationUrl = (store: any) => {
