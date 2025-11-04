@@ -196,11 +196,11 @@ export default function AdminStores() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/stores', selectedStore?.id, 'staff-presets'] });
-      toast({ title: t('common.success'), description: 'Staff authorization created successfully' });
+      toast({ title: t('common.success'), description: t('staff.createSuccess') });
       setNewStaffForm({ name: '', staffId: '', phone: '' });
     },
     onError: () => {
-      toast({ title: t('common.error'), description: 'Failed to create staff authorization', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('staff.createError'), variant: 'destructive' });
     },
   });
 
@@ -214,10 +214,10 @@ export default function AdminStores() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/stores', selectedStore?.id, 'staff-presets'] });
-      toast({ title: t('common.success'), description: 'Staff authorization deleted successfully' });
+      toast({ title: t('common.success'), description: t('staff.deleteSuccess') });
     },
     onError: () => {
-      toast({ title: t('common.error'), description: 'Failed to delete staff authorization', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('staff.deleteError'), variant: 'destructive' });
     },
   });
 
@@ -231,10 +231,10 @@ export default function AdminStores() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/stores', selectedStore?.id, 'staff-presets'] });
-      toast({ title: t('common.success'), description: 'Staff unbounded successfully' });
+      toast({ title: t('common.success'), description: t('staff.unbindSuccess') });
     },
     onError: () => {
-      toast({ title: t('common.error'), description: 'Failed to unbind staff', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('staff.unbindError'), variant: 'destructive' });
     },
   });
 
@@ -632,11 +632,11 @@ export default function AdminStores() {
             <DialogTitle>
               <div className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
-                Redemption Authorization - {selectedStore?.name}
+                {t('staff.title')} - {selectedStore?.name}
               </div>
             </DialogTitle>
             <DialogDescription>
-              Manage staff members who can redeem coupons at this store
+              {t('staff.manage')}
             </DialogDescription>
           </DialogHeader>
 
@@ -644,38 +644,38 @@ export default function AdminStores() {
             {/* Add New Staff Form */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Add New Staff Authorization</CardTitle>
+                <CardTitle className="text-base">{t('staff.addNew')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="staff-name">Staff Name</Label>
+                    <Label htmlFor="staff-name">{t('staff.staffName')}</Label>
                     <Input
                       id="staff-name"
                       data-testid="input-staff-name"
                       value={newStaffForm.name}
                       onChange={(e) => setNewStaffForm({ ...newStaffForm, name: e.target.value })}
-                      placeholder="Enter staff name"
+                      placeholder={t('staff.namePlaceholder')}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="staff-id">Staff ID</Label>
+                    <Label htmlFor="staff-id">{t('staff.staffId')}</Label>
                     <Input
                       id="staff-id"
                       data-testid="input-staff-id"
                       value={newStaffForm.staffId}
                       onChange={(e) => setNewStaffForm({ ...newStaffForm, staffId: e.target.value })}
-                      placeholder="Enter staff ID"
+                      placeholder={t('staff.idPlaceholder')}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="staff-phone">Phone Number</Label>
+                    <Label htmlFor="staff-phone">{t('staff.phone')}</Label>
                     <Input
                       id="staff-phone"
                       data-testid="input-staff-phone"
                       value={newStaffForm.phone}
                       onChange={(e) => setNewStaffForm({ ...newStaffForm, phone: e.target.value })}
-                      placeholder="Enter phone number"
+                      placeholder={t('staff.phonePlaceholder')}
                     />
                   </div>
                 </div>
@@ -686,7 +686,7 @@ export default function AdminStores() {
                     disabled={!newStaffForm.name || !newStaffForm.staffId || !newStaffForm.phone || createStaffMutation.isPending}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Create Authorization
+                    {t('staff.createButton')}
                   </Button>
                 </div>
               </CardContent>
@@ -694,7 +694,7 @@ export default function AdminStores() {
 
             {/* Staff Presets List */}
             <div>
-              <h3 className="text-sm font-medium mb-3">Active Staff Authorizations</h3>
+              <h3 className="text-sm font-medium mb-3">{t('staff.activeList')}</h3>
               {staffPresetsLoading ? (
                 <div className="space-y-2">
                   <Skeleton className="h-16 w-full" />
@@ -702,7 +702,7 @@ export default function AdminStores() {
                 </div>
               ) : staffPresets?.data?.length === 0 ? (
                 <Card className="p-8 text-center text-muted-foreground">
-                  <p>No staff authorizations yet. Create one above to get started.</p>
+                  <p>{t('staff.noAuthorizations')}</p>
                 </Card>
               ) : (
                 <div className="space-y-2">
@@ -715,27 +715,27 @@ export default function AdminStores() {
                             <div className="text-xs text-muted-foreground">ID: {preset.staffId}</div>
                           </div>
                           <div>
-                            <div className="text-sm text-muted-foreground">Phone</div>
+                            <div className="text-sm text-muted-foreground">{t('staff.phone')}</div>
                             <div className="text-sm">{preset.phone}</div>
                           </div>
                           <div>
-                            <div className="text-sm text-muted-foreground">Status</div>
+                            <div className="text-sm text-muted-foreground">{t('staff.status')}</div>
                             {preset.isBound ? (
                               <Badge variant="default" className="gap-1">
                                 <UserCheck className="h-3 w-3" />
-                                Bound
+                                {t('staff.bound')}
                               </Badge>
                             ) : (
                               <Badge variant="secondary" className="gap-1">
                                 <UserX className="h-3 w-3" />
-                                Pending
+                                {t('staff.pending')}
                               </Badge>
                             )}
                           </div>
                           {preset.isBound && (
                             <div>
-                              <div className="text-sm text-muted-foreground">Bound User</div>
-                              <div className="text-sm">{preset.boundUserName || 'Unknown'}</div>
+                              <div className="text-sm text-muted-foreground">{t('staff.boundUser')}</div>
+                              <div className="text-sm">{preset.boundUserName || t('staff.unknown')}</div>
                               <div className="text-xs text-muted-foreground">{preset.boundUserPhone}</div>
                             </div>
                           )}
@@ -789,9 +789,9 @@ export default function AdminStores() {
       <Dialog open={qrCodeDialogOpen} onOpenChange={setQrCodeDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Staff Authorization QR Code</DialogTitle>
+            <DialogTitle>{t('staff.qrCode')}</DialogTitle>
             <DialogDescription>
-              Staff member should scan this QR code with their LINE account to complete authorization
+              {t('staff.qrCodeDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-6">
@@ -800,10 +800,10 @@ export default function AdminStores() {
             </div>
             <div className="text-center space-y-2">
               <p className="text-sm text-muted-foreground">
-                This authorization link will bind to the staff member's LINE account
+                {t('staff.qrCodeLink')}
               </p>
               <p className="text-xs text-muted-foreground">
-                Phone number verification required
+                {t('staff.phoneVerification')}
               </p>
             </div>
           </div>

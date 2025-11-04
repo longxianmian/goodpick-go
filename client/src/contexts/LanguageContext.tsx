@@ -101,6 +101,13 @@ const translations: Record<Language, Record<string, string>> = {
     'staff.qrCodeDesc': '员工需使用LINE账号扫描此二维码完成授权',
     'staff.phoneVerification': '需要手机号验证',
     'staff.noAuthorizations': '暂无员工授权。点击上方创建新授权。',
+    'staff.namePlaceholder': '请输入员工姓名',
+    'staff.idPlaceholder': '请输入员工编号',
+    'staff.phonePlaceholder': '请输入电话号码',
+    'staff.createButton': '创建授权',
+    'staff.qrCodeLink': '此授权链接将绑定到员工的LINE账号',
+    'staff.unknown': '未知',
+    'staff.activeList': '激活的员工授权',
     
     // Staff Binding
     'staffBind.title': '员工授权',
@@ -302,6 +309,13 @@ const translations: Record<Language, Record<string, string>> = {
     'staff.qrCodeDesc': 'Staff member should scan this QR code with their LINE account to complete authorization',
     'staff.phoneVerification': 'Phone verification required',
     'staff.noAuthorizations': 'No staff authorizations yet. Create one above to get started.',
+    'staff.namePlaceholder': 'Enter staff name',
+    'staff.idPlaceholder': 'Enter staff ID',
+    'staff.phonePlaceholder': 'Enter phone number',
+    'staff.createButton': 'Create Authorization',
+    'staff.qrCodeLink': 'This authorization link will bind to the staff member\'s LINE account',
+    'staff.unknown': 'Unknown',
+    'staff.activeList': 'Active Staff Authorizations',
     
     // Staff Binding
     'staffBind.title': 'Staff Authorization',
@@ -503,6 +517,13 @@ const translations: Record<Language, Record<string, string>> = {
     'staff.qrCodeDesc': 'พนักงานต้องสแกน QR Code นี้ด้วยบัญชี LINE เพื่อทำการอนุมัติให้เสร็จสมบูรณ์',
     'staff.phoneVerification': 'ต้องมีการยืนยันหมายเลขโทรศัพท์',
     'staff.noAuthorizations': 'ยังไม่มีการอนุมัติพนักงาน สร้างใหม่ด้านบนเพื่อเริ่มต้น',
+    'staff.namePlaceholder': 'กรอกชื่อพนักงาน',
+    'staff.idPlaceholder': 'กรอกรหัสพนักงาน',
+    'staff.phonePlaceholder': 'กรอกเบอร์โทรศัพท์',
+    'staff.createButton': 'สร้างการอนุมัติ',
+    'staff.qrCodeLink': 'ลิงก์การอนุมัตินี้จะเชื่อมโยงกับบัญชี LINE ของพนักงาน',
+    'staff.unknown': 'ไม่ทราบ',
+    'staff.activeList': 'การอนุมัติพนักงานที่ใช้งานอยู่',
     
     // Staff Binding
     'staffBind.title': 'การอนุมัติพนักงาน',
