@@ -26,6 +26,18 @@ Enhanced the campaign detail page to strengthen online-to-offline conversion wit
   - Store section: Orange MapPin icon, orange navigation buttons
   - Creates visual hierarchy that guides users to key actions (claim → navigate to store)
   - Emphasizes promotional atmosphere and urgency
+- **Language-Aware Campaign Titles**:
+  - Campaign titles now follow system language selection
+  - Frontend sends Accept-Language header with all API requests
+  - Backend getCampaignTranslatedContent() returns translated titles (titleZh, titleEn, titleTh)
+  - Seamless language switching without page reload
+- **Store Card 3-Line Layout** (Consistent Structure):
+  - Line 1: Store name (bold, text-base)
+  - Line 2: Address (single-line truncate with ellipsis)
+  - Line 3: Phone + Distance + Navigation button (all on same line)
+  - Removed star ratings for cleaner focus on essential information
+  - Distance calculation using Haversine formula (displays as "XXXm" or "X.Xkm")
+  - Requires user geolocation permission for distance display
 - **Navigation Feature** (Core O2O Value):
   - Added Google Maps navigation buttons on each store card
   - Generates deep links using coordinates or encoded addresses
@@ -38,8 +50,8 @@ Enhanced the campaign detail page to strengthen online-to-offline conversion wit
   - Store section heading: Reduced from default CardTitle to text-lg md:text-xl
   - Campaign rules: Moved to Dialog (ghost button above claim CTA)
   - Stock/limit info: Combined to single-line flex layout
-  - Store display: Limited to 3 nearest stores with enhanced cards (image, rating, phone, navigation)
-- **Impact**: Orange theme successfully highlights campaign atmosphere and emphasizes key conversion points, strengthening core business value of driving users from online campaigns to physical store visits
+  - Store display: Limited to 3 nearest stores with enhanced cards
+- **Impact**: Orange theme successfully highlights campaign atmosphere and emphasizes key conversion points. Language-aware titles improve international user experience. Distance display and 3-line store layout strengthen core business value of driving users from online campaigns to physical store visits
 
 ### Web OAuth Flow Simplified to 2 Steps (November 2025)
 Dramatically improved conversion rates by simplifying the Web OAuth user flow:

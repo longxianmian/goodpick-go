@@ -23,6 +23,10 @@ export async function apiRequest(
     headers['Authorization'] = `Bearer ${userToken}`;
   }
 
+  // Add language header for campaign title translation
+  const currentLanguage = localStorage.getItem('language') || 'th-th';
+  headers['Accept-Language'] = currentLanguage;
+
   const res = await fetch(url, {
     method,
     headers,
@@ -50,6 +54,10 @@ export const getQueryFn: <T>(options: {
     } else if (userToken) {
       headers['Authorization'] = `Bearer ${userToken}`;
     }
+
+    // Add language header for campaign title translation
+    const currentLanguage = localStorage.getItem('language') || 'th-th';
+    headers['Accept-Language'] = currentLanguage;
 
     const res = await fetch(queryKey.join("/") as string, {
       credentials: "include",

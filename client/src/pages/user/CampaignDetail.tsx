@@ -29,6 +29,7 @@ export default function CampaignDetail() {
   const [isLiffEnvironment, setIsLiffEnvironment] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [rulesDialogOpen, setRulesDialogOpen] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const autoplayPlugin = useRef(
     Autoplay({ delay: 3000, stopOnInteraction: true })
   );
@@ -127,6 +128,41 @@ export default function CampaignDetail() {
     checkLiff();
   }, [id, isUserAuthenticated]);
 
+  // 获取用户位置用于计算距离
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        (error) => {
+          console.log('Location permission denied or unavailable:', error);
+        }
+      );
+    }
+  }, []);
+
+  // 计算两点之间的距离（Haversine公式）
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): string => {
+    const R = 6371; // 地球半径（千米）
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+    
+    if (distance < 1) {
+      return `${Math.round(distance * 1000)}m`;
+    }
+    return `${distance.toFixed(1)}km`;
+  };
+
   // 获取活动详情
   const { data: response, isLoading } = useQuery<{
     success: boolean;
@@ -149,6 +185,8 @@ export default function CampaignDetail() {
         name: string;
         address: string;
         city: string;
+        latitude: number | null;
+        longitude: number | null;
       }>;
       userClaimedCount?: number;
       canClaim: boolean;
@@ -553,27 +591,19 @@ export default function CampaignDetail() {
                       </div>
                     )}
                     
-                    {/* 门店信息 */}
+                    {/* 门店信息 - 固定3行布局 */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <h3 className="font-semibold text-base" data-testid={`store-name-${store.id}`}>
-                          {store.name}
-                        </h3>
-                        {/* 评分 */}
-                        {(store as any).rating && (
-                          <div className="flex items-center gap-1 flex-shrink-0" data-testid={`store-rating-${store.id}`}>
-                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                            <span className="text-sm font-medium">{(store as any).rating}</span>
-                          </div>
-                        )}
-                      </div>
+                      {/* 第1行：店名 */}
+                      <h3 className="font-semibold text-base mb-1" data-testid={`store-name-${store.id}`}>
+                        {store.name}
+                      </h3>
                       
-                      {/* 地址 */}
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-2" data-testid={`store-address-${store.id}`}>
+                      {/* 第2行：地址（单行截断） */}
+                      <p className="text-sm text-muted-foreground truncate mb-2" data-testid={`store-address-${store.id}`}>
                         {store.address}
                       </p>
                       
-                      {/* 操作按钮 */}
+                      {/* 第3行：电话 + 距离 + 导航按钮 */}
                       <div className="flex items-center gap-3 flex-wrap">
                         {/* 电话 */}
                         {(store as any).phone && (
@@ -585,6 +615,13 @@ export default function CampaignDetail() {
                             <Phone className="h-3.5 w-3.5" />
                             <span>{(store as any).phone}</span>
                           </a>
+                        )}
+                        
+                        {/* 距离 */}
+                        {userLocation && store.latitude && store.longitude && (
+                          <span className="text-sm text-muted-foreground" data-testid={`store-distance-${store.id}`}>
+                            {calculateDistance(userLocation.lat, userLocation.lng, store.latitude, store.longitude)}
+                          </span>
                         )}
                         
                         {/* 导航按钮 */}
