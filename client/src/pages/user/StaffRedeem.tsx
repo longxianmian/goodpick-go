@@ -58,10 +58,10 @@ export default function StaffRedeem() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-destructive" />
-              需要登录
+              {t('staffRedeem.loginRequired')}
             </CardTitle>
             <CardDescription>
-              请先登录您的店员账号
+              {t('staffRedeem.loginRequiredDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -70,7 +70,7 @@ export default function StaffRedeem() {
               className="w-full"
               data-testid="button-goto-home"
             >
-              返回首页
+              {t('staffRedeem.backHome')}
             </Button>
           </CardContent>
         </Card>
@@ -81,8 +81,8 @@ export default function StaffRedeem() {
   const handleQuery = async () => {
     if (!inputCode.trim()) {
       toast({
-        title: '请输入核销码',
-        description: '请输入8位数字核销码',
+        title: t('staffRedeem.enterCode'),
+        description: t('staffRedeem.enterCodeDesc'),
         variant: 'destructive',
       });
       return;
@@ -90,8 +90,8 @@ export default function StaffRedeem() {
 
     if (!/^\d{8}$/.test(inputCode.trim())) {
       toast({
-        title: '核销码格式错误',
-        description: '核销码必须是8位数字',
+        title: t('staffRedeem.invalidFormat'),
+        description: t('staffRedeem.invalidFormatDesc'),
         variant: 'destructive',
       });
       return;
@@ -115,21 +115,21 @@ export default function StaffRedeem() {
       if (data.success) {
         setCouponData(data.data);
         toast({
-          title: '优惠券查询成功',
-          description: '请核对优惠券信息后确认核销',
+          title: t('staffRedeem.querySuccess'),
+          description: t('staffRedeem.querySuccessDesc'),
         });
       } else {
         toast({
-          title: '查询失败',
-          description: data.message || '优惠券不存在或已被使用',
+          title: t('staffRedeem.queryFailed'),
+          description: data.message,
           variant: 'destructive',
         });
       }
     } catch (error: any) {
       console.error('Query error:', error);
       toast({
-        title: '查询失败',
-        description: error.message || '网络错误，请稍后重试',
+        title: t('staffRedeem.queryFailed'),
+        description: error.message,
         variant: 'destructive',
       });
     } finally {
@@ -162,21 +162,21 @@ export default function StaffRedeem() {
       if (data.success) {
         setRedeemSuccess(true);
         toast({
-          title: '核销成功',
-          description: `优惠券 ${couponData.coupon.code} 已成功核销`,
+          title: t('staffRedeem.redeemSuccess'),
+          description: t('staffRedeem.redeemSuccessDesc'),
         });
       } else {
         toast({
-          title: '核销失败',
-          description: data.message || '请稍后重试',
+          title: t('staffRedeem.redeemFailed'),
+          description: data.message,
           variant: 'destructive',
         });
       }
     } catch (error: any) {
       console.error('Redeem error:', error);
       toast({
-        title: '核销失败',
-        description: error.message || '网络错误，请稍后重试',
+        title: t('staffRedeem.redeemFailed'),
+        description: error.message,
         variant: 'destructive',
       });
     } finally {
@@ -198,10 +198,10 @@ export default function StaffRedeem() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-green-600">
               <CheckCircle2 className="w-6 h-6" />
-              核销成功
+              {t('staffRedeem.redeemSuccess')}
             </CardTitle>
             <CardDescription>
-              优惠券已成功核销
+              {t('staffRedeem.redeemSuccessDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -212,16 +212,16 @@ export default function StaffRedeem() {
             </div>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">用户:</span>
+                <span className="text-muted-foreground">{t('staffRedeem.customerName')}:</span>
                 <span className="font-medium">{couponData?.user.displayName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">活动:</span>
+                <span className="text-muted-foreground">{t('staffRedeem.campaignName')}:</span>
                 <span className="font-medium">{couponData?.campaign.title}</span>
               </div>
               {notes && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">备注:</span>
+                  <span className="text-muted-foreground">{t('staffRedeem.notes')}:</span>
                   <span className="font-medium">{notes}</span>
                 </div>
               )}
@@ -231,7 +231,7 @@ export default function StaffRedeem() {
               className="w-full"
               data-testid="button-redeem-another"
             >
-              核销下一张
+              {t('staffRedeem.redeemAnother')}
             </Button>
           </CardContent>
         </Card>
@@ -246,15 +246,15 @@ export default function StaffRedeem() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ScanLine className="w-5 h-5" />
-              店员核销
+              {t('staffRedeem.title')}
             </CardTitle>
             <CardDescription>
-              请输入8位数字核销码或扫描用户二维码
+              {t('staffRedeem.description')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="input-code">核销码（8位数字）</Label>
+              <Label htmlFor="input-code">{t('staffRedeem.codeLabel')}</Label>
               <div className="flex gap-2">
                 <Input
                   id="input-code"
@@ -262,7 +262,7 @@ export default function StaffRedeem() {
                   inputMode="numeric"
                   pattern="\d{8}"
                   maxLength={8}
-                  placeholder="00000000"
+                  placeholder={t('staffRedeem.codePlaceholder')}
                   value={inputCode}
                   onChange={(e) => setInputCode(e.target.value.replace(/\D/g, ''))}
                   onKeyDown={(e) => {
@@ -282,7 +282,7 @@ export default function StaffRedeem() {
                   {querying ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    '查询'
+                    t('staffRedeem.query')
                   )}
                 </Button>
               </div>
@@ -293,7 +293,7 @@ export default function StaffRedeem() {
         {couponData && (
           <Card>
             <CardHeader>
-              <CardTitle>优惠券详情</CardTitle>
+              <CardTitle>{t('staffRedeem.couponDetails')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {couponData.campaign.bannerImageUrl && (
@@ -315,11 +315,11 @@ export default function StaffRedeem() {
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">核销码</p>
+                  <p className="text-muted-foreground">{t('staffRedeem.codeLabel')}</p>
                   <p className="font-mono font-bold text-lg">{couponData.coupon.code}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">优惠值</p>
+                  <p className="text-muted-foreground">{t('staffRedeem.couponValue')}</p>
                   <p className="font-bold text-lg text-orange-600">
                     {couponData.campaign.discountType === 'percentage_off'
                       ? `${couponData.campaign.couponValue}%`
@@ -327,21 +327,21 @@ export default function StaffRedeem() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">用户</p>
-                  <p className="font-medium">{couponData.user.displayName || '未知用户'}</p>
+                  <p className="text-muted-foreground">{t('staffRedeem.customerName')}</p>
+                  <p className="font-medium">{couponData.user.displayName || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">手机</p>
-                  <p className="font-medium">{couponData.user.phone || '无'}</p>
+                  <p className="text-muted-foreground">{t('staffRedeem.customerPhone')}</p>
+                  <p className="font-medium">{couponData.user.phone || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">领取时间</p>
+                  <p className="text-muted-foreground">{t('coupon.issuedAt')}</p>
                   <p className="text-xs">
                     {new Date(couponData.coupon.issuedAt).toLocaleString(language)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">有效期至</p>
+                  <p className="text-muted-foreground">{t('staffRedeem.validUntil')}</p>
                   <p className="text-xs">
                     {new Date(couponData.coupon.expiredAt).toLocaleString(language)}
                   </p>
@@ -351,10 +351,10 @@ export default function StaffRedeem() {
               <Separator />
 
               <div className="space-y-2">
-                <Label htmlFor="textarea-notes">备注（可选）</Label>
+                <Label htmlFor="textarea-notes">{t('staffRedeem.notes')}</Label>
                 <Textarea
                   id="textarea-notes"
-                  placeholder="记录核销相关信息..."
+                  placeholder={t('staffRedeem.notesPlaceholder')}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
@@ -369,7 +369,7 @@ export default function StaffRedeem() {
                   className="flex-1"
                   data-testid="button-cancel"
                 >
-                  取消
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   onClick={handleRedeem}
@@ -380,10 +380,10 @@ export default function StaffRedeem() {
                   {redeeming ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      核销中...
+                      {t('staffRedeem.redeeming')}
                     </>
                   ) : (
-                    '确认核销'
+                    t('staffRedeem.confirmRedeem')
                   )}
                 </Button>
               </div>
