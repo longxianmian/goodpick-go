@@ -5,7 +5,7 @@ type Language = 'zh-cn' | 'en-us' | 'th-th';
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string>) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -221,6 +221,19 @@ const translations: Record<Language, Record<string, string>> = {
     'language.zh-cn': '中文',
     'language.en-us': 'English',
     'language.th-th': 'ไทย',
+    
+    // Media Uploader
+    'mediaUploader.imageMode': '图片模式',
+    'mediaUploader.videoMode': '视频模式',
+    'mediaUploader.maxImages': '最多',
+    'mediaUploader.maxVideos': '最多',
+    'mediaUploader.images': '张图片',
+    'mediaUploader.videos': '个视频',
+    'mediaUploader.image': '图片',
+    'mediaUploader.video': '视频',
+    'mediaUploader.switchModeTitle': '切换媒体类型？',
+    'mediaUploader.switchModeDescription': '切换到{newMode}模式将清空当前已上传的{currentMode}。此操作无法撤销。',
+    'mediaUploader.confirmSwitch': '确认切换',
   },
   'en-us': {
     // Common
@@ -432,6 +445,19 @@ const translations: Record<Language, Record<string, string>> = {
     'language.zh-cn': '中文',
     'language.en-us': 'English',
     'language.th-th': 'ไทย',
+    
+    // Media Uploader
+    'mediaUploader.imageMode': 'Image Mode',
+    'mediaUploader.videoMode': 'Video Mode',
+    'mediaUploader.maxImages': 'Max',
+    'mediaUploader.maxVideos': 'Max',
+    'mediaUploader.images': 'images',
+    'mediaUploader.videos': 'videos',
+    'mediaUploader.image': 'image',
+    'mediaUploader.video': 'video',
+    'mediaUploader.switchModeTitle': 'Switch Media Type?',
+    'mediaUploader.switchModeDescription': 'Switching to {newMode} mode will clear all uploaded {currentMode}. This action cannot be undone.',
+    'mediaUploader.confirmSwitch': 'Confirm Switch',
   },
   'th-th': {
     // Common
@@ -643,6 +669,19 @@ const translations: Record<Language, Record<string, string>> = {
     'language.zh-cn': '中文',
     'language.en-us': 'English',
     'language.th-th': 'ไทย',
+    
+    // Media Uploader
+    'mediaUploader.imageMode': 'โหมดรูปภาพ',
+    'mediaUploader.videoMode': 'โหมดวิดีโอ',
+    'mediaUploader.maxImages': 'สูงสุด',
+    'mediaUploader.maxVideos': 'สูงสุด',
+    'mediaUploader.images': 'รูปภาพ',
+    'mediaUploader.videos': 'วิดีโอ',
+    'mediaUploader.image': 'รูปภาพ',
+    'mediaUploader.video': 'วิดีโอ',
+    'mediaUploader.switchModeTitle': 'สลับประเภทสื่อ?',
+    'mediaUploader.switchModeDescription': 'การสลับไปยังโหมด{newMode}จะลบ{currentMode}ที่อัปโหลดทั้งหมด การดำเนินการนี้ไม่สามารถยกเลิกได้',
+    'mediaUploader.confirmSwitch': 'ยืนยันการสลับ',
   },
 };
 
@@ -660,8 +699,16 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(lang);
   };
 
-  const t = (key: string): string => {
-    return translations[language][key] || key;
+  const t = (key: string, params?: Record<string, string>): string => {
+    let text = translations[language][key] || key;
+    
+    if (params) {
+      Object.entries(params).forEach(([param, value]) => {
+        text = text.replace(`{${param}}`, value);
+      });
+    }
+    
+    return text;
   };
 
   return (
