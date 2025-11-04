@@ -5,6 +5,7 @@ interface LineVerifyResponse {
   name?: string;
   picture?: string;
   email?: string;
+  phone?: string;
 }
 
 export async function verifyLineIdToken(idToken: string): Promise<LineVerifyResponse | null> {
@@ -28,6 +29,7 @@ export async function verifyLineIdToken(idToken: string): Promise<LineVerifyResp
         name: response.data.name,
         picture: response.data.picture,
         email: response.data.email,
+        phone: response.data.phone,
       };
     }
 

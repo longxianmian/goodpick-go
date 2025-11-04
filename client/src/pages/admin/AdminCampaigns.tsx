@@ -64,7 +64,7 @@ export default function AdminCampaigns() {
     storeIds: [],
   });
 
-  const { data: campaignsData, isLoading } = useQuery<{ ok: boolean; campaigns: Campaign[] }>({
+  const { data: campaignsData, isLoading } = useQuery<{ success: boolean; data: Campaign[] }>({
     queryKey: ['/api/admin/campaigns'],
     queryFn: async () => {
       const res = await fetch('/api/admin/campaigns', {
@@ -79,7 +79,7 @@ export default function AdminCampaigns() {
     enabled: !!adminToken,
   });
 
-  const { data: storesData } = useQuery<{ ok: boolean; stores: StoreType[] }>({
+  const { data: storesData } = useQuery<{ success: boolean; data: StoreType[] }>({
     queryKey: ['/api/admin/stores'],
     queryFn: async () => {
       const res = await fetch('/api/admin/stores', {
@@ -90,7 +90,7 @@ export default function AdminCampaigns() {
     enabled: !!adminToken,
   });
 
-  const { data: campaignStoresData } = useQuery<{ ok: boolean; stores: StoreType[] }>({
+  const { data: campaignStoresData } = useQuery<{ success: boolean; data: StoreType[] }>({
     queryKey: ['/api/admin/campaigns', selectedCampaignId, 'stores'],
     queryFn: async () => {
       const res = await fetch(`/api/admin/campaigns/${selectedCampaignId}/stores`, {
@@ -211,7 +211,8 @@ export default function AdminCampaigns() {
   // 城市筛选逻辑
   const availableCities = useMemo(() => {
     const cities = new Set<string>();
-    storesData?.stores.forEach((store) => {
+    const stores = storesData?.data || [];
+    stores.forEach((store) => {
       if (store.city) {
         cities.add(store.city);
       }
@@ -223,7 +224,8 @@ export default function AdminCampaigns() {
     if (selectedCities.length === 0) {
       return [];
     }
-    return (storesData?.stores || [])
+    const stores = storesData?.data || [];
+    return stores
       .filter((store) => selectedCities.includes(store.city || ''))
       .sort((a, b) => {
         if (a.city !== b.city) {
@@ -330,7 +332,7 @@ export default function AdminCampaigns() {
 
   const handleManageStores = (campaign: Campaign) => {
     setSelectedCampaignId(campaign.id);
-    setSelectedStoreIds(campaignStoresData?.stores.map(s => s.id) || []);
+    setSelectedStoreIds(campaignStoresData?.data?.map(s => s.id) || []);
     setIsStoreDialogOpen(true);
   };
 
@@ -388,7 +390,7 @@ export default function AdminCampaigns() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {campaignsData?.campaigns.map((campaign) => (
+                {(campaignsData?.data || []).map((campaign) => (
                   <TableRow key={campaign.id} data-testid={`row-campaign-${campaign.id}`}>
                     <TableCell data-testid={`text-title-${campaign.id}`}>
                       {campaign.title}
@@ -440,7 +442,7 @@ export default function AdminCampaigns() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {(!campaignsData?.campaigns || campaignsData.campaigns.length === 0) && (
+                {(!(campaignsData?.data || []).length) && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center text-muted-foreground">
                       {t('campaigns.noCampaigns')}
@@ -639,7 +641,7 @@ export default function AdminCampaigns() {
                         data-testid={`checkbox-city-${city}`}
                       />
                       <Label htmlFor={`city-${city}`} className="cursor-pointer">
-                        {city} ({storesData?.stores.filter((s) => s.city === city).length || 0})
+                        {city} ({(storesData?.data || []).filter((s) => s.city === city).length || 0})
                       </Label>
                     </div>
                   ))}
@@ -737,7 +739,7 @@ export default function AdminCampaigns() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="max-h-96 overflow-y-auto space-y-2">
-              {storesData?.stores.map((store) => (
+              {(storesData?.data || []).map((store) => (
                 <div key={store.id} className="flex items-center space-x-2 p-2 hover-elevate rounded-md">
                   <Checkbox
                     id={`store-${store.id}`}
