@@ -82,16 +82,16 @@ export default function StaffRedeem() {
     if (!inputCode.trim()) {
       toast({
         title: '请输入核销码',
-        description: '请输入6位数字核销码',
+        description: '请输入8位数字核销码',
         variant: 'destructive',
       });
       return;
     }
 
-    if (!/^\d{6}$/.test(inputCode.trim())) {
+    if (!/^\d{8}$/.test(inputCode.trim())) {
       toast({
         title: '核销码格式错误',
-        description: '核销码必须是6位数字',
+        description: '核销码必须是8位数字',
         variant: 'destructive',
       });
       return;
@@ -249,20 +249,20 @@ export default function StaffRedeem() {
               店员核销
             </CardTitle>
             <CardDescription>
-              请输入6位数字核销码或扫描用户二维码
+              请输入8位数字核销码或扫描用户二维码
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="input-code">核销码（6位数字）</Label>
+              <Label htmlFor="input-code">核销码（8位数字）</Label>
               <div className="flex gap-2">
                 <Input
                   id="input-code"
                   type="text"
                   inputMode="numeric"
-                  pattern="\d{6}"
-                  maxLength={6}
-                  placeholder="000000"
+                  pattern="\d{8}"
+                  maxLength={8}
+                  placeholder="00000000"
                   value={inputCode}
                   onChange={(e) => setInputCode(e.target.value.replace(/\D/g, ''))}
                   onKeyDown={(e) => {

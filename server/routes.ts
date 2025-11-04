@@ -171,8 +171,8 @@ async function generateUniqueCouponCode(): Promise<string> {
   const maxRetries = 10;
   
   for (let i = 0; i < maxRetries; i++) {
-    // Generate 6-digit number (000000-999999)
-    const code = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+    // Generate 8-digit number (00000000-99999999)
+    const code = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
     
     // Check if code already exists
     const existing = await db
@@ -600,7 +600,7 @@ export function registerRoutes(app: Express): Server {
 
       // 生成优惠券
       const code = await generateUniqueCouponCode();
-      console.log(`[生成优惠券] 6位数核销码: ${code}`);
+      console.log(`[生成优惠券] 8位数核销码: ${code}`);
       
       const [newCoupon] = await db
         .insert(coupons)
