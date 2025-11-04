@@ -37,7 +37,7 @@ export default function AdminStores() {
     phone: '',
     latitude: '',
     longitude: '',
-    rating: '',
+    imageUrl: '',
   });
   const [addressSearchOpen, setAddressSearchOpen] = useState(false);
   const [addressSearchValue, setAddressSearchValue] = useState('');
@@ -75,7 +75,7 @@ export default function AdminStores() {
           phone: data.phone.trim() || null,
           latitude: data.latitude ? data.latitude.toString() : null,
           longitude: data.longitude ? data.longitude.toString() : null,
-          rating: data.rating ? data.rating.toString() : null,
+          imageUrl: data.imageUrl.trim() || null,
           isActive: true,
         }),
       });
@@ -108,7 +108,8 @@ export default function AdminStores() {
           phone: data.phone.trim() || null,
           latitude: data.latitude ? data.latitude.toString() : null,
           longitude: data.longitude ? data.longitude.toString() : null,
-          rating: data.rating ? data.rating.toString() : null,
+          imageUrl: data.imageUrl.trim() || null,
+          isActive: true,
         }),
       });
       return res.json();
@@ -202,7 +203,7 @@ export default function AdminStores() {
       phone: '',
       latitude: '',
       longitude: '',
-      rating: '',
+      imageUrl: '',
     });
     setAddressSearchValue('');
     setPlaceSuggestions([]);
@@ -219,7 +220,7 @@ export default function AdminStores() {
       phone: store.phone || '',
       latitude: store.latitude || '',
       longitude: store.longitude || '',
-      rating: store.rating ? String(store.rating) : '',
+      imageUrl: store.imageUrl || '',
     });
     setAddressSearchValue(store.address);
     setIsDialogOpen(true);
@@ -383,16 +384,14 @@ export default function AdminStores() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="rating">{t('stores.rating')}</Label>
+                  <Label htmlFor="imageUrl">{t('stores.imageUrl')}</Label>
                   <Input
-                    id="rating"
-                    data-testid="input-store-rating"
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="5"
-                    value={formData.rating}
-                    onChange={(e) => setFormData({ ...formData, rating: e.target.value })}
+                    id="imageUrl"
+                    data-testid="input-store-imageUrl"
+                    type="text"
+                    value={formData.imageUrl}
+                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                    placeholder="https://..."
                   />
                 </div>
               </div>
@@ -433,7 +432,6 @@ export default function AdminStores() {
                   <TableHead>{t('stores.city')}</TableHead>
                   <TableHead>{t('stores.address')}</TableHead>
                   <TableHead>{t('stores.phone')}</TableHead>
-                  <TableHead>{t('stores.rating')}</TableHead>
                   <TableHead className="text-right">{t('stores.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -445,9 +443,6 @@ export default function AdminStores() {
                     <TableCell>{store.city}</TableCell>
                     <TableCell>{store.address}</TableCell>
                     <TableCell>{store.phone || '-'}</TableCell>
-                    <TableCell data-testid={`text-rating-${store.id}`}>
-                      {store.rating ? `⭐ ${store.rating}` : '-'}
-                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
