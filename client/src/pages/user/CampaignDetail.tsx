@@ -128,6 +128,7 @@ export default function CampaignDetail() {
       title: string;
       description: string;
       bannerImageUrl: string | null;
+      mediaUrls: string[];
       discountType: string;
       couponValue: string;
       originalPrice: string | null;
@@ -359,6 +360,36 @@ export default function CampaignDetail() {
               alt={campaign.title}
               className="w-full h-full object-cover"
             />
+          </div>
+        )}
+
+        {/* 媒体文件（图片和视频） */}
+        {campaign.mediaUrls && campaign.mediaUrls.length > 0 && (
+          <div className="space-y-4" data-testid="campaign-media">
+            {campaign.mediaUrls.map((url, index) => {
+              const isVideo = url.match(/\.(mp4|webm|ogg|mov)$/i);
+              return (
+                <div key={index} className="w-full rounded-lg overflow-hidden">
+                  {isVideo ? (
+                    <video
+                      controls
+                      className="w-full"
+                      data-testid={`media-video-${index}`}
+                    >
+                      <source src={url} type="video/mp4" />
+                      您的浏览器不支持视频播放
+                    </video>
+                  ) : (
+                    <img
+                      src={url}
+                      alt={`${campaign.title} - ${index + 1}`}
+                      className="w-full object-cover"
+                      data-testid={`media-image-${index}`}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
