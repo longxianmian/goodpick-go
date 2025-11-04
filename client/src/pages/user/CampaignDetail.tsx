@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Gift, Calendar, MapPin, Tag } from 'lucide-react';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useState, useEffect } from 'react';
@@ -363,34 +364,44 @@ export default function CampaignDetail() {
           </div>
         )}
 
-        {/* 媒体文件（图片和视频） */}
+        {/* 媒体轮播（图片和视频） */}
         {campaign.mediaUrls && campaign.mediaUrls.length > 0 && (
-          <div className="space-y-4" data-testid="campaign-media">
-            {campaign.mediaUrls.map((url, index) => {
-              const isVideo = url.match(/\.(mp4|webm|ogg|mov)$/i);
-              return (
-                <div key={index} className="w-full rounded-lg overflow-hidden">
-                  {isVideo ? (
-                    <video
-                      controls
-                      className="w-full"
-                      data-testid={`media-video-${index}`}
-                    >
-                      <source src={url} type="video/mp4" />
-                      您的浏览器不支持视频播放
-                    </video>
-                  ) : (
-                    <img
-                      src={url}
-                      alt={`${campaign.title} - ${index + 1}`}
-                      className="w-full object-cover"
-                      data-testid={`media-image-${index}`}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <Carousel className="w-full" data-testid="campaign-media">
+            <CarouselContent>
+              {campaign.mediaUrls.map((url, index) => {
+                const isVideo = url.match(/\.(mp4|webm|ogg|mov)$/i);
+                return (
+                  <CarouselItem key={index}>
+                    <div className="w-full aspect-video rounded-lg overflow-hidden">
+                      {isVideo ? (
+                        <video
+                          controls
+                          className="w-full h-full object-cover"
+                          data-testid={`media-video-${index}`}
+                        >
+                          <source src={url} type="video/mp4" />
+                          您的浏览器不支持视频播放
+                        </video>
+                      ) : (
+                        <img
+                          src={url}
+                          alt={`${campaign.title} - ${index + 1}`}
+                          className="w-full h-full object-cover"
+                          data-testid={`media-image-${index}`}
+                        />
+                      )}
+                    </div>
+                  </CarouselItem>
+                );
+              })}
+            </CarouselContent>
+            {campaign.mediaUrls.length > 1 && (
+              <>
+                <CarouselPrevious className="left-4" />
+                <CarouselNext className="right-4" />
+              </>
+            )}
+          </Carousel>
         )}
 
         {/* 活动信息 */}
