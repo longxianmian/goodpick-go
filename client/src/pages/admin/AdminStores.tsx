@@ -41,7 +41,7 @@ interface StaffPreset {
 
 export default function AdminStores() {
   const { adminToken, logoutAdmin } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStore, setEditingStore] = useState<Store | null>(null);
@@ -796,7 +796,7 @@ export default function AdminStores() {
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-6">
             <div className="bg-white p-4 rounded-lg">
-              <QRCodeDisplay token={selectedQrToken} />
+              <QRCodeDisplay token={selectedQrToken} language={language} />
             </div>
             <div className="text-center space-y-2">
               <p className="text-sm text-muted-foreground">
@@ -813,19 +813,19 @@ export default function AdminStores() {
   );
 }
 
-function QRCodeDisplay({ token }: { token: string }) {
+function QRCodeDisplay({ token, language }: { token: string; language: string }) {
   const [qrCodeUrl, setQrCodeUrl] = useState('');
 
   useEffect(() => {
     if (token) {
       import('qrcode').then((QRCode: any) => {
-        const bindUrl = `${window.location.origin}/staff/bind?token=${token}`;
+        const bindUrl = `${window.location.origin}/staff/bind?token=${token}&lang=${language}`;
         QRCode.default.toDataURL(bindUrl, { width: 256, margin: 2 })
           .then(setQrCodeUrl)
           .catch(console.error);
       });
     }
-  }, [token]);
+  }, [token, language]);
 
   if (!qrCodeUrl) {
     return <Skeleton className="h-64 w-64" />;

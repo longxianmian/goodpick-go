@@ -19,7 +19,7 @@ interface PresetInfo {
 export default function StaffBind() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const [token, setToken] = useState('');
   const [presetInfo, setPresetInfo] = useState<PresetInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,6 +30,12 @@ export default function StaffBind() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const authToken = params.get('token');
+    const urlLang = params.get('lang');
+
+    // Set language from URL if provided
+    if (urlLang && ['zh-cn', 'en-us', 'th-th'].includes(urlLang)) {
+      setLanguage(urlLang as 'zh-cn' | 'en-us' | 'th-th');
+    }
 
     if (!authToken) {
       setError(t('staffBind.missingToken'));
@@ -39,7 +45,7 @@ export default function StaffBind() {
 
     setToken(authToken);
     verifyToken(authToken);
-  }, [t]);
+  }, [setLanguage]);
 
   const verifyToken = async (authToken: string) => {
     try {
