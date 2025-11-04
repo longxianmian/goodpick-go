@@ -9,7 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Autoplay from 'embla-carousel-autoplay';
-import { Gift, Calendar, MapPin, Tag } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Gift, Calendar, MapPin, Tag, Phone, Star } from 'lucide-react';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useState, useEffect, useRef } from 'react';
 
@@ -27,6 +28,7 @@ export default function CampaignDetail() {
   const { toast } = useToast();
   const [isLiffEnvironment, setIsLiffEnvironment] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [rulesDialogOpen, setRulesDialogOpen] = useState(false);
   const autoplayPlugin = useRef(
     Autoplay({ delay: 3000, stopOnInteraction: true })
   );
@@ -421,9 +423,6 @@ export default function CampaignDetail() {
                 <CardTitle className="text-2xl mb-2" data-testid="campaign-title">
                   {campaign.title}
                 </CardTitle>
-                <CardDescription className="text-base whitespace-pre-wrap" data-testid="campaign-description">
-                  {campaign.description}
-                </CardDescription>
               </div>
               <Badge variant={isExpired ? 'destructive' : 'default'} data-testid="campaign-status">
                 {isExpired ? t('campaign.expired') : t('campaign.active')}
@@ -458,17 +457,17 @@ export default function CampaignDetail() {
               </span>
             </div>
 
-            {/* 库存信息 */}
-            <div className="space-y-2">
+            {/* 库存信息 - 合并到一行 */}
+            <div className="flex items-center gap-4 text-sm flex-wrap">
               {campaign.maxTotal && (
-                <div className="text-sm" data-testid="stock-info">
+                <div data-testid="stock-info">
                   <span className="text-muted-foreground">{t('campaign.stock')}:</span>
                   <span className="font-semibold ml-2">
                     {campaign.maxTotal - campaign.currentClaimed} / {campaign.maxTotal}
                   </span>
                 </div>
               )}
-              <div className="text-sm" data-testid="limit-info">
+              <div data-testid="limit-info">
                 <span className="text-muted-foreground">{t('campaign.limitPerUser')}:</span>
                 <span className="font-semibold ml-2">{campaign.maxPerUser}</span>
                 {isUserAuthenticated && campaign.userClaimedCount !== undefined && (
@@ -480,7 +479,29 @@ export default function CampaignDetail() {
             </div>
           </CardContent>
 
-          <CardFooter>
+          <CardFooter className="flex-col gap-3">
+            {/* 活动规则按钮 */}
+            <Dialog open={rulesDialogOpen} onOpenChange={setRulesDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="w-full"
+                  data-testid="button-view-rules"
+                >
+                  {t('campaign.viewRules')}
+                </Button>
+              </DialogTrigger>
+              <DialogContent data-testid="rules-dialog">
+                <DialogHeader>
+                  <DialogTitle>{t('campaign.rules')}</DialogTitle>
+                </DialogHeader>
+                <div className="whitespace-pre-wrap text-sm" data-testid="rules-content">
+                  {campaign.description}
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* 领取按钮 */}
             <Button
               className="w-full"
               size="lg"
@@ -493,27 +514,66 @@ export default function CampaignDetail() {
           </CardFooter>
         </Card>
 
-        {/* 适用门店 */}
+        {/* 适用门店 - 只显示前3个 */}
         {campaign.stores && campaign.stores.length > 0 && (
           <Card data-testid="stores-section">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MapPin className="h-5 w-5" />
-                {t('campaign.applicableStores')}
+                {t('campaign.nearestStores')}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {campaign.stores.map((store) => (
+              <div className="space-y-4">
+                {campaign.stores.slice(0, 3).map((store) => (
                   <div
                     key={store.id}
-                    className="p-3 border rounded-lg hover-elevate"
+                    className="flex gap-3 p-3 border rounded-lg hover-elevate"
                     data-testid={`store-${store.id}`}
                   >
-                    <div className="font-semibold">{store.name}</div>
-                    <div className="text-sm text-muted-foreground">
-                      <div>{store.city}</div>
-                      <div>{store.address}</div>
+                    {/* 门店图片 */}
+                    {(store as any).imageUrl && (
+                      <div className="w-20 h-20 flex-shrink-0 rounded-md overflow-hidden bg-muted">
+                        <img
+                          src={(store as any).imageUrl}
+                          alt={store.name}
+                          className="w-full h-full object-cover"
+                          data-testid={`store-image-${store.id}`}
+                        />
+                      </div>
+                    )}
+                    
+                    {/* 门店信息 */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <h3 className="font-semibold text-base" data-testid={`store-name-${store.id}`}>
+                          {store.name}
+                        </h3>
+                        {/* 评分 */}
+                        {(store as any).rating && (
+                          <div className="flex items-center gap-1 flex-shrink-0" data-testid={`store-rating-${store.id}`}>
+                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                            <span className="text-sm font-medium">{(store as any).rating}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* 地址 */}
+                      <p className="text-sm text-muted-foreground line-clamp-2 mb-2" data-testid={`store-address-${store.id}`}>
+                        {store.address}
+                      </p>
+                      
+                      {/* 电话 */}
+                      {(store as any).phone && (
+                        <a
+                          href={`tel:${(store as any).phone}`}
+                          className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                          data-testid={`store-phone-${store.id}`}
+                        >
+                          <Phone className="h-3.5 w-3.5" />
+                          <span>{(store as any).phone}</span>
+                        </a>
+                      )}
                     </div>
                   </div>
                 ))}

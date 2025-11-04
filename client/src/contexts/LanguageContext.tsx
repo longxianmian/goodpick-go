@@ -260,6 +260,10 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.loginAndClaim': '使用 LINE 登录并领取',
     'campaign.loggingIn': '登录中...',
     'campaign.webLoginNotImplemented': '请在LINE应用中打开链接',
+    'campaign.rules': '活动规则',
+    'campaign.viewRules': '查看活动规则',
+    'campaign.nearestStores': '最近的门店',
+    'campaign.callStore': '拨打电话',
     
     // My Coupons Page
     'myCoupons.title': '我的优惠券',
@@ -532,6 +536,10 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.loginAndClaim': 'Login with LINE and Claim',
     'campaign.loggingIn': 'Logging in...',
     'campaign.webLoginNotImplemented': 'Please open this link in the LINE app',
+    'campaign.rules': 'Campaign Rules',
+    'campaign.viewRules': 'View Campaign Rules',
+    'campaign.nearestStores': 'Nearest Stores',
+    'campaign.callStore': 'Call',
     
     // My Coupons Page
     'myCoupons.title': 'My Coupons',
@@ -804,6 +812,10 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.loginAndClaim': 'เข้าสู่ระบบด้วย LINE เพื่อรับคูปอง',
     'campaign.loggingIn': 'กำลังเข้าสู่ระบบ...',
     'campaign.webLoginNotImplemented': 'กรุณาเปิดลิงก์นี้ในแอป LINE',
+    'campaign.rules': 'กฎกติกาแคมเปญ',
+    'campaign.viewRules': 'ดูกฎกติกาแคมเปญ',
+    'campaign.nearestStores': 'ร้านค้าใกล้ที่สุด',
+    'campaign.callStore': 'โทร',
     
     // My Coupons Page
     'myCoupons.title': 'คูปองของฉัน',
