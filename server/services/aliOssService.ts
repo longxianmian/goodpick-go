@@ -6,7 +6,14 @@ export class AliOssService {
   private publicBaseUrl: string;
 
   constructor() {
-    const region = process.env.OSS_REGION || process.env.ALI_OSS_REGION || 'oss-ap-southeast-1';
+    let region = process.env.OSS_REGION || process.env.ALI_OSS_REGION || 'oss-ap-southeast-1';
+    
+    // 确保region格式正确（需要oss-前缀）
+    // 如果region不包含'oss-'前缀，自动添加
+    if (!region.startsWith('oss-')) {
+      region = `oss-${region}`;
+    }
+    
     const endpoint = process.env.OSS_ENDPOINT || process.env.ALI_OSS_ENDPOINT;
     const accessKeyId = process.env.OSS_ACCESS_KEY_ID || process.env.ALI_OSS_ACCESS_KEY_ID;
     const accessKeySecret = process.env.OSS_ACCESS_KEY_SECRET || process.env.ALI_OSS_ACCESS_KEY_SECRET;
@@ -18,6 +25,8 @@ export class AliOssService {
         'OSS credentials not configured. Please set OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, and OSS_BUCKET environment variables.'
       );
     }
+
+    console.log(`[OSS Config] Region: ${region}, Bucket: ${bucket}, Endpoint: ${endpoint || 'auto'}`);
 
     this.client = new OSS({
       region,
