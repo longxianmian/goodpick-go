@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface PresetInfo {
   storeName: string;
@@ -18,6 +19,7 @@ interface PresetInfo {
 export default function StaffBind() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [token, setToken] = useState('');
   const [presetInfo, setPresetInfo] = useState<PresetInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,14 +32,14 @@ export default function StaffBind() {
     const authToken = params.get('token');
 
     if (!authToken) {
-      setError('Missing authorization token');
+      setError(t('staffBind.missingToken'));
       setLoading(false);
       return;
     }
 
     setToken(authToken);
     verifyToken(authToken);
-  }, []);
+  }, [t]);
 
   const verifyToken = async (authToken: string) => {
     try {
@@ -45,7 +47,7 @@ export default function StaffBind() {
       const data = await res.json();
 
       if (!data.success) {
-        setError(data.message || 'Invalid authorization token');
+        setError(data.message || t('staffBind.invalidToken'));
         setLoading(false);
         return;
       }
@@ -54,7 +56,7 @@ export default function StaffBind() {
       setLoading(false);
     } catch (err) {
       console.error('Verify token error:', err);
-      setError('Failed to verify authorization token');
+      setError(t('staffBind.invalidToken'));
       setLoading(false);
     }
   };
@@ -92,10 +94,10 @@ export default function StaffBind() {
         const data = await res.json();
 
         if (!data.success) {
-          setError(data.message || 'Binding failed');
+          setError(data.message || t('staffBind.failed'));
           toast({
-            title: 'Binding Failed',
-            description: data.message || 'Please check if your LINE phone number matches the registered staff phone',
+            title: t('staffBind.failed'),
+            description: data.message || t('staffBind.phoneVerificationDesc'),
             variant: 'destructive',
           });
           setBinding(false);
@@ -104,8 +106,8 @@ export default function StaffBind() {
 
         setBindSuccess(true);
         toast({
-          title: 'Success!',
-          description: 'You are now authorized to redeem coupons at this store',
+          title: t('staffBind.success'),
+          description: t('staffBind.successDesc'),
         });
 
         // Redirect to home or success page after 2 seconds
@@ -114,19 +116,19 @@ export default function StaffBind() {
         }, 2000);
       } else {
         // LIFF not available, show error
-        setError('This page must be opened from LINE app');
+        setError(t('staffBind.mustUseLine'));
         toast({
-          title: 'Error',
-          description: 'Please open this page from LINE app',
+          title: t('common.error'),
+          description: t('staffBind.mustUseLine'),
           variant: 'destructive',
         });
       }
     } catch (err) {
       console.error('LINE login error:', err);
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : t('staffBind.failed'));
       toast({
-        title: 'Error',
-        description: 'Failed to complete authorization. Please try again.',
+        title: t('common.error'),
+        description: t('staffBind.failed'),
         variant: 'destructive',
       });
     } finally {
@@ -159,7 +161,7 @@ export default function StaffBind() {
             <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
               <XCircle className="h-8 w-8 text-destructive" />
             </div>
-            <CardTitle>Authorization Failed</CardTitle>
+            <CardTitle>{t('staffBind.failed')}</CardTitle>
             <CardDescription>{error}</CardDescription>
           </CardHeader>
           <CardContent>
@@ -169,7 +171,7 @@ export default function StaffBind() {
               onClick={() => navigate('/')}
               data-testid="button-back-home"
             >
-              Back to Home
+              {t('staffBind.backHome')}
             </Button>
           </CardContent>
         </Card>
@@ -185,30 +187,30 @@ export default function StaffBind() {
             <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center">
               <CheckCircle2 className="h-8 w-8 text-green-500" />
             </div>
-            <CardTitle>Authorization Successful!</CardTitle>
+            <CardTitle>{t('staffBind.success')}</CardTitle>
             <CardDescription>
-              You can now redeem coupons at this store
+              {t('staffBind.successDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {presetInfo && (
               <div className="bg-muted rounded-lg p-4 space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Store:</span>
+                  <span className="text-muted-foreground">{t('staffBind.store')}:</span>
                   <span className="font-medium">{presetInfo.storeName}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Staff:</span>
+                  <span className="text-muted-foreground">{t('staffBind.name')}:</span>
                   <span className="font-medium">{presetInfo.staffName}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Staff ID:</span>
+                  <span className="text-muted-foreground">{t('staffBind.id')}:</span>
                   <span className="font-medium">{presetInfo.staffId}</span>
                 </div>
               </div>
             )}
             <p className="text-sm text-center text-muted-foreground">
-              Redirecting to home...
+              {t('staffBind.redirecting')}
             </p>
           </CardContent>
         </Card>
@@ -223,9 +225,9 @@ export default function StaffBind() {
           <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
             <Shield className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle>Staff Authorization</CardTitle>
+          <CardTitle>{t('staffBind.title')}</CardTitle>
           <CardDescription>
-            Complete your authorization to redeem coupons
+            {t('staffBind.description')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -233,24 +235,24 @@ export default function StaffBind() {
             <div className="space-y-4">
               <div className="bg-muted rounded-lg p-4 space-y-3">
                 <div>
-                  <div className="text-xs text-muted-foreground mb-1">Store</div>
+                  <div className="text-xs text-muted-foreground mb-1">{t('staffBind.store')}</div>
                   <div className="font-medium">{presetInfo.storeName}</div>
                   <div className="text-sm text-muted-foreground">{presetInfo.storeAddress}</div>
                 </div>
                 <div className="border-t pt-3">
-                  <div className="text-xs text-muted-foreground mb-1">Staff Information</div>
+                  <div className="text-xs text-muted-foreground mb-1">{t('staffBind.staffInfo')}</div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
-                      <span className="text-muted-foreground">Name:</span>
+                      <span className="text-muted-foreground">{t('staffBind.name')}:</span>
                       <span className="ml-2 font-medium">{presetInfo.staffName}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">ID:</span>
+                      <span className="text-muted-foreground">{t('staffBind.id')}:</span>
                       <span className="ml-2 font-medium">{presetInfo.staffId}</span>
                     </div>
                   </div>
                   <div className="mt-2">
-                    <span className="text-muted-foreground">Phone:</span>
+                    <span className="text-muted-foreground">{t('staffBind.phone')}:</span>
                     <span className="ml-2 font-medium">{presetInfo.phone}</span>
                   </div>
                 </div>
@@ -260,9 +262,9 @@ export default function StaffBind() {
                 <div className="flex gap-2">
                   <div className="text-blue-600 dark:text-blue-400 mt-0.5">ℹ️</div>
                   <div className="text-sm text-blue-900 dark:text-blue-100">
-                    <div className="font-medium mb-1">Phone Verification Required</div>
+                    <div className="font-medium mb-1">{t('staffBind.phoneVerificationRequired')}</div>
                     <div className="text-blue-700 dark:text-blue-300">
-                      Your LINE account's phone number must match the registered staff phone number to complete authorization.
+                      {t('staffBind.phoneVerificationDesc')}
                     </div>
                   </div>
                 </div>
@@ -278,12 +280,12 @@ export default function StaffBind() {
                 {binding ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Authorizing...
+                    {t('staffBind.authorizing')}
                   </>
                 ) : (
                   <>
                     <Shield className="h-4 w-4 mr-2" />
-                    Authorize with LINE
+                    {t('staffBind.authorizeButton')}
                   </>
                 )}
               </Button>
