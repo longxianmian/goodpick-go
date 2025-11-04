@@ -88,7 +88,13 @@ export default function CampaignDetail() {
     const checkLiff = async () => {
       if (window.liff) {
         try {
-          await window.liff.init({ liffId: import.meta.env.VITE_LIFF_ID || 'dummy-liff-id' });
+          const liffId = import.meta.env.VITE_LIFF_ID;
+          if (!liffId) {
+            console.warn('VITE_LIFF_ID not configured');
+            setIsLiffEnvironment(false);
+            return;
+          }
+          await window.liff.init({ liffId });
           setIsLiffEnvironment(window.liff.isInClient());
           
           // LIFF登录成功后的处理
@@ -283,7 +289,16 @@ export default function CampaignDetail() {
 
   // Web环境登录
   const handleWebLogin = async () => {
-    const lineChannelId = import.meta.env.VITE_LINE_CHANNEL_ID || '';
+    const lineChannelId = import.meta.env.VITE_LINE_CHANNEL_ID;
+    if (!lineChannelId) {
+      toast({
+        title: t('common.error'),
+        description: 'LINE Channel ID not configured',
+        variant: 'destructive',
+      });
+      setIsLoggingIn(false);
+      return;
+    }
     const redirectUri = `${window.location.origin}/api/auth/line/callback`;
     
     // Generate cryptographically strong state nonce for CSRF protection
