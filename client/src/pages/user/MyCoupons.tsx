@@ -53,6 +53,37 @@ export default function MyCoupons() {
 
   // 检测LIFF环境并处理登录
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+
+    // Handle OAuth callback with token
+    if (token && !isUserAuthenticated) {
+      try {
+        // Decode user data from token
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        loginUser(token, {
+          id: payload.id,
+          lineUserId: payload.lineUserId,
+          displayName: payload.displayName || 'User',
+          avatarUrl: payload.avatarUrl,
+          language: payload.language || 'th-th',
+        });
+
+        // Clean up URL
+        window.history.replaceState({}, '', window.location.pathname);
+      } catch (error) {
+        console.error('Failed to parse token:', error);
+        toast({
+          title: t('common.error'),
+          description: t('login.failed'),
+          variant: 'destructive',
+        });
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+      return;
+    }
+
+    // Check LIFF environment
     const checkLiff = async () => {
       if (window.liff) {
         try {
@@ -63,10 +94,23 @@ export default function MyCoupons() {
             return;
           }
           await window.liff.init({ liffId });
-          setIsLiffEnvironment(true);
+          setIsLiffEnvironment(window.liff.isInClient());
           
-          if (!isUserAuthenticated && !window.liff.isLoggedIn()) {
-            window.liff.login();
+          // LIFF登录成功后的处理
+          if (window.liff.isLoggedIn() && !isUserAuthenticated) {
+            const idToken = window.liff.getIDToken();
+            
+            const response = await fetch('/api/auth/line/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ idToken }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              loginUser(data.token, data.user);
+            }
           }
         } catch (error) {
           console.error('LIFF init failed:', error);
@@ -77,9 +121,7 @@ export default function MyCoupons() {
       }
     };
     
-    if (!isUserAuthenticated) {
-      checkLiff();
-    }
+    checkLiff();
   }, [isUserAuthenticated]);
 
   // 获取优惠券列表
