@@ -346,6 +346,12 @@ export default function CampaignDetail() {
 
   // 领券按钮点击处理
   const handleClaimClick = () => {
+    // 用户已达到领取上限：跳转到我的优惠券页面
+    if (userReachedLimit) {
+      setLocation('/my-coupons');
+      return;
+    }
+    
     if (isUserAuthenticated) {
       // 已登录，直接领券
       claimMutation.mutate();
@@ -421,8 +427,9 @@ export default function CampaignDetail() {
     if (isExpired) {
       return t('campaign.expired');
     }
-    if (!canClaim && isUserAuthenticated) {
-      return campaign.claimMessage || t('campaign.reachedLimit');
+    // 用户已达到领取上限：显示"查看我的优惠券"
+    if (userReachedLimit) {
+      return t('campaign.viewMyCoupons');
     }
     
     // 未登录状态
@@ -688,7 +695,7 @@ export default function CampaignDetail() {
             className="w-full bg-orange-500 hover:bg-orange-600 text-white"
             size="lg"
             onClick={handleClaimClick}
-            disabled={!canClaim || claimMutation.isPending}
+            disabled={(!canClaim && !userReachedLimit) || claimMutation.isPending}
             data-testid="button-claim"
           >
             {getButtonText()}
