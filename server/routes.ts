@@ -581,6 +581,93 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // ============ Google Places API Integration ============
+
+  app.get('/api/admin/places/autocomplete', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const input = req.query.input as string;
+      const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+
+      if (!input || input.length < 2) {
+        return res.json({ success: true, predictions: [] });
+      }
+
+      if (!apiKey) {
+        return res.status(500).json({ success: false, message: 'Google Maps API key not configured' });
+      }
+
+      const url = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
+      url.searchParams.set('input', input);
+      url.searchParams.set('key', apiKey);
+      url.searchParams.set('language', 'th');
+
+      const response = await fetch(url.toString());
+      const data = await response.json();
+
+      if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+        console.error('Google Places API error:', data);
+        return res.status(500).json({ success: false, message: 'Places API error' });
+      }
+
+      res.json({
+        success: true,
+        predictions: data.predictions || [],
+      });
+    } catch (error) {
+      console.error('Places autocomplete error:', error);
+      res.status(500).json({ success: false, message: 'Failed to search places' });
+    }
+  });
+
+  app.get('/api/admin/places/details/:placeId', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { placeId } = req.params;
+      const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+
+      if (!apiKey) {
+        return res.status(500).json({ success: false, message: 'Google Maps API key not configured' });
+      }
+
+      const url = new URL('https://maps.googleapis.com/maps/api/place/details/json');
+      url.searchParams.set('place_id', placeId);
+      url.searchParams.set('key', apiKey);
+      url.searchParams.set('language', 'th');
+      url.searchParams.set('fields', 'name,formatted_address,geometry,rating,photos,international_phone_number');
+
+      const response = await fetch(url.toString());
+      const data = await response.json();
+
+      if (data.status !== 'OK') {
+        console.error('Google Places Details API error:', data);
+        return res.status(500).json({ success: false, message: 'Places Details API error' });
+      }
+
+      const place = data.result;
+      let imageUrl = null;
+
+      if (place.photos && place.photos.length > 0) {
+        const photoReference = place.photos[0].photo_reference;
+        imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoReference}&key=${apiKey}`;
+      }
+
+      res.json({
+        success: true,
+        place: {
+          name: place.name,
+          address: place.formatted_address,
+          latitude: place.geometry?.location?.lat,
+          longitude: place.geometry?.location?.lng,
+          rating: place.rating,
+          phone: place.international_phone_number,
+          imageUrl,
+        },
+      });
+    } catch (error) {
+      console.error('Places details error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get place details' });
+    }
+  });
+
   // ============ E. Admin - Campaign Management ============
 
   app.get('/api/admin/campaigns', adminAuthMiddleware, async (req: Request, res: Response) => {
