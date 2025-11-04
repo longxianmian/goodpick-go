@@ -4,9 +4,11 @@ import { createServer, type Server } from 'http';
 import multer from 'multer';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import session from 'express-session';
+import createMemoryStore from 'memorystore';
 import { db } from './db';
 import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets } from '@shared/schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
 import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
 import { translateText } from './services/translationService';
@@ -184,6 +186,23 @@ function getCampaignTranslatedContent(campaign: any, language: string) {
 }
 
 export function registerRoutes(app: Express): Server {
+  // Configure session middleware for OAuth state management
+  const MemoryStore = createMemoryStore(session);
+  app.use(session({
+    cookie: {
+      maxAge: 86400000, // 24 hours
+      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+      httpOnly: true,
+      sameSite: 'lax' // CSRF protection
+    },
+    store: new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    }),
+    secret: process.env.SESSION_SECRET || 'default-session-secret-change-in-production',
+    resave: false,
+    saveUninitialized: false,
+  }));
+
   // ============ A. User Authentication ============
 
   app.post('/api/auth/line/login', async (req: Request, res: Response) => {
@@ -265,6 +284,12 @@ export function registerRoutes(app: Express): Server {
     // Validate state format
     if (typeof state !== 'string' || !/^[0-9a-f]{64}$/i.test(state)) {
       return res.status(400).json({ success: false, message: 'Invalid state format' });
+    }
+
+    // Check if session is available
+    if (!req.session) {
+      console.error('Session not available on init-oauth endpoint');
+      return res.status(500).json({ success: false, message: 'Session not initialized' });
     }
 
     // Store state in session for CSRF validation
@@ -403,7 +428,7 @@ export function registerRoutes(app: Express): Server {
 
       const storeIds = campaignStoreList.map(cs => cs.storeId);
       const storeList = storeIds.length > 0
-        ? await db.select().from(stores).where(sql`${stores.id} = ANY(${storeIds})`)
+        ? await db.select().from(stores).where(inArray(stores.id, storeIds))
         : [];
 
       const { title, description } = getCampaignTranslatedContent(campaign, language as string);
