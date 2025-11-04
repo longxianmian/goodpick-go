@@ -480,7 +480,7 @@ export default function CampaignDetail() {
 
         {/* 活动信息 */}
         <Card data-testid="campaign-info">
-          <CardHeader>
+          <CardHeader className="px-3 py-6">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <CardTitle className="text-xl md:text-2xl mb-2" data-testid="campaign-title">
@@ -493,7 +493,7 @@ export default function CampaignDetail() {
             </div>
           </CardHeader>
 
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 px-3 pt-0 pb-6">
             {/* 优惠券信息 */}
             <div className="flex items-center gap-3 p-4 bg-orange-50 rounded-lg" data-testid="coupon-info">
               <Gift className="h-8 w-8 text-orange-500" />
@@ -542,7 +542,7 @@ export default function CampaignDetail() {
             </div>
           </CardContent>
 
-          <CardFooter className="flex-col gap-3">
+          <CardFooter className="flex-col gap-3 px-3 pt-0 pb-6">
             {/* 活动规则按钮 */}
             <Dialog open={rulesDialogOpen} onOpenChange={setRulesDialogOpen}>
               <DialogTrigger asChild>
@@ -580,13 +580,13 @@ export default function CampaignDetail() {
         {/* 适用门店 - 只显示前3个 */}
         {campaign.stores && campaign.stores.length > 0 && (
           <Card data-testid="stores-section">
-            <CardHeader>
+            <CardHeader className="px-3 py-6">
               <h3 className="text-lg md:text-xl font-semibold flex items-center gap-2">
                 <MapPin className="h-5 w-5 text-orange-500" />
                 {t('campaign.nearestStores')}
               </h3>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 pt-0 pb-6">
               <div className="space-y-4">
                 {campaign.stores.slice(0, 3).map((store) => (
                   <div
