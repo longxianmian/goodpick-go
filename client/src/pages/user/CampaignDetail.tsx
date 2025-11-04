@@ -133,15 +133,25 @@ export default function CampaignDetail() {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserLocation({
+          const location = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-          });
+          };
+          setUserLocation(location);
+          console.log('User location obtained:', location);
         },
         (error) => {
           console.log('Location permission denied or unavailable:', error);
+          console.log('Error code:', error.code, 'Message:', error.message);
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 300000 // 5分钟缓存
         }
       );
+    } else {
+      console.log('Geolocation is not supported by this browser');
     }
   }, []);
 
@@ -618,11 +628,12 @@ export default function CampaignDetail() {
                         )}
                         
                         {/* 距离 */}
-                        {userLocation && store.latitude && store.longitude && (
-                          <span className="text-sm text-muted-foreground" data-testid={`store-distance-${store.id}`}>
+                        {userLocation && store.latitude && store.longitude ? (
+                          <span className="text-sm text-muted-foreground flex items-center gap-1" data-testid={`store-distance-${store.id}`}>
+                            <span className="text-muted-foreground">•</span>
                             {calculateDistance(userLocation.lat, userLocation.lng, store.latitude, store.longitude)}
                           </span>
-                        )}
+                        ) : null}
                         
                         {/* 导航按钮 */}
                         <a
