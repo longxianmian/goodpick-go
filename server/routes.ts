@@ -23,8 +23,20 @@ function getOssService(): AliOssService {
   return ossService;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change_this_to_strong_secret';
+// JWT_SECRET must be set in production for security
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+
+if (!JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('FATAL: JWT_SECRET environment variable is required in production');
+    process.exit(1);
+  } else {
+    console.warn('WARNING: JWT_SECRET not set. Using insecure default for development only.');
+  }
+}
+
+const JWT_SECRET_VALUE = JWT_SECRET || 'change_this_to_strong_secret';
 
 declare global {
   namespace Express {
@@ -45,7 +57,7 @@ function adminAuthMiddleware(req: Request, res: Response, next: express.NextFunc
 
   const token = authHeader.substring(7);
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: number; email: string; type: 'admin' };
+    const decoded = jwt.verify(token, JWT_SECRET_VALUE) as { id: number; email: string; type: 'admin' };
     if (decoded.type !== 'admin') {
       return res.status(403).json({ success: false, message: 'Forbidden' });
     }
@@ -64,7 +76,7 @@ function userAuthMiddleware(req: Request, res: Response, next: express.NextFunct
 
   const token = authHeader.substring(7);
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: number; lineUserId: string; type: 'user' };
+    const decoded = jwt.verify(token, JWT_SECRET_VALUE) as { id: number; lineUserId: string; type: 'user' };
     if (decoded.type !== 'user') {
       return res.status(403).json({ success: false, message: 'Forbidden' });
     }
@@ -209,7 +221,7 @@ export function registerRoutes(app: Express): Server {
           lineUserId: existingUser.lineUserId,
           type: 'user' as const,
         },
-        JWT_SECRET,
+        JWT_SECRET_VALUE,
         { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
       );
 
@@ -621,7 +633,7 @@ export function registerRoutes(app: Express): Server {
 
       const token = jwt.sign(
         { id: admin.id, email: admin.email, type: 'admin' as const },
-        JWT_SECRET,
+        JWT_SECRET_VALUE,
         { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
       );
 
