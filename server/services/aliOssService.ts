@@ -6,16 +6,16 @@ export class AliOssService {
   private publicBaseUrl: string;
 
   constructor() {
-    const region = process.env.ALI_OSS_REGION || 'oss-ap-southeast-1';
-    const endpoint = process.env.ALI_OSS_ENDPOINT;
-    const accessKeyId = process.env.ALI_OSS_ACCESS_KEY_ID;
-    const accessKeySecret = process.env.ALI_OSS_ACCESS_KEY_SECRET;
-    const bucket = process.env.ALI_OSS_BUCKET;
-    this.publicBaseUrl = process.env.ALI_OSS_PUBLIC_BASE_URL || '';
+    const region = process.env.OSS_REGION || process.env.ALI_OSS_REGION || 'oss-ap-southeast-1';
+    const endpoint = process.env.OSS_ENDPOINT || process.env.ALI_OSS_ENDPOINT;
+    const accessKeyId = process.env.OSS_ACCESS_KEY_ID || process.env.ALI_OSS_ACCESS_KEY_ID;
+    const accessKeySecret = process.env.OSS_ACCESS_KEY_SECRET || process.env.ALI_OSS_ACCESS_KEY_SECRET;
+    const bucket = process.env.OSS_BUCKET || process.env.ALI_OSS_BUCKET;
+    this.publicBaseUrl = process.env.OSS_PUBLIC_BASE_URL || process.env.ALI_OSS_PUBLIC_BASE_URL || '';
 
     if (!accessKeyId || !accessKeySecret || !bucket) {
       throw new Error(
-        'OSS credentials not configured. Please set ALI_OSS_ACCESS_KEY_ID, ALI_OSS_ACCESS_KEY_SECRET, and ALI_OSS_BUCKET environment variables.'
+        'OSS credentials not configured. Please set OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, and OSS_BUCKET environment variables.'
       );
     }
 

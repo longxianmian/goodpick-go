@@ -3,6 +3,7 @@ import { useDropzone } from "react-dropzone";
 import { X, Upload, GripVertical, Image as ImageIcon, Video as VideoIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import {
   DndContext,
@@ -128,6 +129,7 @@ export function MediaUploader({
   const { toast } = useToast();
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>(value);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [mode, setMode] = useState<"image" | "video" | null>(null);
 
   useEffect(() => {
@@ -150,18 +152,42 @@ export function MediaUploader({
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch(uploadUrl, {
-      method: "POST",
-      headers: uploadHeaders,
-      body: formData,
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = Math.round((e.loaded / e.total) * 100);
+          setUploadProgress(percentComplete);
+        }
+      });
+
+      xhr.addEventListener("load", () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            const url = data.fileUrl || data.data?.files?.[0]?.url || data.data?.url || data.url;
+            resolve(url);
+          } catch (error) {
+            reject(new Error("Failed to parse response"));
+          }
+        } else {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      });
+
+      xhr.addEventListener("error", () => {
+        reject(new Error("Upload failed"));
+      });
+
+      xhr.open("POST", uploadUrl);
+      
+      Object.entries(uploadHeaders).forEach(([key, value]) => {
+        xhr.setRequestHeader(key, value);
+      });
+
+      xhr.send(formData);
     });
-
-    if (!response.ok) {
-      throw new Error("Upload failed");
-    }
-
-    const data = await response.json();
-    return data.fileUrl || data.data?.files?.[0]?.url || data.data?.url || data.url;
   };
 
   const onDrop = useCallback(
@@ -217,6 +243,7 @@ export function MediaUploader({
 
       try {
         setUploading(true);
+        setUploadProgress(0);
         const url = await uploadFile(file);
         const newFile: MediaFile = {
           type: newMode,
@@ -240,6 +267,7 @@ export function MediaUploader({
         });
       } finally {
         setUploading(false);
+        setUploadProgress(0);
       }
     },
     [mode, mediaFiles, maxImages, maxVideos, uploadUrl, uploadHeaders, onChange, toast, t]
@@ -341,8 +369,13 @@ export function MediaUploader({
         <div className="flex flex-col items-center gap-2">
           <Upload className="h-8 w-8 text-muted-foreground" />
           <p className="text-sm font-medium">
-            {uploading ? "上传中..." : isDragActive ? "释放以上传" : "点击或拖拽文件到此处"}
+            {uploading ? `上传中... ${uploadProgress}%` : isDragActive ? "释放以上传" : "点击或拖拽文件到此处"}
           </p>
+          {uploading && (
+            <div className="w-full max-w-xs">
+              <Progress value={uploadProgress} className="h-2" data-testid="upload-progress" />
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             支持上传 {maxImages} 张图片或 {maxVideos} 个视频
             {mode && (
