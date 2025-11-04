@@ -602,7 +602,7 @@ export default function AdminCampaigns() {
                 onChange={(files) => setFormData({ ...formData, mediaFiles: files })}
                 maxImages={5}
                 maxVideos={1}
-                uploadUrl="/api/admin/upload/campaign-media"
+                uploadUrl="/api/admin/upload"
                 uploadHeaders={{ Authorization: `Bearer ${adminToken}` }}
               />
             </div>

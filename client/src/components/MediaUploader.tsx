@@ -148,7 +148,7 @@ export function MediaUploader({
 
   const uploadFile = async (file: File): Promise<string> => {
     const formData = new FormData();
-    formData.append("files", file);
+    formData.append("file", file);
 
     const response = await fetch(uploadUrl, {
       method: "POST",
@@ -161,7 +161,7 @@ export function MediaUploader({
     }
 
     const data = await response.json();
-    return data.data?.files?.[0]?.url || data.data?.url || data.url;
+    return data.fileUrl || data.data?.files?.[0]?.url || data.data?.url || data.url;
   };
 
   const onDrop = useCallback(
