@@ -19,7 +19,13 @@ Key business requirements include:
 ## Recent Changes
 
 ### Campaign Detail Page O2O Optimization (November 2025)
-Enhanced the campaign detail page to strengthen online-to-offline conversion with focus on store navigation:
+Enhanced the campaign detail page to strengthen online-to-offline conversion with orange theme highlighting key actions:
+- **Orange Theme Design** (Highlights Campaign Atmosphere):
+  - Coupon value section: Orange gift icon, orange value text, warm orange background
+  - Main claim button: Orange background (bg-orange-500) with white text
+  - Store section: Orange MapPin icon, orange navigation buttons
+  - Creates visual hierarchy that guides users to key actions (claim → navigate to store)
+  - Emphasizes promotional atmosphere and urgency
 - **Navigation Feature** (Core O2O Value):
   - Added Google Maps navigation buttons on each store card
   - Generates deep links using coordinates or encoded addresses
@@ -27,13 +33,13 @@ Enhanced the campaign detail page to strengthen online-to-offline conversion wit
   - Desktop: Opens in new tab (`_blank` with `rel="noopener"`)
   - Translation support: 导航/Navigate/นำทาง
 - **Visual Refinements**:
-  - Carousel arrows: Reduced to 32px (h-8 w-8) for subtler appearance
+  - Carousel: Auto-play only (removed manual left/right arrows for cleaner look)
   - Campaign title: Reduced from text-2xl to text-xl md:text-2xl
   - Store section heading: Reduced from default CardTitle to text-lg md:text-xl
   - Campaign rules: Moved to Dialog (ghost button above claim CTA)
   - Stock/limit info: Combined to single-line flex layout
   - Store display: Limited to 3 nearest stores with enhanced cards (image, rating, phone, navigation)
-- **Impact**: Strengthens core business value of driving users from online campaigns to physical store visits
+- **Impact**: Orange theme successfully highlights campaign atmosphere and emphasizes key conversion points, strengthening core business value of driving users from online campaigns to physical store visits
 
 ### Web OAuth Flow Simplified to 2 Steps (November 2025)
 Dramatically improved conversion rates by simplifying the Web OAuth user flow:

@@ -414,12 +414,6 @@ export default function CampaignDetail() {
                 );
               })}
             </CarouselContent>
-            {campaign.mediaUrls.length > 1 && (
-              <>
-                <CarouselPrevious className="h-8 w-8 left-2" data-testid="carousel-prev" />
-                <CarouselNext className="h-8 w-8 right-2" data-testid="carousel-next" />
-              </>
-            )}
           </Carousel>
         ) : campaign.bannerImageUrl ? (
           <div className="w-full aspect-video rounded-lg overflow-hidden" data-testid="campaign-banner">
@@ -448,13 +442,13 @@ export default function CampaignDetail() {
 
           <CardContent className="space-y-4">
             {/* 优惠券信息 */}
-            <div className="flex items-center gap-3 p-4 bg-primary/5 rounded-lg" data-testid="coupon-info">
-              <Gift className="h-8 w-8 text-primary" />
+            <div className="flex items-center gap-3 p-4 bg-orange-50 rounded-lg" data-testid="coupon-info">
+              <Gift className="h-8 w-8 text-orange-500" />
               <div>
-                <div className="font-semibold text-lg">
+                <div className="font-semibold text-lg text-orange-900">
                   {t(`discountType.${campaign.discountType}`)}
                 </div>
-                <div className="text-2xl font-bold text-primary">
+                <div className="text-2xl font-bold text-orange-600">
                   {campaign.discountType === 'percentage_off' ? `${campaign.couponValue}%` : `฿${campaign.couponValue}`}
                 </div>
                 {campaign.originalPrice && (
@@ -519,7 +513,7 @@ export default function CampaignDetail() {
 
             {/* 领取按钮 */}
             <Button
-              className="w-full"
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white"
               size="lg"
               onClick={handleClaimClick}
               disabled={!canClaim || claimMutation.isPending}
@@ -535,7 +529,7 @@ export default function CampaignDetail() {
           <Card data-testid="stores-section">
             <CardHeader>
               <h3 className="text-lg md:text-xl font-semibold flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
+                <MapPin className="h-5 w-5 text-orange-500" />
                 {t('campaign.nearestStores')}
               </h3>
             </CardHeader>
@@ -604,9 +598,9 @@ export default function CampaignDetail() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-auto py-1 px-2"
+                            className="h-auto py-1 px-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                           >
-                            <Navigation className="h-3.5 w-3.5 mr-1.5" />
+                            <Navigation className="h-3.5 w-3.5 mr-1.5 text-orange-500" />
                             {t('campaign.navigate')}
                           </Button>
                         </a>
