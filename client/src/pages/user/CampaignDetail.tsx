@@ -623,12 +623,12 @@ export default function CampaignDetail() {
                         {/* 电话 */}
                         {(store as any).phone && (
                           <a
-                            href={`tel:${(store as any).phone}`}
+                            href={`tel:${(store as any).phone.replace(/\s/g, '')}`}
                             className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 hover:underline"
                             data-testid={`store-phone-${store.id}`}
                           >
                             <Phone className="h-3.5 w-3.5" />
-                            <span>{(store as any).phone}</span>
+                            <span>{(store as any).phone.replace(/\s/g, '')}</span>
                           </a>
                         )}
                         
