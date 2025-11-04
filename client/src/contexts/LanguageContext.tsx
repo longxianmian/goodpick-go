@@ -234,6 +234,49 @@ const translations: Record<Language, Record<string, string>> = {
     'mediaUploader.switchModeTitle': '切换媒体类型？',
     'mediaUploader.switchModeDescription': '切换到{newMode}模式将清空当前已上传的{currentMode}。此操作无法撤销。',
     'mediaUploader.confirmSwitch': '确认切换',
+    
+    // Campaign Detail Page
+    'campaign.notFound': '活动不存在',
+    'campaign.notFoundDesc': '该活动可能已下线或不存在',
+    'campaign.expired': '已过期',
+    'campaign.active': '进行中',
+    'campaign.originalPrice': '原价',
+    'campaign.stock': '剩余',
+    'campaign.limitPerUser': '每人限领',
+    'campaign.claimed': '已领',
+    'campaign.claimNow': '立即领取',
+    'campaign.claiming': '领取中...',
+    'campaign.loginToClaim': 'LINE登录领券',
+    'campaign.soldOut': '已抢光',
+    'campaign.reachedLimit': '已达领取上限',
+    'campaign.claimSuccess': '领券成功',
+    'campaign.claimSuccessDesc': '您可以在"我的优惠券"中查看',
+    'campaign.claimError': '领券失败',
+    'campaign.liffNotReady': '请在LINE中打开',
+    'campaign.applicableStores': '适用门店',
+    'campaign.viewMyCoupons': '查看我的优惠券',
+    
+    // My Coupons Page
+    'myCoupons.title': '我的优惠券',
+    'myCoupons.loginRequired': '请先登录',
+    'myCoupons.loginDesc': '使用LINE账号登录查看您的优惠券',
+    'myCoupons.all': '全部',
+    'myCoupons.noCoupons': '暂无优惠券',
+    
+    // Coupon
+    'coupon.unused': '未使用',
+    'coupon.used': '已使用',
+    'coupon.expired': '已过期',
+    'coupon.status': '状态',
+    'coupon.value': '优惠值',
+    'coupon.validUntil': '有效期至',
+    'coupon.issuedAt': '领取时间',
+    'coupon.usedAt': '使用时间',
+    'coupon.scanToRedeem': '向店员出示此二维码以核销',
+    
+    // Login
+    'login.success': '登录成功',
+    'login.failed': '登录失败',
   },
   'en-us': {
     // Common
@@ -458,6 +501,49 @@ const translations: Record<Language, Record<string, string>> = {
     'mediaUploader.switchModeTitle': 'Switch Media Type?',
     'mediaUploader.switchModeDescription': 'Switching to {newMode} mode will clear all uploaded {currentMode}. This action cannot be undone.',
     'mediaUploader.confirmSwitch': 'Confirm Switch',
+    
+    // Campaign Detail Page
+    'campaign.notFound': 'Campaign Not Found',
+    'campaign.notFoundDesc': 'This campaign may have been removed or does not exist',
+    'campaign.expired': 'Expired',
+    'campaign.active': 'Active',
+    'campaign.originalPrice': 'Original Price',
+    'campaign.stock': 'Remaining',
+    'campaign.limitPerUser': 'Limit Per User',
+    'campaign.claimed': 'Claimed',
+    'campaign.claimNow': 'Claim Now',
+    'campaign.claiming': 'Claiming...',
+    'campaign.loginToClaim': 'Login with LINE to Claim',
+    'campaign.soldOut': 'Sold Out',
+    'campaign.reachedLimit': 'Limit Reached',
+    'campaign.claimSuccess': 'Coupon Claimed',
+    'campaign.claimSuccessDesc': 'View it in My Coupons',
+    'campaign.claimError': 'Failed to claim coupon',
+    'campaign.liffNotReady': 'Please open in LINE app',
+    'campaign.applicableStores': 'Applicable Stores',
+    'campaign.viewMyCoupons': 'View My Coupons',
+    
+    // My Coupons Page
+    'myCoupons.title': 'My Coupons',
+    'myCoupons.loginRequired': 'Login Required',
+    'myCoupons.loginDesc': 'Login with your LINE account to view your coupons',
+    'myCoupons.all': 'All',
+    'myCoupons.noCoupons': 'No coupons yet',
+    
+    // Coupon
+    'coupon.unused': 'Unused',
+    'coupon.used': 'Used',
+    'coupon.expired': 'Expired',
+    'coupon.status': 'Status',
+    'coupon.value': 'Value',
+    'coupon.validUntil': 'Valid Until',
+    'coupon.issuedAt': 'Claimed At',
+    'coupon.usedAt': 'Used At',
+    'coupon.scanToRedeem': 'Show this QR code to staff to redeem',
+    
+    // Login
+    'login.success': 'Login successful',
+    'login.failed': 'Login failed',
   },
   'th-th': {
     // Common
@@ -682,6 +768,49 @@ const translations: Record<Language, Record<string, string>> = {
     'mediaUploader.switchModeTitle': 'สลับประเภทสื่อ?',
     'mediaUploader.switchModeDescription': 'การสลับไปยังโหมด{newMode}จะลบ{currentMode}ที่อัปโหลดทั้งหมด การดำเนินการนี้ไม่สามารถยกเลิกได้',
     'mediaUploader.confirmSwitch': 'ยืนยันการสลับ',
+    
+    // Campaign Detail Page
+    'campaign.notFound': 'ไม่พบแคมเปญ',
+    'campaign.notFoundDesc': 'แคมเปญนี้อาจถูกลบหรือไม่มีอยู่',
+    'campaign.expired': 'หมดอายุ',
+    'campaign.active': 'กำลังดำเนินการ',
+    'campaign.originalPrice': 'ราคาเดิม',
+    'campaign.stock': 'คงเหลือ',
+    'campaign.limitPerUser': 'จำกัดต่อผู้ใช้',
+    'campaign.claimed': 'รับแล้ว',
+    'campaign.claimNow': 'รับคูปองเลย',
+    'campaign.claiming': 'กำลังรับ...',
+    'campaign.loginToClaim': 'เข้าสู่ระบบ LINE เพื่อรับคูปอง',
+    'campaign.soldOut': 'หมดแล้ว',
+    'campaign.reachedLimit': 'ถึงขีดจำกัดแล้ว',
+    'campaign.claimSuccess': 'รับคูปองสำเร็จ',
+    'campaign.claimSuccessDesc': 'ดูได้ในคูปองของฉัน',
+    'campaign.claimError': 'รับคูปองไม่สำเร็จ',
+    'campaign.liffNotReady': 'กรุณาเปิดในแอป LINE',
+    'campaign.applicableStores': 'ร้านค้าที่ใช้ได้',
+    'campaign.viewMyCoupons': 'ดูคูปองของฉัน',
+    
+    // My Coupons Page
+    'myCoupons.title': 'คูปองของฉัน',
+    'myCoupons.loginRequired': 'จำเป็นต้องเข้าสู่ระบบ',
+    'myCoupons.loginDesc': 'เข้าสู่ระบบด้วยบัญชี LINE เพื่อดูคูปองของคุณ',
+    'myCoupons.all': 'ทั้งหมด',
+    'myCoupons.noCoupons': 'ยังไม่มีคูปอง',
+    
+    // Coupon
+    'coupon.unused': 'ยังไม่ได้ใช้',
+    'coupon.used': 'ใช้แล้ว',
+    'coupon.expired': 'หมดอายุ',
+    'coupon.status': 'สถานะ',
+    'coupon.value': 'มูลค่า',
+    'coupon.validUntil': 'ใช้ได้ถึง',
+    'coupon.issuedAt': 'วันที่รับ',
+    'coupon.usedAt': 'วันที่ใช้',
+    'coupon.scanToRedeem': 'แสดง QR Code นี้กับพนักงานเพื่อใช้คูปอง',
+    
+    // Login
+    'login.success': 'เข้าสู่ระบบสำเร็จ',
+    'login.failed': 'เข้าสู่ระบบไม่สำเร็จ',
   },
 };
 

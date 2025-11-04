@@ -11,6 +11,8 @@ import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminStores from "@/pages/admin/AdminStores";
 import AdminCampaigns from "@/pages/admin/AdminCampaigns";
 import StaffBind from "@/pages/user/StaffBind";
+import CampaignDetail from "@/pages/user/CampaignDetail";
+import MyCoupons from "@/pages/user/MyCoupons";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import { Store, Tag, LogOut, LayoutDashboard } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -126,7 +128,9 @@ function ProtectedAdminRoutes() {
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={() => <Redirect to="/admin/login" />} />
+      <Route path="/" component={() => <Redirect to="/my-coupons" />} />
+      <Route path="/campaign/:id" component={CampaignDetail} />
+      <Route path="/my-coupons" component={MyCoupons} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/staff/bind" component={StaffBind} />
       <Route path="/admin/:rest*">
