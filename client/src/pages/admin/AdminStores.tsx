@@ -44,7 +44,7 @@ export default function AdminStores() {
   const [placeSuggestions, setPlaceSuggestions] = useState<PlaceSuggestion[]>([]);
   const [searchingPlaces, setSearchingPlaces] = useState(false);
 
-  const { data: stores, isLoading } = useQuery<{ ok: boolean; stores: Store[] }>({
+  const { data: stores, isLoading } = useQuery<{ success: boolean; data: Store[] }>({
     queryKey: ['/api/admin/stores'],
     queryFn: async () => {
       const res = await fetch('/api/admin/stores', {
@@ -445,7 +445,7 @@ export default function AdminStores() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {stores?.stores?.map((store) => (
+                {stores?.data?.map((store) => (
                   <TableRow key={store.id} data-testid={`row-store-${store.id}`}>
                     <TableCell className="font-medium">{store.name}</TableCell>
                     <TableCell>{store.brand || '-'}</TableCell>
