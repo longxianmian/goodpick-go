@@ -16,6 +16,27 @@ Key business requirements include:
 - OpenAI-powered content translation
 - Mobile-optimized user experience
 
+## Recent Changes
+
+### Staff Redemption Authorization System (November 2025)
+Implemented multi-staff coupon redemption authorization system with the following features:
+- **Backend APIs**:
+  - Staff preset CRUD operations (`/api/admin/staff-presets`)
+  - QR code generation for authorization (`/api/admin/staff-presets/qr/:token`)
+  - Token verification and staff binding (`/api/user/staff-presets/verify`, `/api/user/staff-presets/bind`)
+- **Frontend**:
+  - Staff authorization management UI in AdminStores page
+  - Staff binding page at `/staff/bind` for QR code verification and LINE login
+  - Multi-language support for all staff-related features (zh-cn, en-us, th-th)
+- **Security**:
+  - Token-based authorization workflow with one-time-use tokens (nanoid)
+  - Phone number verification (LINE account phone must match preset phone)
+  - One store can have multiple staff presets (one-to-many relationship)
+- **JWT Security Enhancement**:
+  - JWT_SECRET now required in production (fails fast if not set)
+  - Development mode shows warning when using fallback secret
+  - All JWT signing and verification now use consistent JWT_SECRET_VALUE
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -74,12 +95,13 @@ Preferred communication style: Simple, everyday language.
 
 Core entities:
 - **Admins**: Platform administrators with email/password authentication
-- **Users**: End consumers authenticated via LINE (lineUserId as unique identifier)
-- **Stores**: Physical locations with geocoding support
+- **Users**: End consumers authenticated via LINE (lineUserId as unique identifier, optional phone field for staff binding)
+- **Stores**: Physical locations with geocoding support and Google Maps integration
 - **Campaigns**: Marketing campaigns with simple title and description fields
 - **CampaignStores**: Many-to-many relationship linking campaigns to stores
 - **Coupons**: User-claimed coupons with unique codes and redemption tracking
 - **MediaFiles**: Images and videos associated with campaigns
+- **StaffPresets**: Staff authorization presets for coupon redemption at stores
 
 Important Design Decision:
 - Campaign content (title, description) uses **single-language** fields only
@@ -103,10 +125,16 @@ Enums:
 ### Security Considerations
 
 - Password hashing using bcryptjs
-- JWT secret from environment variables (defaults provided for development)
+- JWT secret from environment variables (required in production, warning in development)
+  - Production environments must set JWT_SECRET to avoid security vulnerabilities
+  - Development uses fallback secret with console warning
 - CORS and credential handling in API client
 - Input validation using Zod schemas
 - Protected routes with middleware authentication checks
+- Staff authorization system with token-based QR code verification
+  - Phone number verification required for staff binding (LINE phone must match preset phone)
+  - One-time-use tokens with nanoid for security
+  - Authorization tokens bound to specific stores
 
 ### Development vs Production
 
