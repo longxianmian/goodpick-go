@@ -5,7 +5,6 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Gift, Calendar, MapPin, Tag } from 'lucide-react';
@@ -25,7 +24,6 @@ export default function CampaignDetail() {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const [isLiffEnvironment, setIsLiffEnvironment] = useState(false);
-  const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // 检测LIFF环境并处理登录后自动领券
@@ -271,7 +269,7 @@ export default function CampaignDetail() {
         description: t('login.failed'),
         variant: 'destructive',
       });
-      setShowLoginDialog(false);
+      setIsLoggingIn(false);
     }
   };
 
@@ -286,8 +284,9 @@ export default function CampaignDetail() {
         // LIFF环境：静默调用liff.login()
         handleLiffLogin();
       } else {
-        // Web环境：显示登录说明弹窗
-        setShowLoginDialog(true);
+        // Web环境：直接跳转LINE授权（简化流程，无对话框）
+        setIsLoggingIn(true);
+        handleWebLogin();
       }
     }
   };
@@ -485,29 +484,6 @@ export default function CampaignDetail() {
           </Button>
         )}
       </div>
-
-      {/* LINE登录说明弹窗 (仅Web环境) */}
-      <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
-        <DialogContent data-testid="dialog-line-login">
-          <DialogHeader>
-            <DialogTitle>{t('campaign.loginDialogTitle')}</DialogTitle>
-            <DialogDescription className="text-base pt-2">
-              {t('campaign.loginDialogDesc')}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={handleWebLogin}
-              disabled={isLoggingIn}
-              data-testid="button-line-web-login"
-            >
-              {isLoggingIn ? t('campaign.loggingIn') : t('campaign.loginAndClaim')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

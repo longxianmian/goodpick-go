@@ -18,6 +18,17 @@ Key business requirements include:
 
 ## Recent Changes
 
+### Web OAuth Flow Simplified to 2 Steps (November 2025)
+Dramatically improved conversion rates by simplifying the Web OAuth user flow:
+- **Before**: 5 steps (click claim → explanation dialog → confirm → LINE auth → callback)
+- **After**: 2 steps (click claim → LINE auth → auto-complete)
+- **Changes**:
+  - Removed login explanation dialog to eliminate friction
+  - Direct redirect to LINE OAuth authorization
+  - CSRF protection remains intact (transparent to users)
+  - Auto-claim after successful authentication
+- **Impact**: Expected to significantly reduce bounce rates for external traffic from TikTok, Facebook, Instagram ads
+
 ### Staff Redemption Authorization System (November 2025)
 Implemented multi-staff coupon redemption authorization system with the following features:
 - **Backend APIs**:
