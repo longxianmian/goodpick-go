@@ -481,34 +481,22 @@ export default function CampaignDetail() {
         {/* 活动信息 */}
         <Card data-testid="campaign-info">
           <CardHeader className="px-3 py-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <CardTitle className="text-xl md:text-2xl mb-2" data-testid="campaign-title">
-                  {campaign.title}
-                </CardTitle>
-              </div>
-              <Badge variant={isExpired ? 'destructive' : 'default'} data-testid="campaign-status">
-                {isExpired ? t('campaign.expired') : t('campaign.active')}
-              </Badge>
-            </div>
+            <CardTitle className="text-xl md:text-2xl" data-testid="campaign-title">
+              {campaign.title}
+            </CardTitle>
           </CardHeader>
 
           <CardContent className="space-y-4 px-3 pt-0 pb-6">
             {/* 优惠券信息 */}
             <div className="flex items-center gap-3 p-4 bg-orange-50 rounded-lg" data-testid="coupon-info">
               <Gift className="h-8 w-8 text-orange-500" />
-              <div>
-                <div className="font-semibold text-lg text-orange-900">
+              <div className="flex items-baseline gap-2">
+                <span className="font-semibold text-lg text-orange-900">
                   {t(`discountType.${campaign.discountType}`)}
-                </div>
-                <div className="text-2xl font-bold text-orange-600">
+                </span>
+                <span className="text-xl font-bold text-orange-600">
                   {campaign.discountType === 'percentage_off' ? `${campaign.couponValue}%` : `฿${campaign.couponValue}`}
-                </div>
-                {campaign.originalPrice && (
-                  <div className="text-sm text-muted-foreground line-through">
-                    {t('campaign.originalPrice')}: ฿{campaign.originalPrice}
-                  </div>
-                )}
+                </span>
               </div>
             </div>
 
