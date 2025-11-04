@@ -299,7 +299,9 @@ export default function CampaignDetail() {
       setIsLoggingIn(false);
       return;
     }
-    const redirectUri = `${window.location.origin}/api/auth/line/callback`;
+    // 强制使用 HTTPS（LINE 要求）
+    const origin = window.location.origin.replace(/^http:/, 'https:');
+    const redirectUri = `${origin}/api/auth/line/callback`;
     
     // Generate cryptographically strong state nonce for CSRF protection
     const stateNonce = Array.from(crypto.getRandomValues(new Uint8Array(32)))
