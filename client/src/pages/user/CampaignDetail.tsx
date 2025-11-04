@@ -366,17 +366,21 @@ export default function CampaignDetail() {
 
         {/* 媒体轮播（图片和视频） */}
         {campaign.mediaUrls && campaign.mediaUrls.length > 0 && (
-          <Carousel className="w-full" data-testid="campaign-media">
-            <CarouselContent>
+          <Carousel 
+            className="w-full" 
+            opts={{ loop: true, align: "start" }}
+            data-testid="campaign-media"
+          >
+            <CarouselContent className="-ml-2 md:-ml-4">
               {campaign.mediaUrls.map((url, index) => {
                 const isVideo = url.match(/\.(mp4|webm|ogg|mov)$/i);
                 return (
-                  <CarouselItem key={index}>
-                    <div className="w-full aspect-video rounded-lg overflow-hidden">
+                  <CarouselItem key={index} className="pl-2 md:pl-4">
+                    <div className="w-full aspect-video rounded-lg overflow-hidden bg-black">
                       {isVideo ? (
                         <video
                           controls
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                           data-testid={`media-video-${index}`}
                         >
                           <source src={url} type="video/mp4" />
@@ -386,7 +390,7 @@ export default function CampaignDetail() {
                         <img
                           src={url}
                           alt={`${campaign.title} - ${index + 1}`}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                           data-testid={`media-image-${index}`}
                         />
                       )}
@@ -397,8 +401,8 @@ export default function CampaignDetail() {
             </CarouselContent>
             {campaign.mediaUrls.length > 1 && (
               <>
-                <CarouselPrevious className="left-4" />
-                <CarouselNext className="right-4" />
+                <CarouselPrevious />
+                <CarouselNext />
               </>
             )}
           </Carousel>
