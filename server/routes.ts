@@ -8,10 +8,22 @@ import { db } from './db';
 import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets } from '@shared/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
-import { verifyLineIdToken } from './services/lineService';
+import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
 import { translateText } from './services/translationService';
 import type { Admin, User } from '@shared/schema';
 import { nanoid } from 'nanoid';
+
+// Extend express-session types
+declare module 'express-session' {
+  interface SessionData {
+    oauthStates?: {
+      [key: string]: {
+        campaignId: string;
+        timestamp: number;
+      };
+    };
+  }
+}
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -239,6 +251,131 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('LINE login error:', error);
       res.status(500).json({ success: false, message: 'Login failed' });
+    }
+  });
+
+  // Store OAuth state for CSRF protection
+  app.post('/api/auth/line/init-oauth', (req: Request, res: Response) => {
+    const { state, campaignId } = req.body;
+
+    if (!state || !campaignId) {
+      return res.status(400).json({ success: false, message: 'State and campaignId required' });
+    }
+
+    // Validate state format
+    if (typeof state !== 'string' || !/^[0-9a-f]{64}$/i.test(state)) {
+      return res.status(400).json({ success: false, message: 'Invalid state format' });
+    }
+
+    // Store state in session for CSRF validation
+    if (!req.session.oauthStates) {
+      req.session.oauthStates = {};
+    }
+
+    req.session.oauthStates[state] = {
+      campaignId,
+      timestamp: Date.now(),
+    };
+
+    res.json({ success: true });
+  });
+
+  // LINE OAuth callback endpoint
+  app.get('/api/auth/line/callback', async (req: Request, res: Response) => {
+    try {
+      const { code, state } = req.query;
+
+      if (!code || !state) {
+        return res.redirect(`/?error=missing_params`);
+      }
+
+      // Validate state format (should be 64 hex characters for cryptographic nonce)
+      if (typeof state !== 'string' || !/^[0-9a-f]{64}$/i.test(state)) {
+        return res.redirect(`/?error=invalid_state`);
+      }
+
+      // CSRF Protection: Validate state against server-side stored value
+      const storedStates = req.session.oauthStates || {};
+      const storedOAuthData = storedStates[state];
+
+      if (!storedOAuthData) {
+        console.error('OAuth state not found in session');
+        return res.redirect(`/?error=csrf_invalid_state`);
+      }
+
+      // Check timestamp to prevent replay attacks (valid for 5 minutes)
+      const fiveMinutes = 5 * 60 * 1000;
+      if (Date.now() - storedOAuthData.timestamp > fiveMinutes) {
+        delete storedStates[state];
+        return res.redirect(`/?error=oauth_expired`);
+      }
+
+      // Clear the used state to prevent replay
+      delete storedStates[state];
+
+      // Build redirect URI (must match what was used in OAuth request)
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/line/callback`;
+
+      // Exchange authorization code for tokens
+      const tokens = await exchangeLineAuthCode(code as string, redirectUri);
+
+      if (!tokens || !tokens.id_token) {
+        return res.redirect(`/?error=token_exchange_failed`);
+      }
+
+      // Verify ID token
+      const lineProfile = await verifyLineIdToken(tokens.id_token);
+
+      if (!lineProfile) {
+        return res.redirect(`/?error=invalid_token`);
+      }
+
+      // Create or update user
+      let [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.lineUserId, lineProfile.sub))
+        .limit(1);
+
+      if (!existingUser) {
+        [existingUser] = await db
+          .insert(users)
+          .values({
+            lineUserId: lineProfile.sub,
+            displayName: lineProfile.name,
+            avatarUrl: lineProfile.picture,
+            language: 'th-th',
+          })
+          .returning();
+      } else {
+        await db
+          .update(users)
+          .set({
+            displayName: lineProfile.name,
+            avatarUrl: lineProfile.picture,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, existingUser.id));
+      }
+
+      // Generate JWT
+      const token = jwt.sign(
+        {
+          id: existingUser.id,
+          lineUserId: existingUser.lineUserId,
+          type: 'user' as const,
+        },
+        JWT_SECRET_VALUE,
+        { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
+      );
+
+      // Redirect to campaign page with token and campaignId from verified session
+      const redirectUrl = `/campaign/${storedOAuthData.campaignId}?token=${encodeURIComponent(token)}&autoClaim=true`;
+      
+      res.redirect(redirectUrl);
+    } catch (error) {
+      console.error('LINE OAuth callback error:', error);
+      res.redirect(`/?error=callback_failed`);
     }
   });
 

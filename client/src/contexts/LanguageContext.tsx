@@ -246,7 +246,7 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.claimed': '已领',
     'campaign.claimNow': '立即领取',
     'campaign.claiming': '领取中...',
-    'campaign.loginToClaim': 'LINE登录领券',
+    'campaign.claimWithLine': '用 LINE 一键领取',
     'campaign.soldOut': '已抢光',
     'campaign.reachedLimit': '已达领取上限',
     'campaign.claimSuccess': '领券成功',
@@ -255,6 +255,11 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.liffNotReady': '请在LINE中打开',
     'campaign.applicableStores': '适用门店',
     'campaign.viewMyCoupons': '查看我的优惠券',
+    'campaign.loginDialogTitle': '使用 LINE 登录',
+    'campaign.loginDialogDesc': '优惠券会保存在你的 LINE 账号里，请先用 LINE 一键登录',
+    'campaign.loginAndClaim': '使用 LINE 登录并领取',
+    'campaign.loggingIn': '登录中...',
+    'campaign.webLoginNotImplemented': '请在LINE应用中打开链接',
     
     // My Coupons Page
     'myCoupons.title': '我的优惠券',
@@ -513,7 +518,7 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.claimed': 'Claimed',
     'campaign.claimNow': 'Claim Now',
     'campaign.claiming': 'Claiming...',
-    'campaign.loginToClaim': 'Login with LINE to Claim',
+    'campaign.claimWithLine': 'Claim with LINE',
     'campaign.soldOut': 'Sold Out',
     'campaign.reachedLimit': 'Limit Reached',
     'campaign.claimSuccess': 'Coupon Claimed',
@@ -522,6 +527,11 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.liffNotReady': 'Please open in LINE app',
     'campaign.applicableStores': 'Applicable Stores',
     'campaign.viewMyCoupons': 'View My Coupons',
+    'campaign.loginDialogTitle': 'Login with LINE',
+    'campaign.loginDialogDesc': 'Your coupons will be saved to your LINE account. Please login with LINE first.',
+    'campaign.loginAndClaim': 'Login with LINE and Claim',
+    'campaign.loggingIn': 'Logging in...',
+    'campaign.webLoginNotImplemented': 'Please open this link in the LINE app',
     
     // My Coupons Page
     'myCoupons.title': 'My Coupons',
@@ -780,7 +790,7 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.claimed': 'รับแล้ว',
     'campaign.claimNow': 'รับคูปองเลย',
     'campaign.claiming': 'กำลังรับ...',
-    'campaign.loginToClaim': 'เข้าสู่ระบบ LINE เพื่อรับคูปอง',
+    'campaign.claimWithLine': 'รับคูปองด้วย LINE',
     'campaign.soldOut': 'หมดแล้ว',
     'campaign.reachedLimit': 'ถึงขีดจำกัดแล้ว',
     'campaign.claimSuccess': 'รับคูปองสำเร็จ',
@@ -789,6 +799,11 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.liffNotReady': 'กรุณาเปิดในแอป LINE',
     'campaign.applicableStores': 'ร้านค้าที่ใช้ได้',
     'campaign.viewMyCoupons': 'ดูคูปองของฉัน',
+    'campaign.loginDialogTitle': 'เข้าสู่ระบบด้วย LINE',
+    'campaign.loginDialogDesc': 'คูปองจะถูกบันทึกในบัญชี LINE ของคุณ กรุณาเข้าสู่ระบบด้วย LINE ก่อน',
+    'campaign.loginAndClaim': 'เข้าสู่ระบบด้วย LINE เพื่อรับคูปอง',
+    'campaign.loggingIn': 'กำลังเข้าสู่ระบบ...',
+    'campaign.webLoginNotImplemented': 'กรุณาเปิดลิงก์นี้ในแอป LINE',
     
     // My Coupons Page
     'myCoupons.title': 'คูปองของฉัน',
