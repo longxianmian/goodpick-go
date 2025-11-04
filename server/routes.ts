@@ -1093,6 +1093,168 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Staff Statistics - Summary
+  app.get('/api/staff/summary', staffAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const staffInfo = req.staffInfo!;
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      // Get counts by time period
+      const [todayCount] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(coupons)
+        .where(
+          and(
+            eq(coupons.redeemedStoreId, staffInfo.storeId),
+            eq(coupons.status, 'used'),
+            sql`${coupons.usedAt} >= ${todayStart}`
+          )
+        );
+
+      const [weekCount] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(coupons)
+        .where(
+          and(
+            eq(coupons.redeemedStoreId, staffInfo.storeId),
+            eq(coupons.status, 'used'),
+            sql`${coupons.usedAt} >= ${weekStart}`
+          )
+        );
+
+      const [monthCount] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(coupons)
+        .where(
+          and(
+            eq(coupons.redeemedStoreId, staffInfo.storeId),
+            eq(coupons.status, 'used'),
+            sql`${coupons.usedAt} >= ${monthStart}`
+          )
+        );
+
+      // Get by campaign
+      const byCampaign = await db
+        .select({
+          campaignId: campaigns.id,
+          campaignTitle: campaigns.titleSource,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(coupons)
+        .innerJoin(campaigns, eq(coupons.campaignId, campaigns.id))
+        .where(
+          and(
+            eq(coupons.redeemedStoreId, staffInfo.storeId),
+            eq(coupons.status, 'used'),
+            sql`${coupons.usedAt} >= ${monthStart}`
+          )
+        )
+        .groupBy(campaigns.id, campaigns.titleSource)
+        .orderBy(desc(sql`count(*)`));
+
+      res.json({
+        success: true,
+        data: {
+          today: todayCount?.count || 0,
+          thisWeek: weekCount?.count || 0,
+          thisMonth: monthCount?.count || 0,
+          byCampaign: byCampaign,
+        },
+      });
+    } catch (error) {
+      console.error('Get staff summary error:', error);
+      res.status(500).json({ success: false, message: '获取统计失败' });
+    }
+  });
+
+  // Staff Statistics - Recent Redemptions
+  app.get('/api/staff/recent-redemptions', staffAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const staffInfo = req.staffInfo!;
+      const limit = parseInt(req.query.limit as string) || 20;
+
+      const recentRedemptions = await db
+        .select({
+          id: coupons.id,
+          code: coupons.code,
+          usedAt: coupons.usedAt,
+          campaignTitle: campaigns.titleSource,
+          userName: users.displayName,
+          couponValue: campaigns.couponValue,
+        })
+        .from(coupons)
+        .innerJoin(campaigns, eq(coupons.campaignId, campaigns.id))
+        .innerJoin(users, eq(coupons.userId, users.id))
+        .where(
+          and(
+            eq(coupons.redeemedStoreId, staffInfo.storeId),
+            eq(coupons.status, 'used')
+          )
+        )
+        .orderBy(desc(coupons.usedAt))
+        .limit(limit);
+
+      res.json({
+        success: true,
+        data: recentRedemptions,
+      });
+    } catch (error) {
+      console.error('Get recent redemptions error:', error);
+      res.status(500).json({ success: false, message: '获取记录失败' });
+    }
+  });
+
+  // Staff - Get Active Campaigns for Current Store
+  app.get('/api/staff/campaigns', staffAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const staffInfo = req.staffInfo!;
+      const now = new Date();
+
+      const activeCampaigns = await db
+        .select({
+          id: campaigns.id,
+          titleSource: campaigns.titleSource,
+          titleZh: campaigns.titleZh,
+          titleEn: campaigns.titleEn,
+          titleTh: campaigns.titleTh,
+          descriptionSource: campaigns.descriptionSource,
+          descriptionZh: campaigns.descriptionZh,
+          descriptionEn: campaigns.descriptionEn,
+          descriptionTh: campaigns.descriptionTh,
+          bannerImageUrl: campaigns.bannerImageUrl,
+          couponValue: campaigns.couponValue,
+          discountType: campaigns.discountType,
+          originalPrice: campaigns.originalPrice,
+          startAt: campaigns.startAt,
+          endAt: campaigns.endAt,
+          staffInstructions: campaigns.staffInstructions,
+          staffTraining: campaigns.staffTraining,
+        })
+        .from(campaigns)
+        .innerJoin(campaignStores, eq(campaigns.id, campaignStores.campaignId))
+        .where(
+          and(
+            eq(campaignStores.storeId, staffInfo.storeId),
+            eq(campaigns.isActive, true),
+            sql`${campaigns.startAt} <= ${now}`,
+            sql`${campaigns.endAt} >= ${now}`
+          )
+        )
+        .orderBy(desc(campaigns.startAt));
+
+      res.json({
+        success: true,
+        data: activeCampaigns,
+      });
+    } catch (error) {
+      console.error('Get staff campaigns error:', error);
+      res.status(500).json({ success: false, message: '获取活动失败' });
+    }
+  });
+
   // ============ E. Admin Authentication ============
 
   app.post('/api/admin/login', async (req: Request, res: Response) => {
