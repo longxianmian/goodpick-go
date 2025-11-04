@@ -6,7 +6,8 @@ GoodPick Go is a multi-language coupon recommendation platform targeting the Tha
 
 ## User Preferences
 
-Preferred communication style: Simple, everyday language.
+**语言要求**: 必须使用中文沟通（用户不懂英文，这是强制要求）
+Preferred communication style: Simple, everyday language in Chinese.
 
 ## System Architecture
 
