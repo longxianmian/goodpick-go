@@ -8,9 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import Autoplay from 'embla-carousel-autoplay';
 import { Gift, Calendar, MapPin, Tag } from 'lucide-react';
 import { queryClient, apiRequest } from '@/lib/queryClient';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 declare global {
   interface Window {
@@ -26,6 +27,9 @@ export default function CampaignDetail() {
   const { toast } = useToast();
   const [isLiffEnvironment, setIsLiffEnvironment] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const autoplayPlugin = useRef(
+    Autoplay({ delay: 3000, stopOnInteraction: true })
+  );
 
   // 检测LIFF环境并处理登录后自动领券
   useEffect(() => {
@@ -353,22 +357,15 @@ export default function CampaignDetail() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-4xl mx-auto p-4 space-y-6">
-        {/* Banner */}
-        {campaign.bannerImageUrl && (
-          <div className="w-full aspect-video rounded-lg overflow-hidden" data-testid="campaign-banner">
-            <img
-              src={campaign.bannerImageUrl}
-              alt={campaign.title}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )}
-
         {/* 媒体轮播（图片和视频） */}
-        {campaign.mediaUrls && campaign.mediaUrls.length > 0 && (
+        {campaign.mediaUrls && campaign.mediaUrls.length > 0 ? (
           <Carousel 
             className="w-full" 
-            opts={{ loop: true, align: "start" }}
+            plugins={[autoplayPlugin.current]}
+            opts={{ 
+              loop: true, 
+              align: "start"
+            }}
             data-testid="campaign-media"
           >
             <CarouselContent className="-ml-2 md:-ml-4">
@@ -406,7 +403,15 @@ export default function CampaignDetail() {
               </>
             )}
           </Carousel>
-        )}
+        ) : campaign.bannerImageUrl ? (
+          <div className="w-full aspect-video rounded-lg overflow-hidden" data-testid="campaign-banner">
+            <img
+              src={campaign.bannerImageUrl}
+              alt={campaign.title}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ) : null}
 
         {/* 活动信息 */}
         <Card data-testid="campaign-info">
