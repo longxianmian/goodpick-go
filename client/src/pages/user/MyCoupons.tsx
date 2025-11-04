@@ -41,20 +41,38 @@ interface Coupon {
 }
 
 export default function MyCoupons() {
-  const { isUserAuthenticated, logoutUser, user } = useAuth();
+  const { isUserAuthenticated, logoutUser, user, loginUser } = useAuth();
   const { t, language } = useLanguage();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [activeTab, setActiveTab] = useState<CouponStatus | 'all'>('all');
+  const [isLiffEnvironment, setIsLiffEnvironment] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // LINE登录检查
+  // 检测LIFF环境并处理登录
   useEffect(() => {
-    if (!isUserAuthenticated) {
-      if (window.liff && !window.liff.isLoggedIn()) {
-        window.liff.login();
+    const checkLiff = async () => {
+      if (window.liff) {
+        try {
+          await window.liff.init({ liffId: import.meta.env.VITE_LIFF_ID || '' });
+          setIsLiffEnvironment(true);
+          
+          if (!isUserAuthenticated && !window.liff.isLoggedIn()) {
+            window.liff.login();
+          }
+        } catch (error) {
+          console.error('LIFF init failed:', error);
+          setIsLiffEnvironment(false);
+        }
+      } else {
+        setIsLiffEnvironment(false);
       }
+    };
+    
+    if (!isUserAuthenticated) {
+      checkLiff();
     }
   }, [isUserAuthenticated]);
 
@@ -103,14 +121,76 @@ export default function MyCoupons() {
     setLocation('/');
   };
 
+  // Web环境登录（OAuth）
+  const handleWebLogin = async () => {
+    const lineChannelId = import.meta.env.VITE_LINE_CHANNEL_ID || '';
+    const redirectUri = `${window.location.origin}/api/auth/line/callback`;
+    
+    // Generate CSRF state
+    const stateNonce = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    
+    try {
+      setIsLoggingIn(true);
+      
+      // Store state server-side
+      const initResponse = await fetch('/api/auth/line/init-oauth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          state: stateNonce,
+          redirectTo: '/my-coupons', // 登录成功后回到此页
+        }),
+        credentials: 'include',
+      });
+
+      if (!initResponse.ok) {
+        throw new Error('Failed to initialize OAuth');
+      }
+
+      // Redirect to LINE OAuth
+      const authUrl = new URL('https://access.line.me/oauth2/v2.1/authorize');
+      authUrl.searchParams.set('response_type', 'code');
+      authUrl.searchParams.set('client_id', lineChannelId);
+      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('state', stateNonce);
+      authUrl.searchParams.set('scope', 'profile openid');
+      authUrl.searchParams.set('nonce', stateNonce);
+      
+      window.location.href = authUrl.toString();
+    } catch (error) {
+      console.error('Failed to init OAuth:', error);
+      toast({
+        title: t('common.error'),
+        description: t('login.failed'),
+        variant: 'destructive',
+      });
+      setIsLoggingIn(false);
+    }
+  };
+
   if (!isUserAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
         <Card className="max-w-md w-full">
           <CardHeader>
             <CardTitle>{t('myCoupons.loginRequired') || '请先登录'}</CardTitle>
             <CardDescription>{t('myCoupons.loginDesc') || '使用LINE账号登录查看您的优惠券'}</CardDescription>
           </CardHeader>
+          {!isLiffEnvironment && (
+            <CardContent>
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleWebLogin}
+                disabled={isLoggingIn}
+                data-testid="button-line-login"
+              >
+                {isLoggingIn ? t('campaign.loggingIn') || '登录中...' : t('campaign.loginWithLine') || '用LINE登录'}
+              </Button>
+            </CardContent>
+          )}
         </Card>
       </div>
     );
