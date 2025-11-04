@@ -5,12 +5,13 @@ import multer from 'multer';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles } from '@shared/schema';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets } from '@shared/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
 import { verifyLineIdToken } from './services/lineService';
 import { translateText } from './services/translationService';
 import type { Admin, User } from '@shared/schema';
+import { nanoid } from 'nanoid';
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -423,7 +424,181 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // ============ C. Admin Authentication ============
+  // ============ C. Staff Binding (QR Code Authorization) ============
+
+  // Verify staff binding token and show preset info
+  app.get('/api/staff/bind/verify', async (req: Request, res: Response) => {
+    try {
+      const authToken = req.query.token as string;
+
+      if (!authToken) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Authorization token is required' 
+        });
+      }
+
+      const [preset] = await db
+        .select({
+          id: staffPresets.id,
+          storeId: staffPresets.storeId,
+          storeName: stores.name,
+          storeAddress: stores.address,
+          staffName: staffPresets.name,
+          staffId: staffPresets.staffId,
+          phone: staffPresets.phone,
+          isBound: staffPresets.isBound,
+        })
+        .from(staffPresets)
+        .innerJoin(stores, eq(staffPresets.storeId, stores.id))
+        .where(eq(staffPresets.authToken, authToken))
+        .limit(1);
+
+      if (!preset) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Invalid authorization token' 
+        });
+      }
+
+      if (preset.isBound) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'This authorization has already been used' 
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        data: {
+          storeName: preset.storeName,
+          storeAddress: preset.storeAddress,
+          staffName: preset.staffName,
+          staffId: preset.staffId,
+          phone: preset.phone,
+        }
+      });
+    } catch (error) {
+      console.error('Verify binding token error:', error);
+      res.status(500).json({ success: false, message: 'Failed to verify token' });
+    }
+  });
+
+  // Execute staff binding with LINE account
+  app.post('/api/staff/bind', async (req: Request, res: Response) => {
+    try {
+      const { authToken, lineIdToken } = req.body;
+
+      if (!authToken || !lineIdToken) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Authorization token and LINE ID token are required' 
+        });
+      }
+
+      // Verify LINE ID token
+      const lineProfile = await verifyLineIdToken(lineIdToken);
+      if (!lineProfile) {
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Invalid LINE ID token' 
+        });
+      }
+
+      // Get staff preset
+      const [preset] = await db
+        .select()
+        .from(staffPresets)
+        .where(eq(staffPresets.authToken, authToken))
+        .limit(1);
+
+      if (!preset) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Invalid authorization token' 
+        });
+      }
+
+      if (preset.isBound) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'This authorization has already been used' 
+        });
+      }
+
+      // Get or create user
+      let [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.lineUserId, lineProfile.sub))
+        .limit(1);
+
+      if (!user) {
+        // Create new user
+        [user] = await db
+          .insert(users)
+          .values({
+            lineUserId: lineProfile.sub,
+            displayName: lineProfile.name,
+            avatarUrl: lineProfile.picture,
+            phone: lineProfile.phone,
+            language: 'th-th',
+          })
+          .returning();
+      } else {
+        // Update user phone if available from LINE
+        if (lineProfile.phone && !user.phone) {
+          [user] = await db
+            .update(users)
+            .set({ phone: lineProfile.phone, updatedAt: new Date() })
+            .where(eq(users.id, user.id))
+            .returning();
+        }
+      }
+
+      // Verify phone number match
+      const userPhone = user.phone?.replace(/\D/g, ''); // Remove non-digits
+      const presetPhone = preset.phone.replace(/\D/g, '');
+
+      if (!userPhone || userPhone !== presetPhone) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Phone number verification failed. Your LINE account phone number must match the registered staff phone number.',
+          details: {
+            required: preset.phone,
+            provided: user.phone || 'Not available',
+          }
+        });
+      }
+
+      // Bind user to preset
+      const [updatedPreset] = await db
+        .update(staffPresets)
+        .set({
+          isBound: true,
+          boundUserId: user.id,
+          boundAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(staffPresets.id, preset.id))
+        .returning();
+
+      res.json({ 
+        success: true, 
+        message: 'Staff authorization successful! You can now redeem coupons at this store.',
+        data: {
+          staffName: preset.name,
+          staffId: preset.staffId,
+          storeId: preset.storeId,
+        }
+      });
+    } catch (error) {
+      console.error('Staff binding error:', error);
+      res.status(500).json({ success: false, message: 'Binding failed. Please try again.' });
+    }
+  });
+
+  // ============ D. Admin Authentication ============
 
   app.post('/api/admin/login', async (req: Request, res: Response) => {
     try {
@@ -580,6 +755,131 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Delete store error:', error);
       res.status(500).json({ success: false, message: 'Failed to delete store' });
+    }
+  });
+
+  // ============ E. Admin - Staff Presets Management (Redemption Authorization) ============
+
+  // Get all staff presets for a store
+  app.get('/api/admin/stores/:storeId/staff-presets', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+
+      const presets = await db
+        .select({
+          id: staffPresets.id,
+          storeId: staffPresets.storeId,
+          name: staffPresets.name,
+          staffId: staffPresets.staffId,
+          phone: staffPresets.phone,
+          authToken: staffPresets.authToken,
+          isBound: staffPresets.isBound,
+          boundUserId: staffPresets.boundUserId,
+          boundAt: staffPresets.boundAt,
+          createdAt: staffPresets.createdAt,
+          // Join with users to get bound user info
+          boundUserName: users.displayName,
+          boundUserPhone: users.phone,
+        })
+        .from(staffPresets)
+        .leftJoin(users, eq(staffPresets.boundUserId, users.id))
+        .where(eq(staffPresets.storeId, storeId))
+        .orderBy(desc(staffPresets.createdAt));
+
+      res.json({ success: true, data: presets });
+    } catch (error) {
+      console.error('Get staff presets error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get staff presets' });
+    }
+  });
+
+  // Create a new staff preset
+  app.post('/api/admin/stores/:storeId/staff-presets', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const { name, staffId, phone } = req.body;
+
+      if (!name || !staffId || !phone) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Name, staff ID, and phone are required' 
+        });
+      }
+
+      // Generate unique auth token
+      const authToken = nanoid(32);
+
+      const [preset] = await db
+        .insert(staffPresets)
+        .values({
+          storeId,
+          name,
+          staffId,
+          phone,
+          authToken,
+        })
+        .returning();
+
+      res.json({ 
+        success: true, 
+        message: 'Staff preset created successfully', 
+        data: preset 
+      });
+    } catch (error) {
+      console.error('Create staff preset error:', error);
+      res.status(500).json({ success: false, message: 'Failed to create staff preset' });
+    }
+  });
+
+  // Delete a staff preset
+  app.delete('/api/admin/staff-presets/:id', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const presetId = parseInt(req.params.id);
+
+      const [deletedPreset] = await db
+        .delete(staffPresets)
+        .where(eq(staffPresets.id, presetId))
+        .returning();
+
+      if (!deletedPreset) {
+        return res.status(404).json({ success: false, message: 'Staff preset not found' });
+      }
+
+      res.json({ success: true, message: 'Staff preset deleted successfully' });
+    } catch (error) {
+      console.error('Delete staff preset error:', error);
+      res.status(500).json({ success: false, message: 'Failed to delete staff preset' });
+    }
+  });
+
+  // Unbind a staff member from a preset
+  app.post('/api/admin/staff-presets/:id/unbind', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const presetId = parseInt(req.params.id);
+
+      const [updatedPreset] = await db
+        .update(staffPresets)
+        .set({
+          isBound: false,
+          boundUserId: null,
+          boundAt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(staffPresets.id, presetId))
+        .returning();
+
+      if (!updatedPreset) {
+        return res.status(404).json({ success: false, message: 'Staff preset not found' });
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Staff unbounded successfully', 
+        data: updatedPreset 
+      });
+    } catch (error) {
+      console.error('Unbind staff error:', error);
+      res.status(500).json({ success: false, message: 'Failed to unbind staff' });
     }
   });
 

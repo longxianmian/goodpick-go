@@ -121,6 +121,7 @@ export const users = pgTable('users', {
   lineUserId: text('line_user_id').notNull().unique(),
   displayName: text('display_name'),
   avatarUrl: text('avatar_url'),
+  phone: text('phone'), // Phone number from LINE profile (for staff binding verification)
   language: languageEnum('language').notNull().default('th-th'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -174,3 +175,30 @@ export const insertMediaFileSchema = createInsertSchema(mediaFiles).omit({
 });
 export type InsertMediaFile = z.infer<typeof insertMediaFileSchema>;
 export type MediaFile = typeof mediaFiles.$inferSelect;
+
+// Staff Presets table (for redemption authorization)
+export const staffPresets = pgTable('staff_presets', {
+  id: serial('id').primaryKey(),
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(), // Staff name
+  staffId: text('staff_id').notNull(), // Employee ID/number
+  phone: text('phone').notNull(), // Phone number for binding verification
+  authToken: text('auth_token').notNull().unique(), // Unique token for QR code binding
+  isBound: boolean('is_bound').notNull().default(false), // Whether bound to a LINE account
+  boundUserId: integer('bound_user_id').references(() => users.id, { onDelete: 'set null' }), // Bound user
+  boundAt: timestamp('bound_at'), // Binding timestamp
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertStaffPresetSchema = createInsertSchema(staffPresets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  authToken: true,
+  isBound: true,
+  boundUserId: true,
+  boundAt: true,
+});
+export type InsertStaffPreset = z.infer<typeof insertStaffPresetSchema>;
+export type StaffPreset = typeof staffPresets.$inferSelect;
