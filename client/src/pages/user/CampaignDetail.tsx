@@ -630,7 +630,7 @@ export default function CampaignDetail() {
                         {/* 距离 */}
                         {userLocation && store.latitude && store.longitude ? (
                           <span className="text-sm text-muted-foreground flex items-center gap-1" data-testid={`store-distance-${store.id}`}>
-                            <span className="text-muted-foreground">•</span>
+                            <MapPin className="h-3.5 w-3.5 text-orange-500" />
                             {calculateDistance(userLocation.lat, userLocation.lng, store.latitude, store.longitude)}
                           </span>
                         ) : null}
