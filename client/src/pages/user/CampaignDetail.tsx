@@ -672,19 +672,6 @@ export default function CampaignDetail() {
             </CardContent>
           </Card>
         )}
-
-          {/* 查看我的优惠券 */}
-          {isUserAuthenticated && (
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => setLocation('/my-coupons')}
-              data-testid="button-my-coupons"
-            >
-              <Tag className="mr-2 h-4 w-4" />
-              {t('campaign.viewMyCoupons')}
-            </Button>
-          )}
         </div>
       </div>
 
