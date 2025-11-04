@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Autoplay from 'embla-carousel-autoplay';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Gift, Calendar, MapPin, Tag, Phone, Star, Navigation } from 'lucide-react';
+import { Gift, Calendar, MapPin, Tag, Phone, Star, Navigation, AlertCircle } from 'lucide-react';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useState, useEffect, useRef } from 'react';
 
@@ -427,58 +427,64 @@ export default function CampaignDetail() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
+      {/* 固定头部 - 图片/视频 */}
+      <div className="flex-shrink-0">
+        <div className="container max-w-4xl mx-auto p-4 pb-0">
+          {/* 媒体轮播（图片和视频） */}
+          {campaign.mediaUrls && campaign.mediaUrls.length > 0 ? (
+            <Carousel 
+              className="w-full" 
+              plugins={[autoplayPlugin.current]}
+              opts={{ 
+                loop: true, 
+                align: "start"
+              }}
+              data-testid="campaign-media"
+            >
+              <CarouselContent className="-ml-2 md:-ml-4">
+                {campaign.mediaUrls.map((url, index) => {
+                  const isVideo = url.match(/\.(mp4|webm|ogg|mov)$/i);
+                  return (
+                    <CarouselItem key={index} className="pl-2 md:pl-4">
+                      <div className="w-full aspect-video rounded-lg overflow-hidden bg-black">
+                        {isVideo ? (
+                          <video
+                            controls
+                            className="w-full h-full object-contain"
+                            data-testid={`media-video-${index}`}
+                          >
+                            <source src={url} type="video/mp4" />
+                            您的浏览器不支持视频播放
+                          </video>
+                        ) : (
+                          <img
+                            src={url}
+                            alt={`${campaign.title} - ${index + 1}`}
+                            className="w-full h-full object-contain"
+                            data-testid={`media-image-${index}`}
+                          />
+                        )}
+                      </div>
+                    </CarouselItem>
+                  );
+                })}
+              </CarouselContent>
+            </Carousel>
+          ) : campaign.bannerImageUrl ? (
+            <div className="w-full aspect-video rounded-lg overflow-hidden" data-testid="campaign-banner">
+              <img
+                src={campaign.bannerImageUrl}
+                alt={campaign.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : null}
+        </div>
+      </div>
+
       {/* 滚动内容区域 */}
       <div className="flex-1 overflow-y-auto">
-        <div className="container max-w-4xl mx-auto p-4 space-y-6 pb-24">
-          {/* 媒体轮播（图片和视频） */}
-        {campaign.mediaUrls && campaign.mediaUrls.length > 0 ? (
-          <Carousel 
-            className="w-full" 
-            plugins={[autoplayPlugin.current]}
-            opts={{ 
-              loop: true, 
-              align: "start"
-            }}
-            data-testid="campaign-media"
-          >
-            <CarouselContent className="-ml-2 md:-ml-4">
-              {campaign.mediaUrls.map((url, index) => {
-                const isVideo = url.match(/\.(mp4|webm|ogg|mov)$/i);
-                return (
-                  <CarouselItem key={index} className="pl-2 md:pl-4">
-                    <div className="w-full aspect-video rounded-lg overflow-hidden bg-black">
-                      {isVideo ? (
-                        <video
-                          controls
-                          className="w-full h-full object-contain"
-                          data-testid={`media-video-${index}`}
-                        >
-                          <source src={url} type="video/mp4" />
-                          您的浏览器不支持视频播放
-                        </video>
-                      ) : (
-                        <img
-                          src={url}
-                          alt={`${campaign.title} - ${index + 1}`}
-                          className="w-full h-full object-contain"
-                          data-testid={`media-image-${index}`}
-                        />
-                      )}
-                    </div>
-                  </CarouselItem>
-                );
-              })}
-            </CarouselContent>
-          </Carousel>
-        ) : campaign.bannerImageUrl ? (
-          <div className="w-full aspect-video rounded-lg overflow-hidden" data-testid="campaign-banner">
-            <img
-              src={campaign.bannerImageUrl}
-              alt={campaign.title}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        ) : null}
+        <div className="container max-w-4xl mx-auto px-4 pt-6 space-y-6">
 
         {/* 活动信息 */}
         <Card data-testid="campaign-info">
@@ -540,6 +546,7 @@ export default function CampaignDetail() {
                   className="w-full"
                   data-testid="button-view-rules"
                 >
+                  <AlertCircle className="mr-2 h-4 w-4 text-orange-500" />
                   {t('campaign.viewRules')}
                 </Button>
               </DialogTrigger>
