@@ -57,6 +57,12 @@ declare global {
     interface Request {
       admin?: Admin;
       user?: User;
+      staffInfo?: {
+        id: number;
+        storeId: number;
+        name: string;
+        staffId: string;
+      };
     }
   }
 }
@@ -118,12 +124,71 @@ function optionalUserAuth(req: Request, res: Response, next: express.NextFunctio
   next();
 }
 
+// Staff auth - verifies user is bound as staff
+async function staffAuthMiddleware(req: Request, res: Response, next: express.NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  const token = authHeader.substring(7);
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET_VALUE) as { id: number; lineUserId: string; type: 'user' };
+    if (decoded.type !== 'user') {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+
+    // Check if user is bound as staff
+    const [staffPreset] = await db
+      .select({
+        id: staffPresets.id,
+        storeId: staffPresets.storeId,
+        name: staffPresets.name,
+        staffId: staffPresets.staffId,
+      })
+      .from(staffPresets)
+      .where(eq(staffPresets.boundUserId, decoded.id))
+      .limit(1);
+
+    if (!staffPreset) {
+      return res.status(403).json({ 
+        success: false, 
+        message: '您还未绑定店员身份，请先扫描店员授权二维码' 
+      });
+    }
+
+    req.user = decoded as any;
+    req.staffInfo = staffPreset as any;
+    next();
+  } catch (error) {
+    return res.status(401).json({ success: false, message: 'Invalid token' });
+  }
+}
+
 // ============ Helper Functions ============
 
-function generateCouponCode(): string {
-  const timestamp = Date.now().toString(36).toUpperCase();
-  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-  return `GPGO-${timestamp}-${random}`;
+async function generateUniqueCouponCode(): Promise<string> {
+  const maxRetries = 10;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    // Generate 6-digit number (000000-999999)
+    const code = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+    
+    // Check if code already exists
+    const existing = await db
+      .select()
+      .from(coupons)
+      .where(eq(coupons.code, code))
+      .limit(1);
+    
+    if (existing.length === 0) {
+      return code;
+    }
+    
+    console.log(`[核销码冲突] ${code} 已存在，重新生成...`);
+  }
+  
+  throw new Error('无法生成唯一核销码，请稍后重试');
 }
 
 async function translateCampaignContent(
@@ -534,8 +599,8 @@ export function registerRoutes(app: Express): Server {
       }
 
       // 生成优惠券
-      const code = generateCouponCode();
-      console.log(`[生成优惠券] 优惠券码: ${code}`);
+      const code = await generateUniqueCouponCode();
+      console.log(`[生成优惠券] 6位数核销码: ${code}`);
       
       const [newCoupon] = await db
         .insert(coupons)
@@ -803,7 +868,232 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // ============ D. Admin Authentication ============
+  // ============ D. Staff Redemption ============
+
+  // Query coupon by code or ID
+  app.post('/api/staff/redeem/query', staffAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { code, couponId } = req.body;
+      const staffInfo = req.staffInfo!;
+
+      if (!code && !couponId) {
+        return res.status(400).json({ 
+          success: false, 
+          message: '请提供核销码或优惠券ID' 
+        });
+      }
+
+      let couponQuery = db
+        .select({
+          coupon: coupons,
+          campaign: campaigns,
+          user: users,
+        })
+        .from(coupons)
+        .innerJoin(campaigns, eq(coupons.campaignId, campaigns.id))
+        .innerJoin(users, eq(coupons.userId, users.id));
+
+      if (code) {
+        couponQuery = couponQuery.where(eq(coupons.code, code)) as any;
+      } else {
+        couponQuery = couponQuery.where(eq(coupons.id, couponId)) as any;
+      }
+
+      const [result] = await couponQuery.limit(1);
+
+      if (!result) {
+        return res.status(404).json({ 
+          success: false, 
+          message: '优惠券不存在' 
+        });
+      }
+
+      const { coupon, campaign, user } = result;
+
+      // CRITICAL: Check if this campaign is authorized for staff's store
+      const [campaignStore] = await db
+        .select()
+        .from(campaignStores)
+        .where(
+          and(
+            eq(campaignStores.campaignId, campaign.id),
+            eq(campaignStores.storeId, staffInfo.storeId)
+          )
+        )
+        .limit(1);
+
+      if (!campaignStore) {
+        console.log(`[核销权限拒绝] 店员 ${staffInfo.name} (门店ID: ${staffInfo.storeId}) 尝试核销不属于本店的优惠券 ${coupon.code} (活动ID: ${campaign.id})`);
+        return res.status(403).json({ 
+          success: false, 
+          message: '该优惠券不属于您的门店，无法核销' 
+        });
+      }
+
+      // Check if coupon is already used
+      if (coupon.status === 'used') {
+        return res.status(400).json({ 
+          success: false, 
+          message: '该优惠券已被使用',
+          details: {
+            usedAt: coupon.usedAt,
+            redeemedStoreId: coupon.redeemedStoreId,
+          }
+        });
+      }
+
+      // Check if coupon is expired
+      if (coupon.status === 'expired' || new Date() > coupon.expiredAt) {
+        return res.status(400).json({ 
+          success: false, 
+          message: '该优惠券已过期',
+          details: {
+            expiredAt: coupon.expiredAt,
+          }
+        });
+      }
+
+      // Check if campaign is active
+      if (!campaign.isActive) {
+        return res.status(400).json({ 
+          success: false, 
+          message: '该活动已停用' 
+        });
+      }
+
+      // Return coupon details for confirmation
+      res.json({ 
+        success: true, 
+        data: {
+          coupon: {
+            id: coupon.id,
+            code: coupon.code,
+            status: coupon.status,
+            issuedAt: coupon.issuedAt,
+            expiredAt: coupon.expiredAt,
+          },
+          campaign: {
+            id: campaign.id,
+            title: campaign.titleTh || campaign.titleSource,
+            description: campaign.descriptionTh || campaign.descriptionSource,
+            bannerImageUrl: campaign.bannerImageUrl,
+            couponValue: campaign.couponValue,
+            discountType: campaign.discountType,
+            originalPrice: campaign.originalPrice,
+          },
+          user: {
+            id: user.id,
+            displayName: user.displayName,
+            phone: user.phone,
+          },
+        }
+      });
+    } catch (error) {
+      console.error('Query coupon error:', error);
+      res.status(500).json({ success: false, message: '查询失败' });
+    }
+  });
+
+  // Execute redemption
+  app.post('/api/staff/redeem/execute', staffAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { couponId, notes } = req.body;
+      const staffInfo = (req as any).staffInfo;
+
+      if (!couponId) {
+        return res.status(400).json({ 
+          success: false, 
+          message: '请提供优惠券ID' 
+        });
+      }
+
+      // Get coupon with campaign info
+      const [result] = await db
+        .select({
+          coupon: coupons,
+          campaign: campaigns,
+        })
+        .from(coupons)
+        .innerJoin(campaigns, eq(coupons.campaignId, campaigns.id))
+        .where(eq(coupons.id, couponId))
+        .limit(1);
+
+      if (!result) {
+        return res.status(404).json({ 
+          success: false, 
+          message: '优惠券不存在' 
+        });
+      }
+
+      const { coupon, campaign } = result;
+
+      // CRITICAL: Check if this campaign is authorized for staff's store
+      const [campaignStore] = await db
+        .select()
+        .from(campaignStores)
+        .where(
+          and(
+            eq(campaignStores.campaignId, campaign.id),
+            eq(campaignStores.storeId, staffInfo.storeId)
+          )
+        )
+        .limit(1);
+
+      if (!campaignStore) {
+        console.log(`[核销权限拒绝] 店员 ${staffInfo.name} (门店ID: ${staffInfo.storeId}) 尝试核销不属于本店的优惠券 ${coupon.code} (活动ID: ${campaign.id})`);
+        return res.status(403).json({ 
+          success: false, 
+          message: '该优惠券不属于您的门店，无法核销' 
+        });
+      }
+
+      // Check if already used
+      if (coupon.status === 'used') {
+        return res.status(400).json({ 
+          success: false, 
+          message: '该优惠券已被使用' 
+        });
+      }
+
+      // Check if expired
+      if (coupon.status === 'expired' || new Date() > coupon.expiredAt) {
+        return res.status(400).json({ 
+          success: false, 
+          message: '该优惠券已过期' 
+        });
+      }
+
+      // Update coupon status
+      const [updatedCoupon] = await db
+        .update(coupons)
+        .set({
+          status: 'used',
+          usedAt: new Date(),
+          redeemedStoreId: staffInfo.storeId,
+          notes: notes || null,
+        })
+        .where(eq(coupons.id, couponId))
+        .returning();
+
+      console.log(`[核销成功] 优惠券ID: ${couponId}, 核销码: ${coupon.code}, 店员: ${staffInfo.name}, 门店ID: ${staffInfo.storeId}`);
+
+      res.json({ 
+        success: true, 
+        message: '核销成功',
+        data: {
+          couponId: updatedCoupon.id,
+          code: updatedCoupon.code,
+          usedAt: updatedCoupon.usedAt,
+          redeemedStoreId: updatedCoupon.redeemedStoreId,
+        }
+      });
+    } catch (error) {
+      console.error('Execute redemption error:', error);
+      res.status(500).json({ success: false, message: '核销失败' });
+    }
+  });
+
+  // ============ E. Admin Authentication ============
 
   app.post('/api/admin/login', async (req: Request, res: Response) => {
     try {
