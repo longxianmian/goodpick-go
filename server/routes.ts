@@ -484,6 +484,9 @@ export function registerRoutes(app: Express): Server {
       const { channel = 'other' } = req.body;
       const userId = req.user!.id;
 
+      console.log(`[领券请求] 用户ID: ${userId}, 活动ID: ${campaignId}, 渠道: ${channel}`);
+
+      // 查询活动信息
       const [campaign] = await db
         .select()
         .from(campaigns)
@@ -491,28 +494,48 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       if (!campaign) {
-        return res.status(404).json({ success: false, message: 'Campaign not found or inactive' });
+        console.log(`[领券失败] 活动不存在或已停用 - 活动ID: ${campaignId}`);
+        return res.status(404).json({ success: false, message: '活动不存在或已停用' });
       }
 
       const now = new Date();
-      if (now < campaign.startAt || now > campaign.endAt) {
-        return res.status(400).json({ success: false, message: 'Campaign is not active' });
+      console.log(`[活动时间检查] 当前时间: ${now.toISOString()}, 开始时间: ${campaign.startAt.toISOString()}, 结束时间: ${campaign.endAt.toISOString()}`);
+
+      // 检查活动是否已开始
+      if (now < campaign.startAt) {
+        console.log(`[领券失败] 活动未开始 - 活动ID: ${campaignId}`);
+        return res.status(400).json({ success: false, message: '活动未开始' });
       }
 
+      // 检查活动是否已结束
+      if (now > campaign.endAt) {
+        console.log(`[领券失败] 活动已结束 - 活动ID: ${campaignId}`);
+        return res.status(400).json({ success: false, message: '活动已结束' });
+      }
+
+      // 检查总库存
+      console.log(`[库存检查] 当前已领: ${campaign.currentClaimed}, 总库存: ${campaign.maxTotal || '无限制'}`);
       if (campaign.maxTotal && campaign.currentClaimed >= campaign.maxTotal) {
-        return res.status(400).json({ success: false, message: 'Campaign coupons are sold out' });
+        console.log(`[领券失败] 优惠券已发完 - 活动ID: ${campaignId}`);
+        return res.status(409).json({ success: false, message: '优惠券已发完' });
       }
 
+      // 检查用户已领取数量
       const userCoupons = await db
         .select()
         .from(coupons)
         .where(and(eq(coupons.userId, userId), eq(coupons.campaignId, campaignId)));
 
+      console.log(`[用户限制检查] 已领: ${userCoupons.length}, 限领: ${campaign.maxPerUser}`);
       if (userCoupons.length >= campaign.maxPerUser) {
-        return res.status(400).json({ success: false, message: 'You have reached the claim limit for this campaign' });
+        console.log(`[领券失败] 已达到个人限领数量 - 用户ID: ${userId}, 活动ID: ${campaignId}`);
+        return res.status(409).json({ success: false, message: `您已达到该活动的领取上限（${campaign.maxPerUser}张）` });
       }
 
+      // 生成优惠券
       const code = generateCouponCode();
+      console.log(`[生成优惠券] 优惠券码: ${code}`);
+      
       const [newCoupon] = await db
         .insert(coupons)
         .values({
@@ -525,14 +548,17 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
 
+      // 更新活动已领取数量
       await db
         .update(campaigns)
         .set({ currentClaimed: sql`${campaigns.currentClaimed} + 1` })
         .where(eq(campaigns.id, campaignId));
 
+      console.log(`[领券成功] 用户ID: ${userId}, 活动ID: ${campaignId}, 优惠券ID: ${newCoupon.id}, 新的已领数: ${campaign.currentClaimed + 1}`);
+
       res.json({
         success: true,
-        message: 'Coupon claimed successfully',
+        message: '领取成功',
         coupon: {
           id: newCoupon.id,
           code: newCoupon.code,
@@ -543,8 +569,12 @@ export function registerRoutes(app: Express): Server {
         },
       });
     } catch (error) {
-      console.error('Claim coupon error:', error);
-      res.status(500).json({ success: false, message: 'Failed to claim coupon' });
+      console.error('[领券系统错误]', error);
+      console.error('错误详情:', {
+        message: (error as Error).message,
+        stack: (error as Error).stack,
+      });
+      res.status(500).json({ success: false, message: '系统错误，请稍后重试' });
     }
   });
 
