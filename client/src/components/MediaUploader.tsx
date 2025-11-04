@@ -4,6 +4,17 @@ import { X, Upload, GripVertical, Image as ImageIcon, Video as VideoIcon } from 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   DndContext,
@@ -130,14 +141,17 @@ export function MediaUploader({
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>(value);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [mode, setMode] = useState<"image" | "video" | null>(null);
+  const [mode, setMode] = useState<"image" | "video">("image");
+  const [showModeChangeDialog, setShowModeChangeDialog] = useState(false);
+  const [pendingMode, setPendingMode] = useState<"image" | "video" | null>(null);
 
   useEffect(() => {
     setMediaFiles(value);
     if (value.length > 0) {
       setMode(value[0].type);
     } else {
-      setMode(null);
+      // 默认图片模式
+      setMode("image");
     }
   }, [value]);
 
@@ -190,6 +204,32 @@ export function MediaUploader({
     });
   };
 
+  const handleModeChange = (newMode: "image" | "video") => {
+    if (newMode === mode) return;
+    
+    if (mediaFiles.length > 0) {
+      setPendingMode(newMode);
+      setShowModeChangeDialog(true);
+    } else {
+      setMode(newMode);
+    }
+  };
+
+  const confirmModeChange = () => {
+    if (pendingMode) {
+      setMode(pendingMode);
+      setMediaFiles([]);
+      onChange?.([]);
+      setPendingMode(null);
+    }
+    setShowModeChangeDialog(false);
+  };
+
+  const cancelModeChange = () => {
+    setPendingMode(null);
+    setShowModeChangeDialog(false);
+  };
+
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
       if (acceptedFiles.length === 0) return;
@@ -207,11 +247,9 @@ export function MediaUploader({
         return;
       }
 
-      const newMode = isImage ? "image" : "video";
+      const fileMode = isImage ? "image" : "video";
 
-      if (!mode) {
-        setMode(newMode);
-      } else if (mode !== newMode) {
+      if (mode !== fileMode) {
         toast({
           title: t("common.error"),
           description: mode === "image" ? "当前只能上传图片" : "当前只能上传视频",
@@ -246,7 +284,7 @@ export function MediaUploader({
         setUploadProgress(0);
         const url = await uploadFile(file);
         const newFile: MediaFile = {
-          type: newMode,
+          type: fileMode,
           url,
         };
 
@@ -302,20 +340,30 @@ export function MediaUploader({
     const newFiles = mediaFiles.filter((_, i) => i !== index);
     setMediaFiles(newFiles);
     onChange?.(newFiles);
-
-    if (newFiles.length === 0) {
-      setMode(null);
-    }
-  };
-
-  const resetMode = () => {
-    setMediaFiles([]);
-    setMode(null);
-    onChange?.([]);
   };
 
   return (
     <div className="space-y-4" data-testid="media-uploader">
+      {/* 模式选择器 */}
+      <div className="flex items-center justify-between">
+        <Tabs value={mode} onValueChange={(value) => handleModeChange(value as "image" | "video")} data-testid="mode-selector">
+          <TabsList>
+            <TabsTrigger value="image" data-testid="tab-image">
+              <ImageIcon className="h-4 w-4 mr-2" />
+              {t('mediaUploader.imageMode') || '图片模式'}
+            </TabsTrigger>
+            <TabsTrigger value="video" data-testid="tab-video">
+              <VideoIcon className="h-4 w-4 mr-2" />
+              {t('mediaUploader.videoMode') || '视频模式'}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <div className="text-sm text-muted-foreground" data-testid="mode-limit">
+          {mode === "image" ? `${t('mediaUploader.maxImages') || '最多'} ${maxImages} ${t('mediaUploader.images') || '张图片'}` : `${t('mediaUploader.maxVideos') || '最多'} ${maxVideos} ${t('mediaUploader.videos') || '个视频'}`}
+        </div>
+      </div>
+
+      {/* 已上传的文件 */}
       {mediaFiles.length > 0 && (
         <DndContext
           sensors={sensors}
@@ -340,22 +388,6 @@ export function MediaUploader({
         </DndContext>
       )}
 
-      {mode && (
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" data-testid="mode-badge">
-            {mode === "image" ? "图片模式" : "视频模式"}
-          </Badge>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={resetMode}
-            data-testid="button-reset-mode"
-          >
-            切换模式
-          </Button>
-        </div>
-      )}
-
       <div
         {...getRootProps()}
         className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
@@ -377,15 +409,33 @@ export function MediaUploader({
             </div>
           )}
           <p className="text-xs text-muted-foreground">
-            支持上传 {maxImages} 张图片或 {maxVideos} 个视频
-            {mode && (
-              <span className="block mt-1">
-                {mode === "image" ? "（当前只能上传图片）" : "（当前只能上传视频）"}
-              </span>
-            )}
+            {mode === "image" ? `支持上传 ${maxImages} 张图片` : `支持上传 ${maxVideos} 个视频`}
           </p>
         </div>
       </div>
+
+      {/* 模式切换确认对话框 */}
+      <AlertDialog open={showModeChangeDialog} onOpenChange={setShowModeChangeDialog}>
+        <AlertDialogContent data-testid="mode-change-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('mediaUploader.switchModeTitle') || '切换媒体类型？'}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('mediaUploader.switchModeDescription', {
+                newMode: pendingMode === "image" ? (t('mediaUploader.image') || '图片') : (t('mediaUploader.video') || '视频'),
+                currentMode: mode === "image" ? (t('mediaUploader.image') || '图片') : (t('mediaUploader.video') || '视频')
+              }) || `切换到${pendingMode === "image" ? "图片" : "视频"}模式将清空当前已上传的${mode === "image" ? "图片" : "视频"}。此操作无法撤销。`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelModeChange} data-testid="button-cancel-mode-change">
+              {t('common.cancel') || '取消'}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmModeChange} data-testid="button-confirm-mode-change">
+              {t('mediaUploader.confirmSwitch') || '确认切换'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
