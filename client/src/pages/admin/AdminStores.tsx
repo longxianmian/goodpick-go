@@ -392,6 +392,7 @@ export default function AdminStores() {
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     required
                   />
+                  <p className="text-xs text-muted-foreground">{t('stores.cityHelp')}</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">{t('stores.phone')}</Label>

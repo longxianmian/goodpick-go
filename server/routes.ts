@@ -1733,13 +1733,28 @@ export function registerRoutes(app: Express): Server {
         imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoReference}&key=${apiKey}`;
       }
 
+      // 智能提取城市/府名 - 优先级：府(Province) > 城市(City) > 区(District)
       let city = '';
       if (place.address_components && Array.isArray(place.address_components)) {
-        const cityComponent = place.address_components.find((component: any) =>
-          component.types.includes('locality') || component.types.includes('administrative_area_level_1')
+        // 对于泰国，administrative_area_level_1 是府（Province），相当于中国的市
+        // 优先使用府名作为城市，这样能确保规范性
+        const provinceComponent = place.address_components.find((component: any) =>
+          component.types.includes('administrative_area_level_1')
         );
-        if (cityComponent) {
-          city = cityComponent.long_name;
+        const localityComponent = place.address_components.find((component: any) =>
+          component.types.includes('locality')
+        );
+        const districtComponent = place.address_components.find((component: any) =>
+          component.types.includes('administrative_area_level_2')
+        );
+        
+        // 按优先级选择：府 > 城市 > 区
+        if (provinceComponent) {
+          city = provinceComponent.long_name;
+        } else if (localityComponent) {
+          city = localityComponent.long_name;
+        } else if (districtComponent) {
+          city = districtComponent.long_name;
         }
       }
 
