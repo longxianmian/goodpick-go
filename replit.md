@@ -26,6 +26,7 @@ Security features include bcryptjs for password hashing, JWT secrets from enviro
 - **Store Floor Information**: Added `floorInfo` field to stores to provide detailed indoor location descriptions, improving user navigation within complex venues.
 - **Dynamic Campaign Form Fields**: Campaign creation form fields adapt dynamically based on the selected `discountType`, optimizing UX and reducing data entry errors for administrators.
 - **Internationalization (i18n)**: Extensive i18n coverage across the application, including UI elements, form fields, and error messages, supporting Chinese, English, and Thai.
+- **Store City Data Normalization**: Pragmatic solution balancing data integrity with operational flexibility. Google Maps integration intelligently extracts province/city names (not mall names/road names), with contextual help text guiding admins. City field remains manually editable for flexibility. E2E validated that campaign city selector shows only normalized values (Bangkok, นนทบุรี, กรุงเทพมหานคร).
 
 ## External Dependencies
 
