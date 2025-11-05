@@ -119,11 +119,55 @@ Preferred communication style: Simple, everyday language in Chinese.
 
 ### Environment Configuration
 
-- `DATABASE_URL`
-- `JWT_SECRET`
-- `JWT_EXPIRES_IN`
-- `LINE_CHANNEL_ID`
-- `AI_INTEGRATIONS_OPENAI_BASE_URL`
-- `AI_INTEGRATIONS_OPENAI_API_KEY`
-- `NODE_ENV`
-- `REPL_ID`
+#### Required in Production
+- `DATABASE_URL` - PostgreSQL connection string (validated in server/db.ts, throws error if missing)
+- `JWT_SECRET` - JWT signing key (validated in server/routes.ts, exits with error in production if missing)
+- `SESSION_SECRET` - Session encryption key for OAuth state management
+
+#### LINE Platform Integration
+- `LINE_CHANNEL_ID` - LINE Login Channel ID
+- `LINE_CHANNEL_SECRET` - LINE Channel Secret for OAuth
+- `LIFF_ID` - LIFF App ID for frontend initialization
+
+#### External Services
+- `AI_INTEGRATIONS_OPENAI_BASE_URL` - OpenAI API endpoint (provided by Replit)
+- `AI_INTEGRATIONS_OPENAI_API_KEY` - OpenAI API key (provided by Replit)
+- `GOOGLE_MAPS_API_KEY` - Google Maps API for address search and place details
+
+#### Object Storage (Optional)
+- `OSS_REGION` - Aliyun OSS region
+- `OSS_ENDPOINT` - Aliyun OSS endpoint URL
+- `OSS_ACCESS_KEY_ID` - Aliyun OSS access key
+- `OSS_ACCESS_KEY_SECRET` - Aliyun OSS secret key
+- `OSS_BUCKET` - Aliyun OSS bucket name
+- `OSS_PUBLIC_BASE_URL` - Public base URL for OSS objects
+- `DEFAULT_OBJECT_STORAGE_BUCKET_ID` - Alternative: Replit/GCS bucket ID
+- `PUBLIC_OBJECT_SEARCH_PATHS` - Search paths for public assets (default: public)
+- `PRIVATE_OBJECT_DIR` - Directory for private objects (default: .private)
+
+#### Frontend Environment Variables (VITE_ prefix required)
+- `VITE_API_BASE_URL` - Backend API endpoint URL (required for production deployment)
+- `VITE_LIFF_ID` - LIFF App ID for frontend LIFF SDK initialization
+- `VITE_LINE_CHANNEL_ID` - LINE Channel ID for frontend OAuth URL construction
+
+#### PostgreSQL Connection Variables (auto-provided by Neon/Replit)
+- `PGHOST` - PostgreSQL server hostname
+- `PGPORT` - PostgreSQL server port (default: 5432)
+- `PGUSER` - PostgreSQL username
+- `PGPASSWORD` - PostgreSQL password
+- `PGDATABASE` - PostgreSQL database name
+
+Note: These PG* variables are automatically injected by Replit/Neon when using managed PostgreSQL. When migrating to other platforms (e.g., Aliyun), ensure these are configured or construct the full `DATABASE_URL` instead.
+
+#### System Configuration
+- `JWT_EXPIRES_IN` - JWT token expiration (default: 7d)
+- `PORT` - Server port (default: 5000)
+- `NODE_ENV` - Environment mode (development/production)
+- `REPL_ID` - Replit project ID (auto-provided)
+
+#### Migration Notes
+- All environment variables are documented in `.env.example` with detailed setup instructions
+- See `.env.example` for LINE Platform configuration steps and security recommendations
+- Frontend environment variables require `VITE_` prefix to be accessible in client code
+- When migrating from Replit to other platforms, ensure all VITE_* variables are configured in the new environment
+- PostgreSQL connection can be configured via either `DATABASE_URL` or individual `PG*` variables
