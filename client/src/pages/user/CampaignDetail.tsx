@@ -234,6 +234,34 @@ export default function CampaignDetail() {
 
   const campaign = response?.data;
 
+  // 格式化券值显示（去除不必要的小数）
+  const formatCouponValue = (value: string, type: string) => {
+    const num = parseFloat(value);
+    if (type === 'percentage_off') {
+      // 折扣：如果是整数，不显示小数位
+      return num % 1 === 0 ? `${Math.round(num)}%` : `${num}%`;
+    } else {
+      // 其他类型：如果是整数，不显示小数位
+      return num % 1 === 0 ? `฿${Math.round(num)}` : `฿${num}`;
+    }
+  };
+
+  // 格式化日期显示（泰文友好格式）
+  const formatThaiDate = (dateString: string, lang: string) => {
+    const date = new Date(dateString);
+    
+    if (lang === 'th-th') {
+      // 泰文：使用简洁格式（日/月/年，泰历）
+      const thaiYear = date.getFullYear() + 543; // 佛历
+      const day = date.getDate();
+      const month = date.getMonth() + 1;
+      return `${day}/${month}/${thaiYear}`;
+    } else {
+      // 其他语言：使用标准格式
+      return date.toLocaleDateString(lang);
+    }
+  };
+
   // 领取优惠券
   const claimMutation = useMutation({
     mutationFn: async () => {
@@ -561,7 +589,7 @@ export default function CampaignDetail() {
                   {t(`discountType.${campaign.discountType}`)}
                 </span>
                 <span className="text-xl font-bold text-orange-600">
-                  {campaign.discountType === 'percentage_off' ? `${campaign.couponValue}%` : `฿${campaign.couponValue}`}
+                  {formatCouponValue(campaign.couponValue, campaign.discountType)}
                 </span>
               </div>
             </div>
@@ -572,7 +600,7 @@ export default function CampaignDetail() {
               <div data-testid="campaign-duration">
                 <span className="text-muted-foreground">{t('campaign.period')}:</span>
                 <span className="font-semibold ml-2">
-                  {new Date(campaign.startAt).toLocaleDateString(language)} - {new Date(campaign.endAt).toLocaleDateString(language)}
+                  {formatThaiDate(campaign.startAt, language)} - {formatThaiDate(campaign.endAt, language)}
                 </span>
               </div>
               {campaign.maxTotal && (

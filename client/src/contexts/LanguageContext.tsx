@@ -1152,11 +1152,11 @@ const translations: Record<Language, Record<string, string>> = {
     'campaignForm.isActive': 'เปิดใช้งานแคมเปญ',
     
     // Discount Types
-    'discountType.final_price': 'ราคาสุดท้าย',
+    'discountType.final_price': 'ราคาพิเศษ',
     'discountType.gift_card': 'บัตรของขวัญ',
     'discountType.cash_voucher': 'บัตรกำนัลเงินสด',
-    'discountType.full_reduction': 'ลดเต็มจำนวน',
-    'discountType.percentage_off': 'เปอร์เซ็นต์ส่วนลด',
+    'discountType.full_reduction': 'ซื้อครบลดทันที',
+    'discountType.percentage_off': 'ส่วนลด',
     
     // Languages
     'language.zh-cn': '中文',
@@ -1196,7 +1196,7 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.originalPrice': 'ราคาเดิม',
     'campaign.period': 'ระยะเวลา',
     'campaign.stock': 'คงเหลือ',
-    'campaign.limitPerUser': 'จำกัดต่อผู้ใช้',
+    'campaign.limitPerUser': 'จำกัด/คน',
     'campaign.claimed': 'รับแล้ว',
     'campaign.claimNow': 'รับคูปองเลย',
     'campaign.claiming': 'กำลังรับ...',
@@ -1214,8 +1214,8 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.loginAndClaim': 'เข้าสู่ระบบด้วย LINE เพื่อรับคูปอง',
     'campaign.loggingIn': 'กำลังเข้าสู่ระบบ...',
     'campaign.webLoginNotImplemented': 'กรุณาเปิดลิงก์นี้ในแอป LINE',
-    'campaign.rules': 'กฎกติกาแคมเปญ',
-    'campaign.viewRules': 'โปรดดูกฎกติกาแคมเปญ',
+    'campaign.rules': 'กติกาแคมเปญ',
+    'campaign.viewRules': 'ดูกติกาแคมเปญ',
     'campaign.nearestStores': 'ร้านค้าใกล้ที่สุด',
     'campaign.callStore': 'โทร',
     'campaign.navigate': 'นำทาง',
