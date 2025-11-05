@@ -39,6 +39,7 @@ export const stores = pgTable('stores', {
   phone: text('phone'),
   rating: decimal('rating', { precision: 2, scale: 1 }),
   imageUrl: text('image_url'),
+  floorInfo: text('floor_info'),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
