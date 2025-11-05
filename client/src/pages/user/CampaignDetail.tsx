@@ -650,7 +650,7 @@ export default function CampaignDetail() {
                     )}
                     
                     {/* 门店信息 - 固定3行布局 */}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 overflow-hidden">
                       {/* 第1行：店名 */}
                       <h3 className="font-semibold text-base mb-1" data-testid={`store-name-${store.id}`}>
                         {store.name}
@@ -670,22 +670,22 @@ export default function CampaignDetail() {
                       )}
                       
                       {/* 第3行：电话 + 距离 + 导航按钮 */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 flex-nowrap">
                         {/* 电话 */}
                         {(store as any).phone && (
                           <a
                             href={`tel:${(store as any).phone.replace(/\s/g, '')}`}
-                            className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                            className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 hover:underline shrink-0"
                             data-testid={`store-phone-${store.id}`}
                           >
                             <Phone className="h-3.5 w-3.5" />
-                            <span>{(store as any).phone.replace(/\s/g, '')}</span>
+                            <span className="text-xs">{(store as any).phone.replace(/\s/g, '')}</span>
                           </a>
                         )}
                         
                         {/* 距离 */}
                         {userLocation && store.latitude && store.longitude ? (
-                          <span className="text-sm text-muted-foreground flex items-center gap-1" data-testid={`store-distance-${store.id}`}>
+                          <span className="text-xs text-muted-foreground flex items-center gap-0.5 shrink-0" data-testid={`store-distance-${store.id}`}>
                             <MapPin className="h-3.5 w-3.5 text-orange-500" />
                             {calculateDistance(userLocation.lat, userLocation.lng, store.latitude, store.longitude)}
                           </span>
@@ -698,14 +698,15 @@ export default function CampaignDetail() {
                           rel="noopener noreferrer"
                           aria-label={t('campaign.navigateAria', { store: store.name })}
                           data-testid={`store-navigate-${store.id}`}
+                          className="shrink-0"
                         >
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-auto py-1 px-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                            className="h-auto py-0.5 px-1.5 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                           >
-                            <Navigation className="h-3.5 w-3.5 mr-1.5 text-orange-500" />
-                            {t('campaign.navigate')}
+                            <Navigation className="h-3.5 w-3.5 mr-1 text-orange-500" />
+                            <span className="text-xs">{t('campaign.navigate')}</span>
                           </Button>
                         </a>
                       </div>
