@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { queryClient } from '@/lib/queryClient';
 
 type Language = 'zh-cn' | 'en-us' | 'th-th';
 
@@ -1267,6 +1268,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
+    // 语言切换时清除所有查询缓存，确保重新获取翻译后的内容
+    queryClient.invalidateQueries();
   };
 
   const t = (key: string, params?: Record<string, string>): string => {

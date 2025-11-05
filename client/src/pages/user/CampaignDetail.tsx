@@ -670,7 +670,7 @@ export default function CampaignDetail() {
                       )}
                       
                       {/* 第3行：电话 + 距离 + 导航按钮 */}
-                      <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-2">
                         {/* 电话 */}
                         {(store as any).phone && (
                           <a
