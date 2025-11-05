@@ -17,6 +17,7 @@ import StaffStats from "@/pages/user/StaffStats";
 import StaffCampaign from "@/pages/user/StaffCampaign";
 import CampaignDetail from "@/pages/user/CampaignDetail";
 import MyCoupons from "@/pages/user/MyCoupons";
+import StaffDemo from "@/pages/StaffDemo";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import { Store, Tag, LogOut, LayoutDashboard } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -136,6 +137,7 @@ function Router() {
       <Route path="/staff/redeem" component={StaffRedeem} />
       <Route path="/staff/stats" component={StaffStats} />
       <Route path="/staff/campaign" component={StaffCampaign} />
+      <Route path="/staff-demo" component={StaffDemo} />
       <Route path="/admin/:rest*">
         <ProtectedAdminRoutes />
       </Route>
