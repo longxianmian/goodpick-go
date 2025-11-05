@@ -67,6 +67,7 @@ export default function StaffBind() {
         already_bound: '此账号已绑定',
         token_exchange_failed: 'LINE授权失败',
         invalid_line_token: 'LINE验证失败',
+        no_phone_number: '❌ LINE账号未绑定手机号，请在LINE App中绑定手机号后再试',
         phone_mismatch: '手机号不匹配，请确保LINE账号绑定的手机号与员工信息一致',
         qr_code_expired: '二维码已过期（超过24小时），请联系管理员重新生成',
         callback_failed: '绑定失败，请重试',

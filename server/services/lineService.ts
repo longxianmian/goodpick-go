@@ -8,6 +8,13 @@ interface LineVerifyResponse {
   phone?: string;
 }
 
+interface LineProfileResponse {
+  userId: string;
+  displayName: string;
+  pictureUrl?: string;
+  statusMessage?: string;
+}
+
 interface LineTokenResponse {
   access_token: string;
   expires_in: number;
@@ -74,6 +81,29 @@ export async function exchangeLineAuthCode(code: string, redirectUri: string): P
     return null;
   } catch (error) {
     console.error('LINE token exchange failed:', error);
+    return null;
+  }
+}
+
+// 🆕 获取用户的手机号（需要access_token和phone scope）
+export async function getLineUserPhone(accessToken: string): Promise<string | null> {
+  try {
+    // LINE提供的获取手机号的端点
+    const response = await axios.get(
+      'https://api.line.me/oauth2/v2.1/userinfo',
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    console.log('📱 LINE userinfo响应:', response.data);
+
+    // 返回phone_number字段
+    return response.data.phone_number || null;
+  } catch (error) {
+    console.error('❌ 获取LINE手机号失败:', error);
     return null;
   }
 }

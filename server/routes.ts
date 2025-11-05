@@ -10,7 +10,7 @@ import { db } from './db';
 import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets } from '@shared/schema';
 import { eq, and, desc, sql, inArray, isNotNull } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
-import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
+import { verifyLineIdToken, exchangeLineAuthCode, getLineUserPhone } from './services/lineService';
 import { translateText } from './services/translationService';
 import type { Admin, User } from '@shared/schema';
 import { nanoid } from 'nanoid';
@@ -545,8 +545,15 @@ export function registerRoutes(app: Express): Server {
         return res.redirect(`/staff/bind?token=${state}&error=invalid_line_token`);
       }
 
+      // 🆕 使用access_token获取手机号
+      const userPhone = await getLineUserPhone(tokens.access_token);
+      
+      if (!userPhone) {
+        console.error('❌ 无法获取LINE手机号，用户可能未绑定手机号或未授权phone scope');
+        return res.redirect(`/staff/bind?token=${state}&error=no_phone_number`);
+      }
+
       // Verify phone number matches
-      const userPhone = lineProfile.phone || '';
       const normalizedUserPhone = userPhone.replace(/[^0-9]/g, '').slice(-9);
       const normalizedStaffPhone = staffPreset.phone.replace(/[^0-9]/g, '').slice(-9);
 
