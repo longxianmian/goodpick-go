@@ -17,43 +17,52 @@ interface PresetInfo {
   phone: string;
 }
 
+// 定义页面状态枚举
+type PageState =
+  | 'loading'      // 等待验证token
+  | 'invalid'      // token无效/已过期/已绑定
+  | 'ready'        // 展示门店和员工信息，等待确认
+  | 'binding'      // 跳转到LINE OAuth中
+  | 'success';     // 绑定成功
+
 export default function StaffBind() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { t, language, setLanguage } = useLanguage();
+  const [pageState, setPageState] = useState<PageState>('loading');
   const [token, setToken] = useState('');
   const [presetInfo, setPresetInfo] = useState<PresetInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [binding, setBinding] = useState(false);
-  const [bindSuccess, setBindSuccess] = useState(false);
-  const [error, setError] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [phoneInput, setPhoneInput] = useState('');
   const [phoneVerified, setPhoneVerified] = useState(false);
-  const [verifyingPhone, setVerifyingPhone] = useState(false);
 
   useEffect(() => {
+    console.log('[StaffBind] 初始化页面');
     const params = new URLSearchParams(window.location.search);
     const authToken = params.get('token');
     const urlLang = params.get('lang');
     const successParam = params.get('success');
     const errorParam = params.get('error');
 
-    // Set language from URL if provided
+    // 设置语言
     if (urlLang && ['zh-cn', 'en-us', 'th-th'].includes(urlLang)) {
       setLanguage(urlLang as 'zh-cn' | 'en-us' | 'th-th');
     }
 
+    // 检查必要参数
     if (!authToken) {
-      setError(t('staffBind.missingToken'));
-      setLoading(false);
+      console.log('[StaffBind] 缺少token参数');
+      setErrorMessage(t('staffBind.missingToken'));
+      setPageState('invalid');
       return;
     }
 
     setToken(authToken);
 
-    // Check if returning from OAuth callback
+    // 处理OAuth回调成功
     if (successParam === 'true') {
-      setBindSuccess(true);
+      console.log('[StaffBind] OAuth回调成功，绑定完成');
+      setPageState('success');
       toast({
         title: t('staffBind.success'),
         description: t('staffBind.successDesc'),
@@ -64,54 +73,58 @@ export default function StaffBind() {
       return;
     }
 
+    // 处理OAuth回调错误
     if (errorParam) {
+      console.log('[StaffBind] OAuth回调错误:', errorParam);
       const errorMessages: Record<string, string> = {
         missing_params: '缺少必要参数',
         invalid_token: '无效的二维码',
-        already_bound: '此账号已绑定',
-        token_exchange_failed: 'LINE授权失败',
-        invalid_line_token: 'LINE验证失败',
-        no_phone_number: '❌ LINE账号未绑定手机号，请在LINE App中绑定手机号后再试',
-        phone_mismatch: '手机号不匹配，请确保LINE账号绑定的手机号与员工信息一致',
+        already_bound: '此员工预设已被绑定，如需更换请联系管理员',
+        token_exchange_failed: 'LINE授权失败，请重试',
+        invalid_line_token: 'LINE验证失败，请重试',
         qr_code_expired: '二维码已过期（超过24小时），请联系管理员重新生成',
         callback_failed: '绑定失败，请重试',
       };
-      const errorMsg = errorMessages[errorParam] || '绑定失败';
-      setError(errorMsg);
+      const errorMsg = errorMessages[errorParam] || '绑定失败，请重试';
+      setErrorMessage(errorMsg);
+      setPageState('invalid');
       toast({
         title: t('common.error'),
         description: errorMsg,
         variant: 'destructive',
       });
+      return;
     }
 
+    // 验证token
     verifyToken(authToken);
   }, [setLanguage, navigate, toast, t]);
 
   const verifyToken = async (authToken: string) => {
+    console.log('[StaffBind] 验证token:', authToken);
     try {
       const res = await fetch(`/api/staff/bind/verify?token=${encodeURIComponent(authToken)}`);
       const data = await res.json();
 
       if (!data.success) {
-        setError(data.message || t('staffBind.invalidToken'));
-        setLoading(false);
+        console.log('[StaffBind] Token验证失败:', data.message);
+        setErrorMessage(data.message || t('staffBind.invalidToken'));
+        setPageState('invalid');
         return;
       }
 
+      console.log('[StaffBind] Token验证成功，显示员工信息');
       setPresetInfo(data.data);
-      setLoading(false);
+      setPageState('ready');
     } catch (err) {
-      console.error('Verify token error:', err);
-      setError(t('staffBind.invalidToken'));
-      setLoading(false);
+      console.error('[StaffBind] Token验证错误:', err);
+      setErrorMessage(t('staffBind.invalidToken'));
+      setPageState('invalid');
     }
   };
 
   const handleVerifyPhone = () => {
     if (!presetInfo) return;
-    
-    setVerifyingPhone(true);
     
     // 规范化手机号（移除非数字字符，取后9位）
     const normalizePhone = (phone: string) => phone.replace(/[^0-9]/g, '').slice(-9);
@@ -119,24 +132,29 @@ export default function StaffBind() {
     const inputNormalized = normalizePhone(phoneInput);
     const presetNormalized = normalizePhone(presetInfo.phone);
     
+    console.log('[StaffBind] 手机号验证 - 输入:', inputNormalized, '预设:', presetNormalized);
+    
     if (inputNormalized === presetNormalized) {
       setPhoneVerified(true);
+      console.log('[StaffBind] 手机号验证通过');
       toast({
-        title: '✅ 验证成功',
-        description: '手机号验证通过，请继续使用LINE授权',
+        title: '✅ 确认成功',
+        description: '信息确认通过，现在可以使用LINE授权绑定',
       });
     } else {
+      console.log('[StaffBind] 手机号验证失败');
       toast({
-        title: '❌ 验证失败',
+        title: '❌ 确认失败',
         description: '手机号不匹配，请输入正确的手机号',
         variant: 'destructive',
       });
     }
-    
-    setVerifyingPhone(false);
   };
 
   const handleLineLogin = async () => {
+    console.log('[StaffBind] 准备跳转LINE OAuth');
+    setPageState('binding');
+    
     try {
       // Get LINE Channel ID from API
       const configRes = await fetch('/api/config');
@@ -145,11 +163,13 @@ export default function StaffBind() {
       const lineChannelId = configData.data?.lineChannelId;
       
       if (!lineChannelId) {
+        console.error('[StaffBind] LINE配置错误');
         toast({
           title: t('common.error'),
           description: 'LINE配置错误',
           variant: 'destructive',
         });
+        setPageState('ready');
         return;
       }
 
@@ -164,21 +184,22 @@ export default function StaffBind() {
       lineAuthUrl.searchParams.append('state', token); // QR code token as state
       lineAuthUrl.searchParams.append('scope', 'profile openid');
 
-      console.log('Redirecting to LINE OAuth:', lineAuthUrl.toString());
+      console.log('[StaffBind] 跳转LINE OAuth:', lineAuthUrl.toString());
       
       // Redirect to LINE OAuth
       window.location.href = lineAuthUrl.toString();
     } catch (err) {
-      console.error('LINE login error:', err);
+      console.error('[StaffBind] LINE登录错误:', err);
       toast({
         title: t('common.error'),
         description: '无法连接到LINE',
         variant: 'destructive',
       });
+      setPageState('ready');
     }
   };
 
-  if (loading) {
+  if (pageState === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
         <Card className="w-full max-w-md">
@@ -195,7 +216,7 @@ export default function StaffBind() {
     );
   }
 
-  if (error) {
+  if (pageState === 'invalid') {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
         <Card className="w-full max-w-md">
@@ -204,7 +225,7 @@ export default function StaffBind() {
               <XCircle className="h-8 w-8 text-destructive" />
             </div>
             <CardTitle>{t('staffBind.failed')}</CardTitle>
-            <CardDescription>{error}</CardDescription>
+            <CardDescription>{errorMessage}</CardDescription>
           </CardHeader>
           <CardContent>
             <Button 
@@ -221,7 +242,7 @@ export default function StaffBind() {
     );
   }
 
-  if (bindSuccess) {
+  if (pageState === 'success') {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
         <Card className="w-full max-w-md">
@@ -330,14 +351,10 @@ export default function StaffBind() {
                       </div>
                       <Button
                         onClick={handleVerifyPhone}
-                        disabled={!phoneInput || verifyingPhone}
+                        disabled={!phoneInput}
                         data-testid="button-verify-phone"
                       >
-                        {verifyingPhone ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          '验证'
-                        )}
+                        验证
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -363,10 +380,10 @@ export default function StaffBind() {
                     className="w-full"
                     size="lg"
                     onClick={handleLineLogin}
-                    disabled={binding}
+                    disabled={pageState === 'binding'}
                     data-testid="button-line-login"
                   >
-                    {binding ? (
+                    {pageState === 'binding' ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         {t('staffBind.authorizing')}

@@ -20,32 +20,47 @@ declare global {
   }
 }
 
+// 定义页面状态枚举
+type PageState = 
+  | 'INIT'              // 初始化中
+  | 'CHECK_LOGIN'       // 检查登录状态
+  | 'READY'             // 就绪（可以领券或查看详情）
+  | 'CLAIMING'          // 领券中
+  | 'CLAIMED';          // 已领取（跳转到我的优惠券）
+
 export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { isUserAuthenticated, loginUser } = useAuth();
   const { t, language } = useLanguage();
   const { toast } = useToast();
+  const [pageState, setPageState] = useState<PageState>('INIT');
   const [isLiffEnvironment, setIsLiffEnvironment] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [rulesDialogOpen, setRulesDialogOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [autoClaimProcessed, setAutoClaimProcessed] = useState(false); // 标记autoClaim是否已处理
   const autoplayPlugin = useRef(
     Autoplay({ delay: 3000, stopOnInteraction: true })
   );
 
-  // 检测LIFF环境并处理登录后自动领券
+  // 步骤1：处理OAuth回调（一次性消费autoClaim参数）
   useEffect(() => {
+    if (autoClaimProcessed) return; // 已处理过，跳过
+
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     const autoClaim = urlParams.get('autoClaim');
 
-    // Handle OAuth callback with token (always update token from OAuth)
     if (token && autoClaim === 'true') {
+      console.log('[PageState] OAuth回调检测到，处理登录和自动领券');
+      setAutoClaimProcessed(true); // 立即标记为已处理，防止重复
+
       try {
-        // Decode user data from token
+        // 解析token
         const payload = JSON.parse(atob(token.split('.')[1]));
-        // Always update token from OAuth callback (even if user was previously logged in)
+        
+        // 更新登录状态
         loginUser(token, {
           id: payload.id,
           lineUserId: payload.lineUserId,
@@ -54,74 +69,89 @@ export default function CampaignDetail() {
           language: payload.language || 'th-th',
         });
 
-        // Clean up URL
+        // 清理URL（移除token和autoClaim参数）
         window.history.replaceState({}, '', window.location.pathname);
 
-        // Auto-claim after a short delay
-        setTimeout(() => {
-          claimMutation.mutate();
-        }, 300);
+        // 设置为领券中状态
+        setPageState('CLAIMING');
       } catch (error) {
-        console.error('Failed to parse token:', error);
+        console.error('[PageState] Token解析失败:', error);
         toast({
           title: t('common.error'),
           description: t('login.failed'),
           variant: 'destructive',
         });
         window.history.replaceState({}, '', window.location.pathname);
+        setPageState('READY');
       }
-      return;
     }
+  }, [autoClaimProcessed]); // 只依赖autoClaimProcessed
 
-    // Check LIFF environment
-    const checkLiff = async () => {
-      if (window.liff) {
-        try {
-          const liffId = import.meta.env.VITE_LIFF_ID;
-          if (!liffId) {
-            console.warn('VITE_LIFF_ID not configured');
-            setIsLiffEnvironment(false);
-            return;
-          }
-          await window.liff.init({ liffId });
-          setIsLiffEnvironment(window.liff.isInClient());
-          
-          // LIFF登录成功后的处理
-          if (window.liff.isLoggedIn() && !isUserAuthenticated) {
-            const idToken = window.liff.getIDToken();
-            
-            const response = await fetch('/api/auth/line/login', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ idToken }),
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-              loginUser(data.token, data.user);
-              
-              // 检查是否有待领取的优惠券
-              const pendingClaim = localStorage.getItem('pendingClaim');
-              if (pendingClaim === id) {
-                localStorage.removeItem('pendingClaim');
-                // 延迟一下确保登录状态已更新
-                setTimeout(() => {
-                  claimMutation.mutate();
-                }, 300);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('LIFF init failed:', error);
-          setIsLiffEnvironment(false);
-        }
-      } else {
+  // 步骤2：初始化LIFF环境
+  useEffect(() => {
+    const initLiff = async () => {
+      if (!window.liff) {
         setIsLiffEnvironment(false);
+        setPageState('READY');
+        return;
+      }
+
+      try {
+        const liffId = import.meta.env.VITE_LIFF_ID;
+        if (!liffId) {
+          console.warn('[LIFF] VITE_LIFF_ID未配置');
+          setIsLiffEnvironment(false);
+          setPageState('READY');
+          return;
+        }
+
+        await window.liff.init({ liffId });
+        const inLiff = window.liff.isInClient();
+        setIsLiffEnvironment(inLiff);
+        console.log('[LIFF] 环境检测:', inLiff ? 'LIFF内' : '普通浏览器');
+
+        // 如果在LIFF内且已登录，执行后端登录
+        if (inLiff && window.liff.isLoggedIn() && !isUserAuthenticated) {
+          console.log('[LIFF] 检测到LIFF已登录，执行后端登录');
+          setPageState('CHECK_LOGIN');
+          
+          const idToken = window.liff.getIDToken();
+          const response = await fetch('/api/auth/line/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            loginUser(data.token, data.user);
+            console.log('[LIFF] 后端登录成功');
+          }
+          setPageState('READY');
+        } else {
+          setPageState('READY');
+        }
+      } catch (error) {
+        console.error('[LIFF] 初始化失败:', error);
+        setIsLiffEnvironment(false);
+        setPageState('READY');
       }
     };
-    checkLiff();
-  }, [id, isUserAuthenticated]);
+
+    // 只在INIT状态且未处理过autoClaim时初始化LIFF
+    if (pageState === 'INIT' && !autoClaimProcessed) {
+      initLiff();
+    }
+  }, [pageState, isUserAuthenticated, autoClaimProcessed]);
+
+  // 步骤3：在CLAIMING状态下执行领券
+  useEffect(() => {
+    if (pageState === 'CLAIMING' && isUserAuthenticated) {
+      console.log('[PageState] 状态为CLAIMING，触发领券');
+      claimMutation.mutate();
+    }
+  }, [pageState, isUserAuthenticated]);
 
   // 获取用户位置用于计算距离
   useEffect(() => {
@@ -207,23 +237,29 @@ export default function CampaignDetail() {
   // 领取优惠券
   const claimMutation = useMutation({
     mutationFn: async () => {
+      console.log('[Claim] 开始领券请求');
       const res = await apiRequest('POST', `/api/campaigns/${id}/claim`, { channel: 'line_menu' });
       return res.json();
     },
     onSuccess: () => {
+      console.log('[Claim] 领券成功');
       queryClient.invalidateQueries({ queryKey: ['/api/campaigns', id] });
       toast({
         title: t('campaign.claimSuccess'),
         description: t('campaign.claimSuccessDesc'),
       });
+      setPageState('CLAIMED');
       setLocation('/my-coupons');
     },
     onError: (error: any) => {
+      console.error('[Claim] 领券失败:', error);
       toast({
         title: t('common.error'),
         description: error.message || t('campaign.claimError'),
         variant: 'destructive',
       });
+      // 失败后回到READY状态
+      setPageState('READY');
     },
   });
 
@@ -240,18 +276,17 @@ export default function CampaignDetail() {
       }
 
       if (!window.liff.isLoggedIn()) {
-        // 存储领券意图
-        if (id) {
-          localStorage.setItem('pendingClaim', id);
-        }
-        // 静默登录，登录成功后会自动刷新页面并触发自动领券
+        console.log('[LIFF] 未登录，触发liff.login()');
+        // 触发LINE登录（会刷新页面）
         await window.liff.login();
         return;
       }
 
       // 已登录LIFF但未登录后端，执行后端登录
-      const idToken = window.liff.getIDToken();
+      console.log('[LIFF] 已登录LIFF，执行后端登录');
+      setPageState('CHECK_LOGIN');
       
+      const idToken = window.liff.getIDToken();
       const response = await fetch('/api/auth/line/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -262,17 +297,20 @@ export default function CampaignDetail() {
 
       if (data.success) {
         loginUser(data.token, data.user);
-        // 登录成功后自动领券
-        claimMutation.mutate();
+        console.log('[LIFF] 后端登录成功，设置为CLAIMING状态');
+        // 登录成功后进入领券状态
+        setPageState('CLAIMING');
       } else {
         throw new Error(data.message);
       }
     } catch (error: any) {
+      console.error('[LIFF] 登录失败:', error);
       toast({
         title: t('common.error'),
         description: error.message || t('login.failed'),
         variant: 'destructive',
       });
+      setPageState('READY');
     }
   };
 
@@ -339,20 +377,23 @@ export default function CampaignDetail() {
   const handleClaimClick = () => {
     // 用户已达到领取上限：跳转到我的优惠券页面
     if (userReachedLimit) {
+      console.log('[Claim] 用户已达上限，跳转到我的优惠券');
       setLocation('/my-coupons');
       return;
     }
     
     if (isUserAuthenticated) {
-      // 已登录，直接领券
-      claimMutation.mutate();
+      // 已登录，设置为领券中状态
+      console.log('[Claim] 用户已登录，设置为CLAIMING状态');
+      setPageState('CLAIMING');
     } else {
-      // 未登录
+      // 未登录，触发登录
+      console.log('[Claim] 用户未登录，触发登录流程');
       if (isLiffEnvironment) {
-        // LIFF环境：静默调用liff.login()
+        // LIFF环境：调用handleLiffLogin
         handleLiffLogin();
       } else {
-        // Web环境：直接跳转LINE授权（简化流程，无对话框）
+        // Web环境：跳转LINE OAuth
         setIsLoggingIn(true);
         handleWebLogin();
       }
@@ -409,8 +450,12 @@ export default function CampaignDetail() {
 
   // 按钮文案逻辑
   const getButtonText = () => {
-    if (claimMutation.isPending) {
+    // 状态：领券中或检查登录中
+    if (pageState === 'CLAIMING' || claimMutation.isPending) {
       return t('campaign.claiming');
+    }
+    if (pageState === 'CHECK_LOGIN') {
+      return t('common.loading');
     }
     if (isSoldOut) {
       return t('campaign.soldOut');
@@ -673,7 +718,7 @@ export default function CampaignDetail() {
             className="w-full bg-orange-500 hover:bg-orange-600 text-white"
             size="lg"
             onClick={handleClaimClick}
-            disabled={(!canClaim && !userReachedLimit) || claimMutation.isPending}
+            disabled={(!canClaim && !userReachedLimit) || pageState === 'CLAIMING' || pageState === 'CHECK_LOGIN' || claimMutation.isPending}
             data-testid="button-claim"
           >
             {getButtonText()}
