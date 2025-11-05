@@ -29,6 +29,7 @@ type CampaignFormData = {
   title: string;
   description: string;
   couponValue: string;
+  originalPrice: string;
   discountType: 'final_price' | 'gift_card' | 'cash_voucher' | 'full_reduction' | 'percentage_off';
   startAt: string;
   endAt: string;
@@ -62,6 +63,7 @@ export default function AdminCampaigns() {
     title: '',
     description: '',
     couponValue: '',
+    originalPrice: '',
     discountType: 'cash_voucher',
     startAt: '',
     endAt: '',
@@ -124,6 +126,7 @@ export default function AdminCampaigns() {
           descriptionSourceLang: normalizedLang,
           descriptionSource: data.description,
           couponValue: data.couponValue,
+          originalPrice: data.originalPrice || null,
           discountType: data.discountType,
           maxPerUser: parseInt(data.maxPerUser) || 1,
           maxTotal: data.maxTotal ? parseInt(data.maxTotal) : null,
@@ -165,6 +168,7 @@ export default function AdminCampaigns() {
         payload.descriptionSource = data.description;
       }
       if (data.couponValue) payload.couponValue = data.couponValue;
+      if (data.originalPrice !== undefined) payload.originalPrice = data.originalPrice || null;
       if (data.discountType) payload.discountType = data.discountType;
       if (data.maxPerUser) payload.maxPerUser = parseInt(data.maxPerUser);
       if (data.maxTotal !== undefined) payload.maxTotal = data.maxTotal ? parseInt(data.maxTotal) : null;
@@ -307,6 +311,7 @@ export default function AdminCampaigns() {
       title: '',
       description: '',
       couponValue: '',
+      originalPrice: '',
       discountType: 'cash_voucher',
       startAt: '',
       endAt: '',
@@ -336,6 +341,7 @@ export default function AdminCampaigns() {
       title: campaign.titleSource,
       description: campaign.descriptionSource,
       couponValue: campaign.couponValue,
+      originalPrice: campaign.originalPrice || '',
       discountType: campaign.discountType,
       startAt: campaign.startAt ? format(new Date(campaign.startAt), "yyyy-MM-dd'T'HH:mm") : '',
       endAt: campaign.endAt ? format(new Date(campaign.endAt), "yyyy-MM-dd'T'HH:mm") : '',
@@ -529,39 +535,122 @@ export default function AdminCampaigns() {
             <div className="space-y-4">
               <h3 className="font-medium">{t('campaigns.couponSettings')}</h3>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="discountType">{t('campaigns.couponType')} *</Label>
-                  <Select
-                    value={formData.discountType}
-                    onValueChange={(value: any) => setFormData({ ...formData, discountType: value })}
-                  >
-                    <SelectTrigger data-testid="select-discount-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="final_price">{t('campaigns.finalPrice')}</SelectItem>
-                      <SelectItem value="gift_card">{t('campaigns.giftCard')}</SelectItem>
-                      <SelectItem value="cash_voucher">{t('campaigns.cashVoucher')}</SelectItem>
-                      <SelectItem value="full_reduction">{t('campaigns.fullReduction')}</SelectItem>
-                      <SelectItem value="percentage_off">{t('campaigns.percentageOff')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="discountType">{t('campaigns.couponType')} *</Label>
+                <Select
+                  value={formData.discountType}
+                  onValueChange={(value: any) => setFormData({ ...formData, discountType: value })}
+                >
+                  <SelectTrigger data-testid="select-discount-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="final_price">{t('campaigns.finalPrice')}</SelectItem>
+                    <SelectItem value="gift_card">{t('campaigns.giftCard')}</SelectItem>
+                    <SelectItem value="cash_voucher">{t('campaigns.cashVoucher')}</SelectItem>
+                    <SelectItem value="full_reduction">{t('campaigns.fullReduction')}</SelectItem>
+                    <SelectItem value="percentage_off">{t('campaigns.percentageOff')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
+              {/* 根据优惠类型动态显示字段 */}
+              {formData.discountType === 'percentage_off' && (
                 <div className="space-y-2">
-                  <Label htmlFor="couponValue">{t('campaigns.couponValue')} *</Label>
+                  <Label htmlFor="couponValue">{t('campaigns.discount')} *</Label>
+                  <Input
+                    id="couponValue"
+                    type="number"
+                    min="1"
+                    max="100"
+                    step="1"
+                    value={formData.couponValue}
+                    onChange={(e) => setFormData({ ...formData, couponValue: e.target.value })}
+                    placeholder={t('campaigns.discountPlaceholder')}
+                    required
+                    data-testid="input-discount"
+                  />
+                  <p className="text-sm text-muted-foreground">{t('campaigns.discountHelp')}</p>
+                </div>
+              )}
+
+              {formData.discountType === 'full_reduction' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="originalPrice">{t('campaigns.minAmount')} *</Label>
+                    <Input
+                      id="originalPrice"
+                      type="number"
+                      step="0.01"
+                      value={formData.originalPrice}
+                      onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })}
+                      placeholder={t('campaigns.minAmountPlaceholder')}
+                      required
+                      data-testid="input-min-amount"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="couponValue">{t('campaigns.reductionAmount')} *</Label>
+                    <Input
+                      id="couponValue"
+                      type="number"
+                      step="0.01"
+                      value={formData.couponValue}
+                      onChange={(e) => setFormData({ ...formData, couponValue: e.target.value })}
+                      placeholder={t('campaigns.reductionAmountPlaceholder')}
+                      required
+                      data-testid="input-reduction-amount"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {formData.discountType === 'final_price' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="originalPrice">{t('campaigns.originalPrice')} *</Label>
+                    <Input
+                      id="originalPrice"
+                      type="number"
+                      step="0.01"
+                      value={formData.originalPrice}
+                      onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })}
+                      placeholder={t('campaigns.originalPricePlaceholder')}
+                      required
+                      data-testid="input-original-price"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="couponValue">{t('campaigns.finalPriceValue')} *</Label>
+                    <Input
+                      id="couponValue"
+                      type="number"
+                      step="0.01"
+                      value={formData.couponValue}
+                      onChange={(e) => setFormData({ ...formData, couponValue: e.target.value })}
+                      placeholder={t('campaigns.finalPricePlaceholder')}
+                      required
+                      data-testid="input-final-price"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {(formData.discountType === 'cash_voucher' || formData.discountType === 'gift_card') && (
+                <div className="space-y-2">
+                  <Label htmlFor="couponValue">{t('campaigns.faceValue')} *</Label>
                   <Input
                     id="couponValue"
                     type="number"
                     step="0.01"
                     value={formData.couponValue}
                     onChange={(e) => setFormData({ ...formData, couponValue: e.target.value })}
+                    placeholder={t('campaigns.faceValuePlaceholder')}
                     required
-                    data-testid="input-coupon-value"
+                    data-testid="input-face-value"
                   />
                 </div>
-              </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
