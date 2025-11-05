@@ -480,6 +480,75 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // LINE OAuth callback for staff binding (simpler, no session needed)
+  app.get('/api/auth/line/staff-callback', async (req: Request, res: Response) => {
+    try {
+      const { code, state } = req.query;
+
+      if (!code || !state || typeof state !== 'string') {
+        return res.redirect(`/staff/bind?error=missing_params`);
+      }
+
+      // state is the QR code token - validate it
+      const [staffPreset] = await db
+        .select()
+        .from(staffPresets)
+        .where(eq(staffPresets.qrToken, state))
+        .limit(1);
+
+      if (!staffPreset) {
+        return res.redirect(`/staff/bind?error=invalid_token`);
+      }
+
+      // Check if already bound
+      if (staffPreset.lineUserId) {
+        return res.redirect(`/staff/bind?error=already_bound`);
+      }
+
+      // Build redirect URI
+      const protocol = req.get('x-forwarded-proto') || req.protocol;
+      const redirectUri = `${protocol}://${req.get('host')}/api/auth/line/staff-callback`;
+
+      // Exchange code for tokens
+      const tokens = await exchangeLineAuthCode(code as string, redirectUri);
+
+      if (!tokens || !tokens.id_token) {
+        return res.redirect(`/staff/bind?token=${state}&error=token_exchange_failed`);
+      }
+
+      // Verify ID token
+      const lineProfile = await verifyLineIdToken(tokens.id_token);
+
+      if (!lineProfile) {
+        return res.redirect(`/staff/bind?token=${state}&error=invalid_line_token`);
+      }
+
+      // Verify phone number matches
+      const userPhone = lineProfile.phone || '';
+      const normalizedUserPhone = userPhone.replace(/[^0-9]/g, '').slice(-9);
+      const normalizedStaffPhone = staffPreset.phoneNumber.replace(/[^0-9]/g, '').slice(-9);
+
+      if (normalizedUserPhone !== normalizedStaffPhone) {
+        return res.redirect(`/staff/bind?token=${state}&error=phone_mismatch`);
+      }
+
+      // Update staff preset with LINE user ID
+      await db
+        .update(staffPresets)
+        .set({
+          lineUserId: lineProfile.sub,
+          updatedAt: new Date(),
+        })
+        .where(eq(staffPresets.id, staffPreset.id));
+
+      // Redirect to success page
+      res.redirect(`/staff/bind?token=${state}&success=true`);
+    } catch (error) {
+      console.error('Staff LINE OAuth callback error:', error);
+      res.redirect(`/staff/bind?error=callback_failed`);
+    }
+  });
+
   // ============ B. User Endpoints ============
 
   app.get('/api/campaigns/:id', optionalUserAuth, async (req: Request, res: Response) => {
