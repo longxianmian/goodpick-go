@@ -146,6 +146,8 @@ function Router() {
 }
 
 function App() {
+  const [, navigate] = useLocation();
+
   useEffect(() => {
     // Initialize LIFF
     const initLiff = async () => {
@@ -156,6 +158,22 @@ function App() {
         if (data.success && data.data.liffId && (window as any).liff) {
           await (window as any).liff.init({ liffId: data.data.liffId });
           console.log('LIFF initialized successfully');
+
+          // Check if we have a pending staff binding
+          const bindPending = localStorage.getItem('staff_bind_pending');
+          const bindToken = localStorage.getItem('staff_bind_token');
+          const bindLang = localStorage.getItem('staff_bind_lang');
+
+          if (bindPending === 'true' && bindToken && (window as any).liff.isLoggedIn()) {
+            // Clear the flags
+            localStorage.removeItem('staff_bind_pending');
+            localStorage.removeItem('staff_bind_token');
+            localStorage.removeItem('staff_bind_lang');
+
+            // Redirect to staff bind page
+            const langParam = bindLang ? `&lang=${bindLang}` : '';
+            navigate(`/staff/bind?token=${bindToken}${langParam}`);
+          }
         }
       } catch (error) {
         console.error('LIFF initialization error:', error);
@@ -163,7 +181,7 @@ function App() {
     };
 
     initLiff();
-  }, []);
+  }, [navigate]);
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -45,6 +45,18 @@ export default function StaffBind() {
 
     setToken(authToken);
     verifyToken(authToken);
+
+    // Check if LIFF is already logged in (user came back from LINE OAuth)
+    // Wait a bit for LIFF to initialize
+    setTimeout(() => {
+      if (typeof window !== 'undefined' && (window as any).liff) {
+        const liff = (window as any).liff;
+        if (liff.isLoggedIn()) {
+          // User is already logged in, execute binding automatically
+          executeBinding(authToken);
+        }
+      }
+    }, 1500);
   }, [setLanguage]);
 
   const verifyToken = async (authToken: string) => {
@@ -67,19 +79,12 @@ export default function StaffBind() {
     }
   };
 
-  const handleLineLogin = async () => {
+  const executeBinding = async (authToken: string) => {
     try {
       setBinding(true);
 
-      // Check if LIFF is available
       if (typeof window !== 'undefined' && (window as any).liff) {
         const liff = (window as any).liff;
-
-        if (!liff.isLoggedIn()) {
-          // Redirect to LINE login (use default LIFF endpoint)
-          liff.login();
-          return;
-        }
 
         // Get ID token
         const idToken = liff.getIDToken();
@@ -92,7 +97,7 @@ export default function StaffBind() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            authToken: token,
+            authToken: authToken,
             lineIdToken: idToken,
           }),
         });
@@ -116,10 +121,39 @@ export default function StaffBind() {
           description: t('staffBind.successDesc'),
         });
 
-        // Redirect to home or success page after 2 seconds
+        // Redirect to staff home after 2 seconds
         setTimeout(() => {
-          navigate('/');
+          navigate('/staff/redeem');
         }, 2000);
+      }
+    } catch (err) {
+      console.error('Binding error:', err);
+      setError(t('staffBind.failed'));
+      setBinding(false);
+    }
+  };
+
+  const handleLineLogin = async () => {
+    try {
+      setBinding(true);
+
+      // Check if LIFF is available
+      if (typeof window !== 'undefined' && (window as any).liff) {
+        const liff = (window as any).liff;
+
+        if (!liff.isLoggedIn()) {
+          // Save bind token and current URL params to localStorage
+          localStorage.setItem('staff_bind_token', token);
+          localStorage.setItem('staff_bind_lang', language);
+          localStorage.setItem('staff_bind_pending', 'true');
+          
+          // Redirect to LINE login (will use default LIFF endpoint)
+          liff.login();
+          return;
+        }
+
+        // Already logged in, execute binding directly
+        executeBinding(token);
       } else {
         // LIFF not available, show error
         setError(t('staffBind.mustUseLine'));
