@@ -256,6 +256,22 @@ export default function MyCoupons() {
     );
   }
 
+  // 格式化8位数字核销码显示（添加空格便于阅读）
+  const formatRedemptionCode = (code: string): string => {
+    // 验证是否为8位数字
+    if (!/^\d{8}$/.test(code)) {
+      console.warn(`[MyCoupons] 非预期的核销码格式: ${code}`);
+      // 提取所有数字，如果不足8位则原样返回
+      const digitsOnly = code.replace(/\D/g, '');
+      if (digitsOnly.length === 8) {
+        return digitsOnly.replace(/(\d{4})(\d{4})/, '$1 $2');
+      }
+      return code; // 无法处理的格式，返回原值
+    }
+    // 标准8位数字格式，每4位添加一个空格
+    return code.replace(/(\d{4})(\d{4})/, '$1 $2');
+  };
+
   const getStatusBadge = (status: CouponStatus) => {
     const variants: Record<CouponStatus, 'default' | 'secondary' | 'destructive'> = {
       unused: 'default',
@@ -428,12 +444,15 @@ export default function MyCoupons() {
                       data-testid="qr-code"
                     />
                   )}
-                  <p className="mt-4 text-sm font-mono text-center" data-testid="coupon-code">
-                    {selectedCoupon.code}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {t('coupon.scanToRedeem') || '向店员出示此二维码以核销'}
-                  </p>
+                  {/* 8位数字核销码 */}
+                  <div className="mt-6 text-center">
+                    <p className="text-3xl font-bold font-mono tracking-wider" data-testid="coupon-code">
+                      {formatRedemptionCode(selectedCoupon.code)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {t('coupon.scanToRedeem') || '向店员出示此二维码以核销'}
+                    </p>
+                  </div>
                 </div>
 
                 {/* 优惠券信息 */}
