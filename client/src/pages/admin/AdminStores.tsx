@@ -558,8 +558,8 @@ export default function AdminStores() {
                             });
                             const data = await res.json();
                             
-                            if (data.success && data.url) {
-                              setFormData(prev => ({ ...prev, imageUrl: data.url }));
+                            if (data.success && data.fileUrl) {
+                              setFormData(prev => ({ ...prev, imageUrl: data.fileUrl }));
                               toast({ title: t('common.success'), description: t('stores.imageUploaded') });
                             } else {
                               throw new Error(data.message || 'Upload failed');
