@@ -159,31 +159,6 @@ function App() {
           await (window as any).liff.init({ liffId: data.data.liffId });
           console.log('LIFF initialized successfully');
 
-          // Check if we have a pending staff binding
-          const bindPending = localStorage.getItem('staff_bind_pending');
-          const bindToken = localStorage.getItem('staff_bind_token');
-          const bindLang = localStorage.getItem('staff_bind_lang');
-
-          console.log('LIFF Login Check:', {
-            bindPending,
-            bindToken,
-            bindLang,
-            isLoggedIn: (window as any).liff.isLoggedIn(),
-            currentPath: window.location.pathname,
-          });
-
-          if (bindPending === 'true' && bindToken && (window as any).liff.isLoggedIn()) {
-            console.log('Redirecting to staff bind page...');
-            
-            // Clear the flags
-            localStorage.removeItem('staff_bind_pending');
-            localStorage.removeItem('staff_bind_token');
-            localStorage.removeItem('staff_bind_lang');
-
-            // Redirect to staff bind page
-            const langParam = bindLang ? `&lang=${bindLang}` : '';
-            window.location.href = `/staff/bind?token=${bindToken}${langParam}`;
-          }
         }
       } catch (error) {
         console.error('LIFF initialization error:', error);

@@ -46,13 +46,18 @@ export default function StaffBind() {
     setToken(authToken);
     verifyToken(authToken);
 
-    // Check if LIFF is already logged in (user came back from LINE OAuth)
-    // Wait a bit for LIFF to initialize
+    // Auto-execute binding if LIFF is already logged in
     setTimeout(() => {
       if (typeof window !== 'undefined' && (window as any).liff) {
         const liff = (window as any).liff;
+        console.log('LIFF auto-bind check:', {
+          isLoggedIn: liff.isLoggedIn(),
+          isInClient: liff.isInClient(),
+          token: authToken,
+        });
+        
         if (liff.isLoggedIn()) {
-          // User is already logged in, execute binding automatically
+          console.log('LIFF already logged in, auto-executing binding...');
           executeBinding(authToken);
         }
       }
@@ -148,14 +153,11 @@ export default function StaffBind() {
         });
 
         if (!liff.isLoggedIn()) {
-          // Save bind token and current URL params to localStorage
-          console.log('Saving to localStorage and calling liff.login()');
-          localStorage.setItem('staff_bind_token', token);
-          localStorage.setItem('staff_bind_lang', language);
-          localStorage.setItem('staff_bind_pending', 'true');
-          
-          // Redirect to LINE login (will use default LIFF endpoint)
-          liff.login();
+          // Redirect to LINE login with current page as redirectUri
+          console.log('Calling liff.login() with current URL as redirectUri');
+          const currentUrl = window.location.href;
+          console.log('Redirect URI:', currentUrl);
+          liff.login({ redirectUri: currentUrl });
           return;
         }
 
