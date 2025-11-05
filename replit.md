@@ -4,6 +4,40 @@
 
 GoodPick Go is a multi-language coupon recommendation platform targeting the Thai/Asian market. It enables consumers to discover and redeem digital coupons via social media (TikTok, Facebook, Instagram, YouTube, LINE), primarily utilizing LINE for authentication and distribution. The platform supports three user types: Consumers (claim/redeem coupons), Administrators (manage content, stores, campaigns), and Store Staff (verify redemptions). Key features include LINE-based authentication, multi-language support (Chinese Simplified, English, Thai), OpenAI-powered content translation, and a mobile-first design inspired by popular Asian e-commerce platforms. The project aims for a product-agnostic architecture to ensure scalability.
 
+## Recent Changes (November 2025)
+
+### Redemption Code System Update
+- **8-Digit Redemption Codes**: Changed from 6-digit to 8-digit numeric codes (00000000-99999999) for improved uniqueness and security
+- Updated `generateUniqueCouponCode()` function and database schema to support the new format
+
+### Staff OA Implementation
+- **Three Independent Routes**: Created dedicated Staff OA pages with independent routing structure:
+  - `/staff/redeem` - Coupon redemption interface (8-digit code input, two-step verification)
+  - `/staff/stats` - Personal statistics dashboard (daily/weekly/monthly redemption counts, campaign breakdown)
+  - `/staff/campaign` - Campaign information and training materials
+- **Complete i18n Support**: All Staff OA pages fully support Chinese/English/Thai language switching
+- **Backend APIs**:
+  - `POST /api/staff/redeem/query` - Query coupon details by 8-digit code
+  - `POST /api/staff/redeem/execute` - Execute redemption after verification
+  - `GET /api/staff/summary` - Get staff's redemption statistics
+  - `GET /api/staff/recent-redemptions` - Get recent redemption records
+  - `GET /api/staff/campaigns` - Get campaigns with multi-language content
+
+### Admin Dashboard Implementation
+- **Multi-Dimensional Analytics**: Created comprehensive dashboard at `/admin/dashboard` with:
+  - **Summary Cards**: Monthly overview (issued count, redeemed count, redemption rate, active stores)
+  - **Campaign Dimension**: Performance metrics by campaign (issued, redeemed, rate)
+  - **Brand Dimension**: Aggregated statistics by brand (stores count, issued, redeemed, rate)
+  - **Store Dimension**: Detailed store-level performance with pagination support
+- **Time-Based Analysis**: Month selector with navigation (previous/next month) for historical data queries
+- **Backend Dashboard APIs**:
+  - `GET /api/admin/dashboard/summary?month=YYYY-MM` - Monthly summary statistics
+  - `GET /api/admin/dashboard/campaigns?month=YYYY-MM` - Campaign dimension data
+  - `GET /api/admin/dashboard/brands?month=YYYY-MM` - Brand dimension data  
+  - `GET /api/admin/dashboard/stores?month=YYYY-MM&page=1&limit=20` - Store dimension data with pagination
+- **Full i18n Coverage**: All UI text uses i18n keys (no hardcoded strings), supports Chinese/English/Thai
+- **Testing**: End-to-end testing completed successfully, verified all Dashboard features and multi-language switching
+
 ## User Preferences
 
 **语言要求**: 必须使用中文沟通（用户不懂英文，这是强制要求）
