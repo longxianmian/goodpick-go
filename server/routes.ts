@@ -8,7 +8,7 @@ import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
 import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets } from '@shared/schema';
-import { eq, and, desc, sql, inArray } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray, isNotNull } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
 import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
 import { translateText } from './services/translationService';
