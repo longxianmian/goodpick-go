@@ -637,7 +637,7 @@ export default function AdminStores() {
                   data-testid="button-save-store"
                   disabled={createMutation.isPending || updateMutation.isPending}
                 >
-                  {editingStore ? t('common.edit') : t('common.create')}
+                  {editingStore ? t('common.save') : t('common.create')}
                 </Button>
               </div>
             </form>
