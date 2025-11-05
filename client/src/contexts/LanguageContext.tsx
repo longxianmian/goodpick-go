@@ -92,6 +92,9 @@ const translations: Record<Language, Record<string, string>> = {
     'stores.uploadError': '图片上传失败',
     'stores.invalidImageType': '只支持图片文件',
     'stores.imageTooLarge': '图片大小不能超过5MB',
+    'stores.floorInfo': '楼层/位置信息',
+    'stores.floorInfoPlaceholder': '例如：3楼，星巴克旁边',
+    'stores.floorInfoHelp': '店中店位置描述，帮助用户找到店铺（可选）',
     
     // Staff Authorization
     'staff.title': '核销授权',
@@ -503,6 +506,9 @@ const translations: Record<Language, Record<string, string>> = {
     'stores.uploadError': 'Failed to upload image',
     'stores.invalidImageType': 'Only image files are supported',
     'stores.imageTooLarge': 'Image size cannot exceed 5MB',
+    'stores.floorInfo': 'Floor/Location Info',
+    'stores.floorInfoPlaceholder': 'e.g., 3rd Floor, near Starbucks',
+    'stores.floorInfoHelp': 'Location description for shop-in-shop to help customers find the store (optional)',
     
     // Staff Authorization
     'staff.title': 'Redemption Authorization',
@@ -914,6 +920,9 @@ const translations: Record<Language, Record<string, string>> = {
     'stores.uploadError': 'อัพโหลดรูปภาพล้มเหลว',
     'stores.invalidImageType': 'รองรับเฉพาะไฟล์รูปภาพเท่านั้น',
     'stores.imageTooLarge': 'ขนาดรูปภาพต้องไม่เกิน 5MB',
+    'stores.floorInfo': 'ข้อมูลชั้น/ที่ตั้ง',
+    'stores.floorInfoPlaceholder': 'เช่น: ชั้น 3 ใกล้สตาร์บัคส์',
+    'stores.floorInfoHelp': 'คำอธิบายตำแหน่งร้านค้าเพื่อช่วยให้ลูกค้าหาร้านได้ง่าย (ไม่บังคับ)',
     
     // Staff Authorization
     'staff.title': 'การอนุมัติการแลกคูปอง',
