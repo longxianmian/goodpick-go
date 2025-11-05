@@ -1712,7 +1712,7 @@ export function registerRoutes(app: Express): Server {
       url.searchParams.set('place_id', placeId);
       url.searchParams.set('key', apiKey);
       url.searchParams.set('language', 'th');
-      url.searchParams.set('fields', 'name,formatted_address,geometry,rating,photos,international_phone_number');
+      url.searchParams.set('fields', 'name,formatted_address,address_components,geometry,rating,photos,international_phone_number');
 
       const response = await fetch(url.toString());
       const data = await response.json();
@@ -1730,11 +1730,22 @@ export function registerRoutes(app: Express): Server {
         imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoReference}&key=${apiKey}`;
       }
 
+      let city = '';
+      if (place.address_components && Array.isArray(place.address_components)) {
+        const cityComponent = place.address_components.find((component: any) =>
+          component.types.includes('locality') || component.types.includes('administrative_area_level_1')
+        );
+        if (cityComponent) {
+          city = cityComponent.long_name;
+        }
+      }
+
       res.json({
         success: true,
         place: {
           name: place.name,
           address: place.formatted_address,
+          city: city,
           latitude: place.geometry?.location?.lat,
           longitude: place.geometry?.location?.lng,
           rating: place.rating,
