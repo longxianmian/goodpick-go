@@ -60,6 +60,7 @@ export default function AdminStores() {
   const [addressSearchValue, setAddressSearchValue] = useState('');
   const [placeSuggestions, setPlaceSuggestions] = useState<PlaceSuggestion[]>([]);
   const [searchingPlaces, setSearchingPlaces] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const [staffDialogOpen, setStaffDialogOpen] = useState(false);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
@@ -505,16 +506,110 @@ export default function AdminStores() {
                     placeholder="0.0 - 5.0"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="imageUrl">{t('stores.imageUrl')}</Label>
-                  <Input
-                    id="imageUrl"
-                    data-testid="input-store-imageUrl"
-                    type="text"
-                    value={formData.imageUrl}
-                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                    placeholder="https://..."
-                  />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('stores.storeImage')}</Label>
+                <div className="flex gap-4">
+                  {formData.imageUrl && (
+                    <div className="w-32 h-32 rounded-md overflow-hidden border">
+                      <img 
+                        src={formData.imageUrl} 
+                        alt="Store preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1 space-y-2">
+                    <div className="flex gap-2">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          
+                          if (!file.type.startsWith('image/')) {
+                            toast({ 
+                              title: t('common.error'), 
+                              description: t('stores.invalidImageType'),
+                              variant: 'destructive' 
+                            });
+                            return;
+                          }
+
+                          if (file.size > 5 * 1024 * 1024) {
+                            toast({ 
+                              title: t('common.error'), 
+                              description: t('stores.imageTooLarge'),
+                              variant: 'destructive' 
+                            });
+                            return;
+                          }
+
+                          setUploadingImage(true);
+                          try {
+                            const formData = new FormData();
+                            formData.append('file', file);
+
+                            const res = await fetch('/api/admin/upload', {
+                              method: 'POST',
+                              headers: { Authorization: `Bearer ${adminToken}` },
+                              body: formData,
+                            });
+                            const data = await res.json();
+                            
+                            if (data.success && data.url) {
+                              setFormData(prev => ({ ...prev, imageUrl: data.url }));
+                              toast({ title: t('common.success'), description: t('stores.imageUploaded') });
+                            } else {
+                              throw new Error(data.message || 'Upload failed');
+                            }
+                          } catch (error) {
+                            console.error('Image upload error:', error);
+                            toast({ 
+                              title: t('common.error'), 
+                              description: t('stores.uploadError'),
+                              variant: 'destructive' 
+                            });
+                          } finally {
+                            setUploadingImage(false);
+                            e.target.value = '';
+                          }
+                        }}
+                        disabled={uploadingImage}
+                        className="hidden"
+                        id="image-upload"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById('image-upload')?.click()}
+                        disabled={uploadingImage}
+                        data-testid="button-upload-image"
+                      >
+                        {uploadingImage ? t('stores.uploading') : t('stores.uploadImage')}
+                      </Button>
+                      {formData.imageUrl && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setFormData({ ...formData, imageUrl: '' })}
+                          data-testid="button-remove-image"
+                        >
+                          {t('stores.removeImage')}
+                        </Button>
+                      )}
+                    </div>
+                    <Input
+                      id="imageUrl"
+                      data-testid="input-store-imageUrl"
+                      type="text"
+                      value={formData.imageUrl}
+                      onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                      placeholder={t('stores.imageUrlPlaceholder')}
+                    />
+                    <p className="text-xs text-muted-foreground">{t('stores.imageHelp')}</p>
+                  </div>
                 </div>
               </div>
               <div className="flex justify-end gap-2">

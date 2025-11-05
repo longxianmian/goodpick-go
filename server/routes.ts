@@ -1730,8 +1730,6 @@ export function registerRoutes(app: Express): Server {
         imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoReference}&key=${apiKey}`;
       }
 
-      console.log('Google Places address_components:', JSON.stringify(place.address_components, null, 2));
-
       let city = '';
       if (place.address_components && Array.isArray(place.address_components)) {
         const cityComponent = place.address_components.find((component: any) =>
@@ -1740,10 +1738,6 @@ export function registerRoutes(app: Express): Server {
         if (cityComponent) {
           city = cityComponent.long_name;
         }
-        console.log('City component found:', cityComponent);
-        console.log('Extracted city:', city);
-      } else {
-        console.log('No address_components found in Google Places response');
       }
 
       const phone = place.international_phone_number || place.formatted_phone_number || null;
