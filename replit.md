@@ -38,6 +38,16 @@ GoodPick Go is a multi-language coupon recommendation platform targeting the Tha
 - **Full i18n Coverage**: All UI text uses i18n keys (no hardcoded strings), supports Chinese/English/Thai
 - **Testing**: End-to-end testing completed successfully, verified all Dashboard features and multi-language switching
 
+### Store Floor Information Feature
+- **Business Problem**: Partner stores are often shop-in-shop locations within large shopping malls. Google Maps can only navigate to the mall entrance, leaving customers unable to find the specific store location within the building.
+- **Solution**: Added `floorInfo` field to stores table for location descriptions (e.g., "3rd Floor, near Starbucks")
+- **Database Schema**: Added optional `floorInfo` text column to `stores` table
+- **Admin Interface**: Store management form includes floor/location info input with multi-language placeholder examples
+- **User Interface**: Store cards prominently display floor information with Building2 icon in orange accent color
+- **Multi-Language Support**: Complete i18n coverage for Chinese/English/Thai (stores.floorInfo, stores.floorInfoPlaceholder, stores.floorInfoHelp)
+- **Data Flow**: Admin fills form → Frontend mutation → Backend API (POST/PUT /api/admin/stores) → PostgreSQL → User campaign detail page displays with icon
+- **Use Case**: Users see floor info before navigation, remember location details, navigate to mall entrance via Google Maps, then find specific store using floor info + store photo
+
 ## User Preferences
 
 **语言要求**: 必须使用中文沟通（用户不懂英文，这是强制要求）
