@@ -1677,6 +1677,9 @@ export function registerRoutes(app: Express): Server {
       url.searchParams.set('input', input);
       url.searchParams.set('key', apiKey);
       url.searchParams.set('language', 'th');
+      url.searchParams.set('components', 'country:th');
+      url.searchParams.set('location', '13.7563,100.5018');
+      url.searchParams.set('radius', '50000');
 
       const response = await fetch(url.toString());
       const data = await response.json();
