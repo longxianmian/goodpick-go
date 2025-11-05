@@ -2006,7 +2006,217 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // ============ G. Media Upload ============
+  // ============ G. Dashboard Analytics ============
+
+  // Dashboard - Summary (Current Month Overview)
+  app.get('/api/admin/dashboard/summary', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const month = req.query.month as string || new Date().toISOString().substring(0, 7); // Format: YYYY-MM
+      const [year, monthNum] = month.split('-').map(Number);
+      const monthStart = new Date(year, monthNum - 1, 1);
+      const monthEnd = new Date(year, monthNum, 0, 23, 59, 59, 999);
+
+      // Total coupons issued this month
+      const [issuedResult] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(coupons)
+        .where(
+          and(
+            sql`${coupons.issuedAt} >= ${monthStart}`,
+            sql`${coupons.issuedAt} <= ${monthEnd}`
+          )
+        );
+
+      // Total coupons redeemed this month
+      const [redeemedResult] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(coupons)
+        .where(
+          and(
+            eq(coupons.status, 'used'),
+            sql`${coupons.usedAt} >= ${monthStart}`,
+            sql`${coupons.usedAt} <= ${monthEnd}`
+          )
+        );
+
+      // Redemption rate
+      const issuedCount = issuedResult?.count || 0;
+      const redeemedCount = redeemedResult?.count || 0;
+      const redemptionRate = issuedCount > 0 ? (redeemedCount / issuedCount) * 100 : 0;
+
+      // Active campaigns count
+      const [activeCampaignsResult] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(campaigns)
+        .where(
+          and(
+            eq(campaigns.isActive, true),
+            sql`${campaigns.startAt} <= ${monthEnd}`,
+            sql`${campaigns.endAt} >= ${monthStart}`
+          )
+        );
+
+      // Total stores count
+      const [storesResult] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(stores);
+
+      res.json({
+        success: true,
+        data: {
+          month,
+          issuedCount,
+          redeemedCount,
+          redemptionRate: Math.round(redemptionRate * 100) / 100,
+          activeCampaigns: activeCampaignsResult?.count || 0,
+          totalStores: storesResult?.count || 0,
+        },
+      });
+    } catch (error) {
+      console.error('Get dashboard summary error:', error);
+      res.status(500).json({ success: false, message: '获取概览数据失败' });
+    }
+  });
+
+  // Dashboard - Campaign Dimension
+  app.get('/api/admin/dashboard/campaigns', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const month = req.query.month as string || new Date().toISOString().substring(0, 7);
+      const [year, monthNum] = month.split('-').map(Number);
+      const monthStart = new Date(year, monthNum - 1, 1);
+      const monthEnd = new Date(year, monthNum, 0, 23, 59, 59, 999);
+
+      const campaignStats = await db
+        .select({
+          campaignId: campaigns.id,
+          campaignTitle: campaigns.titleSource,
+          issuedCount: sql<number>`count(CASE WHEN ${coupons.issuedAt} >= ${monthStart} AND ${coupons.issuedAt} <= ${monthEnd} THEN 1 END)::int`,
+          redeemedCount: sql<number>`count(CASE WHEN ${coupons.status} = 'used' AND ${coupons.usedAt} >= ${monthStart} AND ${coupons.usedAt} <= ${monthEnd} THEN 1 END)::int`,
+        })
+        .from(campaigns)
+        .leftJoin(coupons, eq(campaigns.id, coupons.campaignId))
+        .where(eq(campaigns.isActive, true))
+        .groupBy(campaigns.id, campaigns.titleSource)
+        .orderBy(sql`count(CASE WHEN ${coupons.status} = 'used' AND ${coupons.usedAt} >= ${monthStart} AND ${coupons.usedAt} <= ${monthEnd} THEN 1 END) DESC`);
+
+      const enrichedStats = campaignStats.map((stat) => ({
+        ...stat,
+        redemptionRate:
+          stat.issuedCount > 0 ? Math.round((stat.redeemedCount / stat.issuedCount) * 10000) / 100 : 0,
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          month,
+          campaigns: enrichedStats,
+        },
+      });
+    } catch (error) {
+      console.error('Get campaign stats error:', error);
+      res.status(500).json({ success: false, message: '获取活动统计失败' });
+    }
+  });
+
+  // Dashboard - Brand Dimension
+  app.get('/api/admin/dashboard/brands', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const month = req.query.month as string || new Date().toISOString().substring(0, 7);
+      const [year, monthNum] = month.split('-').map(Number);
+      const monthStart = new Date(year, monthNum - 1, 1);
+      const monthEnd = new Date(year, monthNum, 0, 23, 59, 59, 999);
+
+      const brandStats = await db
+        .select({
+          brand: stores.brand,
+          storeCount: sql<number>`count(DISTINCT ${stores.id})::int`,
+          issuedCount: sql<number>`count(CASE WHEN ${coupons.issuedAt} >= ${monthStart} AND ${coupons.issuedAt} <= ${monthEnd} THEN 1 END)::int`,
+          redeemedCount: sql<number>`count(CASE WHEN ${coupons.status} = 'used' AND ${coupons.usedAt} >= ${monthStart} AND ${coupons.usedAt} <= ${monthEnd} THEN 1 END)::int`,
+        })
+        .from(stores)
+        .leftJoin(coupons, eq(stores.id, coupons.redeemedStoreId))
+        .where(isNotNull(stores.brand))
+        .groupBy(stores.brand)
+        .orderBy(sql`count(CASE WHEN ${coupons.status} = 'used' AND ${coupons.usedAt} >= ${monthStart} AND ${coupons.usedAt} <= ${monthEnd} THEN 1 END) DESC`);
+
+      const enrichedStats = brandStats.map((stat) => ({
+        ...stat,
+        brand: stat.brand || 'Unknown',
+        redemptionRate:
+          stat.issuedCount > 0 ? Math.round((stat.redeemedCount / stat.issuedCount) * 10000) / 100 : 0,
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          month,
+          brands: enrichedStats,
+        },
+      });
+    } catch (error) {
+      console.error('Get brand stats error:', error);
+      res.status(500).json({ success: false, message: '获取品牌统计失败' });
+    }
+  });
+
+  // Dashboard - Store Dimension (with pagination)
+  app.get('/api/admin/dashboard/stores', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const month = req.query.month as string || new Date().toISOString().substring(0, 7);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = (page - 1) * limit;
+
+      const [year, monthNum] = month.split('-').map(Number);
+      const monthStart = new Date(year, monthNum - 1, 1);
+      const monthEnd = new Date(year, monthNum, 0, 23, 59, 59, 999);
+
+      const storeStats = await db
+        .select({
+          storeId: stores.id,
+          storeName: stores.name,
+          brand: stores.brand,
+          city: stores.city,
+          issuedCount: sql<number>`count(CASE WHEN ${coupons.issuedAt} >= ${monthStart} AND ${coupons.issuedAt} <= ${monthEnd} THEN 1 END)::int`,
+          redeemedCount: sql<number>`count(CASE WHEN ${coupons.status} = 'used' AND ${coupons.usedAt} >= ${monthStart} AND ${coupons.usedAt} <= ${monthEnd} THEN 1 END)::int`,
+        })
+        .from(stores)
+        .leftJoin(coupons, eq(stores.id, coupons.redeemedStoreId))
+        .groupBy(stores.id, stores.name, stores.brand, stores.city)
+        .orderBy(sql`count(CASE WHEN ${coupons.status} = 'used' AND ${coupons.usedAt} >= ${monthStart} AND ${coupons.usedAt} <= ${monthEnd} THEN 1 END) DESC`)
+        .limit(limit)
+        .offset(offset);
+
+      const [totalResult] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(stores);
+
+      const enrichedStats = storeStats.map((stat) => ({
+        ...stat,
+        redemptionRate:
+          stat.issuedCount > 0 ? Math.round((stat.redeemedCount / stat.issuedCount) * 10000) / 100 : 0,
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          month,
+          stores: enrichedStats,
+          pagination: {
+            page,
+            limit,
+            total: totalResult?.count || 0,
+            totalPages: Math.ceil((totalResult?.count || 0) / limit),
+          },
+        },
+      });
+    } catch (error) {
+      console.error('Get store stats error:', error);
+      res.status(500).json({ success: false, message: '获取门店统计失败' });
+    }
+  });
+
+  // ============ H. Media Upload ============
 
   app.post('/api/admin/upload', adminAuthMiddleware, upload.single('file'), async (req: Request, res: Response) => {
     try {
