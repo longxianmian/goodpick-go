@@ -550,7 +550,22 @@ export function registerRoutes(app: Express): Server {
       const normalizedUserPhone = userPhone.replace(/[^0-9]/g, '').slice(-9);
       const normalizedStaffPhone = staffPreset.phone.replace(/[^0-9]/g, '').slice(-9);
 
+      // 🔍 详细调试日志
+      console.log('📱 手机号验证详情:', {
+        'LINE原始手机号': userPhone,
+        'LINE规范化后': normalizedUserPhone,
+        '员工预设原始': staffPreset.phone,
+        '员工预设规范化': normalizedStaffPhone,
+        '是否匹配': normalizedUserPhone === normalizedStaffPhone
+      });
+
       if (normalizedUserPhone !== normalizedStaffPhone) {
+        console.error('❌ 手机号不匹配！', {
+          userPhone,
+          staffPhone: staffPreset.phone,
+          normalizedUserPhone,
+          normalizedStaffPhone
+        });
         return res.redirect(`/staff/bind?token=${state}&error=phone_mismatch`);
       }
 
