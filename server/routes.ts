@@ -10,7 +10,7 @@ import { db } from './db';
 import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets } from '@shared/schema';
 import { eq, and, desc, sql, inArray, isNotNull } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
-import { verifyLineIdToken, exchangeLineAuthCode, getLineUserPhone } from './services/lineService';
+import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
 import { translateText } from './services/translationService';
 import type { Admin, User } from '@shared/schema';
 import { nanoid } from 'nanoid';
@@ -545,36 +545,12 @@ export function registerRoutes(app: Express): Server {
         return res.redirect(`/staff/bind?token=${state}&error=invalid_line_token`);
       }
 
-      // 🆕 使用access_token获取手机号
-      const userPhone = await getLineUserPhone(tokens.access_token);
-      
-      if (!userPhone) {
-        console.error('❌ 无法获取LINE手机号，用户可能未绑定手机号或未授权phone scope');
-        return res.redirect(`/staff/bind?token=${state}&error=no_phone_number`);
-      }
-
-      // Verify phone number matches
-      const normalizedUserPhone = userPhone.replace(/[^0-9]/g, '').slice(-9);
-      const normalizedStaffPhone = staffPreset.phone.replace(/[^0-9]/g, '').slice(-9);
-
-      // 🔍 详细调试日志
-      console.log('📱 手机号验证详情:', {
-        'LINE原始手机号': userPhone,
-        'LINE规范化后': normalizedUserPhone,
-        '员工预设原始': staffPreset.phone,
-        '员工预设规范化': normalizedStaffPhone,
-        '是否匹配': normalizedUserPhone === normalizedStaffPhone
+      // ✅ 手机号已在前端验证完成，后端不再重复验证
+      console.log('✅ LINE OAuth成功，用户:', {
+        lineUserId: lineProfile.sub,
+        displayName: lineProfile.name,
+        staffId: staffPreset.staffId
       });
-
-      if (normalizedUserPhone !== normalizedStaffPhone) {
-        console.error('❌ 手机号不匹配！', {
-          userPhone,
-          staffPhone: staffPreset.phone,
-          normalizedUserPhone,
-          normalizedStaffPhone
-        });
-        return res.redirect(`/staff/bind?token=${state}&error=phone_mismatch`);
-      }
 
       // Get or create user
       let [user] = await db
