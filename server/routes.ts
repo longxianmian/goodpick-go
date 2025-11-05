@@ -274,6 +274,7 @@ export function registerRoutes(app: Express): Server {
       success: true,
       data: {
         liffId: process.env.LIFF_ID || '',
+        lineChannelId: process.env.LINE_CHANNEL_ID || '',
       },
     });
   });
@@ -489,20 +490,41 @@ export function registerRoutes(app: Express): Server {
         return res.redirect(`/staff/bind?error=missing_params`);
       }
 
-      // state is the QR code token - validate it
+      // SECURITY: Validate state parameter (authToken)
+      // The state is the QR code's authToken - this provides CSRF protection because:
+      // 1. authToken is a random, unguessable nonce (nanoid)
+      // 2. It's only known to users who scanned the QR code
+      // 3. Phone number verification ensures correct user binding
       const [staffPreset] = await db
         .select()
         .from(staffPresets)
-        .where(eq(staffPresets.qrToken, state))
+        .where(eq(staffPresets.authToken, state))
         .limit(1);
 
       if (!staffPreset) {
-        return res.redirect(`/staff/bind?error=invalid_token`);
+        console.warn('Staff OAuth callback: Invalid authToken', { state });
+        return res.redirect(`/staff/bind?token=${state}&error=invalid_token`);
       }
 
-      // Check if already bound
-      if (staffPreset.lineUserId) {
-        return res.redirect(`/staff/bind?error=already_bound`);
+      // Check if already bound to prevent replay attacks
+      if (staffPreset.isBound) {
+        console.warn('Staff OAuth callback: Already bound', { 
+          staffId: staffPreset.staffId,
+          boundUserId: staffPreset.boundUserId 
+        });
+        return res.redirect(`/staff/bind?token=${state}&error=already_bound`);
+      }
+
+      // SECURITY: Check QR code age (optional but recommended)
+      // Reject QR codes older than 24 hours to limit exposure window
+      const qrCodeAge = Date.now() - staffPreset.createdAt.getTime();
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+      if (qrCodeAge > maxAge) {
+        console.warn('Staff OAuth callback: Expired QR code', {
+          staffId: staffPreset.staffId,
+          ageHours: Math.round(qrCodeAge / (60 * 60 * 1000))
+        });
+        return res.redirect(`/staff/bind?token=${state}&error=qr_code_expired`);
       }
 
       // Build redirect URI
@@ -526,17 +548,38 @@ export function registerRoutes(app: Express): Server {
       // Verify phone number matches
       const userPhone = lineProfile.phone || '';
       const normalizedUserPhone = userPhone.replace(/[^0-9]/g, '').slice(-9);
-      const normalizedStaffPhone = staffPreset.phoneNumber.replace(/[^0-9]/g, '').slice(-9);
+      const normalizedStaffPhone = staffPreset.phone.replace(/[^0-9]/g, '').slice(-9);
 
       if (normalizedUserPhone !== normalizedStaffPhone) {
         return res.redirect(`/staff/bind?token=${state}&error=phone_mismatch`);
       }
 
-      // Update staff preset with LINE user ID
+      // Get or create user
+      let [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.lineUserId, lineProfile.sub))
+        .limit(1);
+
+      if (!user) {
+        [user] = await db
+          .insert(users)
+          .values({
+            lineUserId: lineProfile.sub,
+            displayName: lineProfile.name,
+            avatarUrl: lineProfile.picture,
+            language: 'th-th',
+          })
+          .returning();
+      }
+
+      // Update staff preset with binding info
       await db
         .update(staffPresets)
         .set({
-          lineUserId: lineProfile.sub,
+          isBound: true,
+          boundUserId: user.id,
+          boundAt: new Date(),
           updatedAt: new Date(),
         })
         .where(eq(staffPresets.id, staffPreset.id));
@@ -1309,8 +1352,6 @@ export function registerRoutes(app: Express): Server {
           originalPrice: campaigns.originalPrice,
           startAt: campaigns.startAt,
           endAt: campaigns.endAt,
-          staffInstructions: campaigns.staffInstructions,
-          staffTraining: campaigns.staffTraining,
         })
         .from(campaigns)
         .innerJoin(campaignStores, eq(campaigns.id, campaignStores.campaignId))

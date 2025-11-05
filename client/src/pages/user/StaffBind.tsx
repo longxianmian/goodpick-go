@@ -31,6 +31,8 @@ export default function StaffBind() {
     const params = new URLSearchParams(window.location.search);
     const authToken = params.get('token');
     const urlLang = params.get('lang');
+    const successParam = params.get('success');
+    const errorParam = params.get('error');
 
     // Set language from URL if provided
     if (urlLang && ['zh-cn', 'en-us', 'th-th'].includes(urlLang)) {
@@ -44,25 +46,42 @@ export default function StaffBind() {
     }
 
     setToken(authToken);
-    verifyToken(authToken);
 
-    // Auto-execute binding if LIFF is already logged in
-    setTimeout(() => {
-      if (typeof window !== 'undefined' && (window as any).liff) {
-        const liff = (window as any).liff;
-        console.log('LIFF auto-bind check:', {
-          isLoggedIn: liff.isLoggedIn(),
-          isInClient: liff.isInClient(),
-          token: authToken,
-        });
-        
-        if (liff.isLoggedIn()) {
-          console.log('LIFF already logged in, auto-executing binding...');
-          executeBinding(authToken);
-        }
-      }
-    }, 1500);
-  }, [setLanguage]);
+    // Check if returning from OAuth callback
+    if (successParam === 'true') {
+      setBindSuccess(true);
+      toast({
+        title: t('staffBind.success'),
+        description: t('staffBind.successDesc'),
+      });
+      setTimeout(() => {
+        navigate('/staff/redeem');
+      }, 2000);
+      return;
+    }
+
+    if (errorParam) {
+      const errorMessages: Record<string, string> = {
+        missing_params: '缺少必要参数',
+        invalid_token: '无效的二维码',
+        already_bound: '此账号已绑定',
+        token_exchange_failed: 'LINE授权失败',
+        invalid_line_token: 'LINE验证失败',
+        phone_mismatch: '手机号不匹配，请确保LINE账号绑定的手机号与员工信息一致',
+        qr_code_expired: '二维码已过期（超过24小时），请联系管理员重新生成',
+        callback_failed: '绑定失败，请重试',
+      };
+      const errorMsg = errorMessages[errorParam] || '绑定失败';
+      setError(errorMsg);
+      toast({
+        title: t('common.error'),
+        description: errorMsg,
+        variant: 'destructive',
+      });
+    }
+
+    verifyToken(authToken);
+  }, [setLanguage, navigate, toast, t]);
 
   const verifyToken = async (authToken: string) => {
     try {
@@ -84,118 +103,45 @@ export default function StaffBind() {
     }
   };
 
-  const executeBinding = async (authToken: string) => {
-    try {
-      setBinding(true);
-
-      if (typeof window !== 'undefined' && (window as any).liff) {
-        const liff = (window as any).liff;
-
-        // Get ID token
-        const idToken = liff.getIDToken();
-        if (!idToken) {
-          throw new Error('Failed to get LINE ID token');
-        }
-
-        // Execute binding
-        const res = await fetch('/api/staff/bind', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            authToken: authToken,
-            lineIdToken: idToken,
-          }),
-        });
-
-        const data = await res.json();
-
-        if (!data.success) {
-          setError(data.message || t('staffBind.failed'));
-          toast({
-            title: t('staffBind.failed'),
-            description: data.message || t('staffBind.phoneVerificationDesc'),
-            variant: 'destructive',
-          });
-          setBinding(false);
-          return;
-        }
-
-        setBindSuccess(true);
-        toast({
-          title: t('staffBind.success'),
-          description: t('staffBind.successDesc'),
-        });
-
-        // Redirect to staff home after 2 seconds
-        setTimeout(() => {
-          navigate('/staff/redeem');
-        }, 2000);
-      }
-    } catch (err) {
-      console.error('Binding error:', err);
-      setError(t('staffBind.failed'));
-      setBinding(false);
-    }
-  };
-
   const handleLineLogin = async () => {
     try {
-      setBinding(true);
-
-      // Check if LIFF is available
-      if (typeof window !== 'undefined' && (window as any).liff) {
-        const liff = (window as any).liff;
-
-        const liffStatus = {
-          isInClient: liff.isInClient(),
-          isLoggedIn: liff.isLoggedIn(),
-          token,
-        };
-        console.log('handleLineLogin called', liffStatus);
-
-        // If not in LINE client, show error
-        if (!liff.isInClient()) {
-          console.error('Not in LINE client environment');
-          setError('请在LINE应用中打开此页面');
-          toast({
-            title: t('common.error'),
-            description: '请在LINE应用中打开此页面',
-            variant: 'destructive',
-          });
-          setBinding(false);
-          return;
-        }
-
-        // In LIFF environment - user should already be logged in
-        // If not, trigger login without redirectUri (will use LIFF Endpoint URL)
-        if (!liff.isLoggedIn()) {
-          console.log('Not logged in in LIFF, calling liff.login()');
-          liff.login();
-          return;
-        }
-
-        // User is logged in, execute binding
-        console.log('User logged in, executing binding...');
-        await executeBinding(token);
-      } else {
-        // LIFF not available, show error
-        setError(t('staffBind.mustUseLine'));
+      // Get LINE Channel ID from API
+      const configRes = await fetch('/api/config');
+      const configData = await configRes.json();
+      
+      const lineChannelId = configData.data?.lineChannelId;
+      
+      if (!lineChannelId) {
         toast({
           title: t('common.error'),
-          description: t('staffBind.mustUseLine'),
+          description: 'LINE配置错误',
           variant: 'destructive',
         });
+        return;
       }
+
+      const protocol = window.location.protocol;
+      const host = window.location.host;
+      const redirectUri = `${protocol}//${host}/api/auth/line/staff-callback`;
+      
+      const lineAuthUrl = new URL('https://access.line.me/oauth2/v2.1/authorize');
+      lineAuthUrl.searchParams.append('response_type', 'code');
+      lineAuthUrl.searchParams.append('client_id', lineChannelId);
+      lineAuthUrl.searchParams.append('redirect_uri', redirectUri);
+      lineAuthUrl.searchParams.append('state', token); // QR code token as state
+      lineAuthUrl.searchParams.append('scope', 'profile openid phone');
+
+      console.log('Redirecting to LINE OAuth:', lineAuthUrl.toString());
+      
+      // Redirect to LINE OAuth
+      window.location.href = lineAuthUrl.toString();
     } catch (err) {
       console.error('LINE login error:', err);
-      setError(err instanceof Error ? err.message : t('staffBind.failed'));
       toast({
         title: t('common.error'),
-        description: t('staffBind.failed'),
+        description: '无法连接到LINE',
         variant: 'destructive',
       });
-    } finally {
-      setBinding(false);
     }
   };
 
