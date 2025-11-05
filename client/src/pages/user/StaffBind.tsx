@@ -76,8 +76,8 @@ export default function StaffBind() {
         const liff = (window as any).liff;
 
         if (!liff.isLoggedIn()) {
-          // Redirect to LINE login
-          liff.login({ redirectUri: window.location.href });
+          // Redirect to LINE login (use default LIFF endpoint)
+          liff.login();
           return;
         }
 
