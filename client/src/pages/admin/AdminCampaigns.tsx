@@ -331,11 +331,35 @@ export default function AdminCampaigns() {
     setIsDialogOpen(true);
   };
 
-  const handleEdit = (campaign: Campaign) => {
+  const handleEdit = async (campaign: Campaign) => {
     setEditingCampaign(campaign);
-    // TODO: Parse media_files from campaign
-    const mediaFiles: MediaFile[] = [];
-    const storeIds: number[] = [];
+    
+    // Parse mediaUrls from campaign
+    const mediaFiles: MediaFile[] = (campaign.mediaUrls || []).map(url => {
+      const isVideo = url.match(/\.(mp4|webm|ogg|mov)$/i);
+      return {
+        type: isVideo ? 'video' : 'image',
+        url: url
+      };
+    });
+    
+    // Fetch campaign stores
+    let storeIds: number[] = [];
+    try {
+      const res = await fetch(`/api/admin/campaigns/${campaign.id}/stores`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        storeIds = data.data.map((store: StoreType) => store.id);
+        
+        // Extract unique cities from the stores
+        const cities = Array.from(new Set(data.data.map((s: StoreType) => s.city))) as string[];
+        setSelectedCities(cities);
+      }
+    } catch (error) {
+      console.error('Failed to fetch campaign stores:', error);
+    }
     
     setFormData({
       title: campaign.titleSource,
