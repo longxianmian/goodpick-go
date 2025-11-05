@@ -10,6 +10,7 @@ import NotFound from "@/pages/not-found";
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminStores from "@/pages/admin/AdminStores";
 import AdminCampaigns from "@/pages/admin/AdminCampaigns";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
 import StaffBind from "@/pages/user/StaffBind";
 import StaffRedeem from "@/pages/user/StaffRedeem";
 import StaffStats from "@/pages/user/StaffStats";
@@ -116,12 +117,7 @@ function ProtectedAdminRoutes() {
       <Switch location={location}>
         <Route path="/admin/stores" component={AdminStores} />
         <Route path="/admin/campaigns" component={AdminCampaigns} />
-        <Route path="/admin/dashboard">
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold">Dashboard</h2>
-            <p className="text-muted-foreground mt-2">Coming Soon</p>
-          </div>
-        </Route>
+        <Route path="/admin/dashboard" component={AdminDashboard} />
         <Redirect to="/admin/stores" />
       </Switch>
     </AdminLayout>

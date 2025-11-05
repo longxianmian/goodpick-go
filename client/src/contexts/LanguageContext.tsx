@@ -29,6 +29,9 @@ const translations: Record<Language, Record<string, string>> = {
     'common.chinese': '中文',
     'common.english': '英文',
     'common.thai': '泰文',
+    'common.page': '第',
+    'common.previous': '上一页',
+    'common.next': '下一页',
     
     // Navigation
     'nav.stores': '门店管理',
@@ -412,6 +415,9 @@ const translations: Record<Language, Record<string, string>> = {
     'common.chinese': 'Chinese',
     'common.english': 'English',
     'common.thai': 'Thai',
+    'common.page': 'Page',
+    'common.previous': 'Previous',
+    'common.next': 'Next',
     
     // Navigation
     'nav.stores': 'Stores',
@@ -795,6 +801,9 @@ const translations: Record<Language, Record<string, string>> = {
     'common.chinese': 'ภาษาจีน',
     'common.english': 'ภาษาอังกฤษ',
     'common.thai': 'ภาษาไทย',
+    'common.page': 'หน้า',
+    'common.previous': 'ก่อนหน้า',
+    'common.next': 'ถัดไป',
     
     // Navigation
     'nav.stores': 'จัดการร้านค้า',
