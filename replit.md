@@ -57,6 +57,22 @@ GoodPick Go is a multi-language coupon recommendation platform targeting the Tha
 - **Data Flow**: Admin fills form → Frontend mutation → Backend API (POST/PUT /api/admin/stores) → PostgreSQL → User campaign detail page displays with icon
 - **Use Case**: Users see floor info before navigation, remember location details, navigate to mall entrance via Google Maps, then find specific store using floor info + store photo
 
+### Campaign Form Dynamic Fields UX Optimization
+- **UX Problem**: Previous form displayed all fields regardless of coupon type, causing confusion and potential data entry errors
+- **Solution**: Implemented dynamic form fields that adapt based on selected `discountType`
+- **Field Mapping by Coupon Type**:
+  - **Percentage Off (percentage_off)**: Single "Discount" field (1-100, e.g., 80 = 20% off) with help text
+  - **Full Reduction (full_reduction)**: Two fields - "Minimum Amount" (`originalPrice`) + "Reduction Amount" (`couponValue`)
+  - **Final Price (final_price)**: Two fields - "Original Price" (`originalPrice`) + "Final Price" (`couponValue`)
+  - **Cash Voucher / Gift Card (cash_voucher/gift_card)**: Single "Face Value" field (`couponValue`)
+- **Technical Implementation**:
+  - Conditional rendering in `AdminCampaigns.tsx` using React conditional blocks
+  - Added `originalPrice` field to `formData` state with proper initialization, reset, and edit prefill
+  - Backend mutation payload includes/nulls `originalPrice` appropriately based on coupon type
+- **Multi-Language Support**: All new labels, placeholders, and help text support Chinese/English/Thai
+- **Translation Keys Added**: discount, discountPlaceholder, discountHelp, minAmount, minAmountPlaceholder, reductionAmount, reductionAmountPlaceholder, originalPrice, originalPricePlaceholder, finalPriceValue, finalPricePlaceholder, faceValue, faceValuePlaceholder
+- **User Impact**: Admin sees only relevant fields for selected coupon type, reducing confusion and data entry errors
+
 ## User Preferences
 
 **语言要求**: 必须使用中文沟通（用户不懂英文，这是强制要求）
