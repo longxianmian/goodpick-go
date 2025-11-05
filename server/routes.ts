@@ -268,6 +268,16 @@ export function registerRoutes(app: Express): Server {
     saveUninitialized: false,
   }));
 
+  // ============ Config Endpoint ============
+  app.get('/api/config', (req: Request, res: Response) => {
+    res.json({
+      success: true,
+      data: {
+        liffId: process.env.LIFF_ID || '',
+      },
+    });
+  });
+
   // ============ A. User Authentication ============
 
   app.post('/api/auth/line/login', async (req: Request, res: Response) => {

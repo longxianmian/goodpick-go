@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Switch, Route, Redirect, useLocation, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -145,6 +146,25 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => {
+    // Initialize LIFF
+    const initLiff = async () => {
+      try {
+        const response = await fetch('/api/config');
+        const data = await response.json();
+        
+        if (data.success && data.data.liffId && (window as any).liff) {
+          await (window as any).liff.init({ liffId: data.data.liffId });
+          console.log('LIFF initialized successfully');
+        }
+      } catch (error) {
+        console.error('LIFF initialization error:', error);
+      }
+    };
+
+    initLiff();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
