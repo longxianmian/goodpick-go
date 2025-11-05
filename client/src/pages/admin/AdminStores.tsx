@@ -55,6 +55,7 @@ export default function AdminStores() {
     longitude: '',
     rating: '',
     imageUrl: '',
+    floorInfo: '',
   });
   const [addressSearchOpen, setAddressSearchOpen] = useState(false);
   const [addressSearchValue, setAddressSearchValue] = useState('');
@@ -310,6 +311,7 @@ export default function AdminStores() {
       longitude: '',
       rating: '',
       imageUrl: '',
+      floorInfo: '',
     });
     setAddressSearchValue('');
     setPlaceSuggestions([]);
@@ -328,6 +330,7 @@ export default function AdminStores() {
       longitude: store.longitude || '',
       rating: store.rating || '',
       imageUrl: store.imageUrl || '',
+      floorInfo: store.floorInfo || '',
     });
     setAddressSearchValue(store.address);
     setIsDialogOpen(true);
@@ -611,6 +614,17 @@ export default function AdminStores() {
                     <p className="text-xs text-muted-foreground">{t('stores.imageHelp')}</p>
                   </div>
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="floorInfo">{t('stores.floorInfo')}</Label>
+                <Input
+                  id="floorInfo"
+                  data-testid="input-store-floorInfo"
+                  value={formData.floorInfo || ''}
+                  onChange={(e) => setFormData({ ...formData, floorInfo: e.target.value })}
+                  placeholder={t('stores.floorInfoPlaceholder')}
+                />
+                <p className="text-xs text-muted-foreground">{t('stores.floorInfoHelp')}</p>
               </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
