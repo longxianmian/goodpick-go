@@ -1712,7 +1712,7 @@ export function registerRoutes(app: Express): Server {
       url.searchParams.set('place_id', placeId);
       url.searchParams.set('key', apiKey);
       url.searchParams.set('language', 'th');
-      url.searchParams.set('fields', 'name,formatted_address,address_components,geometry,rating,photos,international_phone_number');
+      url.searchParams.set('fields', 'name,formatted_address,address_components,geometry,rating,photos,international_phone_number,formatted_phone_number');
 
       const response = await fetch(url.toString());
       const data = await response.json();
@@ -1740,6 +1740,8 @@ export function registerRoutes(app: Express): Server {
         }
       }
 
+      const phone = place.international_phone_number || place.formatted_phone_number || null;
+
       res.json({
         success: true,
         place: {
@@ -1749,7 +1751,7 @@ export function registerRoutes(app: Express): Server {
           latitude: place.geometry?.location?.lat,
           longitude: place.geometry?.location?.lng,
           rating: place.rating,
-          phone: place.international_phone_number,
+          phone: phone,
           imageUrl,
         },
       });
