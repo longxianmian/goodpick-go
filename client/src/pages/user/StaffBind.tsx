@@ -146,24 +146,37 @@ export default function StaffBind() {
       if (typeof window !== 'undefined' && (window as any).liff) {
         const liff = (window as any).liff;
 
-        console.log('handleLineLogin called', {
+        const liffStatus = {
+          isInClient: liff.isInClient(),
           isLoggedIn: liff.isLoggedIn(),
           token,
-          language,
-        });
+        };
+        console.log('handleLineLogin called', liffStatus);
 
-        if (!liff.isLoggedIn()) {
-          // Redirect to LINE login with current page as redirectUri
-          console.log('Calling liff.login() with current URL as redirectUri');
-          const currentUrl = window.location.href;
-          console.log('Redirect URI:', currentUrl);
-          liff.login({ redirectUri: currentUrl });
+        // If not in LINE client, show error
+        if (!liff.isInClient()) {
+          console.error('Not in LINE client environment');
+          setError('请在LINE应用中打开此页面');
+          toast({
+            title: t('common.error'),
+            description: '请在LINE应用中打开此页面',
+            variant: 'destructive',
+          });
+          setBinding(false);
           return;
         }
 
-        // Already logged in, execute binding directly
-        console.log('Already logged in, executing binding...');
-        executeBinding(token);
+        // In LIFF environment - user should already be logged in
+        // If not, trigger login without redirectUri (will use LIFF Endpoint URL)
+        if (!liff.isLoggedIn()) {
+          console.log('Not logged in in LIFF, calling liff.login()');
+          liff.login();
+          return;
+        }
+
+        // User is logged in, execute binding
+        console.log('User logged in, executing binding...');
+        await executeBinding(token);
       } else {
         // LIFF not available, show error
         setError(t('staffBind.mustUseLine'));
