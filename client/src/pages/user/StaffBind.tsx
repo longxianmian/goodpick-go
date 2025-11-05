@@ -141,8 +141,15 @@ export default function StaffBind() {
       if (typeof window !== 'undefined' && (window as any).liff) {
         const liff = (window as any).liff;
 
+        console.log('handleLineLogin called', {
+          isLoggedIn: liff.isLoggedIn(),
+          token,
+          language,
+        });
+
         if (!liff.isLoggedIn()) {
           // Save bind token and current URL params to localStorage
+          console.log('Saving to localStorage and calling liff.login()');
           localStorage.setItem('staff_bind_token', token);
           localStorage.setItem('staff_bind_lang', language);
           localStorage.setItem('staff_bind_pending', 'true');
@@ -153,6 +160,7 @@ export default function StaffBind() {
         }
 
         // Already logged in, execute binding directly
+        console.log('Already logged in, executing binding...');
         executeBinding(token);
       } else {
         // LIFF not available, show error
