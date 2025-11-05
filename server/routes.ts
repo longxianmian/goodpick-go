@@ -654,6 +654,7 @@ export function registerRoutes(app: Express): Server {
             longitude: s.longitude,
             phone: s.phone,
             imageUrl: s.imageUrl,
+            floorInfo: s.floorInfo,
           })),
           userClaimedCount,
         },
