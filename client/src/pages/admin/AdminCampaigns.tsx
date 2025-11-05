@@ -39,9 +39,17 @@ type CampaignFormData = {
   storeIds: number[];
 };
 
+// Normalize language code to backend-supported format
+function normalizeLanguageCode(lang: string): 'zh-cn' | 'en-us' | 'th-th' {
+  const normalized = lang.toLowerCase().trim();
+  if (normalized.startsWith('zh')) return 'zh-cn';
+  if (normalized.startsWith('th')) return 'th-th';
+  return 'en-us';
+}
+
 export default function AdminCampaigns() {
   const { adminToken, logoutAdmin } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isStoreDialogOpen, setIsStoreDialogOpen] = useState(false);
@@ -103,6 +111,7 @@ export default function AdminCampaigns() {
 
   const createMutation = useMutation({
     mutationFn: async (data: CampaignFormData) => {
+      const normalizedLang = normalizeLanguageCode(language);
       const res = await fetch('/api/admin/campaigns', {
         method: 'POST',
         headers: {
@@ -110,9 +119,9 @@ export default function AdminCampaigns() {
           Authorization: `Bearer ${adminToken}`,
         },
         body: JSON.stringify({
-          titleSourceLang: 'th-th',
+          titleSourceLang: normalizedLang,
           titleSource: data.title,
-          descriptionSourceLang: 'th-th',
+          descriptionSourceLang: normalizedLang,
           descriptionSource: data.description,
           couponValue: data.couponValue,
           discountType: data.discountType,
@@ -144,14 +153,15 @@ export default function AdminCampaigns() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<CampaignFormData> }) => {
+      const normalizedLang = normalizeLanguageCode(language);
       const payload: any = {};
       
       if (data.title) {
-        payload.titleSourceLang = 'th-th';
+        payload.titleSourceLang = normalizedLang;
         payload.titleSource = data.title;
       }
       if (data.description) {
-        payload.descriptionSourceLang = 'th-th';
+        payload.descriptionSourceLang = normalizedLang;
         payload.descriptionSource = data.description;
       }
       if (data.couponValue) payload.couponValue = data.couponValue;

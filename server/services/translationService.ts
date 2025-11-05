@@ -12,6 +12,12 @@ const languageMap: Record<string, string> = {
   'th-th': 'Thai',
 };
 
+const supportedLanguages = ['zh-cn', 'en-us', 'th-th'] as const;
+
+function validateLanguageCode(lang: string): boolean {
+  return supportedLanguages.includes(lang as any);
+}
+
 export async function translateText(
   text: string,
   sourceLang: string,
@@ -21,9 +27,14 @@ export async function translateText(
     return text;
   }
 
+  if (!validateLanguageCode(sourceLang) || !validateLanguageCode(targetLang)) {
+    console.warn(`Invalid language code: sourceLang=${sourceLang}, targetLang=${targetLang}`);
+    return text;
+  }
+
   try {
-    const sourceLanguage = languageMap[sourceLang] || 'English';
-    const targetLanguage = languageMap[targetLang] || 'English';
+    const sourceLanguage = languageMap[sourceLang];
+    const targetLanguage = languageMap[targetLang];
 
     const response = await openai.chat.completions.create({
       // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user

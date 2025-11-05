@@ -6,6 +6,15 @@ GoodPick Go is a multi-language coupon recommendation platform targeting the Tha
 
 ## Recent Changes (November 2025)
 
+### Auto-Translation System Fix
+- **Issue**: Frontend hardcoded source language as 'th-th' regardless of admin's input language
+- **Fix**: Changed `AdminCampaigns.tsx` to use current interface language (`language` variable) as source language
+- **Impact**: System now correctly auto-translates campaigns based on actual input language:
+  - Admin inputs Chinese → System translates to English & Thai
+  - Admin inputs Thai → System translates to English & Chinese
+  - Admin inputs English → System translates to Chinese & Thai
+- **Backend**: OpenAI GPT-4o-mini translation service working correctly, frontend now sends correct source language
+
 ### Redemption Code System Update
 - **8-Digit Redemption Codes**: Changed from 6-digit to 8-digit numeric codes (00000000-99999999) for improved uniqueness and security
 - Updated `generateUniqueCouponCode()` function and database schema to support the new format
