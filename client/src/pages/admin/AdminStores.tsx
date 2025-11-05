@@ -276,14 +276,12 @@ export default function AdminStores() {
       
       if (data.success && data.place) {
         const details = data.place;
-        const addressParts = details.address?.split(',') || [];
-        const city = addressParts.length > 1 ? addressParts[addressParts.length - 2].trim() : '';
         
         setFormData(prev => ({
           ...prev,
           name: prev.name || details.name || '',
           address: details.address || '',
-          city: city || prev.city,
+          city: details.city || prev.city,
           latitude: details.latitude ? String(details.latitude) : '',
           longitude: details.longitude ? String(details.longitude) : '',
           rating: details.rating ? String(details.rating) : '',
