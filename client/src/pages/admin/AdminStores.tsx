@@ -106,6 +106,7 @@ export default function AdminStores() {
           longitude: data.longitude ? data.longitude.toString() : null,
           rating: data.rating ? data.rating.toString() : null,
           imageUrl: data.imageUrl.trim() || null,
+          floorInfo: data.floorInfo.trim() || null,
           isActive: true,
         }),
       });
@@ -140,6 +141,7 @@ export default function AdminStores() {
           longitude: data.longitude ? data.longitude.toString() : null,
           rating: data.rating ? data.rating.toString() : null,
           imageUrl: data.imageUrl.trim() || null,
+          floorInfo: data.floorInfo.trim() || null,
           isActive: true,
         }),
       });

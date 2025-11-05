@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Autoplay from 'embla-carousel-autoplay';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Gift, Calendar, MapPin, Tag, Phone, Star, Navigation, FileText } from 'lucide-react';
+import { Gift, Calendar, MapPin, Tag, Phone, Star, Navigation, FileText, Building2 } from 'lucide-react';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useState, useEffect, useRef } from 'react';
 
@@ -660,6 +660,14 @@ export default function CampaignDetail() {
                       <p className="text-sm text-muted-foreground truncate mb-2" data-testid={`store-address-${store.id}`}>
                         {store.address}
                       </p>
+                      
+                      {/* 楼层信息（如果有） */}
+                      {(store as any).floorInfo && (
+                        <p className="text-sm font-medium text-orange-600 mb-2 flex items-center gap-1.5" data-testid={`store-floor-${store.id}`}>
+                          <Building2 className="h-4 w-4" />
+                          {(store as any).floorInfo}
+                        </p>
+                      )}
                       
                       {/* 第3行：电话 + 距离 + 导航按钮 */}
                       <div className="flex items-center gap-3 flex-wrap">
