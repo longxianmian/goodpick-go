@@ -56,6 +56,7 @@ interface SortableItemProps {
 }
 
 function SortableItem({ file, index, onRemove }: SortableItemProps) {
+  const { t } = useLanguage();
   const {
     attributes,
     listeners,
@@ -120,7 +121,7 @@ function SortableItem({ file, index, onRemove }: SortableItemProps) {
         <div className="absolute bottom-2 left-2">
           <Badge variant="secondary" className="text-xs">
             {file.type === "image" ? <ImageIcon className="h-3 w-3 mr-1" /> : <VideoIcon className="h-3 w-3 mr-1" />}
-            {file.type === "image" ? "图片" : "视频"}
+            {file.type === "image" ? t('mediaUploader.image') : t('mediaUploader.video')}
           </Badge>
         </div>
       </div>
@@ -241,7 +242,7 @@ export function MediaUploader({
       if (!isImage && !isVideo) {
         toast({
           title: t("common.error"),
-          description: "只支持图片或视频文件",
+          description: t('mediaUploader.fileTypeError'),
           variant: "destructive",
         });
         return;
@@ -252,7 +253,7 @@ export function MediaUploader({
       if (mode !== fileMode) {
         toast({
           title: t("common.error"),
-          description: mode === "image" ? "当前只能上传图片" : "当前只能上传视频",
+          description: mode === "image" ? t('mediaUploader.onlyImagesAllowed') : t('mediaUploader.onlyVideosAllowed'),
           variant: "destructive",
         });
         return;
@@ -264,7 +265,7 @@ export function MediaUploader({
       if (isImage && imageCount >= maxImages) {
         toast({
           title: t("common.error"),
-          description: `最多只能上传 ${maxImages} 张图片`,
+          description: t('mediaUploader.maxImagesExceeded', { max: maxImages.toString() }),
           variant: "destructive",
         });
         return;
@@ -273,7 +274,7 @@ export function MediaUploader({
       if (isVideo && videoCount >= maxVideos) {
         toast({
           title: t("common.error"),
-          description: `最多只能上传 ${maxVideos} 个视频`,
+          description: t('mediaUploader.maxVideosExceeded', { max: maxVideos.toString() }),
           variant: "destructive",
         });
         return;
@@ -294,13 +295,13 @@ export function MediaUploader({
 
         toast({
           title: t("common.success"),
-          description: "上传成功",
+          description: t('mediaUploader.uploadSuccess'),
         });
       } catch (error) {
         console.error("Upload error:", error);
         toast({
           title: t("common.error"),
-          description: "上传失败，请重试",
+          description: t('mediaUploader.uploadError'),
           variant: "destructive",
         });
       } finally {
@@ -401,7 +402,7 @@ export function MediaUploader({
         <div className="flex flex-col items-center gap-2">
           <Upload className="h-8 w-8 text-muted-foreground" />
           <p className="text-sm font-medium">
-            {uploading ? `上传中... ${uploadProgress}%` : isDragActive ? "释放以上传" : "点击或拖拽文件到此处"}
+            {uploading ? t('mediaUploader.uploading', { progress: uploadProgress.toString() }) : isDragActive ? t('mediaUploader.releaseToUpload') : t('mediaUploader.clickOrDrag')}
           </p>
           {uploading && (
             <div className="w-full max-w-xs">
@@ -409,7 +410,7 @@ export function MediaUploader({
             </div>
           )}
           <p className="text-xs text-muted-foreground">
-            {mode === "image" ? `支持上传 ${maxImages} 张图片` : `支持上传 ${maxVideos} 个视频`}
+            {mode === "image" ? t('mediaUploader.supportedImages', { max: maxImages.toString() }) : t('mediaUploader.supportedVideos', { max: maxVideos.toString() })}
           </p>
         </div>
       </div>

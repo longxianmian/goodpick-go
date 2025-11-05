@@ -1,208 +1,67 @@
 # GoodPick Go MVP
 
 ## Overview
-
-GoodPick Go is a multi-language coupon recommendation platform targeting the Thai/Asian market. It enables consumers to discover and redeem digital coupons via social media (TikTok, Facebook, Instagram, YouTube, LINE), primarily utilizing LINE for authentication and distribution. The platform supports three user types: Consumers (claim/redeem coupons), Administrators (manage content, stores, campaigns), and Store Staff (verify redemptions). Key features include LINE-based authentication, multi-language support (Chinese Simplified, English, Thai), OpenAI-powered content translation, and a mobile-first design inspired by popular Asian e-commerce platforms. The project aims for a product-agnostic architecture to ensure scalability.
-
-## Recent Changes (November 2025)
-
-### Auto-Translation System Fix
-- **Issue**: Frontend hardcoded source language as 'th-th' regardless of admin's input language
-- **Fix**: Changed `AdminCampaigns.tsx` to use current interface language (`language` variable) as source language
-- **Impact**: System now correctly auto-translates campaigns based on actual input language:
-  - Admin inputs Chinese → System translates to English & Thai
-  - Admin inputs Thai → System translates to English & Chinese
-  - Admin inputs English → System translates to Chinese & Thai
-- **Backend**: OpenAI GPT-4o-mini translation service working correctly, frontend now sends correct source language
-
-### Redemption Code System Update
-- **8-Digit Redemption Codes**: Changed from 6-digit to 8-digit numeric codes (00000000-99999999) for improved uniqueness and security
-- Updated `generateUniqueCouponCode()` function and database schema to support the new format
-
-### Staff OA Implementation
-- **Three Independent Routes**: Created dedicated Staff OA pages with independent routing structure:
-  - `/staff/redeem` - Coupon redemption interface (8-digit code input, two-step verification)
-  - `/staff/stats` - Personal statistics dashboard (daily/weekly/monthly redemption counts, campaign breakdown)
-  - `/staff/campaign` - Campaign information and training materials
-- **Complete i18n Support**: All Staff OA pages fully support Chinese/English/Thai language switching
-- **Backend APIs**:
-  - `POST /api/staff/redeem/query` - Query coupon details by 8-digit code
-  - `POST /api/staff/redeem/execute` - Execute redemption after verification
-  - `GET /api/staff/summary` - Get staff's redemption statistics
-  - `GET /api/staff/recent-redemptions` - Get recent redemption records
-  - `GET /api/staff/campaigns` - Get campaigns with multi-language content
-
-### Admin Dashboard Implementation
-- **Multi-Dimensional Analytics**: Created comprehensive dashboard at `/admin/dashboard` with:
-  - **Summary Cards**: Monthly overview (issued count, redeemed count, redemption rate, active stores)
-  - **Campaign Dimension**: Performance metrics by campaign (issued, redeemed, rate)
-  - **Brand Dimension**: Aggregated statistics by brand (stores count, issued, redeemed, rate)
-  - **Store Dimension**: Detailed store-level performance with pagination support
-- **Time-Based Analysis**: Month selector with navigation (previous/next month) for historical data queries
-- **Backend Dashboard APIs**:
-  - `GET /api/admin/dashboard/summary?month=YYYY-MM` - Monthly summary statistics
-  - `GET /api/admin/dashboard/campaigns?month=YYYY-MM` - Campaign dimension data
-  - `GET /api/admin/dashboard/brands?month=YYYY-MM` - Brand dimension data  
-  - `GET /api/admin/dashboard/stores?month=YYYY-MM&page=1&limit=20` - Store dimension data with pagination
-- **Full i18n Coverage**: All UI text uses i18n keys (no hardcoded strings), supports Chinese/English/Thai
-- **Testing**: End-to-end testing completed successfully, verified all Dashboard features and multi-language switching
-
-### Store Floor Information Feature
-- **Business Problem**: Partner stores are often shop-in-shop locations within large shopping malls. Google Maps can only navigate to the mall entrance, leaving customers unable to find the specific store location within the building.
-- **Solution**: Added `floorInfo` field to stores table for location descriptions (e.g., "3rd Floor, near Starbucks")
-- **Database Schema**: Added optional `floorInfo` text column to `stores` table
-- **Admin Interface**: Store management form includes floor/location info input with multi-language placeholder examples
-- **User Interface**: Store cards prominently display floor information with Building2 icon in orange accent color
-- **Multi-Language Support**: Complete i18n coverage for Chinese/English/Thai (stores.floorInfo, stores.floorInfoPlaceholder, stores.floorInfoHelp)
-- **Data Flow**: Admin fills form → Frontend mutation → Backend API (POST/PUT /api/admin/stores) → PostgreSQL → User campaign detail page displays with icon
-- **Use Case**: Users see floor info before navigation, remember location details, navigate to mall entrance via Google Maps, then find specific store using floor info + store photo
-
-### Campaign Form Dynamic Fields UX Optimization
-- **UX Problem**: Previous form displayed all fields regardless of coupon type, causing confusion and potential data entry errors
-- **Solution**: Implemented dynamic form fields that adapt based on selected `discountType`
-- **Field Mapping by Coupon Type**:
-  - **Percentage Off (percentage_off)**: Single "Discount" field (1-100, e.g., 80 = 20% off) with help text
-  - **Full Reduction (full_reduction)**: Two fields - "Minimum Amount" (`originalPrice`) + "Reduction Amount" (`couponValue`)
-  - **Final Price (final_price)**: Two fields - "Original Price" (`originalPrice`) + "Final Price" (`couponValue`)
-  - **Cash Voucher / Gift Card (cash_voucher/gift_card)**: Single "Face Value" field (`couponValue`)
-- **Technical Implementation**:
-  - Conditional rendering in `AdminCampaigns.tsx` using React conditional blocks
-  - Added `originalPrice` field to `formData` state with proper initialization, reset, and edit prefill
-  - Backend mutation payload includes/nulls `originalPrice` appropriately based on coupon type
-- **Multi-Language Support**: All new labels, placeholders, and help text support Chinese/English/Thai
-- **Translation Keys Added**: discount, discountPlaceholder, discountHelp, minAmount, minAmountPlaceholder, reductionAmount, reductionAmountPlaceholder, originalPrice, originalPricePlaceholder, finalPriceValue, finalPricePlaceholder, faceValue, faceValuePlaceholder
-- **User Impact**: Admin sees only relevant fields for selected coupon type, reducing confusion and data entry errors
+GoodPick Go is a multi-language coupon recommendation platform designed for the Thai/Asian market, enabling consumers to discover and redeem digital coupons primarily through LINE and other social media. It supports Consumers, Administrators, and Store Staff with features like LINE-based authentication, multi-language content (Chinese Simplified, English, Thai), and AI-powered translation via OpenAI. The platform prioritizes a mobile-first, product-agnostic architecture for scalability and aims to simplify coupon distribution and redemption for businesses.
 
 ## User Preferences
-
 **语言要求**: 必须使用中文沟通（用户不懂英文，这是强制要求）
 Preferred communication style: Simple, everyday language in Chinese.
 
 ## System Architecture
 
 ### Frontend Architecture
-
-**Framework**: React with TypeScript, using Vite.
-**UI/UX**: Shadcn/ui components with Radix UI primitives, styled with Tailwind CSS following a "New York" design variant. Emphasizes mobile-first responsive design.
-**State Management**: React Query for server state, React Context API for authentication, and React hooks for local state.
-**Routing**: Wouter for client-side routing.
-**Authentication**: Token-based authentication stored in localStorage, JWTs passed via Authorization headers.
-**Key Design Decisions**: Component-driven architecture, path aliases for clean imports, custom CSS variables for theming, and an accessibility-first approach.
+The frontend is built with React and TypeScript, leveraging Vite for tooling. UI/UX is based on Shadcn/ui components with Radix UI primitives, styled using Tailwind CSS, following a "New York" design variant with a mobile-first, responsive approach. State management utilizes React Query for server state, React Context API for authentication, and React hooks for local state. Wouter handles client-side routing. Authentication is token-based using JWTs stored in localStorage. Key design principles include a component-driven architecture, path aliases, custom CSS variables for theming, and an accessibility-first approach.
 
 ### Backend Architecture
-
-**Framework**: Express.js on Node.js.
-**Database ORM**: Drizzle ORM with PostgreSQL dialect (configured for Neon serverless PostgreSQL).
-**Authentication**: Dual system for Admin (email/password) and User (LINE ID token) with JWT-based session management. LINE ID token verification is handled via LINE's OAuth2 API.
-**API Structure**: RESTful API (`/api` prefix) with organized routes for admin, user, and authentication.
-**Database Schema**: Core entities include Admins, Users (LINE ID), Stores, Campaigns, CampaignStores (many-to-many), Coupons, MediaFiles, and StaffPresets. Campaign content fields are single-language; multi-language support is for UI translation via i18n.
-**Key Architectural Decisions**: Serverless PostgreSQL with connection pooling (Neon), WebSocket constructor override for Neon compatibility, request/response logging, and separate client/server build outputs.
+The backend uses Express.js on Node.js. It interacts with a PostgreSQL database via Drizzle ORM. Authentication supports both Admin (email/password) and User (LINE ID token) with JWT-based session management, including LINE ID token verification through LINE's OAuth2 API. The API is RESTful, organized into admin, user, and authentication routes. The database schema includes Admins, Users, Stores, Campaigns, CampaignStores, Coupons, MediaFiles, and StaffPresets, designed for multi-language UI content. Architectural decisions include serverless PostgreSQL with Neon for connection pooling, WebSocket constructor override for Neon compatibility, request/response logging, and separate client/server build outputs.
 
 ### Security Considerations
+Security features include bcryptjs for password hashing, JWT secrets from environment variables, CORS handling, Zod schema-based input validation, and protected routes with middleware authentication. Staff authorization is managed via token-based QR code verification and phone number matching.
 
-- Password hashing using bcryptjs.
-- JWT secret from environment variables (required in production, warning in development).
-- CORS and credential handling.
-- Input validation using Zod schemas.
-- Protected routes with middleware authentication.
-- Staff authorization with token-based QR code verification and phone number matching.
-
-### Development vs Production
-
-**Development**: Vite dev server with HMR, Replit-specific plugins, source maps.
-**Production**: Static asset compilation, server bundled with esbuild, environment-specific configuration, optimized builds.
+### Key Features
+- **Auto-Translation System**: Frontend now correctly uses the interface language as the source for OpenAI GPT-4o-mini translations, ensuring accurate multi-language campaign content generation.
+- **Redemption Code System**: Switched to 8-digit numeric codes for enhanced security and uniqueness in coupon redemption.
+- **Staff OA**: Dedicated Staff Operational Area with independent routes for coupon redemption, personal statistics, and campaign information, all with full i18n support.
+- **Admin Dashboard**: Comprehensive analytics dashboard providing monthly overviews, campaign performance, brand statistics, and store-level data with time-based filtering and full i18n support.
+- **Store Floor Information**: Added `floorInfo` field to stores to provide detailed indoor location descriptions, improving user navigation within complex venues.
+- **Dynamic Campaign Form Fields**: Campaign creation form fields adapt dynamically based on the selected `discountType`, optimizing UX and reducing data entry errors for administrators.
+- **Internationalization (i18n)**: Extensive i18n coverage across the application, including UI elements, form fields, and error messages, supporting Chinese, English, and Thai.
 
 ## External Dependencies
 
 ### Third-Party Services
-
-- **LINE Platform**: OAuth2 for user authentication, ID token verification, LIFF support.
-- **OpenAI API**: Via Replit's AI Integrations for automated content translation (gpt-4o-mini).
-- **Neon PostgreSQL Database**: Serverless PostgreSQL hosting with `@neondatabase/serverless`.
+- **LINE Platform**: Used for OAuth2 user authentication, ID token verification, and LIFF integration.
+- **OpenAI API**: Utilized via Replit's AI Integrations for automated content translation (specifically `gpt-4o-mini`).
+- **Neon PostgreSQL Database**: Serverless PostgreSQL hosting for the database.
+- **Google Maps API**: For address search and place details within the application.
 
 ### UI Component Libraries
-
-- **Radix UI Primitives**: Comprehensive set of accessible, unstyled UI components.
-- **Additional UI**: cmdk (command palette), vaul (drawer), embla-carousel-react (carousel), react-day-picker (calendar), input-otp (OTP input), recharts (charts).
+- **Radix UI Primitives**: Provides accessible, unstyled UI components.
+- **Shadcn/ui**: Component library built on Radix UI and Tailwind CSS.
+- **Additional UI Libraries**: cmdk (command palette), vaul (drawer), embla-carousel-react (carousel), react-day-picker (calendar), input-otp (OTP input), recharts (charts).
 
 ### Styling and Utilities
-
-- **Tailwind CSS**: With custom configuration.
-- **class-variance-authority**: Component variant management.
-- **clsx & tailwind-merge**: Conditional className utilities.
+- **Tailwind CSS**: For utility-first styling.
+- **class-variance-authority**: Manages component variants.
+- **clsx & tailwind-merge**: For conditional CSS class concatenation.
 - **Lucide React**: Icon library.
-- **PostCSS with Autoprefixer**.
+- **PostCSS with Autoprefixer**: For CSS processing.
 
 ### Form and Validation
-
-- **react-hook-form**: Form state management.
-- **@hookform/resolvers**: Form validation adapters.
-- **zod**: Schema validation.
-- **drizzle-zod**: Drizzle ORM schema to Zod conversion.
+- **react-hook-form**: For form state management.
+- **@hookform/resolvers**: Adapters for form validation.
+- **zod**: Schema validation library.
+- **drizzle-zod**: Integrates Drizzle ORM schemas with Zod.
 
 ### Build and Development Tools
-
-- **Vite**: Build tool and dev server.
-- **esbuild**: Production server bundling.
-- **tsx**: TypeScript execution for development.
-- **TypeScript**: Type safety.
-- **Drizzle Kit**: Database migrations.
+- **Vite**: Build tool and development server.
+- **esbuild**: For production server bundling.
+- **tsx**: For TypeScript execution in development.
+- **TypeScript**: Ensures type safety.
+- **Drizzle Kit**: For database migrations.
 
 ### Fonts
-
 - **Google Fonts**: Architects Daughter, DM Sans, Fira Code, Geist Mono.
 
 ### Environment Configuration
-
-#### Required in Production
-- `DATABASE_URL` - PostgreSQL connection string (validated in server/db.ts, throws error if missing)
-- `JWT_SECRET` - JWT signing key (validated in server/routes.ts, exits with error in production if missing)
-- `SESSION_SECRET` - Session encryption key for OAuth state management
-
-#### LINE Platform Integration
-- `LINE_CHANNEL_ID` - LINE Login Channel ID
-- `LINE_CHANNEL_SECRET` - LINE Channel Secret for OAuth
-- `LIFF_ID` - LIFF App ID for frontend initialization
-
-#### External Services
-- `AI_INTEGRATIONS_OPENAI_BASE_URL` - OpenAI API endpoint (provided by Replit)
-- `AI_INTEGRATIONS_OPENAI_API_KEY` - OpenAI API key (provided by Replit)
-- `GOOGLE_MAPS_API_KEY` - Google Maps API for address search and place details
-
-#### Object Storage (Optional)
-- `OSS_REGION` - Aliyun OSS region
-- `OSS_ENDPOINT` - Aliyun OSS endpoint URL
-- `OSS_ACCESS_KEY_ID` - Aliyun OSS access key
-- `OSS_ACCESS_KEY_SECRET` - Aliyun OSS secret key
-- `OSS_BUCKET` - Aliyun OSS bucket name
-- `OSS_PUBLIC_BASE_URL` - Public base URL for OSS objects
-- `DEFAULT_OBJECT_STORAGE_BUCKET_ID` - Alternative: Replit/GCS bucket ID
-- `PUBLIC_OBJECT_SEARCH_PATHS` - Search paths for public assets (default: public)
-- `PRIVATE_OBJECT_DIR` - Directory for private objects (default: .private)
-
-#### Frontend Environment Variables (VITE_ prefix required)
-- `VITE_API_BASE_URL` - Backend API endpoint URL (required for production deployment)
-- `VITE_LIFF_ID` - LIFF App ID for frontend LIFF SDK initialization
-- `VITE_LINE_CHANNEL_ID` - LINE Channel ID for frontend OAuth URL construction
-
-#### PostgreSQL Connection Variables (auto-provided by Neon/Replit)
-- `PGHOST` - PostgreSQL server hostname
-- `PGPORT` - PostgreSQL server port (default: 5432)
-- `PGUSER` - PostgreSQL username
-- `PGPASSWORD` - PostgreSQL password
-- `PGDATABASE` - PostgreSQL database name
-
-Note: These PG* variables are automatically injected by Replit/Neon when using managed PostgreSQL. When migrating to other platforms (e.g., Aliyun), ensure these are configured or construct the full `DATABASE_URL` instead.
-
-#### System Configuration
-- `JWT_EXPIRES_IN` - JWT token expiration (default: 7d)
-- `PORT` - Server port (default: 5000)
-- `NODE_ENV` - Environment mode (development/production)
-- `REPL_ID` - Replit project ID (auto-provided)
-
-#### Migration Notes
-- All environment variables are documented in `.env.example` with detailed setup instructions
-- See `.env.example` for LINE Platform configuration steps and security recommendations
-- Frontend environment variables require `VITE_` prefix to be accessible in client code
-- When migrating from Replit to other platforms, ensure all VITE_* variables are configured in the new environment
-- PostgreSQL connection can be configured via either `DATABASE_URL` or individual `PG*` variables
+Key environment variables include `DATABASE_URL`, `JWT_SECRET`, `SESSION_SECRET`, `LINE_CHANNEL_ID`, `LINE_CHANNEL_SECRET`, `LIFF_ID`, `AI_INTEGRATIONS_OPENAI_BASE_URL`, `AI_INTEGRATIONS_OPENAI_API_KEY`, `GOOGLE_MAPS_API_KEY`, and optional Aliyun OSS credentials (`OSS_REGION`, `OSS_ENDPOINT`, etc.). Frontend specific variables are prefixed with `VITE_`.

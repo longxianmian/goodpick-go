@@ -355,7 +355,7 @@ export default function AdminCampaigns() {
   };
 
   const handleDelete = (id: number) => {
-    if (confirm('确定要删除此活动吗？')) {
+    if (confirm(t('campaigns.deleteConfirm'))) {
       deleteMutation.mutate(id);
     }
   };
@@ -718,7 +718,7 @@ export default function AdminCampaigns() {
 
             {/* 媒体文件 */}
             <div className="space-y-4">
-              <h3 className="font-medium">媒体文件 (1-5张图片或1个视频)</h3>
+              <h3 className="font-medium">{t('campaigns.mediaFiles')}</h3>
               <MediaUploader
                 value={formData.mediaFiles}
                 onChange={(files) => setFormData({ ...formData, mediaFiles: files })}
@@ -731,12 +731,12 @@ export default function AdminCampaigns() {
 
             {/* 参与门店 */}
             <div className="space-y-4">
-              <h3 className="font-medium">参与门店</h3>
+              <h3 className="font-medium">{t('campaigns.participatingStores')}</h3>
               
               {/* 城市筛选 */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>选择城市</Label>
+                  <Label>{t('campaigns.selectCity')}</Label>
                   <Button
                     type="button"
                     size="sm"
@@ -744,7 +744,7 @@ export default function AdminCampaigns() {
                     onClick={toggleAllCities}
                     data-testid="button-toggle-all-cities"
                   >
-                    {allCitiesSelected ? '取消全选城市' : '全选城市'}
+                    {allCitiesSelected ? t('campaigns.deselectAllCities') : t('campaigns.selectAllCities')}
                   </Button>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -774,9 +774,9 @@ export default function AdminCampaigns() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-muted-foreground">
-                    已选 {formData.storeIds.length} 个门店
+                    {t('campaigns.storesSelected', { count: formData.storeIds.length.toString() })}
                     {filteredStoresByCity.length > 0 && (
-                      <span> （筛选后可选 {filteredStoresByCity.length} 个）</span>
+                      <span> {t('campaigns.filteredStoresAvailable', { count: filteredStoresByCity.length.toString() })}</span>
                     )}
                   </div>
                   <Button
@@ -787,14 +787,14 @@ export default function AdminCampaigns() {
                     disabled={filteredStoresByCity.length === 0}
                     data-testid="button-toggle-all-stores"
                   >
-                    {allFilteredStoresSelected ? '取消全选门店' : '全选门店'}
+                    {allFilteredStoresSelected ? t('campaigns.deselectAllStores') : t('campaigns.selectAllStores')}
                   </Button>
                 </div>
                 
                 <div className="max-h-64 overflow-y-auto space-y-2 border rounded-md p-4">
                   {filteredStoresByCity.length === 0 ? (
                     <div className="text-center text-sm text-muted-foreground py-8">
-                      请先选择城市
+                      {t('campaigns.selectCityFirst')}
                     </div>
                   ) : (
                     filteredStoresByCity.map((store) => (
