@@ -1427,6 +1427,20 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('popstate', handleUrlChange);
   }, []);
 
+  // 监听localStorage变化（跨标签页同步语言）
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'language' && e.newValue && ['zh-cn', 'en-us', 'th-th'].includes(e.newValue)) {
+        console.log('[语言同步] 检测到其他标签页切换语言:', e.newValue);
+        setLanguageState(e.newValue as Language);
+        queryClient.invalidateQueries();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   useEffect(() => {
     localStorage.setItem('language', language);
   }, [language]);
