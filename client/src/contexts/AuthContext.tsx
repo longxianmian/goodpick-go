@@ -56,29 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if ((window as any).liff && (window as any).liff.isInClient() && (window as any).liff.isLoggedIn()) {
-        console.log('[AuthContext] LIFF环境且已登录，执行自动登录');
-        try {
-          const idToken = (window as any).liff.getIDToken();
-          const response = await fetch('/api/auth/line/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ idToken }),
-          });
-
-          const data = await response.json();
-
-          if (data.success) {
-            setUserToken(data.token);
-            setUser(data.user);
-            localStorage.setItem('userToken', data.token);
-            localStorage.setItem('user', JSON.stringify(data.user));
-            console.log('[AuthContext] LIFF自动登录成功');
-          }
-        } catch (error) {
-          console.error('[AuthContext] LIFF自动登录失败:', error);
-        }
-      }
+      // 【禁止自动登录】只从 localStorage 恢复登录状态，不自动发起 LINE 登录
+      // 用户必须主动点击"立即领取"或"我的优惠券"按钮才触发登录
       
       setIsLoading(false);
     };
