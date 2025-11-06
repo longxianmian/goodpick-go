@@ -1,0 +1,118 @@
+现在不要再继续“分析哪个 state 触发重新渲染”了。
+请按下面的「最简单方案」硬性保证这两个接口不会重复请求：
+
+/api/config
+
+/api/campaigns/:id
+
+要求：
+
+我不在乎组件渲染多少次；
+
+只要在“同一次进入页面”的过程中，这两个接口最多各请求 一次 就行。
+
+一、/api/config：改成全局单例 Promise，只请求一次
+
+请你这样处理 /api/config：
+
+新建或修改一个模块，例如：client/src/lib/configClient.ts：
+
+let configPromise: Promise<any> | null = null;
+let cachedConfig: any = null;
+
+export function loadConfigOnce() {
+  if (cachedConfig) return Promise.resolve(cachedConfig);
+  if (!configPromise) {
+    configPromise = fetch('/api/config')
+      .then(res => res.json())
+      .then(data => {
+        cachedConfig = data;
+        return data;
+      });
+  }
+  return configPromise;
+}
+
+
+在 App.tsx 里：
+
+useEffect(() => {
+  loadConfigOnce().then(setConfig);
+}, []);
+
+
+禁止再用 React Query 去请求 /api/config，也禁止对它做 invalidateQueries、refetch、轮询等行为。
+
+这样就算 App 重渲染 10 次，loadConfigOnce() 也只会真正发一次 /api/config 请求。
+
+二、/api/campaigns/:id：用 useRef 硬控，只请求一次
+
+对活动详情页 /api/campaigns/:id，请按这个思路改：
+
+在 CampaignDetail 组件中，不用 React Query，改成最简单的 useEffect + useRef：
+
+const [campaign, setCampaign] = useState<any>(null);
+const [loading, setLoading] = useState(false);
+const hasLoadedRef = useRef(false);
+
+useEffect(() => {
+  if (!id) return;
+  if (hasLoadedRef.current) return; // 已经请求过了，直接跳过
+  hasLoadedRef.current = true;
+
+  let cancelled = false;
+  setLoading(true);
+  fetch(`/api/campaigns/${id}`)
+    .then(res => res.json())
+    .then(data => {
+      if (!cancelled) {
+        setCampaign(data);
+        setLoading(false);
+      }
+    })
+    .catch(() => {
+      if (!cancelled) setLoading(false);
+    });
+
+  return () => {
+    cancelled = true;
+  };
+}, [id]);
+
+
+删除 / 禁用与 /api/campaigns 相关的 React Query 配置和 invalidate/refetch 调用。
+这一页不需要 React Query，最笨的写法就够用。
+
+不管 CampaignDetail 函数组件重渲染多少次，只要 id 不变，hasLoadedRef.current 会阻止再次请求。
+
+三、先别动 /api/me/coupons
+
+现在我们只先把：
+
+/api/config
+
+/api/campaigns/:id
+
+这两个接口稳定下来。
+/api/me/coupons 先保持不动，等这两个接口确认 30 秒内不会重复请求，再来看我的优惠券。
+
+四、验收方式（非常具体）
+
+改完之后，请你按下面步骤自测，并贴出日志：
+
+从 LINE OA 底部菜单点击「优惠活动」进入活动详情页；
+
+停在当前页什么都不操作，静置 30 秒；
+
+把这 30 秒内的服务器日志给我看，只关注这两条：
+
+/api/config
+
+/api/campaigns/:id
+
+达标标准：
+
+这 30 秒里，每个接口最多只出现一次（理想情况就是：刚进去时各 1 条，后面完全安静）。
+
+只要做到这一点，我们就先认为“页面不会再自己乱刷新”。
+之后再慢慢看要不要对 /api/me/coupons 做类似简化。

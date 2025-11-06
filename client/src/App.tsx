@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { loadConfigOnce } from "@/lib/configClient";
 import NotFound from "@/pages/not-found";
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminStores from "@/pages/admin/AdminStores";
@@ -165,10 +166,7 @@ function App() {
       console.log('[App] 开始初始化LIFF at', new Date().toISOString());
       
       try {
-        console.log('[App] 准备请求 /api/config');
-        const response = await fetch('/api/config');
-        console.log('[App] /api/config 请求完成');
-        const data = await response.json();
+        const data = await loadConfigOnce();
         
         if (data.success && data.data.liffId && (window as any).liff) {
           // 检查LIFF是否已经初始化（通过_liff._init私有属性）

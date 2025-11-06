@@ -45,6 +45,11 @@ export default function CampaignDetail() {
   const autoplayPlugin = useRef(
     Autoplay({ delay: 3000, stopOnInteraction: true })
   );
+  
+  // 【硬控】用 useRef 防止重复请求 /api/campaigns/:id
+  const [campaign, setCampaign] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   // 【调试】组件挂载/卸载追踪
   useEffect(() => {
@@ -159,61 +164,30 @@ export default function CampaignDetail() {
     return `${distance.toFixed(1)}km`;
   };
 
-  // 获取活动详情
-  console.log('[CampaignDetail] 组件挂载/更新，id:', id, 'pageState:', pageState);
-  
-  // 检查queryClient中是否有缓存
-  const cachedData = queryClient.getQueryData(['/api/campaigns', id]);
-  console.log('[CampaignDetail] queryClient缓存检查 - 有缓存:', !!cachedData);
-  
-  const { data: response, isLoading } = useQuery<{
-    success: boolean;
-    data: {
-      id: number;
-      title: string;
-      description: string;
-      bannerImageUrl: string | null;
-      mediaUrls: string[];
-      discountType: string;
-      couponValue: string;
-      originalPrice: string | null;
-      startAt: string;
-      endAt: string;
-      maxPerUser: number;
-      maxTotal: number | null;
-      currentClaimed: number;
-      stores: Array<{
-        id: number;
-        name: string;
-        address: string;
-        city: string;
-        latitude: number | null;
-        longitude: number | null;
-      }>;
-      userClaimedCount?: number;
-      canClaim: boolean;
-      claimMessage?: string;
-    };
-  }>({
-    queryKey: ['/api/campaigns', id],
-    enabled: !!id,
-    staleTime: Infinity,
-    gcTime: Infinity,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  });
-  
-  console.log('[CampaignDetail] useQuery结果 - isLoading:', isLoading, 'hasData:', !!response);
-
-  const campaign = response?.data;
-
-  // 【调试】追踪数据获取时间
+  // 【硬控】只请求一次 /api/campaigns/:id
   useEffect(() => {
-    if (response && !isLoading) {
-      console.log('[CampaignDetail] campaign data fetched at', new Date().toISOString());
-    }
-  }, [response, isLoading]);
+    if (!id) return;
+    if (hasLoadedRef.current) return; // 已经请求过了，直接跳过
+    hasLoadedRef.current = true;
+
+    let cancelled = false;
+    setIsLoading(true);
+    fetch(`/api/campaigns/${id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (!cancelled) {
+          setCampaign(data.data);
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   // 格式化券值显示（去除不必要的小数）
   const formatCouponValue = (value: string, type: string) => {
@@ -252,7 +226,6 @@ export default function CampaignDetail() {
     },
     onSuccess: () => {
       console.log('[Claim] 领券成功');
-      queryClient.invalidateQueries({ queryKey: ['/api/campaigns', id] });
       toast({
         title: t('campaign.claimSuccess'),
         description: t('campaign.claimSuccessDesc'),
