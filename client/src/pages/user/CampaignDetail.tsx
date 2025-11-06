@@ -344,7 +344,7 @@ export default function CampaignDetail() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      <div style={{ display: activeView === 'campaign' ? 'flex' : 'none' }} className="h-full flex-col">
+      <div className="h-full" style={{ display: activeView === 'campaign' ? 'flex' : 'none', flexDirection: 'column' }}>
         <div className="flex-shrink-0">
           <div className="container max-w-4xl mx-auto p-4 pb-0">
             {campaign.mediaUrls && campaign.mediaUrls.length > 0 ? (
