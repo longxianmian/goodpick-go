@@ -55,9 +55,11 @@ export default function CampaignDetail() {
     (async () => {
       try {
         // 【多语言支持】设置 accept-language 请求头
+        const sessionId = (window as any).__GPGO_SESSION_ID__;
         const res = await fetch(`/api/campaigns/${id}`, {
           headers: {
             'Accept-Language': language,
+            'X-GPGO-Session': sessionId || 'unknown',
           },
         });
         if (!res.ok) throw new Error('Failed to load campaign');

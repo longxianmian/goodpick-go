@@ -270,6 +270,10 @@ export function registerRoutes(app: Express): Server {
 
   // ============ Config Endpoint ============
   app.get('/api/config', (req: Request, res: Response) => {
+    const sessionId = req.headers['x-gpgo-session'] || 'no-session-id';
+    const ua = req.headers['user-agent'] || 'no-ua';
+    console.log('[API]', new Date().toISOString(), req.method, req.path, 'session=', sessionId, 'ua=', ua);
+    
     res.json({
       success: true,
       data: {
@@ -594,6 +598,10 @@ export function registerRoutes(app: Express): Server {
 
   app.get('/api/campaigns/:id', optionalUserAuth, async (req: Request, res: Response) => {
     try {
+      const sessionId = req.headers['x-gpgo-session'] || 'no-session-id';
+      const ua = req.headers['user-agent'] || 'no-ua';
+      console.log('[API]', new Date().toISOString(), req.method, req.path, 'session=', sessionId, 'ua=', ua);
+      
       const campaignId = parseInt(req.params.id);
       const language = req.headers['accept-language'] || 'th-th';
 

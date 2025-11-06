@@ -156,7 +156,12 @@ function App() {
     // 【方案要求】只用最简单的 fetch 加载配置，只跑一次
     (async () => {
       try {
-        const res = await fetch('/api/config');
+        const sessionId = (window as any).__GPGO_SESSION_ID__;
+        const res = await fetch('/api/config', {
+          headers: {
+            'X-GPGO-Session': sessionId || 'unknown',
+          },
+        });
         const data = await res.json();
         
         if (!cancelled) {
