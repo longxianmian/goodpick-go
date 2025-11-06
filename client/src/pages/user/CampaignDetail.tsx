@@ -78,7 +78,7 @@ export default function CampaignDetail() {
     return () => {
       cancelled = true;
     };
-  }, [id, language]); // 【多语言支持】添加 language 依赖，语言切换时重新加载
+  }, [id]);
 
   // 获取用户位置用于计算距离
   useEffect(() => {
