@@ -316,15 +316,7 @@ export default function CampaignDetail() {
   const handleClaimClick = async () => {
     if (!campaign) return;
 
-    const userReachedLimit = isUserAuthenticated && 
-      campaign.userClaimedCount !== undefined && 
-      campaign.userClaimedCount >= campaign.maxPerUser;
-
-    // 已达上限：切换到我的优惠券
-    if (userReachedLimit) {
-      setActiveView('my-coupons');
-      return;
-    }
+    // 已达上限的用户看不到按钮，所以不需要判断
     
     if (isUserAuthenticated) {
       // 已登录：直接领券
@@ -390,7 +382,7 @@ export default function CampaignDetail() {
     if (claiming) return t('campaign.claiming');
     if (isSoldOut) return t('campaign.soldOut');
     if (isExpired) return t('campaign.expired');
-    if (userReachedLimit) return t('campaign.viewMyCoupons');
+    // 已领取用户按钮不显示，所以不需要 userReachedLimit 的文案
     if (!isUserAuthenticated) {
       return isLiffEnvironment ? t('campaign.claimNow') : t('campaign.claimWithLine');
     }
@@ -627,18 +619,20 @@ export default function CampaignDetail() {
 
           {/* 固定在底部的区域 */}
           <div className="border-t bg-background">
-            {/* 领取按钮 */}
-            <div className="container max-w-4xl mx-auto px-4 pt-3 pb-2">
-              <Button
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-                size="lg"
-                onClick={handleClaimClick}
-                disabled={(!canClaim && !userReachedLimit) || claiming}
-                data-testid="button-claim"
-              >
-                {getButtonText()}
-              </Button>
-            </div>
+            {/* 领取按钮 - 已领取用户隐藏 */}
+            {!userReachedLimit && (
+              <div className="container max-w-4xl mx-auto px-4 pt-3 pb-2">
+                <Button
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+                  size="lg"
+                  onClick={handleClaimClick}
+                  disabled={!canClaim || claiming}
+                  data-testid="button-claim"
+                >
+                  {getButtonText()}
+                </Button>
+              </div>
+            )}
             
             {/* 底部导航菜单 */}
             <div className="border-t">

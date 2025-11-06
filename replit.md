@@ -8,8 +8,10 @@ GoodPick Go is a multi-language coupon recommendation platform designed for the 
 Preferred communication style: Simple, everyday language in Chinese.
 
 ## Recent Updates (2025-11-06)
+- **智能领券按钮显示逻辑**: 优化活动详情页领券按钮的显示策略，已领取优惠券的用户将不再看到领券按钮（彻底隐藏），未登录用户和未领取用户仍显示"用LINE一键领取"按钮，提升用户体验，避免混淆。
+- **浏览器语言自动检测**: 实现智能多层级语言选择系统，优先级为：URL参数 (?lang=xx) > localStorage (用户手动选择) > 浏览器语言自动检测 (navigator.language) > 默认泰语。支持中文(zh-*)、英文(en-*)、泰文(th-*)的智能识别，解决LINE OA H5页面语言显示问题。
 - **底部导航菜单**: 在用户端页面（活动详情、我的优惠券）添加了固定底部导航，包含"优惠活动"和"我的优惠券"两个Tab，支持多语言切换，方便用户在两个页面之间快速导航。
-- **LIFF初始化优化**: 将LIFF初始化逻辑提升到App.tsx全局执行（仅初始化一次），避免页面导航时重复初始化和重复登录，显著优化LINE OA环境中的页面切换流畅度，消除闪烁现象。
+- **LIFF初始化优化**: 将LIFF初始化从App.tsx全局自动执行改为CampaignDetail.tsx按需初始化，避免页面导航时重复初始化和重定向，解决页面重载问题。
 
 ## System Architecture
 
