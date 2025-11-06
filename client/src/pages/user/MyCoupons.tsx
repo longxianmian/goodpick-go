@@ -84,41 +84,13 @@ export default function MyCoupons() {
       return;
     }
 
-    // 检查LIFF环境并自动登录（LIFF已在App.tsx初始化，不重复init）
-    const checkLiffAndLogin = async () => {
-      if (window.liff) {
-        try {
-          // LIFF已在App.tsx全局初始化，直接检查环境
-          setIsLiffEnvironment(window.liff.isInClient());
-          
-          // 如果在LIFF内且已登录，执行后端登录
-          if (window.liff.isInClient() && window.liff.isLoggedIn() && !isUserAuthenticated) {
-            const idToken = window.liff.getIDToken();
-            
-            const response = await fetch('/api/auth/line/login', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ idToken }),
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-              loginUser(data.token, data.user);
-            }
-          }
-        } catch (error) {
-          console.error('LIFF检查失败:', error);
-          setIsLiffEnvironment(false);
-        }
-      } else {
-        setIsLiffEnvironment(false);
-      }
-    };
-    
-    // 延迟等待App.tsx中的LIFF初始化完成
-    setTimeout(checkLiffAndLogin, 500);
-  }, [isUserAuthenticated]);
+    // 检查LIFF环境（登录已在AuthContext集中处理）
+    if (window.liff) {
+      setIsLiffEnvironment(window.liff.isInClient());
+    } else {
+      setIsLiffEnvironment(false);
+    }
+  }, []);
 
   // 获取优惠券列表
   const { data: response, isLoading } = useQuery<{

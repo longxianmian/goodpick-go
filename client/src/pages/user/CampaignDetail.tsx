@@ -87,56 +87,17 @@ export default function CampaignDetail() {
     }
   }, [autoClaimProcessed]); // 只依赖autoClaimProcessed
 
-  // 步骤2：检查LIFF环境并自动登录（LIFF已在App.tsx初始化，不重复init）
+  // 步骤2：检查LIFF环境（登录已在AuthContext集中处理）
   useEffect(() => {
-    const checkLiffAndLogin = async () => {
+    if (pageState === 'INIT' && !autoClaimProcessed) {
       if (!window.liff) {
         setIsLiffEnvironment(false);
-        setPageState('READY');
-        return;
+      } else {
+        setIsLiffEnvironment(window.liff.isInClient());
       }
-
-      try {
-        // LIFF已在App.tsx全局初始化，直接检查环境
-        const inLiff = window.liff.isInClient();
-        setIsLiffEnvironment(inLiff);
-        console.log('[LIFF] 环境检测:', inLiff ? 'LIFF内' : '普通浏览器');
-
-        // 如果在LIFF内且已登录，执行后端登录
-        if (inLiff && window.liff.isLoggedIn() && !isUserAuthenticated) {
-          console.log('[LIFF] 检测到LIFF已登录，执行后端登录');
-          setPageState('CHECK_LOGIN');
-          
-          const idToken = window.liff.getIDToken();
-          const response = await fetch('/api/auth/line/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ idToken }),
-          });
-
-          const data = await response.json();
-
-          if (data.success) {
-            loginUser(data.token, data.user);
-            console.log('[LIFF] 后端登录成功');
-          }
-          setPageState('READY');
-        } else {
-          setPageState('READY');
-        }
-      } catch (error) {
-        console.error('[LIFF] 检查失败:', error);
-        setIsLiffEnvironment(false);
-        setPageState('READY');
-      }
-    };
-
-    // 只在INIT状态且未处理过autoClaim时检查LIFF
-    if (pageState === 'INIT' && !autoClaimProcessed) {
-      // 延迟等待App.tsx中的LIFF初始化完成
-      setTimeout(checkLiffAndLogin, 500);
+      setPageState('READY');
     }
-  }, [pageState, isUserAuthenticated, autoClaimProcessed]);
+  }, [pageState, autoClaimProcessed]);
 
   // 步骤3：在CLAIMING状态下执行领券
   useEffect(() => {

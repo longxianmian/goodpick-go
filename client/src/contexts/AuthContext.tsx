@@ -38,22 +38,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedAdminToken = localStorage.getItem('adminToken');
-    const storedAdmin = localStorage.getItem('admin');
-    const storedUserToken = localStorage.getItem('userToken');
-    const storedUser = localStorage.getItem('user');
+    const initAuth = async () => {
+      const storedAdminToken = localStorage.getItem('adminToken');
+      const storedAdmin = localStorage.getItem('admin');
+      const storedUserToken = localStorage.getItem('userToken');
+      const storedUser = localStorage.getItem('user');
 
-    if (storedAdminToken && storedAdmin) {
-      setAdminToken(storedAdminToken);
-      setAdmin(JSON.parse(storedAdmin));
-    }
+      if (storedAdminToken && storedAdmin) {
+        setAdminToken(storedAdminToken);
+        setAdmin(JSON.parse(storedAdmin));
+      }
 
-    if (storedUserToken && storedUser) {
-      setUserToken(storedUserToken);
-      setUser(JSON.parse(storedUser));
-    }
-    
-    setIsLoading(false);
+      if (storedUserToken && storedUser) {
+        setUserToken(storedUserToken);
+        setUser(JSON.parse(storedUser));
+        setIsLoading(false);
+        return;
+      }
+
+      if ((window as any).liff && (window as any).liff.isInClient() && (window as any).liff.isLoggedIn()) {
+        console.log('[AuthContext] LIFF环境且已登录，执行自动登录');
+        try {
+          const idToken = (window as any).liff.getIDToken();
+          const response = await fetch('/api/auth/line/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            setUserToken(data.token);
+            setUser(data.user);
+            localStorage.setItem('userToken', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            console.log('[AuthContext] LIFF自动登录成功');
+          }
+        } catch (error) {
+          console.error('[AuthContext] LIFF自动登录失败:', error);
+        }
+      }
+      
+      setIsLoading(false);
+    };
+
+    const timer = setTimeout(initAuth, 500);
+    return () => clearTimeout(timer);
   }, []);
 
   const loginAdmin = (token: string, adminData: Admin) => {
