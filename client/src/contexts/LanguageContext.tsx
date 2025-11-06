@@ -1367,89 +1367,41 @@ const translations: Record<Language, Record<string, string>> = {
   },
 };
 
-// 浏览器语言检测辅助函数
-const detectBrowserLanguage = (): Language => {
-  const browserLang = navigator.language || navigator.languages?.[0] || 'th-TH';
-  const langCode = browserLang.toLowerCase();
-  
-  // 映射浏览器语言到系统支持的语言
-  if (langCode.startsWith('th')) {
-    return 'th-th';
-  } else if (langCode.startsWith('zh')) {
-    return 'zh-cn';
-  } else if (langCode.startsWith('en')) {
-    return 'en-us';
-  }
-  
-  // 默认泰语（系统在泰国运营）
-  return 'th-th';
-};
-
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
-    // 优先级1: 检查URL参数（用于测试）
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlLang = urlParams.get('lang');
-    if (urlLang && ['zh-cn', 'en-us', 'th-th'].includes(urlLang)) {
-      console.log('[语言检测] 使用URL参数:', urlLang);
-      localStorage.setItem('language', urlLang);
-      return urlLang as Language;
-    }
-    
-    // 优先级2: 检查localStorage（后台手动切换或之前保存的设置）
     const stored = localStorage.getItem('language');
+    // 验证stored是否为有效语言代码
     if (stored && ['zh-cn', 'en-us', 'th-th'].includes(stored)) {
-      console.log('[语言检测] 使用localStorage:', stored);
       return stored as Language;
     }
-    
-    // 优先级3: 自动检测浏览器语言
-    const detected = detectBrowserLanguage();
-    console.log('[语言检测] 自动检测浏览器语言:', detected, '浏览器语言:', navigator.language);
-    localStorage.setItem('language', detected);
-    return detected;
+    // 无效或不存在时，设置默认值并保存
+    const defaultLang: Language = 'zh-cn';
+    localStorage.setItem('language', defaultLang);
+    return defaultLang;
   });
-
-  // 监听URL参数变化（用于测试切换语言）
-  useEffect(() => {
-    const handleUrlChange = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlLang = urlParams.get('lang');
-      if (urlLang && ['zh-cn', 'en-us', 'th-th'].includes(urlLang)) {
-        setLanguageState(urlLang as Language);
-        localStorage.setItem('language', urlLang);
-        queryClient.invalidateQueries();
-      }
-    };
-
-    // 监听浏览器前进/后退
-    window.addEventListener('popstate', handleUrlChange);
-    return () => window.removeEventListener('popstate', handleUrlChange);
-  }, []);
-
-  // 监听localStorage变化（跨标签页同步语言）
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'language' && e.newValue && ['zh-cn', 'en-us', 'th-th'].includes(e.newValue)) {
-        console.log('[语言同步] 检测到其他标签页切换语言:', e.newValue);
-        setLanguageState(e.newValue as Language);
-        queryClient.invalidateQueries();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
 
   useEffect(() => {
     localStorage.setItem('language', language);
   }, [language]);
 
+  // 监听其他标签页的语言切换（跨标签页同步）
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'language' && e.newValue && ['zh-cn', 'en-us', 'th-th'].includes(e.newValue)) {
+        setLanguageState(e.newValue as Language);
+        queryClient.invalidateQueries();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const setLanguage = (lang: Language) => {
-    console.log('[语言切换] 切换到:', lang);
+    console.log(`[setLanguage] 切换语言: ${lang}`);
+    console.log(`[setLanguage] 切换前localStorage: ${localStorage.getItem('language')}`);
     setLanguageState(lang);
-    localStorage.setItem('language', lang);
-    console.log('[语言切换] localStorage已保存:', localStorage.getItem('language'));
+    console.log(`[setLanguage] React state已更新为: ${lang}`);
+    console.log(`[setLanguage] useEffect会在下次渲染后保存到localStorage`);
     // 语言切换时清除所有查询缓存，确保重新获取翻译后的内容
     queryClient.invalidateQueries();
   };
