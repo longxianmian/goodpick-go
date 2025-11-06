@@ -354,10 +354,11 @@
   }
 }
 
-/* 优化视频播放按钮 - 保留功能，隐藏白色圆圈背景 */
+/* 完全隐藏浏览器默认的大播放按钮，使用自定义小播放键 */
 video::-webkit-media-controls-overlay-play-button {
-  background-color: transparent !important;
-  background-image: none !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
+  display: none !important;
+}
+
+video::-webkit-media-controls-start-playback-button {
+  display: none !important;
 }
