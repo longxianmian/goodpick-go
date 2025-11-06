@@ -185,6 +185,11 @@ export default function CampaignDetail() {
   }>({
     queryKey: ['/api/campaigns', id],
     enabled: !!id,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   
   console.log('[CampaignDetail] useQuery结果 - isLoading:', isLoading, 'hasData:', !!response);
