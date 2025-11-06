@@ -354,17 +354,11 @@
   }
 }
 
-/* 自定义视频播放按钮样式 - 只保留小三角，去掉白色圆圈背景 */
+/* 完全移除视频中间的播放按钮 */
 video::-webkit-media-controls-overlay-play-button {
-  background: none !important;
-  border: none !important;
-  box-shadow: none !important;
-  width: 64px !important;
-  height: 64px !important;
-  transform: scale(0.8);
+  display: none !important;
 }
 
-/* 让播放按钮的三角形更明显 */
-video::-webkit-media-controls-overlay-play-button:hover {
-  transform: scale(0.9);
+video::-webkit-media-controls-start-playback-button {
+  display: none !important;
 }
