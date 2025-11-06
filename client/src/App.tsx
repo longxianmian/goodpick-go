@@ -171,11 +171,17 @@ function App() {
         const data = await response.json();
         
         if (data.success && data.data.liffId && (window as any).liff) {
-          // 检查LIFF是否已经初始化
-          if (!(window as any).liff.isInClient || !(window as any).liff.isInClient()) {
-            await (window as any).liff.init({ liffId: data.data.liffId });
+          // 检查LIFF是否已经初始化（通过_liff._init私有属性）
+          const liff = (window as any).liff;
+          const alreadyInit = liff._liff && liff._liff._init;
+          
+          if (!alreadyInit) {
+            console.log('[App] LIFF未初始化，开始初始化');
+            await liff.init({ liffId: data.data.liffId });
+            console.log('[App] LIFF初始化成功');
+          } else {
+            console.log('[App] LIFF已初始化，跳过');
           }
-          console.log('[App] LIFF初始化成功');
           liffInitialized = true;
         }
       } catch (error) {
