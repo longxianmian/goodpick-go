@@ -54,7 +54,12 @@ export default function CampaignDetail() {
 
     (async () => {
       try {
-        const res = await fetch(`/api/campaigns/${id}`);
+        // 【多语言支持】设置 accept-language 请求头
+        const res = await fetch(`/api/campaigns/${id}`, {
+          headers: {
+            'Accept-Language': language,
+          },
+        });
         if (!res.ok) throw new Error('Failed to load campaign');
         const data = await res.json();
         
@@ -73,7 +78,7 @@ export default function CampaignDetail() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, language]); // 【多语言支持】添加 language 依赖，语言切换时重新加载
 
   // 获取用户位置用于计算距离
   useEffect(() => {
