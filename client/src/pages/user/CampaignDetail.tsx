@@ -372,9 +372,12 @@ export default function CampaignDetail() {
 
   const isExpired = new Date(campaign.endAt) < new Date();
   const isSoldOut = campaign.maxTotal && campaign.currentClaimed >= campaign.maxTotal;
-  const userReachedLimit = isUserAuthenticated && 
-    campaign.userClaimedCount !== undefined && 
+  
+  // 【修复】直接检查 userClaimedCount，不依赖 isUserAuthenticated
+  // 因为后端通过 JWT token 验证，即使前端 localStorage 被清除，后端仍知道用户已领取
+  const userReachedLimit = campaign.userClaimedCount !== undefined && 
     campaign.userClaimedCount >= campaign.maxPerUser;
+  
   const canClaim = !isExpired && !isSoldOut && !userReachedLimit;
 
   // 调试日志
