@@ -147,6 +147,7 @@ function Router() {
 
 function App() {
   useEffect(() => {
+    console.log('[App] App组件挂载');
     // Initialize LIFF (once globally, only initialization, no auto-login)
     const initLiff = async () => {
       console.log('[App] 开始初始化LIFF');
@@ -164,6 +165,10 @@ function App() {
     };
 
     initLiff();
+
+    return () => {
+      console.log('[App] App组件卸载');
+    };
   }, []);
 
   return (

@@ -34,7 +34,7 @@ export default function CampaignDetail() {
   const { isUserAuthenticated, loginUser } = useAuth();
   const { t, language } = useLanguage();
   const { toast } = useToast();
-  const [pageState, setPageState] = useState<PageState>('INIT');
+  const [pageState, setPageState] = useState<PageState>('READY'); // 【修复】直接以READY状态开始，避免INIT→READY导致的重新渲染
   const [isLiffEnvironment, setIsLiffEnvironment] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [rulesDialogOpen, setRulesDialogOpen] = useState(false);
@@ -43,6 +43,16 @@ export default function CampaignDetail() {
   const autoplayPlugin = useRef(
     Autoplay({ delay: 3000, stopOnInteraction: true })
   );
+
+  // 【修复】一次性检查LIFF环境（仅在首次挂载时执行）
+  useEffect(() => {
+    console.log('[CampaignDetail] 首次挂载，检查LIFF环境');
+    if (!window.liff) {
+      setIsLiffEnvironment(false);
+    } else {
+      setIsLiffEnvironment(window.liff.isInClient());
+    }
+  }, []); // 空依赖，只执行一次
 
   // 步骤1：处理OAuth回调（一次性消费autoClaim参数）
   useEffect(() => {
@@ -53,7 +63,7 @@ export default function CampaignDetail() {
     const autoClaim = urlParams.get('autoClaim');
 
     if (token && autoClaim === 'true') {
-      console.log('[PageState] OAuth回调检测到，处理登录和自动领券');
+      console.log('[CampaignDetail] OAuth回调检测到，处理登录和自动领券');
       setAutoClaimProcessed(true); // 立即标记为已处理，防止重复
 
       try {
@@ -75,34 +85,21 @@ export default function CampaignDetail() {
         // 设置为领券中状态
         setPageState('CLAIMING');
       } catch (error) {
-        console.error('[PageState] Token解析失败:', error);
+        console.error('[CampaignDetail] Token解析失败:', error);
         toast({
           title: t('common.error'),
           description: t('login.failed'),
           variant: 'destructive',
         });
         window.history.replaceState({}, '', window.location.pathname);
-        setPageState('READY');
       }
     }
   }, [autoClaimProcessed]); // 只依赖autoClaimProcessed
 
-  // 步骤2：检查LIFF环境（登录已在AuthContext集中处理）
-  useEffect(() => {
-    if (pageState === 'INIT' && !autoClaimProcessed) {
-      if (!window.liff) {
-        setIsLiffEnvironment(false);
-      } else {
-        setIsLiffEnvironment(window.liff.isInClient());
-      }
-      setPageState('READY');
-    }
-  }, [pageState, autoClaimProcessed]);
-
-  // 步骤3：在CLAIMING状态下执行领券
+  // 步骤2：在CLAIMING状态下执行领券
   useEffect(() => {
     if (pageState === 'CLAIMING' && isUserAuthenticated) {
-      console.log('[PageState] 状态为CLAIMING，触发领券');
+      console.log('[CampaignDetail] 状态为CLAIMING，触发领券');
       claimMutation.mutate();
     }
   }, [pageState, isUserAuthenticated]);
