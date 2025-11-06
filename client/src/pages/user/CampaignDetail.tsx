@@ -29,6 +29,10 @@ type PageState =
   | 'CLAIMING'          // 领券中
   | 'CLAIMED';          // 已领取（跳转到我的优惠券）
 
+// 【全局变量】防止重复请求活动详情（即使组件重新挂载）
+let campaignDataCache: any = null;
+let campaignLoadPromise: Promise<any> | null = null;
+
 export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
@@ -46,10 +50,9 @@ export default function CampaignDetail() {
     Autoplay({ delay: 3000, stopOnInteraction: true })
   );
   
-  // 【硬控】用 useRef 防止重复请求 /api/campaigns/:id
+  // 【硬控】用全局缓存防止重复请求 /api/campaigns/:id
   const [campaign, setCampaign] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const hasLoadedRef = useRef(false);
 
   // 【调试】组件挂载/卸载追踪
   useEffect(() => {
@@ -164,29 +167,42 @@ export default function CampaignDetail() {
     return `${distance.toFixed(1)}km`;
   };
 
-  // 【硬控】只请求一次 /api/campaigns/:id
+  // 【硬控】全局缓存，只请求一次 /api/campaigns/:id（即使组件重新挂载）
   useEffect(() => {
     if (!id) return;
-    if (hasLoadedRef.current) return; // 已经请求过了，直接跳过
-    hasLoadedRef.current = true;
 
-    let cancelled = false;
+    // 如果已有缓存，直接使用
+    if (campaignDataCache) {
+      setCampaign(campaignDataCache);
+      setIsLoading(false);
+      return;
+    }
+
+    // 如果正在加载，复用 Promise
+    if (campaignLoadPromise) {
+      campaignLoadPromise.then(data => {
+        setCampaign(data);
+        setIsLoading(false);
+      });
+      return;
+    }
+
+    // 首次加载
     setIsLoading(true);
-    fetch(`/api/campaigns/${id}`)
+    campaignLoadPromise = fetch(`/api/campaigns/${id}`)
       .then(res => res.json())
       .then(data => {
-        if (!cancelled) {
-          setCampaign(data.data);
-          setIsLoading(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setIsLoading(false);
+        campaignDataCache = data.data;
+        return data.data;
       });
 
-    return () => {
-      cancelled = true;
-    };
+    campaignLoadPromise.then(data => {
+      setCampaign(data);
+      setIsLoading(false);
+    }).catch(() => {
+      setIsLoading(false);
+      campaignLoadPromise = null;
+    });
   }, [id]);
 
   // 格式化券值显示（去除不必要的小数）
