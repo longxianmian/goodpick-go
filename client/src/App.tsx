@@ -149,16 +149,17 @@ function App() {
   useEffect(() => {
     // Initialize LIFF (once globally, only initialization, no auto-login)
     const initLiff = async () => {
+      console.log('[App] 开始初始化LIFF');
       try {
         const response = await fetch('/api/config');
         const data = await response.json();
         
         if (data.success && data.data.liffId && (window as any).liff) {
           await (window as any).liff.init({ liffId: data.data.liffId });
-          console.log('LIFF initialized successfully');
+          console.log('[App] LIFF初始化成功');
         }
       } catch (error) {
-        console.error('LIFF initialization error:', error);
+        console.error('[App] LIFF初始化失败:', error);
       }
     };
 

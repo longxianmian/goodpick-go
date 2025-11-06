@@ -153,6 +153,7 @@ export default function CampaignDetail() {
   };
 
   // 获取活动详情
+  console.log('[CampaignDetail] 组件挂载/更新，id:', id, 'pageState:', pageState);
   const { data: response, isLoading } = useQuery<{
     success: boolean;
     data: {
@@ -185,6 +186,8 @@ export default function CampaignDetail() {
     queryKey: ['/api/campaigns', id],
     enabled: !!id,
   });
+  
+  console.log('[CampaignDetail] useQuery结果 - isLoading:', isLoading, 'hasData:', !!response);
 
   const campaign = response?.data;
 
