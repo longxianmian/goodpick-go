@@ -1,5 +1,5 @@
 import { useParams } from 'wouter';
-import { useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carouse
 import Autoplay from 'embla-carousel-autoplay';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Gift, Calendar, MapPin, Tag, Phone, Star, Navigation, FileText, Building2, Ticket } from 'lucide-react';
-import { apiRequest } from '@/lib/queryClient';
+import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useState, useEffect, useRef } from 'react';
 import { isLiffEnvironment, getLiff } from '@/lib/liffClient';
 import MyCoupons from './MyCoupons';
@@ -90,62 +90,47 @@ export default function CampaignDetail() {
     return `${distance.toFixed(1)}km`;
   };
 
-  const [campaign, setCampaign] = useState<{
-    id: number;
-    title: string;
-    description: string;
-    bannerImageUrl: string | null;
-    mediaUrls: string[];
-    discountType: string;
-    couponValue: string;
-    originalPrice: string | null;
-    startAt: string;
-    endAt: string;
-    maxPerUser: number;
-    maxTotal: number | null;
-    currentClaimed: number;
-    stores: Array<{
+  const { data: response, isLoading } = useQuery<{
+    success: boolean;
+    data: {
       id: number;
-      name: string;
-      address: string;
-      city: string;
-      floorInfo: string | null;
-      phone: string | null;
-      latitude: number | null;
-      longitude: number | null;
-    }>;
-    userClaimedCount?: number;
-    canClaim: boolean;
-    claimMessage?: string;
-  } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+      title: string;
+      description: string;
+      bannerImageUrl: string | null;
+      mediaUrls: string[];
+      discountType: string;
+      couponValue: string;
+      originalPrice: string | null;
+      startAt: string;
+      endAt: string;
+      maxPerUser: number;
+      maxTotal: number | null;
+      currentClaimed: number;
+      stores: Array<{
+        id: number;
+        name: string;
+        address: string;
+        city: string;
+        floorInfo: string | null;
+        phone: string | null;
+        latitude: number | null;
+        longitude: number | null;
+      }>;
+      userClaimedCount?: number;
+      canClaim: boolean;
+      claimMessage?: string;
+    };
+  }>({
+    queryKey: ['/api/campaigns', id],
+    enabled: !!id,
+    staleTime: Infinity,
+    gcTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
 
-  useEffect(() => {
-    if (!id) return;
-    
-    let cancelled = false;
-    
-    (async () => {
-      setIsLoading(true);
-      try {
-        const res = await fetch(`/api/campaigns/${id}`);
-        if (!cancelled) {
-          const data = await res.json();
-          if (data.success) {
-            setCampaign(data.data);
-          }
-          setIsLoading(false);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error('[CampaignDetail] 加载活动失败:', error);
-          setIsLoading(false);
-        }
-      }
-    })();
-    
-    return () => { cancelled = true; };
-  }, [id]);
+  const campaign = response?.data;
 
   const formatCouponValue = (value: string, type: string) => {
     const num = parseFloat(value);
@@ -168,26 +153,13 @@ export default function CampaignDetail() {
     }
   };
 
-  const refreshCampaign = async () => {
-    if (!id) return;
-    try {
-      const res = await fetch(`/api/campaigns/${id}`);
-      const data = await res.json();
-      if (data.success) {
-        setCampaign(data.data);
-      }
-    } catch (error) {
-      console.error('[CampaignDetail] 刷新活动失败:', error);
-    }
-  };
-
   const claimMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest('POST', `/api/campaigns/${id}/claim`, { channel: 'line_menu' });
       return res.json();
     },
     onSuccess: () => {
-      refreshCampaign();
+      queryClient.invalidateQueries({ queryKey: ['/api/campaigns', id] });
       toast({
         title: t('campaign.claimSuccess'),
         description: t('campaign.claimSuccessDesc'),
