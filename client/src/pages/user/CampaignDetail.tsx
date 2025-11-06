@@ -468,7 +468,7 @@ export default function CampaignDetail() {
 
           {/* 滚动内容区域 */}
           <div className="flex-1 overflow-y-auto">
-            <div className="container max-w-4xl mx-auto px-4 pt-6 space-y-6">
+            <div className="container max-w-4xl mx-auto px-4 pt-6 space-y-2.5">
               {/* 活动信息 */}
               <Card data-testid="campaign-info">
                 <CardHeader className="px-3 py-6">
