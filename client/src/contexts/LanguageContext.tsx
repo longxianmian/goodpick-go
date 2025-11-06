@@ -1381,13 +1381,52 @@ const translations: Record<Language, Record<string, string>> = {
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
+    // 【优先级1】检查 URL 参数 ?lang=xxx（最高优先级，用于测试和分享）
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlLang = urlParams.get('lang');
+    if (urlLang && ['zh-cn', 'en-us', 'th-th'].includes(urlLang.toLowerCase())) {
+      const normalizedLang = urlLang.toLowerCase() as Language;
+      console.log(`[语言初始化] 使用URL参数: ${normalizedLang}`);
+      localStorage.setItem('language', normalizedLang);
+      return normalizedLang;
+    }
+
+    // 【优先级2】检查 localStorage（用户手动选择过的语言）
     const stored = localStorage.getItem('language');
-    // 验证stored是否为有效语言代码
     if (stored && ['zh-cn', 'en-us', 'th-th'].includes(stored)) {
+      console.log(`[语言初始化] 使用localStorage: ${stored}`);
       return stored as Language;
     }
-    // 无效或不存在时，设置默认值为泰语（系统在泰国运营）
+
+    // 【优先级3】浏览器语言自动检测
+    const browserLang = navigator.language || navigator.languages?.[0];
+    if (browserLang) {
+      const normalized = browserLang.toLowerCase();
+      let detectedLang: Language | null = null;
+      
+      // 中文检测（支持 zh, zh-CN, zh-Hans, zh-TW, zh-Hant 等）
+      if (normalized.startsWith('zh')) {
+        detectedLang = 'zh-cn';
+      }
+      // 英文检测（支持 en, en-US, en-GB 等）
+      else if (normalized.startsWith('en')) {
+        detectedLang = 'en-us';
+      }
+      // 泰语检测（支持 th, th-TH 等）
+      else if (normalized.startsWith('th')) {
+        detectedLang = 'th-th';
+      }
+      
+      if (detectedLang) {
+        console.log(`[语言初始化] 检测到浏览器语言 ${browserLang}，使用: ${detectedLang}`);
+        localStorage.setItem('language', detectedLang);
+        return detectedLang;
+      }
+    }
+
+    // 【优先级4】默认泰语（系统在泰国运营）
     const defaultLang: Language = 'th-th';
+    console.log(`[语言初始化] 使用默认语言: ${defaultLang}`);
     localStorage.setItem('language', defaultLang);
     return defaultLang;
   });
