@@ -145,12 +145,25 @@ function Router() {
   );
 }
 
+// 【修复】全局标志，确保LIFF只初始化一次（即使App组件被多次挂载）
+let liffInitialized = false;
+let liffInitializing = false;
+
 function App() {
   useEffect(() => {
     console.log('[App] App组件挂载 at', new Date().toISOString());
+    
     // Initialize LIFF (once globally, only initialization, no auto-login)
     const initLiff = async () => {
+      // 【修复】如果已经初始化或正在初始化，直接跳过
+      if (liffInitialized || liffInitializing) {
+        console.log('[App] LIFF已初始化或正在初始化，跳过重复初始化');
+        return;
+      }
+
+      liffInitializing = true;
       console.log('[App] 开始初始化LIFF at', new Date().toISOString());
+      
       try {
         console.log('[App] 准备请求 /api/config');
         const response = await fetch('/api/config');
@@ -158,11 +171,17 @@ function App() {
         const data = await response.json();
         
         if (data.success && data.data.liffId && (window as any).liff) {
-          await (window as any).liff.init({ liffId: data.data.liffId });
+          // 检查LIFF是否已经初始化
+          if (!(window as any).liff.isInClient || !(window as any).liff.isInClient()) {
+            await (window as any).liff.init({ liffId: data.data.liffId });
+          }
           console.log('[App] LIFF初始化成功');
+          liffInitialized = true;
         }
       } catch (error) {
         console.error('[App] LIFF初始化失败:', error);
+      } finally {
+        liffInitializing = false;
       }
     };
 
