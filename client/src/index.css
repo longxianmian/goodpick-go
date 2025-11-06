@@ -354,22 +354,17 @@
   }
 }
 
-/* 自定义视频播放按钮样式 - 精致简洁 */
-/* 隐藏浏览器默认的中间大播放按钮（白色圆圈） */
+/* 自定义视频播放按钮样式 - 只保留小三角，去掉白色圆圈背景 */
 video::-webkit-media-controls-overlay-play-button {
-  display: none !important;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  width: 64px !important;
+  height: 64px !important;
+  transform: scale(0.8);
 }
 
-video::-webkit-media-controls-start-playback-button {
-  display: none !important;
-}
-
-/* Firefox */
-video::-moz-media-controls-overlay-play-button {
-  display: none !important;
-}
-
-/* 保留底部控制栏，用户可以通过控制栏播放 */
-video {
-  cursor: pointer;
+/* 让播放按钮的三角形更明显 */
+video::-webkit-media-controls-overlay-play-button:hover {
+  transform: scale(0.9);
 }
