@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Switch, Route, Redirect, useLocation, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -7,7 +7,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
-import { loadConfigOnce } from "@/lib/configClient";
 import NotFound from "@/pages/not-found";
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminStores from "@/pages/admin/AdminStores";
@@ -146,55 +145,45 @@ function Router() {
   );
 }
 
-// 【修复】全局标志，确保LIFF只初始化一次（即使App组件被多次挂载）
-let liffInitialized = false;
-let liffInitializing = false;
-
 function App() {
+  const [config, setConfig] = useState<any>(null);
+
   useEffect(() => {
     console.log('[App] App组件挂载 at', new Date().toISOString());
     
-    // Initialize LIFF (once globally, only initialization, no auto-login)
-    const initLiff = async () => {
-      // 【修复】如果已经初始化或正在初始化，直接跳过
-      if (liffInitialized || liffInitializing) {
-        console.log('[App] LIFF已初始化或正在初始化，跳过重复初始化');
-        return;
-      }
+    let cancelled = false;
 
-      liffInitializing = true;
-      console.log('[App] 开始初始化LIFF at', new Date().toISOString());
-      
+    // 【方案要求】只用最简单的 fetch 加载配置，只跑一次
+    (async () => {
       try {
-        const data = await loadConfigOnce();
+        const res = await fetch('/api/config');
+        const data = await res.json();
         
-        if (data.success && data.data.liffId && (window as any).liff) {
-          // 检查LIFF是否已经初始化（通过_liff._init私有属性）
-          const liff = (window as any).liff;
-          const alreadyInit = liff._liff && liff._liff._init;
-          
-          if (!alreadyInit) {
-            console.log('[App] LIFF未初始化，开始初始化');
-            await liff.init({ liffId: data.data.liffId });
-            console.log('[App] LIFF初始化成功');
-          } else {
-            console.log('[App] LIFF已初始化，跳过');
+        if (!cancelled) {
+          setConfig(data);
+
+          // 初始化 LIFF（如果需要）
+          if (data.success && data.data?.liffId && (window as any).liff) {
+            const liff = (window as any).liff;
+            const alreadyInit = liff._liff && liff._liff._init;
+            
+            if (!alreadyInit) {
+              console.log('[App] 开始初始化 LIFF');
+              await liff.init({ liffId: data.data.liffId });
+              console.log('[App] LIFF 初始化成功');
+            }
           }
-          liffInitialized = true;
         }
       } catch (error) {
-        console.error('[App] LIFF初始化失败:', error);
-      } finally {
-        liffInitializing = false;
+        console.error('[App] 加载配置失败:', error);
       }
-    };
-
-    initLiff();
+    })();
 
     return () => {
+      cancelled = true;
       console.log('[App] App组件卸载 at', new Date().toISOString());
     };
-  }, []);
+  }, []); // 【方案要求】空依赖，只跑一次
 
   return (
     <QueryClientProvider client={queryClient}>

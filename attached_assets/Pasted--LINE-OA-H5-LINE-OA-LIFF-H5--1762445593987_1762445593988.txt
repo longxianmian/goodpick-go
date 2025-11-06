@@ -1,0 +1,237 @@
+🧭 目标：从 LINE OA 打开 H5 活动详情页的最简单方案
+
+一句话目标：
+
+用户在 LINE OA 底部菜单点「优惠活动」
+→ 打开 LIFF
+→ 显示 H5 活动详情页
+→ 页面安静地停在那里，让用户自己决定“是否登录 / 是否领取”，
+中间绝对不自动刷新、不自动重载、不自动登录。
+
+只针对这条链路重构，其他模块（后台、核销、数据面板等）暂时不动。
+
+1. 入口设计（OA → LIFF → H5 路由）
+1.1 LINE OA 的菜单配置（你只要知道前提）
+
+OA 底部菜单只有一个按钮：「优惠活动」
+
+按钮配置的是 LIFF URL，例如：
+
+https://liff.line.me/{LIFF_ID}
+
+在 LINE Developers 里，该 LIFF 的 Endpoint URL 设置为：
+
+https://<当前 Replit 域名>/campaign/1
+
+将来换成阿里云：https://goodpickgo.com/campaign/:id
+
+👉 重点：
+在前端代码里不再依赖 ?view=campaign&campaignId=1 这种 query 参数来转跳路由。
+直接让 LIFF 的 Endpoint URL 就指向 /campaign/:id，就行了。
+
+2. App.tsx：只做三件事，不搞“智能逻辑”
+2.1 结构要求
+
+App.tsx 里，只保留最基础的结构，例如：
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/campaign/:id" element={<CampaignDetail />} />
+        <Route path="/my-coupons" element={<MyCoupons />} />
+        {/* 其他路由保持原样 */}
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+
+这里禁止：
+
+不要根据任何 state 改变 <BrowserRouter> 或 <App> 的 key
+
+不要在这里做自动重定向（例如：自动从 / 导到 /campaign/:id）
+
+不要在这里做“自动登录逻辑”（什么 useEffect 一进来就去登录，统统不要）
+
+2.2 配置 /api/config（如果确实需要）
+
+如果现在 /api/config 是用来拉 LIFF 配置 / 多语言之类，那：
+
+只允许在 App 挂载时请求一次；
+
+使用最简单的 useEffect + fetch：
+
+useEffect(() => {
+  let cancelled = false;
+  (async () => {
+    const res = await fetch('/api/config');
+    const data = await res.json();
+    if (!cancelled) {
+      setConfig(data);
+    }
+  })();
+  return () => {
+    cancelled = true;
+  };
+}, []); // 只跑一次
+
+
+明确禁止：
+
+不要为 /api/config 使用 React Query；
+
+不要为 /api/config 设置任何 refetchOnWindowFocus、refetchInterval 等；
+
+不要在别的地方 invalidateQueries('/api/config')；
+
+不要用定时器去定期刷新 config。
+
+3. CampaignDetail.tsx：最朴素的一页详情，别“智能”
+3.1 数据来源
+
+活动详情页需要的数据：
+
+活动内容：GET /api/campaigns/:id
+
+（可选）用户是否已领取：可以后面再接 /api/me/coupons 或已有接口
+👉 这一步不急，先把“详情页不乱刷”做干净。
+
+3.2 实现方式：不用 React Query，不用花活
+
+请你把 CampaignDetail.tsx 里和 /api/campaigns 相关的 React Query 全部删除，
+改成最简单的写法：
+
+const [campaign, setCampaign] = useState<any>(null);
+const [loading, setLoading] = useState(false);
+const [error, setError] = useState<string | null>(null);
+
+useEffect(() => {
+  if (!id) return;
+
+  let cancelled = false;
+  setLoading(true);
+  setError(null);
+
+  (async () => {
+    try {
+      const res = await fetch(`/api/campaigns/${id}`);
+      if (!res.ok) throw new Error('Failed to load campaign');
+      const data = await res.json();
+      if (!cancelled) {
+        setCampaign(data);
+        setLoading(false);
+      }
+    } catch (e) {
+      if (!cancelled) {
+        setError('加载失败，请稍后重试');
+        setLoading(false);
+      }
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+}, [id]);
+
+
+页面渲染逻辑：
+
+loading === true → 显示一个简单的 loading；
+
+error != null → 显示错误提示；
+
+campaign != null → 渲染详情内容。
+
+这里特别强调：
+
+⚠️ 不要用 hasLoadedRef、不要用 React Query、不要做“缓存策略”；
+
+⚠️ 不要在这个组件里用 setInterval / setTimeout 再次请求 /api/campaigns/:id；
+
+⚠️ 不要在“自动登录”的逻辑里顺带刷新活动详情。
+
+4. 登录逻辑：从“自动”改成“按钮触发”
+
+现在日志里多次出现这种模式：
+
+GET /api/config
+GET /api/campaigns/1
+（几秒后）
+GET /api/config
+GET /api/campaigns/1
+POST /api/auth/line/login   ← 自动发起了登录
+
+
+说明之前有“自动登录”的逻辑在后台自己跑。
+这一点必须全部关掉，只保留按钮触发登录。
+
+4.1 登录只在两种操作下触发
+
+用户点击「立即领取」：
+
+如果已登录（有有效 userToken） → 直接调用 /api/campaigns/:id/claim；
+
+如果未登录：
+
+在 LIFF 环境：执行 liff.login() → 返回后再继续领券；
+
+在普通浏览器：跳 Web OAuth（后端已有逻辑）；
+
+用户点击「我的优惠券」：
+
+如果已登录 → 直接跳 /my-coupons；
+
+如果未登录 → 同上，先走登录，再跳券列表。
+
+4.2 明确禁止的行为
+
+全局搜索这些调用：
+
+/api/auth/line/login
+
+liff.login(
+
+要求：
+
+❌ 不允许在 useEffect（组件挂载时）自动调用；
+
+❌ 不允许在定时器（setTimeout / setInterval）里自动调用；
+
+❌ 不允许“页面打开 N 秒以后自动触发登录”。
+
+✅ 唯一合法的位置：按钮点击处理函数里。
+
+5. 验收方法（就看 10 秒）
+
+重写完之后，只测一件事：
+
+在 LINE OA 里点击底部菜单「优惠活动」进入 H5；
+
+页面打开后，10 秒内什么按钮都不要点；
+
+查看这 10 秒内的服务器日志，只关注这三类：
+
+GET /api/config
+
+GET /api/campaigns/:id
+
+POST /api/auth/line/login
+
+通过标准：
+
+GET /api/config：只出现 1 次（刚进来那一刻）
+
+GET /api/campaigns/:id：只出现 1 次（刚进来那一刻）
+
+POST /api/auth/line/login：0 次（因为我没点“立即领取”）
+
+如果这三条都满足，就说明：
+
+详情页只加载一次，不乱刷新；
+
+页面不会自己偷偷重新请求接口；
+
+登录不会自动触发，只在我主动操作时发生。
