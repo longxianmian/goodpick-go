@@ -1391,7 +1391,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const urlParams = new URLSearchParams(window.location.search);
     const urlLang = urlParams.get('lang');
     if (urlLang && ['zh-cn', 'en-us', 'th-th'].includes(urlLang)) {
-      // 保存到localStorage，方便后续页面使用
+      console.log('[语言检测] 使用URL参数:', urlLang);
       localStorage.setItem('language', urlLang);
       return urlLang as Language;
     }
@@ -1399,12 +1399,13 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     // 优先级2: 检查localStorage（后台手动切换或之前保存的设置）
     const stored = localStorage.getItem('language');
     if (stored && ['zh-cn', 'en-us', 'th-th'].includes(stored)) {
+      console.log('[语言检测] 使用localStorage:', stored);
       return stored as Language;
     }
     
     // 优先级3: 自动检测浏览器语言
     const detected = detectBrowserLanguage();
-    // 保存到localStorage，避免每次都检测
+    console.log('[语言检测] 自动检测浏览器语言:', detected, '浏览器语言:', navigator.language);
     localStorage.setItem('language', detected);
     return detected;
   });
