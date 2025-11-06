@@ -34,7 +34,6 @@ export default function CampaignDetail() {
   const [rulesDialogOpen, setRulesDialogOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [activeView, setActiveView] = useState<'campaign' | 'my-coupons'>('campaign');
-  const [playingVideos, setPlayingVideos] = useState<{ [key: number]: boolean }>({});
   
   const autoplayPlugin = useRef(Autoplay({ delay: 3000, stopOnInteraction: true }));
 
@@ -434,13 +433,6 @@ export default function CampaignDetail() {
                           <div className="w-full aspect-video rounded-lg overflow-hidden bg-black relative">
                             {isVideo ? (
                               <video
-                                ref={(el) => {
-                                  if (el) {
-                                    el.onplay = () => setPlayingVideos(prev => ({ ...prev, [index]: true }));
-                                    el.onpause = () => setPlayingVideos(prev => ({ ...prev, [index]: false }));
-                                    el.onended = () => setPlayingVideos(prev => ({ ...prev, [index]: false }));
-                                  }
-                                }}
                                 controls
                                 className="w-full h-full object-contain"
                                 data-testid={`media-video-${index}`}
