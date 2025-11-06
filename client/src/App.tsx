@@ -147,12 +147,14 @@ function Router() {
 
 function App() {
   useEffect(() => {
-    console.log('[App] App组件挂载');
+    console.log('[App] App组件挂载 at', new Date().toISOString());
     // Initialize LIFF (once globally, only initialization, no auto-login)
     const initLiff = async () => {
-      console.log('[App] 开始初始化LIFF');
+      console.log('[App] 开始初始化LIFF at', new Date().toISOString());
       try {
+        console.log('[App] 准备请求 /api/config');
         const response = await fetch('/api/config');
+        console.log('[App] /api/config 请求完成');
         const data = await response.json();
         
         if (data.success && data.data.liffId && (window as any).liff) {
@@ -167,7 +169,7 @@ function App() {
     initLiff();
 
     return () => {
-      console.log('[App] App组件卸载');
+      console.log('[App] App组件卸载 at', new Date().toISOString());
     };
   }, []);
 
