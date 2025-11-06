@@ -121,7 +121,7 @@ export default function CampaignDetail() {
       claimMessage?: string;
     };
   }>({
-    queryKey: ['/api/campaigns', id],
+    queryKey: ['campaign', id],
     enabled: !!id,
     staleTime: Infinity,
     gcTime: 5 * 60 * 1000,
@@ -159,7 +159,7 @@ export default function CampaignDetail() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/campaigns', id] });
+      queryClient.invalidateQueries({ queryKey: ['campaign', id] });
       toast({
         title: t('campaign.claimSuccess'),
         description: t('campaign.claimSuccessDesc'),
