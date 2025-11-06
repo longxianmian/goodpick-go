@@ -13,7 +13,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Gift, Calendar, MapPin, Tag, Phone, Star, Navigation, FileText, Building2 } from 'lucide-react';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useState, useEffect, useRef } from 'react';
-import { LanguageSelector } from '@/components/LanguageSelector';
 
 declare global {
   interface Window {
@@ -514,13 +513,6 @@ export default function CampaignDetail() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      {/* 语言选择器 - 固定在顶部 */}
-      <div className="flex-shrink-0 border-b">
-        <div className="container max-w-4xl mx-auto p-2 flex justify-end">
-          <LanguageSelector />
-        </div>
-      </div>
-
       {/* 固定头部 - 图片/视频 */}
       <div className="flex-shrink-0">
         <div className="container max-w-4xl mx-auto p-4 pb-0">

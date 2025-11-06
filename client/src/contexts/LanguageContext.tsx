@@ -1369,9 +1369,41 @@ const translations: Record<Language, Record<string, string>> = {
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
+    // 优先级1: 检查URL参数（用于测试）
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlLang = urlParams.get('lang');
+    if (urlLang && ['zh-cn', 'en-us', 'th-th'].includes(urlLang)) {
+      // 保存到localStorage，方便后续页面使用
+      localStorage.setItem('language', urlLang);
+      return urlLang as Language;
+    }
+    
+    // 优先级2: 检查localStorage
     const stored = localStorage.getItem('language');
-    return (stored as Language) || 'zh-cn';
+    if (stored && ['zh-cn', 'en-us', 'th-th'].includes(stored)) {
+      return stored as Language;
+    }
+    
+    // 优先级3: 默认中文
+    return 'zh-cn';
   });
+
+  // 监听URL参数变化（用于测试切换语言）
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlLang = urlParams.get('lang');
+      if (urlLang && ['zh-cn', 'en-us', 'th-th'].includes(urlLang)) {
+        setLanguageState(urlLang as Language);
+        localStorage.setItem('language', urlLang);
+        queryClient.invalidateQueries();
+      }
+    };
+
+    // 监听浏览器前进/后退
+    window.addEventListener('popstate', handleUrlChange);
+    return () => window.removeEventListener('popstate', handleUrlChange);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('language', language);
