@@ -377,6 +377,16 @@ export default function CampaignDetail() {
     campaign.userClaimedCount >= campaign.maxPerUser;
   const canClaim = !isExpired && !isSoldOut && !userReachedLimit;
 
+  // 调试日志
+  console.log('[按钮显示调试]', {
+    isUserAuthenticated,
+    userClaimedCount: campaign.userClaimedCount,
+    maxPerUser: campaign.maxPerUser,
+    userReachedLimit,
+    canClaim,
+    shouldShowButton: !userReachedLimit
+  });
+
   // 按钮文案
   const getButtonText = () => {
     if (claiming) return t('campaign.claiming');
