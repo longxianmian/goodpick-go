@@ -55,6 +55,11 @@ export default function MyCoupons({ hideNavigation = false }: MyCouponsProps = {
   const [isLiffEnvironment, setIsLiffEnvironment] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
+  useEffect(() => {
+    console.log('[MyCoupons] mounted');
+    return () => console.log('[MyCoupons] unmounted');
+  }, []);
+
   // 检测LIFF环境并处理登录
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
