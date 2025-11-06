@@ -56,11 +56,20 @@ export default function CampaignDetail() {
       try {
         // 【多语言支持】设置 accept-language 请求头
         const sessionId = (window as any).__GPGO_SESSION_ID__;
+        const userToken = localStorage.getItem('userToken');
+        
+        const headers: Record<string, string> = {
+          'Accept-Language': language,
+          'X-GPGO-Session': sessionId || 'unknown',
+        };
+        
+        // 【关键修复】如果用户已登录，发送 JWT token 让后端识别用户身份
+        if (userToken) {
+          headers['Authorization'] = `Bearer ${userToken}`;
+        }
+        
         const res = await fetch(`/api/campaigns/${id}`, {
-          headers: {
-            'Accept-Language': language,
-            'X-GPGO-Session': sessionId || 'unknown',
-          },
+          headers,
         });
         if (!res.ok) throw new Error('Failed to load campaign');
         const data = await res.json();
