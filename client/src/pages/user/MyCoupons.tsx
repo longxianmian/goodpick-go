@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLocation, Link } from 'wouter';
@@ -101,32 +100,46 @@ export default function MyCoupons({ hideNavigation = false }: MyCouponsProps = {
     }
   }, []);
 
-  // 获取优惠券列表
-  const { data: response, isLoading } = useQuery<{
-    success: boolean;
-    data: Coupon[];
-  }>({
-    queryKey: ['/api/me/coupons', activeTab !== 'all' ? activeTab : ''],
-    queryFn: async () => {
-      const token = localStorage.getItem('userToken');
-      const url = activeTab !== 'all' 
-        ? `/api/me/coupons?status=${activeTab}`
-        : '/api/me/coupons';
-      
-      const res = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept-Language': language,
-        },
-      });
-      
-      if (!res.ok) throw new Error('Failed to fetch coupons');
-      return res.json();
-    },
-    enabled: isUserAuthenticated,
-  });
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const coupons = response?.data || [];
+  useEffect(() => {
+    if (!isUserAuthenticated) return;
+    
+    let cancelled = false;
+    
+    (async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem('userToken');
+        const url = activeTab !== 'all' 
+          ? `/api/me/coupons?status=${activeTab}`
+          : '/api/me/coupons';
+        
+        const res = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept-Language': language,
+          },
+        });
+        
+        if (!cancelled) {
+          const data = await res.json();
+          if (data.success) {
+            setCoupons(data.data);
+          }
+          setIsLoading(false);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('[MyCoupons] 加载优惠券失败:', error);
+          setIsLoading(false);
+        }
+      }
+    })();
+    
+    return () => { cancelled = true; };
+  }, [isUserAuthenticated, activeTab, language]);
 
   // 生成二维码
   useEffect(() => {

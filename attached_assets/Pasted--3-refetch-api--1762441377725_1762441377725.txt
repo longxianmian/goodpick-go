@@ -1,0 +1,132 @@
+现在请停止一切“高级调试”和日志分析，按下面的最简单方案重写这 3 个接口的前端调用方式：
+
+只保留「手动调用」，完全禁止「自动刷新 / 自动 refetch / 轮询」。
+
+三个接口：
+
+/api/config （配置 + LIFF 信息）
+
+/api/campaigns/:id（活动详情）
+
+/api/me/coupons （我的优惠券）
+
+一、总体要求（一句话版）
+
+这三个接口不准在后台自己重复请求。
+
+只允许在这些时机请求一次：
+
+/api/config：App 启动时请求一次。
+
+/api/campaigns/:id：进入活动详情页时请求一次（或 id 改变时）。
+
+/api/me/coupons：用户切到“我的优惠券”tab 的时候请求一次，或者在领券成功后手动刷新一次。
+
+除了上面这些明确动作之外，不允许再有任何自动请求。
+
+二、具体做法（不要再绕弯子）
+
+1）这三个接口可以直接先不用 React Query，改成最原始的 useEffect + fetch。
+
+示例风格（照这个思路来就行）：
+
+// App 里：加载 /api/config
+useEffect(() => {
+  let cancelled = false;
+  (async () => {
+    const res = await fetch('/api/config');
+    if (!cancelled) {
+      const data = await res.json();
+      setConfig(data);
+    }
+  })();
+  return () => { cancelled = true; };
+}, []); // 只在首次挂载时执行一次
+
+// CampaignDetail 里：加载 /api/campaigns/:id
+useEffect(() => {
+  if (!id) return;
+  let cancelled = false;
+  (async () => {
+    setLoading(true);
+    const res = await fetch(`/api/campaigns/${id}`);
+    if (!cancelled) {
+      const data = await res.json();
+      setCampaign(data);
+      setLoading(false);
+    }
+  })();
+  return () => { cancelled = true; };
+}, [id]); // 只在 id 变化时执行
+
+// MyCoupons 里：加载 /api/me/coupons
+useEffect(() => {
+  if (!isTabActive) return; // 只有切到“我的优惠券”这个 tab 才触发
+  let cancelled = false;
+  (async () => {
+    const res = await fetch('/api/me/coupons', {
+      headers: { Authorization: `Bearer ${userToken}` }
+    });
+    if (!cancelled) {
+      const data = await res.json();
+      setCoupons(data);
+    }
+  })();
+  return () => { cancelled = true; };
+}, [isTabActive, userToken]);
+
+
+重点：这三个地方不准再用什么 refetch、invalidate、refetchInterval、windowFocus 刷新，就老老实实用 useEffect + fetch。
+
+三、必须删除 / 禁止的东西
+
+请你主动在项目里检查并删除/禁用：
+
+所有和这三个接口相关的：
+
+refetchInterval
+
+refetchOnWindowFocus
+
+refetchOnReconnect
+
+refetchOnMount
+
+queryClient.invalidateQueries('/api/config'...)
+
+queryClient.invalidateQueries('/api/campaigns'...)
+
+queryClient.invalidateQueries('/api/me/coupons'...)
+
+任何 .refetch() 调用
+
+所有会间接触发这些接口的定时器：
+
+setInterval(...)
+
+很长时间的 setTimeout(...)
+
+用“轮询”之类的方式刷新活动详情或配置
+
+简单说：跟这三条 URL 有关系的自动刷新逻辑，全部砍掉。
+
+四、自测标准（非常简单）
+
+改完后，你只需要帮我验证这一件事：
+
+从 LINE OA 底部菜单点击「优惠活动」进入 H5：
+
+服务器日志应只出现一次：
+
+GET /api/config
+
+GET /api/campaigns/:id
+
+GET /api/me/coupons（这条可以没有，除非默认就加载）
+
+停在活动详情页不做任何操作，静置 30 秒：
+
+这 30 秒内，不允许再有任何新的 /api/config、/api/campaigns/:id、/api/me/coupons 请求。
+
+只要做到这一点，我就算你这次改对了。
+不需要再玩什么“智能缓存”“高级策略”，先把它变成一套老实的、只在用到时才请求一次的代码。
