@@ -154,6 +154,11 @@ export default function CampaignDetail() {
 
   // 获取活动详情
   console.log('[CampaignDetail] 组件挂载/更新，id:', id, 'pageState:', pageState);
+  
+  // 检查queryClient中是否有缓存
+  const cachedData = queryClient.getQueryData(['/api/campaigns', id]);
+  console.log('[CampaignDetail] queryClient缓存检查 - 有缓存:', !!cachedData);
+  
   const { data: response, isLoading } = useQuery<{
     success: boolean;
     data: {
