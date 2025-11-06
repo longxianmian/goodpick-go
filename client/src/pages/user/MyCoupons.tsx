@@ -84,21 +84,15 @@ export default function MyCoupons() {
       return;
     }
 
-    // Check LIFF environment
-    const checkLiff = async () => {
+    // 检查LIFF环境并自动登录（LIFF已在App.tsx初始化，不重复init）
+    const checkLiffAndLogin = async () => {
       if (window.liff) {
         try {
-          const liffId = import.meta.env.VITE_LIFF_ID;
-          if (!liffId) {
-            console.warn('VITE_LIFF_ID not configured');
-            setIsLiffEnvironment(false);
-            return;
-          }
-          await window.liff.init({ liffId });
+          // LIFF已在App.tsx全局初始化，直接检查环境
           setIsLiffEnvironment(window.liff.isInClient());
           
-          // LIFF登录成功后的处理
-          if (window.liff.isLoggedIn() && !isUserAuthenticated) {
+          // 如果在LIFF内且已登录，执行后端登录
+          if (window.liff.isInClient() && window.liff.isLoggedIn() && !isUserAuthenticated) {
             const idToken = window.liff.getIDToken();
             
             const response = await fetch('/api/auth/line/login', {
@@ -114,7 +108,7 @@ export default function MyCoupons() {
             }
           }
         } catch (error) {
-          console.error('LIFF init failed:', error);
+          console.error('LIFF检查失败:', error);
           setIsLiffEnvironment(false);
         }
       } else {
@@ -122,7 +116,8 @@ export default function MyCoupons() {
       }
     };
     
-    checkLiff();
+    // 延迟等待App.tsx中的LIFF初始化完成
+    setTimeout(checkLiffAndLogin, 500);
   }, [isUserAuthenticated]);
 
   // 获取优惠券列表

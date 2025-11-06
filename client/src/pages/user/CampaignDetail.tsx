@@ -87,9 +87,9 @@ export default function CampaignDetail() {
     }
   }, [autoClaimProcessed]); // 只依赖autoClaimProcessed
 
-  // 步骤2：初始化LIFF环境
+  // 步骤2：检查LIFF环境并自动登录（LIFF已在App.tsx初始化，不重复init）
   useEffect(() => {
-    const initLiff = async () => {
+    const checkLiffAndLogin = async () => {
       if (!window.liff) {
         setIsLiffEnvironment(false);
         setPageState('READY');
@@ -97,15 +97,7 @@ export default function CampaignDetail() {
       }
 
       try {
-        const liffId = import.meta.env.VITE_LIFF_ID;
-        if (!liffId) {
-          console.warn('[LIFF] VITE_LIFF_ID未配置');
-          setIsLiffEnvironment(false);
-          setPageState('READY');
-          return;
-        }
-
-        await window.liff.init({ liffId });
+        // LIFF已在App.tsx全局初始化，直接检查环境
         const inLiff = window.liff.isInClient();
         setIsLiffEnvironment(inLiff);
         console.log('[LIFF] 环境检测:', inLiff ? 'LIFF内' : '普通浏览器');
@@ -133,15 +125,16 @@ export default function CampaignDetail() {
           setPageState('READY');
         }
       } catch (error) {
-        console.error('[LIFF] 初始化失败:', error);
+        console.error('[LIFF] 检查失败:', error);
         setIsLiffEnvironment(false);
         setPageState('READY');
       }
     };
 
-    // 只在INIT状态且未处理过autoClaim时初始化LIFF
+    // 只在INIT状态且未处理过autoClaim时检查LIFF
     if (pageState === 'INIT' && !autoClaimProcessed) {
-      initLiff();
+      // 延迟等待App.tsx中的LIFF初始化完成
+      setTimeout(checkLiffAndLogin, 500);
     }
   }, [pageState, isUserAuthenticated, autoClaimProcessed]);
 

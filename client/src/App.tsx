@@ -146,10 +146,8 @@ function Router() {
 }
 
 function App() {
-  const [, navigate] = useLocation();
-
   useEffect(() => {
-    // Initialize LIFF
+    // Initialize LIFF (once globally, only initialization, no auto-login)
     const initLiff = async () => {
       try {
         const response = await fetch('/api/config');
@@ -158,7 +156,6 @@ function App() {
         if (data.success && data.data.liffId && (window as any).liff) {
           await (window as any).liff.init({ liffId: data.data.liffId });
           console.log('LIFF initialized successfully');
-
         }
       } catch (error) {
         console.error('LIFF initialization error:', error);
@@ -166,7 +163,7 @@ function App() {
     };
 
     initLiff();
-  }, [navigate]);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

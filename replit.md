@@ -9,6 +9,7 @@ Preferred communication style: Simple, everyday language in Chinese.
 
 ## Recent Updates (2025-11-06)
 - **底部导航菜单**: 在用户端页面（活动详情、我的优惠券）添加了固定底部导航，包含"优惠活动"和"我的优惠券"两个Tab，支持多语言切换，方便用户在两个页面之间快速导航。
+- **LIFF初始化优化**: 将LIFF初始化逻辑提升到App.tsx全局执行（仅初始化一次），避免页面导航时重复初始化和重复登录，显著优化LINE OA环境中的页面切换流畅度，消除闪烁现象。
 
 ## System Architecture
 
