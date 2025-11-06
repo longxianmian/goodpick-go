@@ -1367,6 +1367,24 @@ const translations: Record<Language, Record<string, string>> = {
   },
 };
 
+// 浏览器语言检测辅助函数
+const detectBrowserLanguage = (): Language => {
+  const browserLang = navigator.language || navigator.languages?.[0] || 'zh-CN';
+  const langCode = browserLang.toLowerCase();
+  
+  // 映射浏览器语言到系统支持的语言
+  if (langCode.startsWith('zh')) {
+    return 'zh-cn';
+  } else if (langCode.startsWith('th')) {
+    return 'th-th';
+  } else if (langCode.startsWith('en')) {
+    return 'en-us';
+  }
+  
+  // 默认中文
+  return 'zh-cn';
+};
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
     // 优先级1: 检查URL参数（用于测试）
@@ -1378,14 +1396,17 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       return urlLang as Language;
     }
     
-    // 优先级2: 检查localStorage
+    // 优先级2: 检查localStorage（后台手动切换或之前保存的设置）
     const stored = localStorage.getItem('language');
     if (stored && ['zh-cn', 'en-us', 'th-th'].includes(stored)) {
       return stored as Language;
     }
     
-    // 优先级3: 默认中文
-    return 'zh-cn';
+    // 优先级3: 自动检测浏览器语言
+    const detected = detectBrowserLanguage();
+    // 保存到localStorage，避免每次都检测
+    localStorage.setItem('language', detected);
+    return detected;
   });
 
   // 监听URL参数变化（用于测试切换语言）
