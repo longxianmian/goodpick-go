@@ -354,11 +354,10 @@
   }
 }
 
-/* 完全移除视频中间的播放按钮 */
+/* 优化视频播放按钮 - 保留功能，隐藏白色圆圈背景 */
 video::-webkit-media-controls-overlay-play-button {
-  display: none !important;
-}
-
-video::-webkit-media-controls-start-playback-button {
-  display: none !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
