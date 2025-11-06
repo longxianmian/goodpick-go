@@ -80,8 +80,8 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       staleTime: Infinity,
       retry: false,
-      // 确保invalidateQueries能真正重新获取数据
-      refetchOnMount: true,
+      // 避免页面导航时重复请求（使用缓存数据）
+      refetchOnMount: false,
     },
     mutations: {
       retry: false,
