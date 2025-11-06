@@ -1374,8 +1374,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     if (stored && ['zh-cn', 'en-us', 'th-th'].includes(stored)) {
       return stored as Language;
     }
-    // 无效或不存在时，设置默认值并保存
-    const defaultLang: Language = 'zh-cn';
+    // 无效或不存在时，设置默认值为泰语（系统在泰国运营）
+    const defaultLang: Language = 'th-th';
     localStorage.setItem('language', defaultLang);
     return defaultLang;
   });
@@ -1393,8 +1393,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'language' && e.newValue && ['zh-cn', 'en-us', 'th-th'].includes(e.newValue)) {
+        console.log(`[跨窗口同步] 检测到其他窗口切换语言: ${e.oldValue} -> ${e.newValue}`);
         setLanguageState(e.newValue as Language);
-        queryClient.invalidateQueries();
+        // 强制清除所有缓存并重新获取
+        queryClient.clear();
+        console.log(`[跨窗口同步] 已清除所有查询缓存，页面会自动重新获取数据`);
       }
     };
     window.addEventListener('storage', handleStorageChange);
