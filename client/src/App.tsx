@@ -7,7 +7,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
-import { initLiffOnce, isLiffEnvironment } from "@/lib/liffClient";
 import NotFound from "@/pages/not-found";
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminStores from "@/pages/admin/AdminStores";
@@ -146,27 +145,56 @@ function Router() {
   );
 }
 
+// 【修复】全局标志，确保LIFF只初始化一次（即使App组件被多次挂载）
+let liffInitialized = false;
+let liffInitializing = false;
+
 function App() {
   useEffect(() => {
-    console.log('[App] mounted');
+    console.log('[App] App组件挂载 at', new Date().toISOString());
     
+    // Initialize LIFF (once globally, only initialization, no auto-login)
     const initLiff = async () => {
+      // 【修复】如果已经初始化或正在初始化，直接跳过
+      if (liffInitialized || liffInitializing) {
+        console.log('[App] LIFF已初始化或正在初始化，跳过重复初始化');
+        return;
+      }
+
+      liffInitializing = true;
+      console.log('[App] 开始初始化LIFF at', new Date().toISOString());
+      
       try {
+        console.log('[App] 准备请求 /api/config');
         const response = await fetch('/api/config');
+        console.log('[App] /api/config 请求完成');
         const data = await response.json();
         
-        if (data.success && data.data.liffId && isLiffEnvironment()) {
-          await initLiffOnce({ liffId: data.data.liffId });
+        if (data.success && data.data.liffId && (window as any).liff) {
+          // 检查LIFF是否已经初始化（通过_liff._init私有属性）
+          const liff = (window as any).liff;
+          const alreadyInit = liff._liff && liff._liff._init;
+          
+          if (!alreadyInit) {
+            console.log('[App] LIFF未初始化，开始初始化');
+            await liff.init({ liffId: data.data.liffId });
+            console.log('[App] LIFF初始化成功');
+          } else {
+            console.log('[App] LIFF已初始化，跳过');
+          }
+          liffInitialized = true;
         }
       } catch (error) {
         console.error('[App] LIFF初始化失败:', error);
+      } finally {
+        liffInitializing = false;
       }
     };
 
     initLiff();
 
     return () => {
-      console.log('[App] unmounted');
+      console.log('[App] App组件卸载 at', new Date().toISOString());
     };
   }, []);
 
