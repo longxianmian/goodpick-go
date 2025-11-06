@@ -458,14 +458,20 @@ export default function CampaignDetail() {
                                   您的浏览器不支持视频播放
                                 </video>
                                 {!playingVideos.has(index) && (
-                                  <div
-                                    className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                                    data-testid={`video-play-indicator-${index}`}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const container = e.currentTarget.parentElement;
+                                      const video = container?.querySelector('video') as HTMLVideoElement;
+                                      if (video) video.play();
+                                    }}
+                                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
+                                    data-testid={`video-play-button-${index}`}
                                   >
-                                    <div className="bg-black/70 backdrop-blur-sm rounded-full p-2.5 shadow-lg">
+                                    <div className="bg-black/70 backdrop-blur-sm rounded-full p-2.5 shadow-lg transition-transform hover:scale-110">
                                       <Play className="w-6 h-6 text-white fill-white" />
                                     </div>
-                                  </div>
+                                  </button>
                                 )}
                               </>
                             ) : (
