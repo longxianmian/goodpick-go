@@ -33,8 +33,6 @@ export default function StaffBind() {
   const [token, setToken] = useState('');
   const [presetInfo, setPresetInfo] = useState<PresetInfo | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
-  const [phoneInput, setPhoneInput] = useState('');
-  const [phoneVerified, setPhoneVerified] = useState(false);
 
   useEffect(() => {
     console.log('[StaffBind] 初始化页面');
@@ -84,6 +82,7 @@ export default function StaffBind() {
         invalid_line_token: 'LINE验证失败，请重试',
         qr_code_expired: '二维码已过期（超过24小时），请联系管理员重新生成',
         callback_failed: '绑定失败，请重试',
+        phone_mismatch: '你的LINE绑定的手机号不是预设的授权手机号！授权核销失败！',
       };
       const errorMsg = errorMessages[errorParam] || '绑定失败，请重试';
       setErrorMessage(errorMsg);
@@ -120,34 +119,6 @@ export default function StaffBind() {
       console.error('[StaffBind] Token验证错误:', err);
       setErrorMessage(t('staffBind.invalidToken'));
       setPageState('invalid');
-    }
-  };
-
-  const handleVerifyPhone = () => {
-    if (!presetInfo) return;
-    
-    // 规范化手机号（移除非数字字符，取后9位）
-    const normalizePhone = (phone: string) => phone.replace(/[^0-9]/g, '').slice(-9);
-    
-    const inputNormalized = normalizePhone(phoneInput);
-    const presetNormalized = normalizePhone(presetInfo.phone);
-    
-    console.log('[StaffBind] 手机号验证 - 输入:', inputNormalized, '预设:', presetNormalized);
-    
-    if (inputNormalized === presetNormalized) {
-      setPhoneVerified(true);
-      console.log('[StaffBind] 手机号验证通过');
-      toast({
-        title: '✅ 确认成功',
-        description: '信息确认通过，现在可以使用LINE授权绑定',
-      });
-    } else {
-      console.log('[StaffBind] 手机号验证失败');
-      toast({
-        title: '❌ 确认失败',
-        description: '手机号不匹配，请输入正确的手机号',
-        variant: 'destructive',
-      });
     }
   };
 
@@ -321,82 +292,37 @@ export default function StaffBind() {
                 </div>
               </div>
 
-              {!phoneVerified ? (
-                <div className="space-y-4">
-                  <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                    <div className="flex gap-2">
-                      <div className="text-yellow-600 dark:text-yellow-400 mt-0.5">⚠️</div>
-                      <div className="text-sm text-yellow-900 dark:text-yellow-100">
-                        <div className="font-medium mb-1">验证手机号</div>
-                        <div className="text-yellow-700 dark:text-yellow-300">
-                          请输入预设的手机号（后4位：****{presetInfo.phone.slice(-4)}）进行身份验证
-                        </div>
-                      </div>
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <div className="flex gap-2">
+                  <div className="text-blue-600 dark:text-blue-400 mt-0.5">ℹ️</div>
+                  <div className="text-sm text-blue-900 dark:text-blue-100">
+                    <div className="font-medium mb-1">{t('staffBind.verifyTitle') || '确认身份'}</div>
+                    <div className="text-blue-700 dark:text-blue-300">
+                      {t('staffBind.verifyDesc') || '请确认以上信息是你本人，然后使用LINE账号完成授权'}
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">手机号码</label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="tel"
-                          placeholder="请输入手机号（如：0812345678）"
-                          value={phoneInput}
-                          onChange={(e) => setPhoneInput(e.target.value)}
-                          className="pl-10"
-                          data-testid="input-phone"
-                        />
-                      </div>
-                      <Button
-                        onClick={handleVerifyPhone}
-                        disabled={!phoneInput}
-                        data-testid="button-verify-phone"
-                      >
-                        验证
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      可以输入：0812345678、+66812345678 或 812345678
-                    </p>
                   </div>
                 </div>
-              ) : (
-                <>
-                  <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                    <div className="flex gap-2">
-                      <div className="text-green-600 dark:text-green-400 mt-0.5">✅</div>
-                      <div className="text-sm text-green-900 dark:text-green-100">
-                        <div className="font-medium mb-1">手机号验证成功</div>
-                        <div className="text-green-700 dark:text-green-300">
-                          现在可以使用LINE账号完成授权绑定
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+              </div>
 
-                  <Button
-                    className="w-full"
-                    size="lg"
-                    onClick={handleLineLogin}
-                    disabled={pageState === 'binding'}
-                    data-testid="button-line-login"
-                  >
-                    {pageState === 'binding' ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        {t('staffBind.authorizing')}
-                      </>
-                    ) : (
-                      <>
-                        <Shield className="h-4 w-4 mr-2" />
-                        {t('staffBind.authorizeButton')}
-                      </>
-                    )}
-                  </Button>
-                </>
-              )}
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleLineLogin}
+                disabled={pageState === 'binding'}
+                data-testid="button-line-login"
+              >
+                {pageState === 'binding' ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {t('staffBind.authorizing')}
+                  </>
+                ) : (
+                  <>
+                    <Shield className="h-4 w-4 mr-2" />
+                    {t('staffBind.authorizeButton')}
+                  </>
+                )}
+              </Button>
             </div>
           )}
         </CardContent>

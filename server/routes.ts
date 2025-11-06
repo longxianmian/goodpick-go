@@ -586,8 +586,27 @@ export function registerRoutes(app: Express): Server {
         })
         .where(eq(staffPresets.id, staffPreset.id));
 
-      // Redirect to success page
-      res.redirect(`/staff/bind?token=${state}&success=true`);
+      // Generate JWT token for staff
+      const token = jwt.sign(
+        {
+          id: user.id,
+          lineUserId: user.lineUserId,
+          type: 'user' as const,
+          staffId: staffPreset.staffId,
+          staffName: staffPreset.name,
+          storeId: staffPreset.storeId,
+        },
+        JWT_SECRET_VALUE,
+        { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
+      );
+
+      console.log('✅ 员工绑定成功，跳转到工作台', {
+        staffId: staffPreset.staffId,
+        userId: user.id
+      });
+
+      // Redirect to staff work area with token
+      res.redirect(`/staff/redeem?token=${encodeURIComponent(token)}&firstLogin=true`);
     } catch (error) {
       console.error('Staff LINE OAuth callback error:', error);
       res.redirect(`/staff/bind?error=callback_failed`);
