@@ -433,7 +433,19 @@ export default function CampaignDetail() {
                         <CarouselItem key={index} className="pl-2 md:pl-4">
                           <div className="w-full aspect-video rounded-lg overflow-hidden bg-black relative">
                             {isVideo ? (
-                              <>
+                              <div 
+                                className="w-full h-full relative cursor-pointer"
+                                onClick={(e) => {
+                                  const video = e.currentTarget.querySelector('video') as HTMLVideoElement;
+                                  if (video) {
+                                    if (video.paused) {
+                                      video.play();
+                                    } else {
+                                      video.pause();
+                                    }
+                                  }
+                                }}
+                              >
                                 <video
                                   ref={(el) => {
                                     if (el) {
@@ -451,29 +463,23 @@ export default function CampaignDetail() {
                                     }
                                   }}
                                   controls
-                                  className="w-full h-full object-contain"
+                                  className="w-full h-full object-contain pointer-events-none"
                                   data-testid={`media-video-${index}`}
                                 >
                                   <source src={url} type="video/mp4" />
                                   您的浏览器不支持视频播放
                                 </video>
                                 {!playingVideos.has(index) && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const container = e.currentTarget.parentElement;
-                                      const video = container?.querySelector('video') as HTMLVideoElement;
-                                      if (video) video.play();
-                                    }}
-                                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
-                                    data-testid={`video-play-button-${index}`}
+                                  <div
+                                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                                    data-testid={`video-play-indicator-${index}`}
                                   >
-                                    <div className="bg-black/70 backdrop-blur-sm rounded-full p-2.5 shadow-lg transition-transform hover:scale-110">
+                                    <div className="bg-black/70 backdrop-blur-sm rounded-full p-2.5 shadow-lg">
                                       <Play className="w-6 h-6 text-white fill-white" />
                                     </div>
-                                  </button>
+                                  </div>
                                 )}
-                              </>
+                              </div>
                             ) : (
                               <img
                                 src={url}
