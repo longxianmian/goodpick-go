@@ -258,7 +258,8 @@ export default function CampaignDetail() {
         description: t('campaign.claimSuccessDesc'),
       });
       setPageState('CLAIMED');
-      setLocation('/my-coupons');
+      // 【修复】领券成功后切换到"我的优惠券"视图，而不是路由跳转
+      setActiveView('my-coupons');
     },
     onError: (error: any) => {
       console.error('[Claim] 领券失败:', error);
@@ -384,10 +385,10 @@ export default function CampaignDetail() {
 
   // 领券按钮点击处理
   const handleClaimClick = () => {
-    // 用户已达到领取上限：跳转到我的优惠券页面
+    // 用户已达到领取上限：切换到我的优惠券视图
     if (userReachedLimit) {
-      console.log('[Claim] 用户已达上限，跳转到我的优惠券');
-      setLocation('/my-coupons');
+      console.log('[Claim] 用户已达上限，切换到我的优惠券视图');
+      setActiveView('my-coupons');
       return;
     }
     
