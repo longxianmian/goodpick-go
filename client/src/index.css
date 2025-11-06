@@ -353,3 +353,23 @@
     inset: -1px;
   }
 }
+
+/* 自定义视频播放按钮样式 - 精致简洁 */
+/* 隐藏浏览器默认的中间大播放按钮（白色圆圈） */
+video::-webkit-media-controls-overlay-play-button {
+  display: none !important;
+}
+
+video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+}
+
+/* Firefox */
+video::-moz-media-controls-overlay-play-button {
+  display: none !important;
+}
+
+/* 保留底部控制栏，用户可以通过控制栏播放 */
+video {
+  cursor: pointer;
+}
