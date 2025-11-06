@@ -1369,20 +1369,20 @@ const translations: Record<Language, Record<string, string>> = {
 
 // 浏览器语言检测辅助函数
 const detectBrowserLanguage = (): Language => {
-  const browserLang = navigator.language || navigator.languages?.[0] || 'zh-CN';
+  const browserLang = navigator.language || navigator.languages?.[0] || 'th-TH';
   const langCode = browserLang.toLowerCase();
   
   // 映射浏览器语言到系统支持的语言
-  if (langCode.startsWith('zh')) {
-    return 'zh-cn';
-  } else if (langCode.startsWith('th')) {
+  if (langCode.startsWith('th')) {
     return 'th-th';
+  } else if (langCode.startsWith('zh')) {
+    return 'zh-cn';
   } else if (langCode.startsWith('en')) {
     return 'en-us';
   }
   
-  // 默认中文
-  return 'zh-cn';
+  // 默认泰语（系统在泰国运营）
+  return 'th-th';
 };
 
 export function LanguageProvider({ children }: { children: ReactNode }) {

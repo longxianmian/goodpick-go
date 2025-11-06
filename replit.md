@@ -28,6 +28,11 @@ Security features include bcryptjs for password hashing, JWT secrets from enviro
 - **Internationalization (i18n)**: Extensive i18n coverage across the application, including UI elements, form fields, and error messages, supporting Chinese, English, and Thai.
 - **Thai Localization Optimization**: Enhanced Thai language experience with natural translations (e.g., "ส่วนลด" instead of "เปอร์เซ็นต์ส่วนลด"), cleaner number formatting (removing unnecessary decimals like 70% instead of 70.00%), and Thai-friendly date display using Buddhist Era calendar format.
 - **Store City Data Normalization**: Pragmatic solution balancing data integrity with operational flexibility. Google Maps integration intelligently extracts province/city names (not mall names/road names), with contextual help text guiding admins. City field remains manually editable for flexibility. E2E validated that campaign city selector shows only normalized values (Bangkok, นนทบุรี, กรุงเทพมหานคร).
+- **Smart Language Detection**: Intelligent multi-tier language selection system:
+  1. **URL Parameter** (`?lang=th-th`/`?lang=en-us`/`?lang=zh-cn`): Highest priority for testing and sharing
+  2. **Admin Language Selector**: Manual language switching in admin backend (saved to localStorage)
+  3. **Browser Language Auto-Detection**: Automatically detects user's browser language on first visit
+  4. **Default Thai**: Fallback to Thai language (system operates in Thailand)
 
 ## External Dependencies
 
