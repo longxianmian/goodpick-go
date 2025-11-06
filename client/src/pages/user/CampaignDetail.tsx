@@ -44,6 +44,14 @@ export default function CampaignDetail() {
     Autoplay({ delay: 3000, stopOnInteraction: true })
   );
 
+  // 【调试】组件挂载/卸载追踪
+  useEffect(() => {
+    console.log('[CampaignDetail] mounted at', new Date().toISOString());
+    return () => {
+      console.log('[CampaignDetail] unmounted at', new Date().toISOString());
+    };
+  }, []);
+
   // 【修复】一次性检查LIFF环境（仅在首次挂载时执行）
   useEffect(() => {
     console.log('[CampaignDetail] 首次挂载，检查LIFF环境');
@@ -197,6 +205,13 @@ export default function CampaignDetail() {
   console.log('[CampaignDetail] useQuery结果 - isLoading:', isLoading, 'hasData:', !!response);
 
   const campaign = response?.data;
+
+  // 【调试】追踪数据获取时间
+  useEffect(() => {
+    if (response && !isLoading) {
+      console.log('[CampaignDetail] campaign data fetched at', new Date().toISOString());
+    }
+  }, [response, isLoading]);
 
   // 格式化券值显示（去除不必要的小数）
   const formatCouponValue = (value: string, type: string) => {
