@@ -1406,10 +1406,25 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const setLanguage = (lang: Language) => {
     console.log(`[setLanguage] 切换语言: ${lang}`);
-    console.log(`[setLanguage] 切换前localStorage: ${localStorage.getItem('language')}`);
-    // 立即同步保存到localStorage，不依赖useEffect
+    const oldValue = localStorage.getItem('language');
+    console.log(`[setLanguage] 切换前localStorage: ${oldValue}`);
+    
+    // 立即同步保存到localStorage
     localStorage.setItem('language', lang);
     console.log(`[setLanguage] localStorage已立即保存为: ${localStorage.getItem('language')}`);
+    
+    // 手动触发storage事件，让其他窗口（包括Replit预览窗口）能收到
+    const storageEvent = new StorageEvent('storage', {
+      key: 'language',
+      oldValue: oldValue,
+      newValue: lang,
+      url: window.location.href,
+      storageArea: localStorage
+    });
+    window.dispatchEvent(storageEvent);
+    console.log(`[setLanguage] 已手动触发storage事件，其他窗口会收到通知`);
+    
+    // 更新当前窗口的state
     setLanguageState(lang);
     // 语言切换时清除所有查询缓存，确保重新获取翻译后的内容
     queryClient.invalidateQueries();
