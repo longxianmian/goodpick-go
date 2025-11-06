@@ -34,6 +34,7 @@ export default function CampaignDetail() {
   const [rulesDialogOpen, setRulesDialogOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [activeView, setActiveView] = useState<'campaign' | 'my-coupons'>('campaign');
+  const [playingVideos, setPlayingVideos] = useState<Set<number>>(new Set());
   
   const autoplayPlugin = useRef(Autoplay({ delay: 3000, stopOnInteraction: true }));
 
@@ -432,14 +433,45 @@ export default function CampaignDetail() {
                         <CarouselItem key={index} className="pl-2 md:pl-4">
                           <div className="w-full aspect-video rounded-lg overflow-hidden bg-black relative">
                             {isVideo ? (
-                              <video
-                                controls
-                                className="w-full h-full object-contain"
-                                data-testid={`media-video-${index}`}
-                              >
-                                <source src={url} type="video/mp4" />
-                                您的浏览器不支持视频播放
-                              </video>
+                              <>
+                                <video
+                                  ref={(el) => {
+                                    if (el) {
+                                      el.onplay = () => setPlayingVideos(prev => new Set(prev).add(index));
+                                      el.onpause = () => {
+                                        const newSet = new Set(playingVideos);
+                                        newSet.delete(index);
+                                        setPlayingVideos(newSet);
+                                      };
+                                      el.onended = () => {
+                                        const newSet = new Set(playingVideos);
+                                        newSet.delete(index);
+                                        setPlayingVideos(newSet);
+                                      };
+                                    }
+                                  }}
+                                  controls
+                                  className="w-full h-full object-contain"
+                                  data-testid={`media-video-${index}`}
+                                >
+                                  <source src={url} type="video/mp4" />
+                                  您的浏览器不支持视频播放
+                                </video>
+                                {!playingVideos.has(index) && (
+                                  <button
+                                    onClick={(e) => {
+                                      const video = e.currentTarget.previousElementSibling as HTMLVideoElement;
+                                      if (video) video.play();
+                                    }}
+                                    className="absolute inset-0 flex items-center justify-center group"
+                                    data-testid={`video-play-button-${index}`}
+                                  >
+                                    <div className="bg-black/70 backdrop-blur-sm rounded-full p-2.5 transition-all group-hover:scale-110 group-hover:bg-black/80 shadow-lg">
+                                      <Play className="w-6 h-6 text-white fill-white" />
+                                    </div>
+                                  </button>
+                                )}
+                              </>
                             ) : (
                               <img
                                 src={url}
