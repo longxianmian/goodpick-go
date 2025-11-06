@@ -157,7 +157,8 @@ export default function CampaignDetail() {
   // 【方案要求】LIFF登录（只在按钮点击时调用）
   const handleLiffLogin = async () => {
     try {
-      if (!window.liff) {
+      if (!(window as any).liff) {
+        console.error('[handleLiffLogin] LIFF SDK not available');
         toast({
           title: t('common.error'),
           description: t('campaign.liffNotReady'),
@@ -166,13 +167,38 @@ export default function CampaignDetail() {
         return;
       }
 
-      if (!window.liff.isLoggedIn()) {
-        await window.liff.login();
+      const liff = (window as any).liff;
+
+      // 【按需初始化 LIFF】如果还没有初始化，则在这里初始化
+      if (!(window as any).__LIFF_INITED__) {
+        // 优先使用 VITE_LIFF_ID
+        const liffId = import.meta.env.VITE_LIFF_ID;
+        if (!liffId) {
+          console.error('[handleLiffLogin] No LIFF ID configured');
+          toast({
+            title: t('common.error'),
+            description: 'LIFF ID not configured',
+            variant: 'destructive',
+          });
+          return;
+        }
+        
+        console.log('[handleLiffLogin] 开始按需初始化 LIFF');
+        await liff.init({ liffId });
+        (window as any).__LIFF_INITED__ = true;
+        console.log('[handleLiffLogin] LIFF 初始化完成');
+      }
+
+      // LIFF 初始化完成后，检查登录状态
+      if (!liff.isLoggedIn()) {
+        console.log('[handleLiffLogin] 用户未登录，跳转 LIFF 登录');
+        await liff.login();
         return;
       }
 
       // 已登录LIFF但未登录后端
-      const idToken = window.liff.getIDToken();
+      console.log('[handleLiffLogin] 用户已登录 LIFF，获取 ID Token');
+      const idToken = liff.getIDToken();
       const response = await fetch('/api/auth/line/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -182,6 +208,7 @@ export default function CampaignDetail() {
       const data = await response.json();
 
       if (data.success) {
+        console.log('[handleLiffLogin] 后端登录成功');
         loginUser(data.token, data.user);
         // 登录成功后自动领券
         await handleClaim();
@@ -189,6 +216,7 @@ export default function CampaignDetail() {
         throw new Error(data.message);
       }
     } catch (error: any) {
+      console.error('[handleLiffLogin] 错误:', error);
       toast({
         title: t('common.error'),
         description: error.message || t('login.failed'),

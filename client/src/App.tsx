@@ -167,17 +167,9 @@ function App() {
         if (!cancelled) {
           setConfig(data);
 
-          // 初始化 LIFF（如果需要）
-          if (data.success && data.data?.liffId && (window as any).liff) {
-            const liff = (window as any).liff;
-            const alreadyInit = liff._liff && liff._liff._init;
-            
-            if (!alreadyInit) {
-              console.log('[App] 开始初始化 LIFF');
-              await liff.init({ liffId: data.data.liffId });
-              console.log('[App] LIFF 初始化成功');
-            }
-          }
+          // 【修改】不再在这里自动初始化 LIFF
+          // LIFF 将在用户点击"立即领取"时按需初始化（见 CampaignDetail.tsx）
+          console.log('[App] 配置加载完成，LIFF ID =', data.data?.liffId);
         }
       } catch (error) {
         console.error('[App] 加载配置失败:', error);

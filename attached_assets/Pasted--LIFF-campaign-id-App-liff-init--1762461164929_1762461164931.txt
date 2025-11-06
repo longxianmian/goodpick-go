@@ -1,0 +1,108 @@
+我们现在已经确认 LIFF 初始化是最大嫌疑人，请你按以下方案修改：
+
+目标
+
+打开活动详情页 /campaign/:id 时：
+
+不要在 App 挂载阶段自动调用 liff.init()；
+
+页面只加载一次，不要因为 LIFF 初始化导致整页重载。
+
+只有在用户点击“立即领取”（要用 LIFF 登录）时，才去初始化 LIFF。
+
+第一步：停止在 App.tsx 里“自动 init LIFF”
+
+打开 client/src/App.tsx。
+
+在 useEffect 里加载 /api/config 的逻辑保留，但去掉或注释掉这一段自动初始化 LIFF 的代码：
+
+if (data.success && data.data?.liffId && (window as any).liff) {
+  const liff = (window as any).liff;
+  const alreadyInit = liff._liff && liff._liff._init;
+
+  if (!alreadyInit) {
+    console.log('[App] 开始初始化 LIFF');
+    await liff.init({ liffId: data.data.liffId });
+    console.log('[App] LIFF 初始化成功');
+  }
+}
+
+
+改动要求：
+
+/api/config 仍然要请求，并把结果保存到 config 状态里；
+
+只是不在这里调用 liff.init()。
+
+其他逻辑不要动。
+
+第二步：把 LIFF 初始化挪到“用户点击登录”的时候
+
+打开 client/src/pages/user/CampaignDetail.tsx，找到 handleLiffLogin 函数（用于 LIFF 环境下的“立即领取”）。
+
+在 handleLiffLogin 里增加“按需初始化 LIFF”的逻辑，大致如下：
+
+const handleLiffLogin = async () => {
+  if (!(window as any).liff) {
+    console.error('LIFF SDK not available');
+    return;
+  }
+
+  const liff = (window as any).liff;
+
+  try {
+    // 如果还没有初始化，则在这里按需初始化
+    // liffId 可以优先使用 config.data.liffId（如果有），或者 VITE_LIFF_ID
+    if (!(liff as any)._initDone) {
+      const liffId = config?.data?.liffId || import.meta.env.VITE_LIFF_ID;
+      if (!liffId) {
+        console.error('No LIFF ID configured');
+        return;
+      }
+      console.log('[handleLiffLogin] 初始化 LIFF');
+      await liff.init({ liffId });
+      (liff as any)._initDone = true;
+    }
+
+    // 初始化完成后，再检查是否已登录
+    if (!liff.isLoggedIn()) {
+      await liff.login();
+      return;
+    }
+
+    // 已登录的情况：继续后续逻辑（调用后端、换 token 等）
+    // ……（保持现有逻辑不变）
+  } catch (e) {
+    console.error('LIFF login flow error:', e);
+  }
+};
+
+
+关键点：
+
+不再在 App.tsx 里“全局自动初始化 LIFF”；
+
+只在用户真正点击“立即领取”且处于 LIFF 环境时，才按需初始化；
+
+初始化后，用一个简单的标记（比如 liff._initDone 或 window.__LIFF_INITED__）避免重复初始化。
+
+第三步：验证
+
+修改完成并重启应用后：
+
+用一台手机，在 LINE OA 里点击一次“优惠活动”，进入活动详情页；
+
+10–20 秒内不要点击任何按钮；
+
+帮我整理这个时间范围内 /api/config 和 /api/campaigns/1 的日志（带 Session ID）：
+
+正常情况应该是：
+
+只有一组 Session ID；
+
+/api/config 和 /api/campaigns/1 各被调用一次；
+
+不会再在 6 秒后出现新的 Session 或重复请求。
+
+请严格按这个方案修改，只动 App.tsx 和 CampaignDetail.tsx 里与 LIFF 初始化相关的部分。
+其他模块（AuthContext、多语言、Staff、Admin 等）先不要动。
