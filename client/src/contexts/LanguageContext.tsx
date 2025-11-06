@@ -1432,7 +1432,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [language]);
 
   const setLanguage = (lang: Language) => {
+    console.log('[语言切换] 切换到:', lang);
     setLanguageState(lang);
+    localStorage.setItem('language', lang);
+    console.log('[语言切换] localStorage已保存:', localStorage.getItem('language'));
     // 语言切换时清除所有查询缓存，确保重新获取翻译后的内容
     queryClient.invalidateQueries();
   };
