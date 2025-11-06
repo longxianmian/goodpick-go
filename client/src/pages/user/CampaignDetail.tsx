@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Gift, Calendar, MapPin, Tag, Phone, Star, Navigation, FileText, Building2, Ticket } from 'lucide-react';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useState, useEffect, useRef } from 'react';
+import MyCoupons from './MyCoupons';
 
 declare global {
   interface Window {
@@ -40,6 +41,7 @@ export default function CampaignDetail() {
   const [rulesDialogOpen, setRulesDialogOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [autoClaimProcessed, setAutoClaimProcessed] = useState(false); // 标记autoClaim是否已处理
+  const [activeView, setActiveView] = useState<'campaign' | 'my-coupons'>('campaign'); // 【修复】视图切换状态
   const autoplayPlugin = useRef(
     Autoplay({ delay: 3000, stopOnInteraction: true })
   );
@@ -492,11 +494,13 @@ export default function CampaignDetail() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      {/* 固定头部 - 图片/视频 */}
-      <div className="flex-shrink-0">
-        <div className="container max-w-4xl mx-auto p-4 pb-0">
-          {/* 媒体轮播（图片和视频） */}
-          {campaign.mediaUrls && campaign.mediaUrls.length > 0 ? (
+      {activeView === 'campaign' ? (
+        <>
+          {/* 固定头部 - 图片/视频 */}
+          <div className="flex-shrink-0">
+            <div className="container max-w-4xl mx-auto p-4 pb-0">
+              {/* 媒体轮播（图片和视频） */}
+              {campaign.mediaUrls && campaign.mediaUrls.length > 0 ? (
             <Carousel 
               className="w-full" 
               plugins={[autoplayPlugin.current]}
@@ -732,7 +736,7 @@ export default function CampaignDetail() {
 
       {/* 固定在底部的区域 */}
       <div className="border-t bg-background">
-        {/* 领取按钮 */}
+        {/* 领取按钮（只在活动详情视图显示） */}
         <div className="container max-w-4xl mx-auto px-4 pt-3 pb-2">
           <Button
             className="w-full bg-orange-500 hover:bg-orange-600 text-white"
@@ -745,20 +749,62 @@ export default function CampaignDetail() {
           </Button>
         </div>
         
-        {/* 底部导航菜单 */}
+        {/* 底部导航菜单（两个视图共享） */}
         <div className="border-t">
           <div className="container max-w-4xl mx-auto grid grid-cols-2">
-            <Link href="/campaign/1" className="flex flex-col items-center justify-center py-3 gap-1 hover-elevate border-b-2 border-orange-500" data-testid="nav-activities">
-              <Tag className="h-5 w-5 text-orange-500" />
-              <span className="text-xs font-medium text-orange-500">{t('nav.activities')}</span>
-            </Link>
-            <Link href="/my-coupons" className="flex flex-col items-center justify-center py-3 gap-1 hover-elevate" data-testid="nav-my-coupons">
-              <Ticket className="h-5 w-5 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">{t('nav.myCoupons')}</span>
-            </Link>
+            <button 
+              onClick={() => setActiveView('campaign')}
+              className={`flex flex-col items-center justify-center py-3 gap-1 hover-elevate ${activeView === 'campaign' ? 'border-b-2 border-orange-500' : ''}`}
+              data-testid="nav-activities"
+            >
+              <Tag className={`h-5 w-5 ${activeView === 'campaign' ? 'text-orange-500' : 'text-muted-foreground'}`} />
+              <span className={`text-xs ${activeView === 'campaign' ? 'font-medium text-orange-500' : 'text-muted-foreground'}`}>{t('nav.activities')}</span>
+            </button>
+            <button 
+              onClick={() => setActiveView('my-coupons')}
+              className={`flex flex-col items-center justify-center py-3 gap-1 hover-elevate ${activeView === 'my-coupons' ? 'border-b-2 border-orange-500' : ''}`}
+              data-testid="nav-my-coupons"
+            >
+              <Ticket className={`h-5 w-5 ${activeView === 'my-coupons' ? 'text-orange-500' : 'text-muted-foreground'}`} />
+              <span className={`text-xs ${activeView === 'my-coupons' ? 'font-medium text-orange-500' : 'text-muted-foreground'}`}>{t('nav.myCoupons')}</span>
+            </button>
           </div>
         </div>
       </div>
+      </>
+      ) : (
+        <>
+          {/* 我的优惠券视图 */}
+          <div className="flex-1 overflow-y-auto">
+            <MyCoupons hideNavigation={true} />
+          </div>
+
+          {/* 固定在底部的区域 */}
+          <div className="border-t bg-background">
+            {/* 底部导航菜单 */}
+            <div className="border-t">
+              <div className="container max-w-4xl mx-auto grid grid-cols-2">
+                <button 
+                  onClick={() => setActiveView('campaign')}
+                  className={`flex flex-col items-center justify-center py-3 gap-1 hover-elevate ${activeView === 'campaign' ? 'border-b-2 border-orange-500' : ''}`}
+                  data-testid="nav-activities"
+                >
+                  <Tag className={`h-5 w-5 ${activeView === 'campaign' ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                  <span className={`text-xs ${activeView === 'campaign' ? 'font-medium text-orange-500' : 'text-muted-foreground'}`}>{t('nav.activities')}</span>
+                </button>
+                <button 
+                  onClick={() => setActiveView('my-coupons')}
+                  className={`flex flex-col items-center justify-center py-3 gap-1 hover-elevate ${activeView === 'my-coupons' ? 'border-b-2 border-orange-500' : ''}`}
+                  data-testid="nav-my-coupons"
+                >
+                  <Ticket className={`h-5 w-5 ${activeView === 'my-coupons' ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                  <span className={`text-xs ${activeView === 'my-coupons' ? 'font-medium text-orange-500' : 'text-muted-foreground'}`}>{t('nav.myCoupons')}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

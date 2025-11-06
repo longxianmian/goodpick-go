@@ -40,7 +40,11 @@ interface Coupon {
   redeemedStoreId: number | null;
 }
 
-export default function MyCoupons() {
+interface MyCouponsProps {
+  hideNavigation?: boolean; // 可选prop：隐藏底部导航
+}
+
+export default function MyCoupons({ hideNavigation = false }: MyCouponsProps = {}) {
   const { isUserAuthenticated, logoutUser, user, loginUser } = useAuth();
   const { t, language } = useLanguage();
   const [, setLocation] = useLocation();
@@ -454,19 +458,21 @@ export default function MyCoupons() {
           </DialogContent>
         </Dialog>
 
-        {/* 底部导航菜单 */}
-        <div className="fixed bottom-0 left-0 right-0 border-t bg-background">
-          <div className="container max-w-4xl mx-auto grid grid-cols-2">
-            <Link href="/campaign/1" className="flex flex-col items-center justify-center py-3 gap-1 hover-elevate" data-testid="nav-activities">
-              <Tag className="h-5 w-5 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">{t('nav.activities')}</span>
-            </Link>
-            <Link href="/my-coupons" className="flex flex-col items-center justify-center py-3 gap-1 hover-elevate border-b-2 border-orange-500" data-testid="nav-my-coupons">
-              <Ticket className="h-5 w-5 text-orange-500" />
-              <span className="text-xs font-medium text-orange-500">{t('nav.myCoupons')}</span>
-            </Link>
+        {/* 底部导航菜单（仅在非嵌入模式下显示） */}
+        {!hideNavigation && (
+          <div className="fixed bottom-0 left-0 right-0 border-t bg-background">
+            <div className="container max-w-4xl mx-auto grid grid-cols-2">
+              <Link href="/campaign/1" className="flex flex-col items-center justify-center py-3 gap-1 hover-elevate" data-testid="nav-activities">
+                <Tag className="h-5 w-5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">{t('nav.activities')}</span>
+              </Link>
+              <Link href="/my-coupons" className="flex flex-col items-center justify-center py-3 gap-1 hover-elevate border-b-2 border-orange-500" data-testid="nav-my-coupons">
+                <Ticket className="h-5 w-5 text-orange-500" />
+                <span className="text-xs font-medium text-orange-500">{t('nav.myCoupons')}</span>
+              </Link>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
