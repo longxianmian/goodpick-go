@@ -1381,7 +1381,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    localStorage.setItem('language', language);
+    // 确保localStorage与React state保持同步
+    const stored = localStorage.getItem('language');
+    if (stored !== language) {
+      console.log(`[同步修复] localStorage(${stored}) 与 state(${language}) 不一致，立即修复`);
+      localStorage.setItem('language', language);
+    }
   }, [language]);
 
   // 监听其他标签页的语言切换（跨标签页同步）
@@ -1399,9 +1404,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const setLanguage = (lang: Language) => {
     console.log(`[setLanguage] 切换语言: ${lang}`);
     console.log(`[setLanguage] 切换前localStorage: ${localStorage.getItem('language')}`);
+    // 立即同步保存到localStorage，不依赖useEffect
+    localStorage.setItem('language', lang);
+    console.log(`[setLanguage] localStorage已立即保存为: ${localStorage.getItem('language')}`);
     setLanguageState(lang);
-    console.log(`[setLanguage] React state已更新为: ${lang}`);
-    console.log(`[setLanguage] useEffect会在下次渲染后保存到localStorage`);
     // 语言切换时清除所有查询缓存，确保重新获取翻译后的内容
     queryClient.invalidateQueries();
   };
