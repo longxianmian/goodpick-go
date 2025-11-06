@@ -458,8 +458,8 @@ export default function CampaignDetail() {
                                     className="absolute inset-0 flex items-center justify-center group"
                                     data-testid={`video-play-button-${index}`}
                                   >
-                                    <div className="bg-black/60 backdrop-blur-sm rounded-full p-3 transition-transform group-hover:scale-110">
-                                      <Play className="w-8 h-8 text-white fill-white" />
+                                    <div className="bg-black/70 backdrop-blur-sm rounded-full p-2 transition-all group-hover:scale-110 group-hover:bg-black/80">
+                                      <Play className="w-5 h-5 text-white fill-white" />
                                     </div>
                                   </button>
                                 )}
