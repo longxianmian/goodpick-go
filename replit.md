@@ -7,6 +7,9 @@ GoodPick Go is a multi-language coupon recommendation platform designed for the 
 **语言要求**: 必须使用中文沟通（用户不懂英文，这是强制要求）
 Preferred communication style: Simple, everyday language in Chinese.
 
+## Recent Updates (2025-11-06)
+- **底部导航菜单**: 在用户端页面（活动详情、我的优惠券）添加了固定底部导航，包含"优惠活动"和"我的优惠券"两个Tab，支持多语言切换，方便用户在两个页面之间快速导航。
+
 ## System Architecture
 
 ### Frontend Architecture

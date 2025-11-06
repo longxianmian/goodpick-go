@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Gift, Calendar, MapPin, LogOut, Ticket } from 'lucide-react';
+import { Gift, Calendar, MapPin, LogOut, Ticket, Tag } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import QRCode from 'qrcode';
 
@@ -290,7 +290,7 @@ export default function MyCoupons() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container max-w-4xl mx-auto p-4 space-y-6">
+      <div className="container max-w-4xl mx-auto p-4 pb-20 space-y-6">
         {/* 头部 */}
         <Card>
           <CardHeader>
@@ -486,6 +486,20 @@ export default function MyCoupons() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* 底部导航菜单 */}
+        <div className="fixed bottom-0 left-0 right-0 border-t bg-background">
+          <div className="container max-w-4xl mx-auto grid grid-cols-2">
+            <Link href="/campaign/1" className="flex flex-col items-center justify-center py-3 gap-1 hover-elevate" data-testid="nav-activities">
+              <Tag className="h-5 w-5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">{t('nav.activities')}</span>
+            </Link>
+            <Link href="/my-coupons" className="flex flex-col items-center justify-center py-3 gap-1 hover-elevate border-b-2 border-orange-500" data-testid="nav-my-coupons">
+              <Ticket className="h-5 w-5 text-orange-500" />
+              <span className="text-xs font-medium text-orange-500">{t('nav.myCoupons')}</span>
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

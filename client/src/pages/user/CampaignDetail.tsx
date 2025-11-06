@@ -1,4 +1,4 @@
-import { useParams, useLocation } from 'wouter';
+import { useParams, useLocation, Link } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Autoplay from 'embla-carousel-autoplay';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Gift, Calendar, MapPin, Tag, Phone, Star, Navigation, FileText, Building2 } from 'lucide-react';
+import { Gift, Calendar, MapPin, Tag, Phone, Star, Navigation, FileText, Building2, Ticket } from 'lucide-react';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useState, useEffect, useRef } from 'react';
 
@@ -751,9 +751,10 @@ export default function CampaignDetail() {
         </div>
       </div>
 
-      {/* 固定在底部的领取按钮 */}
+      {/* 固定在底部的区域 */}
       <div className="border-t bg-background">
-        <div className="container max-w-4xl mx-auto p-4">
+        {/* 领取按钮 */}
+        <div className="container max-w-4xl mx-auto px-4 pt-3 pb-2">
           <Button
             className="w-full bg-orange-500 hover:bg-orange-600 text-white"
             size="lg"
@@ -763,6 +764,20 @@ export default function CampaignDetail() {
           >
             {getButtonText()}
           </Button>
+        </div>
+        
+        {/* 底部导航菜单 */}
+        <div className="border-t">
+          <div className="container max-w-4xl mx-auto grid grid-cols-2">
+            <Link href="/campaign/1" className="flex flex-col items-center justify-center py-3 gap-1 hover-elevate border-b-2 border-orange-500" data-testid="nav-activities">
+              <Tag className="h-5 w-5 text-orange-500" />
+              <span className="text-xs font-medium text-orange-500">{t('nav.activities')}</span>
+            </Link>
+            <Link href="/my-coupons" className="flex flex-col items-center justify-center py-3 gap-1 hover-elevate" data-testid="nav-my-coupons">
+              <Ticket className="h-5 w-5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">{t('nav.myCoupons')}</span>
+            </Link>
+          </div>
         </div>
       </div>
     </div>

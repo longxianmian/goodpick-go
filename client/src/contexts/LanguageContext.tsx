@@ -38,6 +38,8 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.stores': '门店管理',
     'nav.campaigns': '活动管理',
     'nav.dashboard': '数据面板',
+    'nav.activities': '优惠活动',
+    'nav.myCoupons': '我的优惠券',
     
     // Login
     'login.title': '管理后台登录',
@@ -491,6 +493,8 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.stores': 'Stores',
     'nav.campaigns': 'Campaigns',
     'nav.dashboard': 'Dashboard',
+    'nav.activities': 'Activities',
+    'nav.myCoupons': 'My Coupons',
     
     // Login
     'login.title': 'Admin Login',
@@ -944,6 +948,8 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.stores': 'จัดการร้านค้า',
     'nav.campaigns': 'จัดการแคมเปญ',
     'nav.dashboard': 'แดชบอร์ด',
+    'nav.activities': 'โปรโมชั่น',
+    'nav.myCoupons': 'คูปองของฉัน',
     
     // Login
     'login.title': 'เข้าสู่ระบบผู้ดูแล',
