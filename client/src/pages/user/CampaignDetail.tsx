@@ -450,8 +450,16 @@ export default function CampaignDetail() {
                                       };
                                     }
                                   }}
+                                  onClick={(e) => {
+                                    const video = e.currentTarget;
+                                    if (video.paused) {
+                                      video.play();
+                                    } else {
+                                      video.pause();
+                                    }
+                                  }}
                                   controls
-                                  className="w-full h-full object-contain"
+                                  className="w-full h-full object-contain cursor-pointer"
                                   data-testid={`media-video-${index}`}
                                 >
                                   <source src={url} type="video/mp4" />
