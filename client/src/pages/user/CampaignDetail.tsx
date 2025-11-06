@@ -594,32 +594,35 @@ export default function CampaignDetail() {
               </div>
             </div>
 
-            {/* 库存信息 - 合并到一行 */}
-            <div className="flex items-center gap-4 text-sm flex-wrap">
-              {/* 活动日期 */}
-              <div data-testid="campaign-duration">
-                <span className="text-muted-foreground">{t('campaign.period')}:</span>
-                <span className="font-semibold ml-2">
-                  {formatThaiDate(campaign.startAt, language)} - {formatThaiDate(campaign.endAt, language)}
-                </span>
-              </div>
+            {/* 有效期 */}
+            <div className="text-sm" data-testid="campaign-duration">
+              <span className="text-muted-foreground">{t('campaign.period')}</span>
+              <span className="font-semibold ml-2">
+                {formatThaiDate(campaign.startAt, language)} - {formatThaiDate(campaign.endAt, language)}
+              </span>
+            </div>
+
+            {/* 库存和配额信息 - 参考设计格式 */}
+            <div className="text-sm" data-testid="stock-and-limit-info">
               {campaign.maxTotal && (
-                <div data-testid="stock-info">
-                  <span className="text-muted-foreground">{t('campaign.stock')}:</span>
-                  <span className="font-semibold ml-2">
-                    {campaign.maxTotal - campaign.currentClaimed} / {campaign.maxTotal}
+                <span data-testid="stock-info">
+                  <span className="text-muted-foreground">{t('campaign.stock')}</span>
+                  <span className="font-semibold ml-1">
+                    {campaign.maxTotal - campaign.currentClaimed} {t('campaign.remaining')}
                   </span>
-                </div>
+                  <span className="text-muted-foreground mx-1">{t('campaign.from')}</span>
+                  <span className="font-semibold">
+                    {campaign.maxTotal} {t('campaign.remaining')}
+                  </span>
+                  <span className="text-muted-foreground mx-2">•</span>
+                </span>
               )}
-              <div data-testid="limit-info">
-                <span className="text-muted-foreground">{t('campaign.limitPerUser')}:</span>
-                <span className="font-semibold ml-2">{campaign.maxPerUser}</span>
-                {isUserAuthenticated && campaign.userClaimedCount !== undefined && (
-                  <span className="ml-2 text-muted-foreground">
-                    ({t('campaign.claimed')}: {campaign.userClaimedCount})
-                  </span>
-                )}
-              </div>
+              <span data-testid="limit-info">
+                <span className="text-muted-foreground">{t('campaign.limitPerUser')}</span>
+                <span className="font-semibold ml-1">
+                  {campaign.maxPerUser} {t('campaign.rightsPerPerson')}
+                </span>
+              </span>
             </div>
           </CardContent>
 
