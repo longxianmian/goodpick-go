@@ -1,0 +1,194 @@
+请不要再做微调调试，而是把「从 LINE OA 打开活动详情页 + 登录 + 领取」这一整套前端流程按下面要求重写一遍。后端 API 和数据库结构暂时不要改。
+
+一、总体目标
+
+从 LINE OA 富菜单点击「优惠活动」进入 H5 后：
+
+只加载一次活动详情页面；
+
+只请求一次 /api/config 和一次 /api/campaigns/:id；
+
+停在详情页，让用户自己决定下一步（领取 / 查看规则 / 看门店），不再自动刷新、自动重载、自动跳转。
+
+底部 tab 已经有「优惠活动 / 我的优惠券」两个按钮，OA 端只保留一个底部菜单「优惠活动」按钮即可；不要再依赖 OA 里的「我的优惠券」菜单。
+
+保留现在已经能用的功能：
+
+普通用户 OA：LIFF 登录 + 领券成功；
+
+用户登录后的「我的优惠券」列表；
+
+后端所有现有接口、JWT、权限控制逻辑。
+
+二、需要你重写 / 清理的前端部分
+
+重点要求：先把「重复挂载」「重复请求」问题清理干净，再谈优化。不要再打补丁。
+
+统一处理 LIFF 初始化（init）
+
+建一个独立模块，例如：client/src/lib/liffClient.ts：
+
+let liffInitialized = false;
+let liffInitPromise: Promise<void> | null = null;
+
+export async function initLiffOnce(config: { liffId: string }) {
+  if (liffInitialized) return;
+  if (!liffInitPromise) {
+    liffInitPromise = (async () => {
+      await liff.init({ liffId: config.liffId });
+      liffInitialized = true;
+    })();
+  }
+  return liffInitPromise;
+}
+
+
+规则：
+
+只在检测到在 LINE 内部时才调用 initLiffOnce；
+
+不要在多个地方各自调用 liff.init；
+
+不要用任何 setInterval / 轮询去反复初始化。
+
+重写 App 根组件的初始化逻辑
+
+在 App.tsx 里做的事情尽量简单：
+
+挂载时请求一次 /api/config 拿到 LIFF 配置；
+
+如果当前是 LINE 内 WebView，调用 initLiffOnce(config)；
+
+初始化完毕后渲染 Router + 页面。
+
+绝对不要：
+
+因为任何错误或状态变化去 window.location.reload()；
+
+用计时器定时重新拉 /api/config；
+
+在 App.tsx 里频繁 setState 导致整个树重挂载。
+
+活动详情页 CampaignDetail 的 useQuery 规则
+
+该页面的数据来源：
+
+活动详情：GET /api/campaigns/:id
+
+用户领取状态：需要登录后的接口（例如 /api/me/coupons 或后台已有逻辑）
+
+React Query 配置：
+
+useQuery(
+  ['campaign', campaignId],
+  () => fetchCampaign(campaignId),
+  {
+    staleTime: Infinity,
+    cacheTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  }
+)
+
+
+确认：
+
+campaignId 的 key 始终稳定（不要在 URL 上加多余随机参数）；
+
+不要在 useEffect 里手动 refetch()；
+
+不要在语言切换时 invalidateQueries(['campaign', id])，而是使用你之前设计好的「多语言字段」直接从返回结果中选对应语言展示。
+
+底部 tab 切换逻辑
+
+「优惠活动」和「我的优惠券」两个 tab：
+
+使用纯前端状态控制显示，不要在 tab 切换时改变 Router 根节点，也不要给 CampaignDetail / MyCoupons 动态的 key。
+
+例如：
+
+const [activeTab, setActiveTab] = useState<'campaign' | 'my-coupons'>('campaign');
+
+
+切 tab 不应该导致 CampaignDetail 被卸载重挂载。
+
+请在 CampaignDetail、MyCoupons 组件里增加非常简单的日志：
+
+useEffect(() => {
+  console.log('[CampaignDetail] mounted');
+  return () => console.log('[CampaignDetail] unmounted');
+}, []);
+
+
+目标：在 OA 内从「优惠活动」→「我的优惠券」→ 再回「优惠活动」时：
+
+只看到一次 CampaignDetail mounted（首屏）；
+
+切到「我的优惠券」时：CampaignDetail 不卸载，只是被隐藏；
+
+切回「优惠活动」时：不会再出现新的 mounted 日志。
+
+清理旧的“自动刷新 / 自动重载”逻辑
+
+搜索所有可能的位置：
+
+window.location.reload、window.location.href = ...；
+
+setInterval、长时间 setTimeout；
+
+和 LIFF 相关的自动跳转逻辑。
+
+对这些逻辑统一处理：
+
+H5 不要再自动帮用户刷新页面；
+
+登录、领取、跳转只触发一次性行为，且只在用户点击按钮时发生。
+
+三、接受标准（很重要）
+
+请按照下面的方式自测，并贴出日志给我确认：
+
+从 LINE OA 底部菜单「优惠活动」点击进入：
+
+服务器日志中：
+
+只出现一次 GET /api/config；
+
+只出现一次 GET /api/campaigns/:id；
+
+之后静置 30 秒，不再出现新的同类请求。
+
+在详情页底部：
+
+点击「我的优惠券」 → 再点击返回「优惠活动」：
+
+浏览器 console 中：
+
+CampaignDetail mounted 只出现一次（首屏）；
+
+切换 tab 不触发 unmounted/mounted；
+
+服务器日志中：
+
+最多只新增一次 GET /api/campaigns/:id（如果你认为需要刷新一次也可以，但不要有周期性重复请求）。
+
+整个过程中：
+
+页面视觉上不再出现「闪一下 / 白一下 / 自动跳回详情页」的现象；
+
+用户登录、领券功能保持正常可用。
+
+重要补充：
+
+这次请把「从 OA 打开活动详情 + LIFF 初始化 + 活动详情页面 + tab 切换」当成一个完整模块重新梳理，不要在旧逻辑上继续打补丁。
+
+后端接口、JWT、数据库结构都已经可以支撑业务，不需要去动。
+
+完成后请贴出：
+
+你改动的关键文件路径和主要代码片段；
+
+一次完整的测试日志（包含服务器接口日志 + 浏览器组件挂载日志）。
+
+只有做到上面这些，我才认为这块逻辑是「真正干净」的。
