@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import Autoplay from 'embla-carousel-autoplay';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Gift, Calendar, MapPin, Tag, Phone, Navigation, FileText, Building2, Ticket, Play } from 'lucide-react';
+import { Gift, Calendar, MapPin, Tag, Phone, Navigation, FileText, Building2, Ticket, Play, Pause } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import MyCoupons from './MyCoupons';
 
@@ -433,37 +433,21 @@ export default function CampaignDetail() {
                         <CarouselItem key={index} className="pl-2 md:pl-4">
                           <div className="w-full aspect-video rounded-lg overflow-hidden bg-black relative">
                             {isVideo ? (
-                              <>
-                                <video
-                                  ref={(el) => {
-                                    if (el) {
-                                      el.onplay = () => setPlayingVideos(prev => ({ ...prev, [index]: true }));
-                                      el.onpause = () => setPlayingVideos(prev => ({ ...prev, [index]: false }));
-                                      el.onended = () => setPlayingVideos(prev => ({ ...prev, [index]: false }));
-                                    }
-                                  }}
-                                  controls
-                                  className="w-full h-full object-contain"
-                                  data-testid={`media-video-${index}`}
-                                >
-                                  <source src={url} type="video/mp4" />
-                                  您的浏览器不支持视频播放
-                                </video>
-                                {!playingVideos[index] && (
-                                  <button
-                                    onClick={(e) => {
-                                      const video = e.currentTarget.previousElementSibling as HTMLVideoElement;
-                                      if (video) video.play();
-                                    }}
-                                    className="absolute inset-0 flex items-center justify-center group"
-                                    data-testid={`video-play-button-${index}`}
-                                  >
-                                    <div className="bg-black/70 backdrop-blur-sm rounded-full p-2 transition-all group-hover:scale-110 group-hover:bg-black/80">
-                                      <Play className="w-5 h-5 text-white fill-white" />
-                                    </div>
-                                  </button>
-                                )}
-                              </>
+                              <video
+                                ref={(el) => {
+                                  if (el) {
+                                    el.onplay = () => setPlayingVideos(prev => ({ ...prev, [index]: true }));
+                                    el.onpause = () => setPlayingVideos(prev => ({ ...prev, [index]: false }));
+                                    el.onended = () => setPlayingVideos(prev => ({ ...prev, [index]: false }));
+                                  }
+                                }}
+                                controls
+                                className="w-full h-full object-contain"
+                                data-testid={`media-video-${index}`}
+                              >
+                                <source src={url} type="video/mp4" />
+                                您的浏览器不支持视频播放
+                              </video>
                             ) : (
                               <img
                                 src={url}
