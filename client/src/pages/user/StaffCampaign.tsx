@@ -55,25 +55,31 @@ export default function StaffCampaign({ params }: { params?: { id: string } }) {
   // 如果有ID参数，获取单个活动；否则获取所有活动列表
   const campaignId = params?.id;
 
+  // 单个活动查询（有ID参数时）
   const { data: singleCampaign, isLoading: isSingleLoading } = useQuery<{ success: boolean; data: Campaign }>({
-    queryKey: ["/api/campaigns", campaignId],
-    enabled: !!campaignId && !userToken,
+    queryKey: [`/api/campaigns/${campaignId}`],
+    enabled: !!campaignId,
   });
 
-  const { data: campaigns, isLoading: isListLoading } = useQuery<Campaign[]>({
+  // 员工活动列表查询（已登录员工，无ID参数）
+  const { data: staffCampaignsResponse, isLoading: isStaffListLoading } = useQuery<{ success: boolean; data: Campaign[] }>({
     queryKey: ["/api/staff/campaigns"],
     enabled: !!userToken && !campaignId,
   });
 
-  const isLoading = campaignId ? isSingleLoading : isListLoading;
+  // 公开活动列表查询（未登录，无ID参数）
+  const { data: publicCampaignsResponse, isLoading: isPublicListLoading } = useQuery<{ success: boolean; data: Campaign[] }>({
+    queryKey: ["/api/campaigns"],
+    enabled: !userToken && !campaignId,
+  });
+
+  const isLoading = campaignId ? isSingleLoading : (userToken ? isStaffListLoading : isPublicListLoading);
+  
   const displayCampaigns = campaignId && singleCampaign?.data 
     ? [singleCampaign.data] 
-    : (campaigns || []);
-
-  if (!user && !campaignId) {
-    navigate("/");
-    return null;
-  }
+    : userToken 
+      ? (staffCampaignsResponse?.data || [])
+      : (publicCampaignsResponse?.data || []);
 
   const toggleExpanded = (campaignId: number) => {
     setExpandedCampaigns((prev) => {

@@ -665,6 +665,52 @@ export function registerRoutes(app: Express): Server {
 
   // ============ B. User Endpoints ============
 
+  // 获取所有活跃活动列表（公开，无需认证）
+  app.get('/api/campaigns', async (req: Request, res: Response) => {
+    try {
+      const now = new Date();
+
+      const activeCampaigns = await db
+        .select({
+          id: campaigns.id,
+          titleSource: campaigns.titleSource,
+          titleZh: campaigns.titleZh,
+          titleEn: campaigns.titleEn,
+          titleTh: campaigns.titleTh,
+          descriptionSource: campaigns.descriptionSource,
+          descriptionZh: campaigns.descriptionZh,
+          descriptionEn: campaigns.descriptionEn,
+          descriptionTh: campaigns.descriptionTh,
+          bannerImageUrl: campaigns.bannerImageUrl,
+          couponValue: campaigns.couponValue,
+          discountType: campaigns.discountType,
+          originalPrice: campaigns.originalPrice,
+          startAt: campaigns.startAt,
+          endAt: campaigns.endAt,
+          staffInstructions: campaigns.staffInstructions,
+          staffTraining: campaigns.staffTraining,
+          staffTrainingMediaUrls: campaigns.staffTrainingMediaUrls,
+        })
+        .from(campaigns)
+        .where(
+          and(
+            eq(campaigns.isActive, true),
+            sql`${campaigns.startAt} <= ${now}`,
+            sql`${campaigns.endAt} >= ${now}`
+          )
+        )
+        .orderBy(desc(campaigns.startAt));
+
+      res.json({
+        success: true,
+        data: activeCampaigns,
+      });
+    } catch (error) {
+      console.error('Get campaigns list error:', error);
+      res.status(500).json({ success: false, message: '获取活动列表失败' });
+    }
+  });
+
   app.get('/api/campaigns/:id', optionalUserAuth, async (req: Request, res: Response) => {
     try {
       const sessionId = req.headers['x-gpgo-session'] || 'no-session-id';
