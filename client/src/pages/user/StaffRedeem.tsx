@@ -271,17 +271,22 @@ export default function StaffRedeem() {
   };
 
   const startQrScanner = async () => {
+    console.log("点击了开始扫描按钮");
     try {
+      console.log("初始化扫描器...");
       if (!html5QrCodeRef.current) {
         html5QrCodeRef.current = new Html5Qrcode("qr-reader");
+        console.log("扫描器创建成功");
       }
 
       const config = { fps: 10, qrbox: { width: 250, height: 250 } };
       
+      console.log("正在启动摄像头...");
       await html5QrCodeRef.current.start(
         { facingMode: "environment" },
         config,
         (decodedText) => {
+          console.log("扫描到二维码:", decodedText);
           if (/^\d{8}$/.test(decodedText)) {
             setInputCode(decodedText);
             stopQrScanner();
@@ -295,10 +300,20 @@ export default function StaffRedeem() {
         () => {}
       );
 
+      console.log("摄像头启动成功");
       setIsScanning(true);
       setScannerReady(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error("QR Scanner error:", err);
+      console.error("Error message:", err?.message);
+      console.error("Error stack:", err?.stack);
+      
+      toast({
+        title: "扫码失败",
+        description: err?.message || "无法启动摄像头，请使用手动核销",
+        variant: "destructive",
+      });
+      
       setIsScanning(false);
       setScannerReady(false);
     }
