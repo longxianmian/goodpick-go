@@ -7,7 +7,9 @@ GoodPick Go is a multi-language coupon recommendation platform designed for the 
 **语言要求**: 必须使用中文沟通（用户不懂英文，这是强制要求）
 Preferred communication style: Simple, everyday language in Chinese.
 
-## Recent Updates (2025-11-06)
+## Recent Updates (2025-11-07)
+- **扫码核销功能**: Staff OA核销页面新增二维码扫描功能，使用html5-qrcode库实现。页面分为两个核销方式：1) 扫码核销（主要方式）- 调用摄像头扫描用户优惠券二维码，自动提取8位核销码并核销；2) 手动核销（兜底方式）- 输入8位数字核销码。支持中文/英文/泰语三种语言，优化移动端体验。
+- **Staff OA菜单优化**: 简化LINE OA官方账号底部菜单设计，只保留单一入口"我的工作台"链接到核销页面(/staff/redeem)，员工进入后通过底部导航（核销/活动说明/我的数据）在三个功能间自由切换，降低理解成本，符合移动端使用习惯。
 - **智能领券按钮显示逻辑**: 优化活动详情页领券按钮的显示策略，已领取优惠券的用户将不再看到领券按钮（彻底隐藏），未登录用户和未领取用户仍显示"用LINE一键领取"按钮，提升用户体验，避免混淆。
 - **浏览器语言自动检测**: 实现智能多层级语言选择系统，优先级为：URL参数 (?lang=xx) > localStorage (用户手动选择) > 浏览器语言自动检测 (navigator.language) > 默认泰语。支持中文(zh-*)、英文(en-*)、泰文(th-*)的智能识别，解决LINE OA H5页面语言显示问题。
 - **底部导航菜单**: 在用户端页面（活动详情、我的优惠券）添加了固定底部导航，包含"优惠活动"和"我的优惠券"两个Tab，支持多语言切换，方便用户在两个页面之间快速导航。
@@ -51,7 +53,7 @@ Security features include bcryptjs for password hashing, JWT secrets from enviro
 ### UI Component Libraries
 - **Radix UI Primitives**: Provides accessible, unstyled UI components.
 - **Shadcn/ui**: Component library built on Radix UI and Tailwind CSS.
-- **Additional UI Libraries**: cmdk (command palette), vaul (drawer), embla-carousel-react (carousel), react-day-picker (calendar), input-otp (OTP input), recharts (charts).
+- **Additional UI Libraries**: cmdk (command palette), vaul (drawer), embla-carousel-react (carousel), react-day-picker (calendar), input-otp (OTP input), recharts (charts), html5-qrcode (QR code scanning).
 
 ### Styling and Utilities
 - **Tailwind CSS**: For utility-first styling.
