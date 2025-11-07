@@ -290,12 +290,6 @@ export default function StaffRedeem() {
               title: t("staffRedeem.scanSuccess"),
               description: `${t("staffRedeem.codeLabel")}: ${decodedText}`,
             });
-          } else {
-            toast({
-              title: t("staffRedeem.scanError"),
-              description: t("staffRedeem.invalidFormatDesc"),
-              variant: "destructive",
-            });
           }
         },
         () => {}
@@ -305,11 +299,6 @@ export default function StaffRedeem() {
       setScannerReady(true);
     } catch (err) {
       console.error("QR Scanner error:", err);
-      toast({
-        title: t("staffRedeem.cameraError"),
-        description: t("staffRedeem.cameraErrorDesc"),
-        variant: "destructive",
-      });
       setIsScanning(false);
       setScannerReady(false);
     }
