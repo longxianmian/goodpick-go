@@ -43,7 +43,7 @@ interface Campaign {
   staffTraining: string | null;
 }
 
-export default function StaffCampaign() {
+export default function StaffCampaign({ params }: { params?: { id: string } }) {
   const [, navigate] = useLocation();
   const { user, userToken } = useAuth();
   const { t, language } = useLanguage();
@@ -51,12 +51,25 @@ export default function StaffCampaign() {
     new Set(),
   );
 
-  const { data: campaigns, isLoading } = useQuery<Campaign[]>({
-    queryKey: ["/api/staff/campaigns"],
-    enabled: !!userToken,
+  // 如果有ID参数，获取单个活动；否则获取所有活动列表
+  const campaignId = params?.id;
+
+  const { data: singleCampaign, isLoading: isSingleLoading } = useQuery<{ success: boolean; data: Campaign }>({
+    queryKey: ["/api/campaigns", campaignId],
+    enabled: !!campaignId && !userToken,
   });
 
-  if (!user || !userToken) {
+  const { data: campaigns, isLoading: isListLoading } = useQuery<Campaign[]>({
+    queryKey: ["/api/staff/campaigns"],
+    enabled: !!userToken && !campaignId,
+  });
+
+  const isLoading = campaignId ? isSingleLoading : isListLoading;
+  const displayCampaigns = campaignId && singleCampaign?.data 
+    ? [singleCampaign.data] 
+    : (campaigns || []);
+
+  if (!user && !campaignId) {
     navigate("/");
     return null;
   }
@@ -112,9 +125,9 @@ export default function StaffCampaign() {
                 </Card>
               ))}
             </div>
-          ) : campaigns && campaigns.length > 0 ? (
+          ) : displayCampaigns && displayCampaigns.length > 0 ? (
             <div className="space-y-4">
-              {campaigns.map((campaign) => {
+              {displayCampaigns.map((campaign) => {
                 const isExpanded = expandedCampaigns.has(campaign.id);
                 const title = getLocalizedText(
                   campaign.titleSource,

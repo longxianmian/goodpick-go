@@ -136,7 +136,7 @@ function Router() {
       <Route path="/staff/bind" component={StaffBind} />
       <Route path="/staff/redeem" component={StaffRedeem} />
       <Route path="/staff/stats" component={StaffStats} />
-      <Route path="/staff/campaign" component={StaffCampaign} />
+      <Route path="/staff/campaign/:id" component={StaffCampaign} />
       <Route path="/admin/:rest*">
         <ProtectedAdminRoutes />
       </Route>

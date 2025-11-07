@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
-import { Plus, Pencil, Trash2, Store as StoreIcon, MapPin } from 'lucide-react';
+import { Plus, Pencil, Trash2, Store as StoreIcon, MapPin, FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,8 +38,6 @@ type CampaignFormData = {
   isActive: boolean;
   mediaFiles: MediaFile[];
   storeIds: number[];
-  staffInstructions: string;
-  staffTraining: string;
 };
 
 // Normalize language code to backend-supported format
@@ -74,6 +72,12 @@ export default function AdminCampaigns() {
     isActive: true,
     mediaFiles: [],
     storeIds: [],
+  });
+
+  // 员工指导对话框状态
+  const [isStaffGuideDialogOpen, setIsStaffGuideDialogOpen] = useState(false);
+  const [selectedCampaignForGuide, setSelectedCampaignForGuide] = useState<Campaign | null>(null);
+  const [staffGuideData, setStaffGuideData] = useState({
     staffInstructions: '',
     staffTraining: '',
   });
@@ -139,8 +143,6 @@ export default function AdminCampaigns() {
           storeIds: data.storeIds,
           mediaUrls: data.mediaFiles.map(f => f.url),
           bannerImageUrl: data.mediaFiles.find(f => f.type === 'image')?.url || null,
-          staffInstructions: data.staffInstructions || null,
-          staffTraining: data.staffTraining || null,
         }),
       });
       if (!res.ok) {
@@ -186,8 +188,6 @@ export default function AdminCampaigns() {
         payload.bannerImageUrl = data.mediaFiles.find(f => f.type === 'image')?.url || null;
       }
       if (data.isActive !== undefined) payload.isActive = data.isActive;
-      if (data.staffInstructions !== undefined) payload.staffInstructions = data.staffInstructions || null;
-      if (data.staffTraining !== undefined) payload.staffTraining = data.staffTraining || null;
 
       const res = await fetch(`/api/admin/campaigns/${id}`, {
         method: 'PUT',
@@ -228,6 +228,34 @@ export default function AdminCampaigns() {
     },
     onError: () => {
       toast({ title: t('common.error'), description: t('campaigns.deleteError'), variant: 'destructive' });
+    },
+  });
+
+  const updateStaffGuideMutation = useMutation({
+    mutationFn: async ({ campaignId, staffInstructions, staffTraining }: { campaignId: number; staffInstructions: string; staffTraining: string }) => {
+      const res = await fetch(`/api/admin/campaigns/${campaignId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          staffInstructions: staffInstructions || null,
+          staffTraining: staffTraining || null,
+        }),
+      });
+      if (!res.ok) {
+        throw new Error('Failed to update staff guide');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/campaigns'] });
+      toast({ title: '保存成功', description: '员工指导内容已更新' });
+      setIsStaffGuideDialogOpen(false);
+    },
+    onError: () => {
+      toast({ title: '保存失败', description: '无法更新员工指导内容', variant: 'destructive' });
     },
   });
 
@@ -328,8 +356,6 @@ export default function AdminCampaigns() {
       isActive: true,
       mediaFiles: [],
       storeIds: [],
-      staffInstructions: '',
-      staffTraining: '',
     });
     setEditingCampaign(null);
     setSelectedCities([]);
@@ -384,8 +410,6 @@ export default function AdminCampaigns() {
       isActive: campaign.isActive,
       mediaFiles,
       storeIds,
-      staffInstructions: campaign.staffInstructions || '',
-      staffTraining: campaign.staffTraining || '',
     });
     setIsDialogOpen(true);
   };
@@ -415,6 +439,24 @@ export default function AdminCampaigns() {
     setSelectedStoreIds(prev =>
       prev.includes(storeId) ? prev.filter(id => id !== storeId) : [...prev, storeId]
     );
+  };
+
+  const handleStaffGuide = (campaign: Campaign) => {
+    setSelectedCampaignForGuide(campaign);
+    setStaffGuideData({
+      staffInstructions: campaign.staffInstructions || '',
+      staffTraining: campaign.staffTraining || '',
+    });
+    setIsStaffGuideDialogOpen(true);
+  };
+
+  const handleSaveStaffGuide = () => {
+    if (!selectedCampaignForGuide) return;
+    updateStaffGuideMutation.mutate({
+      campaignId: selectedCampaignForGuide.id,
+      staffInstructions: staffGuideData.staffInstructions,
+      staffTraining: staffGuideData.staffTraining,
+    });
   };
 
   const handleSaveStores = () => {
@@ -496,6 +538,14 @@ export default function AdminCampaigns() {
                           data-testid={`button-stores-${campaign.id}`}
                         >
                           <StoreIcon className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleStaffGuide(campaign)}
+                          data-testid={`button-staff-guide-${campaign.id}`}
+                        >
+                          <FileText className="w-4 h-4" />
                         </Button>
                         <Button
                           size="sm"
@@ -765,45 +815,6 @@ export default function AdminCampaigns() {
               />
             </div>
 
-            {/* 员工指导 */}
-            <div className="space-y-4">
-              <h3 className="font-medium">员工指导</h3>
-              
-              <div className="space-y-2">
-                <Label htmlFor="staffInstructions">
-                  员工操作说明
-                </Label>
-                <Textarea
-                  id="staffInstructions"
-                  value={formData.staffInstructions}
-                  onChange={(e) => setFormData({ ...formData, staffInstructions: e.target.value })}
-                  rows={4}
-                  placeholder="输入员工核销优惠券时需要注意的事项、操作步骤等..."
-                  data-testid="input-staff-instructions"
-                />
-                <p className="text-sm text-muted-foreground">
-                  员工在核销优惠券时会看到这些说明，帮助他们正确处理此活动的优惠券
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="staffTraining">
-                  员工培训材料
-                </Label>
-                <Textarea
-                  id="staffTraining"
-                  value={formData.staffTraining}
-                  onChange={(e) => setFormData({ ...formData, staffTraining: e.target.value })}
-                  rows={4}
-                  placeholder="输入员工培训内容，如活动背景、如何向顾客介绍等..."
-                  data-testid="input-staff-training"
-                />
-                <p className="text-sm text-muted-foreground">
-                  帮助员工了解活动背景和推广技巧，提升活动转化率
-                </p>
-              </div>
-            </div>
-
             {/* 参与门店 */}
             <div className="space-y-4">
               <h3 className="font-medium">{t('campaigns.participatingStores')}</h3>
@@ -959,6 +970,70 @@ export default function AdminCampaigns() {
               </Button>
               <Button onClick={handleSaveStores} disabled={updateStoresMutation.isPending} data-testid="button-save-stores">
                 {updateStoresMutation.isPending ? t('common.saving') : t('common.save')}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 员工指导对话框 */}
+      <Dialog open={isStaffGuideDialogOpen} onOpenChange={setIsStaffGuideDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle data-testid="text-staff-guide-dialog-title">
+              员工指导 - {selectedCampaignForGuide?.titleSource}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="staffInstructions">
+                员工操作说明
+              </Label>
+              <Textarea
+                id="staffInstructions"
+                value={staffGuideData.staffInstructions}
+                onChange={(e) => setStaffGuideData({ ...staffGuideData, staffInstructions: e.target.value })}
+                rows={6}
+                placeholder="输入员工核销优惠券时需要注意的事项、操作步骤等..."
+                data-testid="input-staff-instructions"
+              />
+              <p className="text-sm text-muted-foreground">
+                员工在核销优惠券时会看到这些说明，帮助他们正确处理此活动的优惠券
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="staffTraining">
+                员工培训材料
+              </Label>
+              <Textarea
+                id="staffTraining"
+                value={staffGuideData.staffTraining}
+                onChange={(e) => setStaffGuideData({ ...staffGuideData, staffTraining: e.target.value })}
+                rows={6}
+                placeholder="输入员工培训内容，如活动背景、如何向顾客介绍等..."
+                data-testid="input-staff-training"
+              />
+              <p className="text-sm text-muted-foreground">
+                帮助员工了解活动背景和推广技巧，提升活动转化率
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsStaffGuideDialogOpen(false)} 
+                data-testid="button-cancel-staff-guide"
+              >
+                取消
+              </Button>
+              <Button 
+                onClick={handleSaveStaffGuide} 
+                disabled={updateStaffGuideMutation.isPending} 
+                data-testid="button-save-staff-guide"
+              >
+                {updateStaffGuideMutation.isPending ? '保存中...' : '保存'}
               </Button>
             </div>
           </div>
