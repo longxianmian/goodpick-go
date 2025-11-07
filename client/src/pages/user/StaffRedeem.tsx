@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,10 +20,14 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
+  Camera,
+  CameraOff,
+  Keyboard,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import StaffBottomNav from "@/components/StaffBottomNav";
+import { Html5Qrcode } from "html5-qrcode";
 
 interface CouponData {
   coupon: {
@@ -62,6 +66,11 @@ export default function StaffRedeem() {
   const [redeeming, setRedeeming] = useState(false);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
+  
+  const [isScanning, setIsScanning] = useState(false);
+  const [scannerReady, setScannerReady] = useState(false);
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const scannerContainerRef = useRef<HTMLDivElement>(null);
 
   // Check URL for token (staff binding callback)
   useEffect(() => {
@@ -252,6 +261,71 @@ export default function StaffRedeem() {
     setRedeemSuccess(false);
   };
 
+  const startQrScanner = async () => {
+    try {
+      if (!html5QrCodeRef.current) {
+        html5QrCodeRef.current = new Html5Qrcode("qr-reader");
+      }
+
+      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+      
+      await html5QrCodeRef.current.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText) => {
+          if (/^\d{8}$/.test(decodedText)) {
+            setInputCode(decodedText);
+            stopQrScanner();
+            handleQuery();
+            toast({
+              title: t("staffRedeem.scanSuccess"),
+              description: `${t("staffRedeem.codeLabel")}: ${decodedText}`,
+            });
+          } else {
+            toast({
+              title: t("staffRedeem.scanError"),
+              description: t("staffRedeem.invalidFormatDesc"),
+              variant: "destructive",
+            });
+          }
+        },
+        () => {}
+      );
+
+      setIsScanning(true);
+      setScannerReady(true);
+    } catch (err) {
+      console.error("QR Scanner error:", err);
+      toast({
+        title: t("staffRedeem.cameraError"),
+        description: t("staffRedeem.cameraErrorDesc"),
+        variant: "destructive",
+      });
+      setIsScanning(false);
+      setScannerReady(false);
+    }
+  };
+
+  const stopQrScanner = async () => {
+    try {
+      if (html5QrCodeRef.current && isScanning) {
+        await html5QrCodeRef.current.stop();
+        setIsScanning(false);
+        setScannerReady(false);
+      }
+    } catch (err) {
+      console.error("Stop scanner error:", err);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (html5QrCodeRef.current && isScanning) {
+        html5QrCodeRef.current.stop().catch(console.error);
+      }
+    };
+  }, [isScanning]);
+
   if (redeemSuccess) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
@@ -314,13 +388,51 @@ export default function StaffRedeem() {
     <div className="flex flex-col min-h-screen">
       <div className="flex-1 overflow-y-auto p-4 pb-20">
         <div className="w-full max-w-2xl mx-auto space-y-4">
+          {/* QR Code Scanner Section */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <ScanLine className="w-5 h-5" />
-                {t("staffRedeem.title")}
+                <Camera className="w-5 h-5" />
+                {t("staffRedeem.scanQrTitle")}
               </CardTitle>
-              <CardDescription>{t("staffRedeem.description")}</CardDescription>
+              <CardDescription>{t("staffRedeem.scanQrDesc")}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div id="qr-reader" ref={scannerContainerRef} className={isScanning ? "block" : "hidden"} />
+              
+              {!couponData && (
+                <Button
+                  onClick={isScanning ? stopQrScanner : startQrScanner}
+                  disabled={querying}
+                  className="w-full"
+                  variant={isScanning ? "destructive" : "default"}
+                  size="lg"
+                  data-testid="button-scan-qr"
+                >
+                  {isScanning ? (
+                    <>
+                      <CameraOff className="w-5 h-5 mr-2" />
+                      {t("staffRedeem.stopScan")}
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="w-5 h-5 mr-2" />
+                      {t("staffRedeem.startScan")}
+                    </>
+                  )}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Manual Code Input Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Keyboard className="w-5 h-5" />
+                {t("staffRedeem.manualCodeTitle")}
+              </CardTitle>
+              <CardDescription>{t("staffRedeem.manualCodeDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -349,12 +461,12 @@ export default function StaffRedeem() {
                   <Button
                     onClick={handleQuery}
                     disabled={querying || !!couponData}
-                    data-testid="button-query-coupon"
+                    data-testid="button-manual-redeem"
                   >
                     {querying ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      t("staffRedeem.query")
+                      t("staffRedeem.manualRedeem")
                     )}
                   </Button>
                 </div>
