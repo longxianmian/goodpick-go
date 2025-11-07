@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,14 +20,10 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  Camera,
-  CameraOff,
-  Keyboard,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import StaffBottomNav from "@/components/StaffBottomNav";
-import { Html5Qrcode } from "html5-qrcode";
 
 interface CouponData {
   coupon: {
@@ -66,20 +62,6 @@ export default function StaffRedeem() {
   const [redeeming, setRedeeming] = useState(false);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
-  
-  const [isScanning, setIsScanning] = useState(false);
-  const [scannerReady, setScannerReady] = useState(false);
-  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
-  const scannerContainerRef = useRef<HTMLDivElement>(null);
-
-  // Cleanup scanner on unmount
-  useEffect(() => {
-    return () => {
-      if (html5QrCodeRef.current && isScanning) {
-        html5QrCodeRef.current.stop().catch(console.error);
-      }
-    };
-  }, [isScanning]);
 
   // Check URL for token (staff binding callback)
   useEffect(() => {
@@ -270,67 +252,6 @@ export default function StaffRedeem() {
     setRedeemSuccess(false);
   };
 
-  const startQrScanner = async () => {
-    console.log("点击了开始扫描按钮");
-    try {
-      console.log("初始化扫描器...");
-      if (!html5QrCodeRef.current) {
-        html5QrCodeRef.current = new Html5Qrcode("qr-reader");
-        console.log("扫描器创建成功");
-      }
-
-      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-      
-      console.log("正在启动摄像头...");
-      await html5QrCodeRef.current.start(
-        { facingMode: "environment" },
-        config,
-        (decodedText) => {
-          console.log("扫描到二维码:", decodedText);
-          if (/^\d{8}$/.test(decodedText)) {
-            setInputCode(decodedText);
-            stopQrScanner();
-            handleQuery();
-            toast({
-              title: t("staffRedeem.scanSuccess"),
-              description: `${t("staffRedeem.codeLabel")}: ${decodedText}`,
-            });
-          }
-        },
-        () => {}
-      );
-
-      console.log("摄像头启动成功");
-      setIsScanning(true);
-      setScannerReady(true);
-    } catch (err: any) {
-      console.error("QR Scanner error:", err);
-      console.error("Error message:", err?.message);
-      console.error("Error stack:", err?.stack);
-      
-      toast({
-        title: "扫码失败",
-        description: err?.message || "无法启动摄像头，请使用手动核销",
-        variant: "destructive",
-      });
-      
-      setIsScanning(false);
-      setScannerReady(false);
-    }
-  };
-
-  const stopQrScanner = async () => {
-    try {
-      if (html5QrCodeRef.current && isScanning) {
-        await html5QrCodeRef.current.stop();
-        setIsScanning(false);
-        setScannerReady(false);
-      }
-    } catch (err) {
-      console.error("Stop scanner error:", err);
-    }
-  };
-
   if (redeemSuccess) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
@@ -393,51 +314,14 @@ export default function StaffRedeem() {
     <div className="flex flex-col min-h-screen">
       <div className="flex-1 overflow-y-auto p-4 pb-20">
         <div className="w-full max-w-2xl mx-auto space-y-4">
-          {/* QR Code Scanner Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Camera className="w-5 h-5" />
-                {t("staffRedeem.scanQrTitle")}
-              </CardTitle>
-              <CardDescription>{t("staffRedeem.scanQrDesc")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div id="qr-reader" ref={scannerContainerRef} className={isScanning ? "block" : "hidden"} />
-              
-              {!couponData && (
-                <Button
-                  onClick={isScanning ? stopQrScanner : startQrScanner}
-                  disabled={querying}
-                  className="w-full"
-                  variant={isScanning ? "destructive" : "default"}
-                  size="lg"
-                  data-testid="button-scan-qr"
-                >
-                  {isScanning ? (
-                    <>
-                      <CameraOff className="w-5 h-5 mr-2" />
-                      {t("staffRedeem.stopScan")}
-                    </>
-                  ) : (
-                    <>
-                      <Camera className="w-5 h-5 mr-2" />
-                      {t("staffRedeem.startScan")}
-                    </>
-                  )}
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Manual Code Input Section */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Keyboard className="w-5 h-5" />
-                {t("staffRedeem.manualCodeTitle")}
+                <ScanLine className="w-5 h-5" />
+                {t("staffRedeem.title")}
               </CardTitle>
-              <CardDescription>{t("staffRedeem.manualCodeDesc")}</CardDescription>
+              <CardDescription>{t("staffRedeem.description")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -466,12 +350,12 @@ export default function StaffRedeem() {
                   <Button
                     onClick={handleQuery}
                     disabled={querying || !!couponData}
-                    data-testid="button-manual-redeem"
+                    data-testid="button-query-coupon"
                   >
                     {querying ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      t("staffRedeem.manualRedeem")
+                      t("staffRedeem.query")
                     )}
                   </Button>
                 </div>
