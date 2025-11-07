@@ -1916,6 +1916,8 @@ export function registerRoutes(app: Express): Server {
         maxTotal,
         channel,
         storeIds,
+        staffInstructions,
+        staffTraining,
       } = req.body;
 
       if (!titleSource || !descriptionSource) {
@@ -1951,6 +1953,8 @@ export function registerRoutes(app: Express): Server {
           maxPerUser,
           maxTotal,
           channel,
+          staffInstructions,
+          staffTraining,
           isActive: true,
         })
         .returning();
@@ -1991,6 +1995,8 @@ export function registerRoutes(app: Express): Server {
         channel,
         isActive,
         storeIds,
+        staffInstructions,
+        staffTraining,
       } = req.body;
 
       let translations: any = {};
@@ -2033,6 +2039,8 @@ export function registerRoutes(app: Express): Server {
       if (maxTotal !== undefined) updateData.maxTotal = maxTotal;
       if (channel !== undefined) updateData.channel = channel;
       if (isActive !== undefined) updateData.isActive = isActive;
+      if (staffInstructions !== undefined) updateData.staffInstructions = staffInstructions;
+      if (staffTraining !== undefined) updateData.staffTraining = staffTraining;
 
       const [updatedCampaign] = await db
         .update(campaigns)

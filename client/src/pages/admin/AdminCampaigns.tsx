@@ -38,6 +38,8 @@ type CampaignFormData = {
   isActive: boolean;
   mediaFiles: MediaFile[];
   storeIds: number[];
+  staffInstructions: string;
+  staffTraining: string;
 };
 
 // Normalize language code to backend-supported format
@@ -72,6 +74,8 @@ export default function AdminCampaigns() {
     isActive: true,
     mediaFiles: [],
     storeIds: [],
+    staffInstructions: '',
+    staffTraining: '',
   });
 
   const { data: campaignsData, isLoading } = useQuery<{ success: boolean; data: Campaign[] }>({
@@ -135,6 +139,8 @@ export default function AdminCampaigns() {
           storeIds: data.storeIds,
           mediaUrls: data.mediaFiles.map(f => f.url),
           bannerImageUrl: data.mediaFiles.find(f => f.type === 'image')?.url || null,
+          staffInstructions: data.staffInstructions || null,
+          staffTraining: data.staffTraining || null,
         }),
       });
       if (!res.ok) {
@@ -180,6 +186,8 @@ export default function AdminCampaigns() {
         payload.bannerImageUrl = data.mediaFiles.find(f => f.type === 'image')?.url || null;
       }
       if (data.isActive !== undefined) payload.isActive = data.isActive;
+      if (data.staffInstructions !== undefined) payload.staffInstructions = data.staffInstructions || null;
+      if (data.staffTraining !== undefined) payload.staffTraining = data.staffTraining || null;
 
       const res = await fetch(`/api/admin/campaigns/${id}`, {
         method: 'PUT',
@@ -320,6 +328,8 @@ export default function AdminCampaigns() {
       isActive: true,
       mediaFiles: [],
       storeIds: [],
+      staffInstructions: '',
+      staffTraining: '',
     });
     setEditingCampaign(null);
     setSelectedCities([]);
@@ -374,6 +384,8 @@ export default function AdminCampaigns() {
       isActive: campaign.isActive,
       mediaFiles,
       storeIds,
+      staffInstructions: campaign.staffInstructions || '',
+      staffTraining: campaign.staffTraining || '',
     });
     setIsDialogOpen(true);
   };
@@ -751,6 +763,45 @@ export default function AdminCampaigns() {
                 uploadUrl="/api/admin/upload"
                 uploadHeaders={{ Authorization: `Bearer ${adminToken}` }}
               />
+            </div>
+
+            {/* 员工指导 */}
+            <div className="space-y-4">
+              <h3 className="font-medium">员工指导</h3>
+              
+              <div className="space-y-2">
+                <Label htmlFor="staffInstructions">
+                  员工操作说明
+                </Label>
+                <Textarea
+                  id="staffInstructions"
+                  value={formData.staffInstructions}
+                  onChange={(e) => setFormData({ ...formData, staffInstructions: e.target.value })}
+                  rows={4}
+                  placeholder="输入员工核销优惠券时需要注意的事项、操作步骤等..."
+                  data-testid="input-staff-instructions"
+                />
+                <p className="text-sm text-muted-foreground">
+                  员工在核销优惠券时会看到这些说明，帮助他们正确处理此活动的优惠券
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="staffTraining">
+                  员工培训材料
+                </Label>
+                <Textarea
+                  id="staffTraining"
+                  value={formData.staffTraining}
+                  onChange={(e) => setFormData({ ...formData, staffTraining: e.target.value })}
+                  rows={4}
+                  placeholder="输入员工培训内容，如活动背景、如何向顾客介绍等..."
+                  data-testid="input-staff-training"
+                />
+                <p className="text-sm text-muted-foreground">
+                  帮助员工了解活动背景和推广技巧，提升活动转化率
+                </p>
+              </div>
             </div>
 
             {/* 参与门店 */}
