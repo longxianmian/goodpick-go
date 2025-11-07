@@ -381,6 +381,8 @@ const translations: Record<Language, Record<string, string>> = {
     'staffRedeem.backHome': '返回首页',
     'staffRedeem.recentRedemptions': '最近核销记录',
     'staffRedeem.noPermission': '该优惠券不属于您的门店，无法核销',
+    'staffRedeem.bindSuccess': '绑定成功',
+    'staffRedeem.bindSuccessDesc': '欢迎使用员工工作台',
     
     // Staff OA - Stats Page
     'staffStats.title': '个人核销统计',
@@ -836,6 +838,8 @@ const translations: Record<Language, Record<string, string>> = {
     'staffRedeem.backHome': 'Back to Home',
     'staffRedeem.recentRedemptions': 'Recent Redemptions',
     'staffRedeem.noPermission': 'This coupon does not belong to your store',
+    'staffRedeem.bindSuccess': 'Binding Successful',
+    'staffRedeem.bindSuccessDesc': 'Welcome to staff workspace',
     
     // Staff OA - Stats Page
     'staffStats.title': 'Personal Redemption Stats',
@@ -1291,6 +1295,8 @@ const translations: Record<Language, Record<string, string>> = {
     'staffRedeem.backHome': 'กลับหน้าแรก',
     'staffRedeem.recentRedemptions': 'ประวัติการยืนยันล่าสุด',
     'staffRedeem.noPermission': 'คูปองนี้ไม่อยู่ในร้านของคุณ',
+    'staffRedeem.bindSuccess': 'เชื่อมต่อสำเร็จ',
+    'staffRedeem.bindSuccessDesc': 'ยินดีต้อนรับสู่พื้นที่ทำงานพนักงาน',
     
     // Staff OA - Stats Page
     'staffStats.title': 'สถิติการยืนยันส่วนตัว',

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -40,7 +40,7 @@ interface CouponData {
 export default function StaffRedeem() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { user, userToken } = useAuth();
+  const { user, userToken, loginUser } = useAuth();
   const { t, language } = useLanguage();
 
   const [inputCode, setInputCode] = useState('');
@@ -49,8 +49,56 @@ export default function StaffRedeem() {
   const [querying, setQuerying] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+
+  // Check URL for token (staff binding callback)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlToken = params.get('token');
+    const firstLogin = params.get('firstLogin');
+
+    if (urlToken) {
+      // Decode and verify token
+      fetch('/api/user/verify', {
+        headers: {
+          Authorization: `Bearer ${urlToken}`,
+        },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.user) {
+            loginUser(urlToken, data.user);
+            
+            if (firstLogin === 'true') {
+              toast({
+                title: t('staffRedeem.bindSuccess') || '绑定成功',
+                description: t('staffRedeem.bindSuccessDesc') || '欢迎使用员工工作台',
+              });
+            }
+
+            // Clean URL
+            window.history.replaceState({}, '', '/staff/redeem');
+          }
+          setAuthChecking(false);
+        })
+        .catch((err) => {
+          console.error('Token verification failed:', err);
+          setAuthChecking(false);
+        });
+    } else {
+      setAuthChecking(false);
+    }
+  }, [loginUser, toast, t]);
 
   // Check if user is authenticated
+  if (authChecking) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   if (!user || !userToken) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">

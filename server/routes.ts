@@ -285,6 +285,56 @@ export function registerRoutes(app: Express): Server {
 
   // ============ A. User Authentication ============
 
+  // Verify JWT token and return user info
+  app.get('/api/user/verify', async (req: Request, res: Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ success: false, message: 'No token provided' });
+      }
+
+      const token = authHeader.substring(7);
+      const decoded = jwt.verify(token, JWT_SECRET_VALUE) as { 
+        id: number; 
+        lineUserId: string; 
+        type: 'user' | 'admin';
+        staffId?: string;
+        staffName?: string;
+        storeId?: number;
+      };
+
+      if (decoded.type !== 'user') {
+        return res.status(403).json({ success: false, message: 'Invalid token type' });
+      }
+
+      // Fetch user from database
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, decoded.id))
+        .limit(1);
+
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          lineUserId: user.lineUserId,
+          displayName: user.displayName,
+          avatarUrl: user.avatarUrl,
+          language: user.language,
+        },
+      });
+    } catch (error) {
+      console.error('Token verification error:', error);
+      res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+  });
+
   app.post('/api/auth/line/login', async (req: Request, res: Response) => {
     try {
       const { idToken } = req.body;
