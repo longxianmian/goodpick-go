@@ -89,6 +89,10 @@ export const campaigns = pgTable('campaigns', {
   // Promotion channel (optional)
   channel: channelEnum('channel'),
   
+  // Staff operational guidance
+  staffInstructions: text('staff_instructions'),
+  staffTraining: text('staff_training'),
+  
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
