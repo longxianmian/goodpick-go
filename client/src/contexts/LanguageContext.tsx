@@ -384,6 +384,11 @@ const translations: Record<Language, Record<string, string>> = {
     'staffRedeem.bindSuccess': '绑定成功',
     'staffRedeem.bindSuccessDesc': '欢迎使用员工工作台',
     
+    // Staff OA - Bottom Navigation
+    'staffNav.redeem': '核销',
+    'staffNav.campaign': '活动说明',
+    'staffNav.stats': '我的数据',
+    
     // Staff OA - Stats Page
     'staffStats.title': '个人核销统计',
     'staffStats.summary': '汇总统计',
@@ -841,6 +846,11 @@ const translations: Record<Language, Record<string, string>> = {
     'staffRedeem.bindSuccess': 'Binding Successful',
     'staffRedeem.bindSuccessDesc': 'Welcome to staff workspace',
     
+    // Staff OA - Bottom Navigation
+    'staffNav.redeem': 'Redeem',
+    'staffNav.campaign': 'Campaigns',
+    'staffNav.stats': 'My Stats',
+    
     // Staff OA - Stats Page
     'staffStats.title': 'Personal Redemption Stats',
     'staffStats.summary': 'Summary',
@@ -1297,6 +1307,11 @@ const translations: Record<Language, Record<string, string>> = {
     'staffRedeem.noPermission': 'คูปองนี้ไม่อยู่ในร้านของคุณ',
     'staffRedeem.bindSuccess': 'เชื่อมต่อสำเร็จ',
     'staffRedeem.bindSuccessDesc': 'ยินดีต้อนรับสู่พื้นที่ทำงานพนักงาน',
+    
+    // Staff OA - Bottom Navigation
+    'staffNav.redeem': 'ยืนยันคูปอง',
+    'staffNav.campaign': 'ข้อมูลโปรโมชัน',
+    'staffNav.stats': 'สถิติของฉัน',
     
     // Staff OA - Stats Page
     'staffStats.title': 'สถิติการยืนยันส่วนตัว',
