@@ -41,6 +41,7 @@ interface Campaign {
   endAt: string;
   staffInstructions: string | null;
   staffTraining: string | null;
+  staffTrainingMediaUrls: string[] | null;
 }
 
 export default function StaffCampaign({ params }: { params?: { id: string } }) {
@@ -229,17 +230,49 @@ export default function StaffCampaign({ params }: { params?: { id: string } }) {
                               )}
 
                               {/* Staff Training */}
-                              {campaign.staffTraining && (
+                              {(campaign.staffTraining || (campaign.staffTrainingMediaUrls && campaign.staffTrainingMediaUrls.length > 0)) && (
                                 <div className="space-y-2">
                                   <h3 className="flex items-center gap-2 font-semibold">
                                     <GraduationCap className="w-4 h-4" />
                                     {t("staffCampaign.training")}
                                   </h3>
-                                  <div className="p-4 bg-muted/50 rounded-lg">
-                                    <p className="text-sm whitespace-pre-wrap">
-                                      {campaign.staffTraining}
-                                    </p>
-                                  </div>
+                                  {campaign.staffTraining && (
+                                    <div className="p-4 bg-muted/50 rounded-lg">
+                                      <p className="text-sm whitespace-pre-wrap">
+                                        {campaign.staffTraining}
+                                      </p>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Training Media */}
+                                  {campaign.staffTrainingMediaUrls && campaign.staffTrainingMediaUrls.length > 0 && (
+                                    <div className="space-y-2">
+                                      {campaign.staffTrainingMediaUrls.map((url, index) => {
+                                        const isVideo = url.match(/\.(mp4|webm|ogg|mov)$/i);
+                                        return (
+                                          <div key={index} className="rounded-lg overflow-hidden">
+                                            {isVideo ? (
+                                              <video
+                                                src={url}
+                                                controls
+                                                className="w-full max-h-96 bg-black"
+                                                data-testid={`video-training-${index}`}
+                                              >
+                                                您的浏览器不支持视频播放
+                                              </video>
+                                            ) : (
+                                              <img
+                                                src={url}
+                                                alt={`培训图片 ${index + 1}`}
+                                                className="w-full h-auto rounded-lg"
+                                                data-testid={`image-training-${index}`}
+                                              />
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>

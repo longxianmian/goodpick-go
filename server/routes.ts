@@ -2041,6 +2041,7 @@ export function registerRoutes(app: Express): Server {
       if (isActive !== undefined) updateData.isActive = isActive;
       if (staffInstructions !== undefined) updateData.staffInstructions = staffInstructions;
       if (staffTraining !== undefined) updateData.staffTraining = staffTraining;
+      if (req.body.staffTrainingMediaUrls !== undefined) updateData.staffTrainingMediaUrls = req.body.staffTrainingMediaUrls;
 
       const [updatedCampaign] = await db
         .update(campaigns)

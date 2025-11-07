@@ -80,6 +80,7 @@ export default function AdminCampaigns() {
   const [staffGuideData, setStaffGuideData] = useState({
     staffInstructions: '',
     staffTraining: '',
+    trainingMediaFiles: [] as MediaFile[],
   });
 
   const { data: campaignsData, isLoading } = useQuery<{ success: boolean; data: Campaign[] }>({
@@ -232,7 +233,7 @@ export default function AdminCampaigns() {
   });
 
   const updateStaffGuideMutation = useMutation({
-    mutationFn: async ({ campaignId, staffInstructions, staffTraining }: { campaignId: number; staffInstructions: string; staffTraining: string }) => {
+    mutationFn: async ({ campaignId, staffInstructions, staffTraining, trainingMediaFiles }: { campaignId: number; staffInstructions: string; staffTraining: string; trainingMediaFiles: MediaFile[] }) => {
       const res = await fetch(`/api/admin/campaigns/${campaignId}`, {
         method: 'PUT',
         headers: {
@@ -242,6 +243,7 @@ export default function AdminCampaigns() {
         body: JSON.stringify({
           staffInstructions: staffInstructions || null,
           staffTraining: staffTraining || null,
+          staffTrainingMediaUrls: trainingMediaFiles.map(f => f.url),
         }),
       });
       if (!res.ok) {
@@ -443,9 +445,20 @@ export default function AdminCampaigns() {
 
   const handleStaffGuide = (campaign: Campaign) => {
     setSelectedCampaignForGuide(campaign);
+    
+    // Parse training media URLs
+    const trainingMediaFiles: MediaFile[] = (campaign.staffTrainingMediaUrls || []).map(url => {
+      const isVideo = url.match(/\.(mp4|webm|ogg|mov)$/i);
+      return {
+        type: isVideo ? 'video' : 'image',
+        url: url
+      };
+    });
+    
     setStaffGuideData({
       staffInstructions: campaign.staffInstructions || '',
       staffTraining: campaign.staffTraining || '',
+      trainingMediaFiles,
     });
     setIsStaffGuideDialogOpen(true);
   };
@@ -456,6 +469,7 @@ export default function AdminCampaigns() {
       campaignId: selectedCampaignForGuide.id,
       staffInstructions: staffGuideData.staffInstructions,
       staffTraining: staffGuideData.staffTraining,
+      trainingMediaFiles: staffGuideData.trainingMediaFiles,
     });
   };
 
@@ -1004,18 +1018,33 @@ export default function AdminCampaigns() {
 
             <div className="space-y-2">
               <Label htmlFor="staffTraining">
-                员工培训材料
+                员工培训材料（文字说明）
               </Label>
               <Textarea
                 id="staffTraining"
                 value={staffGuideData.staffTraining}
                 onChange={(e) => setStaffGuideData({ ...staffGuideData, staffTraining: e.target.value })}
-                rows={6}
+                rows={4}
                 placeholder="输入员工培训内容，如活动背景、如何向顾客介绍等..."
                 data-testid="input-staff-training"
               />
               <p className="text-sm text-muted-foreground">
                 帮助员工了解活动背景和推广技巧，提升活动转化率
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>培训视频/图片</Label>
+              <MediaUploader
+                value={staffGuideData.trainingMediaFiles}
+                onChange={(files) => setStaffGuideData({ ...staffGuideData, trainingMediaFiles: files })}
+                maxImages={5}
+                maxVideos={2}
+                uploadUrl="/api/admin/upload"
+                uploadHeaders={{ Authorization: `Bearer ${adminToken}` }}
+              />
+              <p className="text-sm text-muted-foreground">
+                上传培训相关的视频或图片（支持mp4/jpg/png格式，自动存储到阿里云OSS）
               </p>
             </div>
 

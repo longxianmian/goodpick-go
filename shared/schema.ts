@@ -92,6 +92,7 @@ export const campaigns = pgTable('campaigns', {
   // Staff operational guidance
   staffInstructions: text('staff_instructions'),
   staffTraining: text('staff_training'),
+  staffTrainingMediaUrls: text('staff_training_media_urls').array(),
   
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),
