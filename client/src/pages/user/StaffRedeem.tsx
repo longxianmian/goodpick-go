@@ -72,6 +72,15 @@ export default function StaffRedeem() {
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const scannerContainerRef = useRef<HTMLDivElement>(null);
 
+  // Cleanup scanner on unmount
+  useEffect(() => {
+    return () => {
+      if (html5QrCodeRef.current && isScanning) {
+        html5QrCodeRef.current.stop().catch(console.error);
+      }
+    };
+  }, [isScanning]);
+
   // Check URL for token (staff binding callback)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -317,14 +326,6 @@ export default function StaffRedeem() {
       console.error("Stop scanner error:", err);
     }
   };
-
-  useEffect(() => {
-    return () => {
-      if (html5QrCodeRef.current && isScanning) {
-        html5QrCodeRef.current.stop().catch(console.error);
-      }
-    };
-  }, [isScanning]);
 
   if (redeemSuccess) {
     return (
