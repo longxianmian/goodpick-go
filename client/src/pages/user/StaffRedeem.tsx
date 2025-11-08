@@ -274,26 +274,25 @@ export default function StaffRedeem() {
         } finally {
           if (mounted) setAuthChecking(false);
         }
-      } else if (!userToken) {
-        // 【关键修复】异步检测LIFF环境
+      } else {
+        // 【关键修复】不管有没有localStorage的token，都检测LIFF环境
+        console.log('[StaffRedeem] 开始环境检测, userToken:', userToken ? '有(可能失效)' : '无');
         const isLiff = await detectLiffEnvironment();
         console.log('[StaffRedeem] 环境检测结果:', isLiff);
         
-        if (isLiff) {
-          // 在LIFF环境中没有token，自动触发LIFF登录
-          console.log('[StaffRedeem] LIFF环境，无token，自动登录');
+        if (isLiff && !user) {
+          // 在LIFF环境中且未登录，自动触发LIFF登录
+          console.log('[StaffRedeem] LIFF环境，未登录，自动登录');
           try {
             await handleLiffLogin();
           } finally {
             if (mounted) setAuthChecking(false);
           }
         } else {
-          // 外部浏览器，停止loading，显示登录按钮
-          console.log('[StaffRedeem] 外部浏览器，显示登录按钮');
+          // 外部浏览器或已登录，停止loading
+          console.log('[StaffRedeem] 停止检查，user:', user ? '已登录' : '未登录');
           if (mounted) setAuthChecking(false);
         }
-      } else {
-        if (mounted) setAuthChecking(false);
       }
     };
 
