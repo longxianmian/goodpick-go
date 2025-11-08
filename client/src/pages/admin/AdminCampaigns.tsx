@@ -992,13 +992,13 @@ export default function AdminCampaigns() {
 
       {/* 员工指导对话框 */}
       <Dialog open={isStaffGuideDialogOpen} onOpenChange={setIsStaffGuideDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle data-testid="text-staff-guide-dialog-title">
               员工指导 - {selectedCampaignForGuide?.titleSource}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto space-y-4 pr-2">
             <div className="space-y-2">
               <Label htmlFor="staffInstructions">
                 员工操作说明
@@ -1047,24 +1047,24 @@ export default function AdminCampaigns() {
                 上传培训相关的视频或图片（支持mp4/jpg/png格式，自动存储到阿里云OSS）
               </p>
             </div>
+          </div>
 
-            <div className="flex justify-end gap-2">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setIsStaffGuideDialogOpen(false)} 
-                data-testid="button-cancel-staff-guide"
-              >
-                取消
-              </Button>
-              <Button 
-                onClick={handleSaveStaffGuide} 
-                disabled={updateStaffGuideMutation.isPending} 
-                data-testid="button-save-staff-guide"
-              >
-                {updateStaffGuideMutation.isPending ? '保存中...' : '保存'}
-              </Button>
-            </div>
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setIsStaffGuideDialogOpen(false)} 
+              data-testid="button-cancel-staff-guide"
+            >
+              取消
+            </Button>
+            <Button 
+              onClick={handleSaveStaffGuide} 
+              disabled={updateStaffGuideMutation.isPending} 
+              data-testid="button-save-staff-guide"
+            >
+              {updateStaffGuideMutation.isPending ? '保存中...' : '保存'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
