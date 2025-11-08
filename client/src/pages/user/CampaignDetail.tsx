@@ -20,7 +20,7 @@ declare global {
 
 export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
-  const { isUserAuthenticated, loginUser } = useAuth();
+  const { isUserAuthenticated, loginUser, logoutUser } = useAuth();
   const { t, language } = useLanguage();
   const { toast } = useToast();
 
@@ -301,6 +301,23 @@ export default function CampaignDetail() {
       });
 
       const data = await res.json();
+
+      // 【修复】如果token失效（401），清除localStorage并重新登录
+      if (res.status === 401) {
+        console.log('[handleClaim] Token失效，清除localStorage并重新登录');
+        localStorage.removeItem('userToken');
+        localStorage.removeItem('user');
+        logoutUser();
+        setClaiming(false);
+        
+        // 自动触发登录
+        if (isLiffEnvironment) {
+          await handleLiffLogin();
+        } else {
+          await handleWebLogin();
+        }
+        return;
+      }
 
       if (data.success) {
         toast({
