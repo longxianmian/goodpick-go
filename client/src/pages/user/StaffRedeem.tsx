@@ -64,10 +64,48 @@ export default function StaffRedeem() {
   const [authChecking, setAuthChecking] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // 检测LIFF环境
-  const isLiffEnvironment = typeof window !== 'undefined' && 
-    (window.location.href.includes('liff.line.me') || 
-     (window as any).liff !== undefined);
+  // 【修复】异步检测LIFF环境（等待SDK加载）
+  const detectLiffEnvironment = async (): Promise<boolean> => {
+    // 1. 检查User Agent（快速初步判断）
+    const ua = navigator.userAgent;
+    const hasLineUA = ua.includes('Line/') || ua.includes('LIFF');
+    
+    console.log('[detectLiffEnvironment] UA检测:', { ua, hasLineUA });
+
+    // 2. 如果不是LINE浏览器，直接返回false
+    if (!hasLineUA) {
+      console.log('[detectLiffEnvironment] 非LINE环境');
+      return false;
+    }
+
+    // 3. 等待LIFF SDK加载（最多等5秒）
+    const maxWaitTime = 5000;
+    const startTime = Date.now();
+    
+    while (Date.now() - startTime < maxWaitTime) {
+      if ((window as any).liff) {
+        console.log('[detectLiffEnvironment] LIFF SDK已加载');
+        
+        // 4. 使用官方API检测
+        try {
+          const isInClient = (window as any).liff.isInClient?.() || false;
+          console.log('[detectLiffEnvironment] liff.isInClient():', isInClient);
+          return isInClient;
+        } catch (e) {
+          console.error('[detectLiffEnvironment] liff.isInClient() error:', e);
+          // fallback到UA检测
+          return hasLineUA;
+        }
+      }
+      
+      // 等待100ms后重试
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    // 5. 超时后fallback到UA检测
+    console.log('[detectLiffEnvironment] LIFF SDK加载超时，使用UA判断');
+    return hasLineUA;
+  };
 
   // LIFF登录
   const handleLiffLogin = async () => {
@@ -201,7 +239,10 @@ export default function StaffRedeem() {
 
   // 处理登录按钮点击
   const handleLoginClick = async () => {
-    if (isLiffEnvironment) {
+    const isLiff = await detectLiffEnvironment();
+    console.log('[handleLoginClick] 环境检测结果:', isLiff);
+    
+    if (isLiff) {
       await handleLiffLogin();
     } else {
       await handleWebLogin();
@@ -243,12 +284,22 @@ export default function StaffRedeem() {
         } finally {
           if (mounted) setAuthChecking(false);
         }
-      } else if (!userToken && isLiffEnvironment) {
-        // 【关键修复】在LIFF环境中没有token，自动触发LIFF登录
-        console.log('[StaffRedeem] LIFF环境，无token，自动登录');
-        try {
-          await handleLiffLogin();
-        } finally {
+      } else if (!userToken) {
+        // 【关键修复】异步检测LIFF环境
+        const isLiff = await detectLiffEnvironment();
+        console.log('[StaffRedeem] 环境检测结果:', isLiff);
+        
+        if (isLiff) {
+          // 在LIFF环境中没有token，自动触发LIFF登录
+          console.log('[StaffRedeem] LIFF环境，无token，自动登录');
+          try {
+            await handleLiffLogin();
+          } finally {
+            if (mounted) setAuthChecking(false);
+          }
+        } else {
+          // 外部浏览器，停止loading，显示登录按钮
+          console.log('[StaffRedeem] 外部浏览器，显示登录按钮');
           if (mounted) setAuthChecking(false);
         }
       } else {
