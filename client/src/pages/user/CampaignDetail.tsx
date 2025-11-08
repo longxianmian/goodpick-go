@@ -164,6 +164,29 @@ export default function CampaignDetail() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   };
 
+  // 转换OSS URL为代理URL（用于视频播放，支持Range请求）
+  const convertToProxyUrl = (ossUrl: string): string => {
+    try {
+      const urlObj = new URL(ossUrl.trim());
+      const pathname = urlObj.pathname;
+      
+      // 检查是否是视频文件
+      if (!/\.(mp4|webm|ogg|mov)$/i.test(pathname)) {
+        return ossUrl;
+      }
+      
+      // 检查是否是public路径
+      if (pathname.startsWith('/public/')) {
+        return `/api/media/video${pathname}`;
+      }
+      
+      return ossUrl;
+    } catch {
+      // 如果URL解析失败，返回原URL
+      return ossUrl;
+    }
+  };
+
   // 【方案要求】LIFF登录（只在按钮点击时调用）
   const handleLiffLogin = async () => {
     try {
@@ -484,7 +507,7 @@ export default function CampaignDetail() {
                                   className="w-full h-full object-contain pointer-events-none"
                                   data-testid={`media-video-${index}`}
                                 >
-                                  <source src={url} type="video/mp4" />
+                                  <source src={convertToProxyUrl(url)} type="video/mp4" />
                                   您的浏览器不支持视频播放
                                 </video>
                                 {!playingVideos.has(index) && (

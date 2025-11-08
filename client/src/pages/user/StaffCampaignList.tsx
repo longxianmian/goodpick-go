@@ -71,7 +71,37 @@ export default function StaffCampaignList() {
 
   // 判断是否为视频
   const isVideoUrl = (url: string): boolean => {
-    return /\.(mp4|webm|ogg|mov)$/i.test(url);
+    try {
+      const urlObj = new URL(url.trim());
+      const pathname = urlObj.pathname.toLowerCase();
+      return /\.(mp4|webm|ogg|mov)$/i.test(pathname);
+    } catch {
+      // 如果不是有效URL，回退到简单正则
+      return /\.(mp4|webm|ogg|mov)$/i.test(url.trim());
+    }
+  };
+
+  // 转换OSS URL为代理URL（用于视频播放，支持Range请求）
+  const convertToProxyUrl = (ossUrl: string): string => {
+    try {
+      const urlObj = new URL(ossUrl.trim());
+      const pathname = urlObj.pathname;
+      
+      // 检查是否是视频文件
+      if (!/\.(mp4|webm|ogg|mov)$/i.test(pathname)) {
+        return ossUrl;
+      }
+      
+      // 检查是否是public路径
+      if (pathname.startsWith('/public/')) {
+        return `/api/media/video${pathname}`;
+      }
+      
+      return ossUrl;
+    } catch {
+      // 如果URL解析失败，返回原URL
+      return ossUrl;
+    }
   };
 
   // 格式化折扣显示
@@ -154,9 +184,10 @@ export default function StaffCampaignList() {
                       isVideo ? (
                         <div className="relative w-full h-full bg-black">
                           <video
-                            src={thumbnailUrl}
+                            src={convertToProxyUrl(thumbnailUrl)}
                             className="w-full h-full object-cover"
                             muted
+                            preload="metadata"
                             data-testid={`thumbnail-video-${campaign.id}`}
                           />
                           <div className="absolute inset-0 flex items-center justify-center bg-black/30">

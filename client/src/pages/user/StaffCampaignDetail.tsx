@@ -251,7 +251,7 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                       className="w-full h-full object-contain pointer-events-none"
                       data-testid="video-media-0"
                     >
-                      <source src={allMedia[0]} type="video/mp4" />
+                      <source src={convertToProxyUrl(allMedia[0])} type="video/mp4" />
                       您的浏览器不支持视频播放
                     </video>
                     {!playingVideos.has(0) && (
@@ -319,7 +319,7 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                                   className="w-full h-full object-contain pointer-events-none"
                                   data-testid={`video-media-${index}`}
                                 >
-                                  <source src={url} type="video/mp4" />
+                                  <source src={convertToProxyUrl(url)} type="video/mp4" />
                                   您的浏览器不支持视频播放
                                 </video>
                                 {!playingVideos.has(index) && (
