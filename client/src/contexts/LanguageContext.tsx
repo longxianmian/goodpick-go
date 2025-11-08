@@ -317,6 +317,7 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.loginDialogTitle': '使用 LINE 登录',
     'campaign.loginDialogDesc': '优惠券会保存在你的 LINE 账号里，请先用 LINE 一键登录',
     'campaign.loginAndClaim': '使用 LINE 登录并领取',
+    'campaign.loginWithLine': '用 LINE 登录',
     'campaign.loggingIn': '登录中...',
     'campaign.webLoginNotImplemented': '请在LINE应用中打开链接',
     'campaign.rules': '活动规则',
@@ -421,9 +422,12 @@ const translations: Record<Language, Record<string, string>> = {
     'staffCampaign.activeCampaigns': '进行中的活动',
     'staffCampaign.campaignDetails': '活动详情',
     'staffCampaign.period': '活动期间',
+    'staffCampaign.showDetails': '显示详情',
+    'staffCampaign.hideDetails': '隐藏详情',
     'staffCampaign.instructions': '执行说明',
     'staffCampaign.training': '培训内容',
     'staffCampaign.noCampaigns': '暂无进行中的活动',
+    'staffCampaign.originalPrice': '原价',
     
     // Dashboard - Summary
     'dashboard.title': '数据面板',
@@ -791,6 +795,7 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.loginDialogTitle': 'Login with LINE',
     'campaign.loginDialogDesc': 'Your coupons will be saved to your LINE account. Please login with LINE first.',
     'campaign.loginAndClaim': 'Login with LINE and Claim',
+    'campaign.loginWithLine': 'Login with LINE',
     'campaign.loggingIn': 'Logging in...',
     'campaign.webLoginNotImplemented': 'Please open this link in the LINE app',
     'campaign.rules': 'Campaign Rules',
@@ -895,9 +900,12 @@ const translations: Record<Language, Record<string, string>> = {
     'staffCampaign.activeCampaigns': 'Active Campaigns',
     'staffCampaign.campaignDetails': 'Campaign Details',
     'staffCampaign.period': 'Period',
+    'staffCampaign.showDetails': 'Show Details',
+    'staffCampaign.hideDetails': 'Hide Details',
     'staffCampaign.instructions': 'Instructions',
     'staffCampaign.training': 'Training',
     'staffCampaign.noCampaigns': 'No active campaigns',
+    'staffCampaign.originalPrice': 'Original Price',
     
     // Dashboard - Summary
     'dashboard.title': 'Dashboard',
@@ -1265,6 +1273,7 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.loginDialogTitle': 'เข้าสู่ระบบด้วย LINE',
     'campaign.loginDialogDesc': 'คูปองจะถูกบันทึกในบัญชี LINE ของคุณ กรุณาเข้าสู่ระบบด้วย LINE ก่อน',
     'campaign.loginAndClaim': 'เข้าสู่ระบบด้วย LINE เพื่อรับคูปอง',
+    'campaign.loginWithLine': 'เข้าสู่ระบบด้วย LINE',
     'campaign.loggingIn': 'กำลังเข้าสู่ระบบ...',
     'campaign.webLoginNotImplemented': 'กรุณาเปิดลิงก์นี้ในแอป LINE',
     'campaign.rules': 'เงื่อนไขและรายละเอียด',
@@ -1369,9 +1378,12 @@ const translations: Record<Language, Record<string, string>> = {
     'staffCampaign.activeCampaigns': 'แคมเปญที่กำลังดำเนินการ',
     'staffCampaign.campaignDetails': 'รายละเอียดแคมเปญ',
     'staffCampaign.period': 'ระยะเวลา',
+    'staffCampaign.showDetails': 'แสดงรายละเอียด',
+    'staffCampaign.hideDetails': 'ซ่อนรายละเอียด',
     'staffCampaign.instructions': 'คำแนะนำ',
     'staffCampaign.training': 'คู่มือ',
     'staffCampaign.noCampaigns': 'ไม่มีแคมเปญที่กำลังดำเนินการ',
+    'staffCampaign.originalPrice': 'ราคาเดิม',
     
     // Dashboard - Summary
     'dashboard.title': 'แดชบอร์ด',
