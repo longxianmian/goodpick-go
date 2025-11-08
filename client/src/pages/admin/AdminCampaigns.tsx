@@ -251,8 +251,9 @@ export default function AdminCampaigns() {
       }
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/campaigns'] });
+    onSuccess: async () => {
+      // Wait for query to refresh before closing dialog
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/campaigns'] });
       toast({ title: '保存成功', description: '员工指导内容已更新' });
       setIsStaffGuideDialogOpen(false);
     },
@@ -444,10 +445,13 @@ export default function AdminCampaigns() {
   };
 
   const handleStaffGuide = (campaign: Campaign) => {
-    setSelectedCampaignForGuide(campaign);
+    // Always get the latest campaign data from the query cache
+    const latestCampaign = campaignsData?.data?.find(c => c.id === campaign.id) || campaign;
+    
+    setSelectedCampaignForGuide(latestCampaign);
     
     // Parse training media URLs
-    const trainingMediaFiles: MediaFile[] = (campaign.staffTrainingMediaUrls || []).map(url => {
+    const trainingMediaFiles: MediaFile[] = (latestCampaign.staffTrainingMediaUrls || []).map(url => {
       const isVideo = url.match(/\.(mp4|webm|ogg|mov)$/i);
       return {
         type: isVideo ? 'video' : 'image',
@@ -456,8 +460,8 @@ export default function AdminCampaigns() {
     });
     
     setStaffGuideData({
-      staffInstructions: campaign.staffInstructions || '',
-      staffTraining: campaign.staffTraining || '',
+      staffInstructions: latestCampaign.staffInstructions || '',
+      staffTraining: latestCampaign.staffTraining || '',
       trainingMediaFiles,
     });
     setIsStaffGuideDialogOpen(true);
