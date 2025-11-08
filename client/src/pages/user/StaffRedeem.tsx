@@ -208,45 +208,60 @@ export default function StaffRedeem() {
     }
   };
 
-  // Check URL for token (staff binding callback)
+  // 【修复】页面加载时自动检测并登录（只执行一次）
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const urlToken = params.get("token");
-    const firstLogin = params.get("firstLogin");
+    let mounted = true;
 
-    if (urlToken) {
-      // Decode and verify token
-      fetch("/api/user/verify", {
-        headers: {
-          Authorization: `Bearer ${urlToken}`,
-        },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success && data.user) {
+    const initAuth = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const urlToken = params.get("token");
+      const firstLogin = params.get("firstLogin");
+
+      if (urlToken) {
+        // OAuth回调：验证token
+        try {
+          const res = await fetch("/api/user/verify", {
+            headers: { Authorization: `Bearer ${urlToken}` },
+          });
+          const data = await res.json();
+          
+          if (mounted && data.success && data.user) {
             loginUser(urlToken, data.user);
 
             if (firstLogin === "true") {
               toast({
                 title: t("staffRedeem.bindSuccess") || "绑定成功",
-                description:
-                  t("staffRedeem.bindSuccessDesc") || "欢迎使用员工工作台",
+                description: t("staffRedeem.bindSuccessDesc") || "欢迎使用员工工作台",
               });
             }
 
             // Clean URL
             window.history.replaceState({}, "", "/staff/redeem");
           }
-          setAuthChecking(false);
-        })
-        .catch((err) => {
+        } catch (err) {
           console.error("Token verification failed:", err);
-          setAuthChecking(false);
-        });
-    } else {
-      setAuthChecking(false);
-    }
-  }, [loginUser, toast, t]);
+        } finally {
+          if (mounted) setAuthChecking(false);
+        }
+      } else if (!userToken && isLiffEnvironment) {
+        // 【关键修复】在LIFF环境中没有token，自动触发LIFF登录
+        console.log('[StaffRedeem] LIFF环境，无token，自动登录');
+        try {
+          await handleLiffLogin();
+        } finally {
+          if (mounted) setAuthChecking(false);
+        }
+      } else {
+        if (mounted) setAuthChecking(false);
+      }
+    };
+
+    initAuth();
+
+    return () => {
+      mounted = false;
+    };
+  }, []); // 只在组件挂载时执行一次
 
   // Check if user is authenticated
   if (authChecking) {
