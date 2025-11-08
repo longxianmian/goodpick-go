@@ -148,7 +148,12 @@ async function staffAuthMiddleware(req: Request, res: Response, next: express.Ne
         staffId: staffPresets.staffId,
       })
       .from(staffPresets)
-      .where(eq(staffPresets.boundUserId, decoded.id))
+      .where(
+        and(
+          eq(staffPresets.boundUserId, decoded.id),
+          eq(staffPresets.isBound, true)
+        )
+      )
       .limit(1);
 
     if (!staffPreset) {
