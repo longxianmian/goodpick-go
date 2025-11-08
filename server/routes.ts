@@ -1409,10 +1409,28 @@ export function registerRoutes(app: Express): Server {
   app.get('/api/staff/summary', staffAuthMiddleware, async (req: Request, res: Response) => {
     try {
       const staffInfo = req.staffInfo!;
+      
+      // 使用泰国时区 (UTC+7)
+      const BANGKOK_OFFSET = 7 * 60; // 7小时 = 420分钟
       const now = new Date();
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const bangkokNow = new Date(now.getTime() + BANGKOK_OFFSET * 60 * 1000);
+      
+      // 泰国今天0点 (UTC时间)
+      const todayStart = new Date(Date.UTC(
+        bangkokNow.getUTCFullYear(),
+        bangkokNow.getUTCMonth(),
+        bangkokNow.getUTCDate()
+      ) - BANGKOK_OFFSET * 60 * 1000);
+      
+      // 7天前
       const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      // 泰国本月1号0点 (UTC时间)
+      const monthStart = new Date(Date.UTC(
+        bangkokNow.getUTCFullYear(),
+        bangkokNow.getUTCMonth(),
+        1
+      ) - BANGKOK_OFFSET * 60 * 1000);
 
       // Get counts by time period
       const [todayCount] = await db
