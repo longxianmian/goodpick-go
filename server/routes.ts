@@ -1474,6 +1474,9 @@ export function registerRoutes(app: Express): Server {
           originalPrice: campaigns.originalPrice,
           startAt: campaigns.startAt,
           endAt: campaigns.endAt,
+          staffInstructions: campaigns.staffInstructions,
+          staffTraining: campaigns.staffTraining,
+          staffTrainingMediaUrls: campaigns.staffTrainingMediaUrls,
         })
         .from(campaigns)
         .innerJoin(campaignStores, eq(campaigns.id, campaignStores.campaignId))
