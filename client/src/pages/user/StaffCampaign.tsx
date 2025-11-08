@@ -261,54 +261,64 @@ export default function StaffCampaign({ params }: { params?: { id: string } }) {
                                 <div className="rounded-lg overflow-hidden">
                                   {campaign.staffTrainingMediaUrls[0].match(/\.(mp4|webm|ogg|mov)$/i) ? (
                                     <video
-                                      src={campaign.staffTrainingMediaUrls[0]}
                                       controls
                                       playsInline
-                                      className="w-full max-h-96 bg-black"
+                                      preload="metadata"
+                                      className="w-full max-h-96 bg-black rounded-lg"
                                       data-testid="video-training-0"
-                                    />
+                                    >
+                                      <source src={campaign.staffTrainingMediaUrls[0]} type="video/mp4" />
+                                      您的浏览器不支持视频播放
+                                    </video>
                                   ) : (
                                     <img
                                       src={campaign.staffTrainingMediaUrls[0]}
                                       alt="培训图片"
                                       className="w-full h-auto rounded-lg"
                                       data-testid="image-training-0"
+                                      loading="lazy"
                                     />
                                   )}
                                 </div>
                               ) : (
                                 // 多个媒体使用轮播
-                                <Carousel className="w-full">
-                                  <CarouselContent>
-                                    {campaign.staffTrainingMediaUrls.map((url, index) => {
-                                      const isVideo = url.match(/\.(mp4|webm|ogg|mov)$/i);
-                                      return (
-                                        <CarouselItem key={index}>
-                                          <div className="rounded-lg overflow-hidden">
-                                            {isVideo ? (
-                                              <video
-                                                src={url}
-                                                controls
-                                                playsInline
-                                                className="w-full max-h-96 bg-black"
-                                                data-testid={`video-training-${index}`}
-                                              />
-                                            ) : (
-                                              <img
-                                                src={url}
-                                                alt={`培训图片 ${index + 1}`}
-                                                className="w-full h-auto rounded-lg"
-                                                data-testid={`image-training-${index}`}
-                                              />
-                                            )}
-                                          </div>
-                                        </CarouselItem>
-                                      );
-                                    })}
-                                  </CarouselContent>
-                                  <CarouselPrevious className="left-2" />
-                                  <CarouselNext className="right-2" />
-                                </Carousel>
+                                <div className="relative px-12">
+                                  <Carousel className="w-full">
+                                    <CarouselContent>
+                                      {campaign.staffTrainingMediaUrls.map((url, index) => {
+                                        const isVideo = url.match(/\.(mp4|webm|ogg|mov)$/i);
+                                        return (
+                                          <CarouselItem key={index}>
+                                            <div className="rounded-lg overflow-hidden">
+                                              {isVideo ? (
+                                                <video
+                                                  controls
+                                                  playsInline
+                                                  preload="metadata"
+                                                  className="w-full max-h-96 bg-black rounded-lg"
+                                                  data-testid={`video-training-${index}`}
+                                                >
+                                                  <source src={url} type="video/mp4" />
+                                                  您的浏览器不支持视频播放
+                                                </video>
+                                              ) : (
+                                                <img
+                                                  src={url}
+                                                  alt={`培训图片 ${index + 1}`}
+                                                  className="w-full h-auto rounded-lg"
+                                                  data-testid={`image-training-${index}`}
+                                                  loading="lazy"
+                                                />
+                                              )}
+                                            </div>
+                                          </CarouselItem>
+                                        );
+                                      })}
+                                    </CarouselContent>
+                                    <CarouselPrevious />
+                                    <CarouselNext />
+                                  </Carousel>
+                                </div>
                               )}
                             </div>
                           )}
