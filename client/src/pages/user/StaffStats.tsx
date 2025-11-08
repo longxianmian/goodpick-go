@@ -42,6 +42,9 @@ export default function StaffStats() {
     useQuery<SummaryData>({
       queryKey: ["/api/staff/summary"],
       enabled: !!userToken,
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      staleTime: 0,
     });
 
   const { data: recentData, isLoading: recentLoading } = useQuery<
@@ -49,6 +52,9 @@ export default function StaffStats() {
   >({
     queryKey: ["/api/staff/recent-redemptions"],
     enabled: !!userToken,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   if (!user || !userToken) {
