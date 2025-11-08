@@ -297,16 +297,46 @@ export function registerRoutes(app: Express): Server {
         });
       }
       
-      // 直接重定向到公开的OSS URL
-      // 浏览器会尝试内联播放视频，即使有attachment头
-      const publicUrl = `https://prodee-h5-assets.oss-ap-southeast-1.aliyuncs.com/${objectKey}`;
-      res.redirect(publicUrl);
+      const axios = await import('axios');
+      const ossUrl = `https://prodee-h5-assets.oss-ap-southeast-1.aliyuncs.com/${objectKey}`;
+      
+      // 支持Range请求（视频拖动）
+      const headers: any = {};
+      if (req.headers.range) {
+        headers['Range'] = req.headers.range;
+      }
+      
+      // 流式代理OSS响应
+      const ossResponse = await axios.default.get(ossUrl, {
+        responseType: 'stream',
+        headers,
+        validateStatus: (status) => status < 500 // 允许206等状态码
+      });
+      
+      // 设置正确的响应头
+      res.status(ossResponse.status);
+      res.setHeader('Content-Type', 'video/mp4');
+      res.setHeader('Accept-Ranges', 'bytes');
+      
+      // 转发关键头信息
+      if (ossResponse.headers['content-length']) {
+        res.setHeader('Content-Length', ossResponse.headers['content-length']);
+      }
+      if (ossResponse.headers['content-range']) {
+        res.setHeader('Content-Range', ossResponse.headers['content-range']);
+      }
+      
+      // 流式传输
+      ossResponse.data.pipe(res);
+      
     } catch (error) {
       console.error('[Media Proxy Error]', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Failed to proxy video' 
-      });
+      if (!res.headersSent) {
+        res.status(500).json({ 
+          success: false, 
+          message: 'Failed to proxy video' 
+        });
+      }
     }
   });
 
