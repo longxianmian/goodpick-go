@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 import {
   Carousel,
   CarouselContent,
@@ -177,33 +178,35 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
           <h1 className="text-xl font-bold">{t("staffCampaign.detailTitle")}</h1>
         </div>
 
-        {/* Media Carousel */}
+        {/* Media Carousel - 16:9 Aspect Ratio */}
         {allMedia.length > 0 && (
           <div className="w-full">
             {allMedia.length === 1 ? (
               // Single media
-              <div className="rounded-lg overflow-hidden">
-                {isVideoUrl(allMedia[0]) ? (
-                  <video
-                    controls
-                    playsInline
-                    preload="metadata"
-                    className="w-full max-h-96 bg-black rounded-lg"
-                    data-testid="video-media-0"
-                  >
-                    <source src={allMedia[0]} type="video/mp4" />
-                    您的浏览器不支持视频播放
-                  </video>
-                ) : (
-                  <img
-                    src={allMedia[0]}
-                    alt={getTranslatedText(campaign, "title")}
-                    className="w-full h-auto rounded-lg"
-                    loading="lazy"
-                    data-testid="image-media-0"
-                  />
-                )}
-              </div>
+              <AspectRatio ratio={16/9} className="bg-card rounded-lg overflow-hidden">
+                <div className="w-full h-full flex items-center justify-center">
+                  {isVideoUrl(allMedia[0]) ? (
+                    <video
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="w-full h-full object-contain"
+                      data-testid="video-media-0"
+                    >
+                      <source src={allMedia[0]} type="video/mp4" />
+                      您的浏览器不支持视频播放
+                    </video>
+                  ) : (
+                    <img
+                      src={allMedia[0]}
+                      alt={getTranslatedText(campaign, "title")}
+                      className="w-full h-full object-contain"
+                      loading="lazy"
+                      data-testid="image-media-0"
+                    />
+                  )}
+                </div>
+              </AspectRatio>
             ) : (
               // Multiple media - carousel
               <div className="relative px-12">
@@ -213,28 +216,30 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                       const isVideo = isVideoUrl(url);
                       return (
                         <CarouselItem key={index}>
-                          <div className="rounded-lg overflow-hidden">
-                            {isVideo ? (
-                              <video
-                                controls
-                                playsInline
-                                preload="metadata"
-                                className="w-full max-h-96 bg-black rounded-lg"
-                                data-testid={`video-media-${index}`}
-                              >
-                                <source src={url} type="video/mp4" />
-                                您的浏览器不支持视频播放
-                              </video>
-                            ) : (
-                              <img
-                                src={url}
-                                alt={`${getTranslatedText(campaign, "title")} ${index + 1}`}
-                                className="w-full h-auto rounded-lg"
-                                loading="lazy"
-                                data-testid={`image-media-${index}`}
-                              />
-                            )}
-                          </div>
+                          <AspectRatio ratio={16/9} className="bg-card rounded-lg overflow-hidden">
+                            <div className="w-full h-full flex items-center justify-center">
+                              {isVideo ? (
+                                <video
+                                  controls
+                                  playsInline
+                                  preload="metadata"
+                                  className="w-full h-full object-contain"
+                                  data-testid={`video-media-${index}`}
+                                >
+                                  <source src={url} type="video/mp4" />
+                                  您的浏览器不支持视频播放
+                                </video>
+                              ) : (
+                                <img
+                                  src={url}
+                                  alt={`${getTranslatedText(campaign, "title")} ${index + 1}`}
+                                  className="w-full h-full object-contain"
+                                  loading="lazy"
+                                  data-testid={`image-media-${index}`}
+                                />
+                              )}
+                            </div>
+                          </AspectRatio>
                         </CarouselItem>
                       );
                     })}
@@ -270,12 +275,13 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
               </div>
             </div>
 
-            {/* Description */}
+            {/* Campaign Rules */}
             {campaign.descriptionSource && (
               <div className="space-y-2">
-                <p className="text-sm text-muted-foreground" data-testid="text-description">
-                  {getTranslatedText(campaign, "description")}
-                </p>
+                <h3 className="font-semibold text-base">{t("staffCampaign.rules")}</h3>
+                <div className="text-sm text-muted-foreground space-y-2" data-testid="content-rules">
+                  {formatTextContent(getTranslatedText(campaign, "description"))}
+                </div>
               </div>
             )}
           </CardContent>
