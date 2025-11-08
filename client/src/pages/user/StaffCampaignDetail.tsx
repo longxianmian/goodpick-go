@@ -41,8 +41,14 @@ interface Campaign {
   originalPrice: string | null;
   startAt: string;
   endAt: string;
-  staffInstructions: string | null;
-  staffTraining: string | null;
+  staffInstructionsSource: string | null;
+  staffInstructionsZh: string | null;
+  staffInstructionsEn: string | null;
+  staffInstructionsTh: string | null;
+  staffTrainingSource: string | null;
+  staffTrainingZh: string | null;
+  staffTrainingEn: string | null;
+  staffTrainingTh: string | null;
   staffTrainingMediaUrls: string[] | null;
 }
 
@@ -62,21 +68,43 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
   // 获取翻译后的文本
   const getTranslatedText = (
     campaign: Campaign,
-    field: "title" | "description"
-  ) => {
-    const sourceField = field === "title" ? "titleSource" : "descriptionSource";
-    const zhField = field === "title" ? "titleZh" : "descriptionZh";
-    const enField = field === "title" ? "titleEn" : "descriptionEn";
-    const thField = field === "title" ? "titleTh" : "descriptionTh";
+    field: "title" | "description" | "staffInstructions" | "staffTraining"
+  ): string => {
+    let sourceField: keyof Campaign;
+    let zhField: keyof Campaign;
+    let enField: keyof Campaign;
+    let thField: keyof Campaign;
+
+    if (field === "title") {
+      sourceField = "titleSource";
+      zhField = "titleZh";
+      enField = "titleEn";
+      thField = "titleTh";
+    } else if (field === "description") {
+      sourceField = "descriptionSource";
+      zhField = "descriptionZh";
+      enField = "descriptionEn";
+      thField = "descriptionTh";
+    } else if (field === "staffInstructions") {
+      sourceField = "staffInstructionsSource";
+      zhField = "staffInstructionsZh";
+      enField = "staffInstructionsEn";
+      thField = "staffInstructionsTh";
+    } else {
+      sourceField = "staffTrainingSource";
+      zhField = "staffTrainingZh";
+      enField = "staffTrainingEn";
+      thField = "staffTrainingTh";
+    }
 
     if (language === "zh-cn") {
-      return campaign[zhField] || campaign[sourceField];
+      return (campaign[zhField] || campaign[sourceField] || "") as string;
     } else if (language === "en-us") {
-      return campaign[enField] || campaign[sourceField];
+      return (campaign[enField] || campaign[sourceField] || "") as string;
     } else if (language === "th-th") {
-      return campaign[thField] || campaign[sourceField];
+      return (campaign[thField] || campaign[sourceField] || "") as string;
     }
-    return campaign[sourceField];
+    return (campaign[sourceField] || "") as string;
   };
 
   // 格式化折扣显示
@@ -404,7 +432,7 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
         </Card>
 
         {/* Staff Instructions */}
-        {campaign.staffInstructions && (
+        {campaign.staffInstructionsSource && (
           <Card>
             <CardContent className="pt-6 space-y-3">
               <div className="flex items-center gap-2">
@@ -412,14 +440,14 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                 <h3 className="font-semibold text-lg">{t("staffCampaign.instructions")}</h3>
               </div>
               <div className="space-y-2" data-testid="content-instructions">
-                {formatTextContent(campaign.staffInstructions)}
+                {formatTextContent(getTranslatedText(campaign, "staffInstructions"))}
               </div>
             </CardContent>
           </Card>
         )}
 
         {/* Staff Training */}
-        {campaign.staffTraining && (
+        {campaign.staffTrainingSource && (
           <Card>
             <CardContent className="pt-6 space-y-3">
               <div className="flex items-center gap-2">
@@ -427,7 +455,7 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                 <h3 className="font-semibold text-lg">{t("staffCampaign.training")}</h3>
               </div>
               <div className="space-y-2" data-testid="content-training">
-                {formatTextContent(campaign.staffTraining)}
+                {formatTextContent(getTranslatedText(campaign, "staffTraining"))}
               </div>
             </CardContent>
           </Card>
