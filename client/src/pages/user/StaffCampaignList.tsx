@@ -104,6 +104,20 @@ export default function StaffCampaignList() {
     }
   };
 
+  // 获取视频封面图（使用阿里云OSS视频快照功能）
+  const getVideoPoster = (url: string): string => {
+    try {
+      const urlObj = new URL(url.trim());
+      // 只对OSS URL添加快照参数
+      if (urlObj.hostname.includes('aliyuncs.com')) {
+        return `${url}?x-oss-process=video/snapshot,t_0,f_jpg,w_800`;
+      }
+      return url;
+    } catch {
+      return url;
+    }
+  };
+
   // 格式化折扣显示
   const formatDiscount = (campaign: Campaign): string => {
     if (campaign.discountType === "percentage_off") {
@@ -185,6 +199,7 @@ export default function StaffCampaignList() {
                         <div className="relative w-full h-full bg-black">
                           <video
                             src={convertToProxyUrl(thumbnailUrl)}
+                            poster={getVideoPoster(thumbnailUrl)}
                             className="w-full h-full object-cover"
                             muted
                             preload="metadata"

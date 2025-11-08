@@ -8,6 +8,13 @@ GoodPick Go is a multi-language coupon recommendation platform designed for the 
 Preferred communication style: Simple, everyday language in Chinese.
 
 ## Recent Updates (2025-11-08)
+- **视频缩略图黑屏修复（关键）**: 恢复阿里云OSS视频快照功能，解决视频缩略图显示问题
+  - **根本原因**: 代码清理时误删了`getVideoPoster()`函数，导致video标签缺少poster属性，浏览器（尤其是LINE内嵌浏览器）无法显示视频第一帧
+  - **解决方案**: 
+    1. 恢复`getVideoPoster(url)`函数，使用阿里云OSS视频快照API：`?x-oss-process=video/snapshot,t_0,f_jpg,w_800`
+    2. 为所有video标签添加`poster={getVideoPoster(url)}`属性，浏览器直接显示OSS生成的封面图
+  - **修复范围**: CampaignDetail.tsx（用户活动详情）、StaffCampaignDetail.tsx（员工活动详情）、StaffCampaignList.tsx（员工活动列表）
+  - **技术优势**: 不依赖HTTP Range请求，在任何浏览器环境下都能正常显示视频缩略图
 - **数据统计逻辑重大修复（关键）**: 修复员工统计和运营后台Dashboard的数据统计错误
   - **员工统计API字段名修复**: 前端interface从`week/month`改为`thisWeek/thisMonth`，与后端API响应结构一致
   - **Dashboard统计逻辑错误**: 

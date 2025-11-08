@@ -140,6 +140,20 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
     }
   };
 
+  // 获取视频封面图（使用阿里云OSS视频快照功能）
+  const getVideoPoster = (url: string): string => {
+    try {
+      const urlObj = new URL(url.trim());
+      // 只对OSS URL添加快照参数
+      if (urlObj.hostname.includes('aliyuncs.com')) {
+        return `${url}?x-oss-process=video/snapshot,t_0,f_jpg,w_800`;
+      }
+      return url;
+    } catch {
+      return url;
+    }
+  };
+
   // 获取所有媒体（优先培训媒体，然后横幅图片）
   const getAllMedia = (campaign: Campaign): string[] => {
     const media: string[] = [];
@@ -246,6 +260,7 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                           };
                         }
                       }}
+                      poster={getVideoPoster(allMedia[0])}
                       controls
                       preload="metadata"
                       className="w-full h-full object-contain pointer-events-none"
@@ -314,6 +329,7 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                                       };
                                     }
                                   }}
+                                  poster={getVideoPoster(url)}
                                   controls
                                   preload="metadata"
                                   className="w-full h-full object-contain pointer-events-none"
