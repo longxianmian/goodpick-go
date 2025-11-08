@@ -276,9 +276,8 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
               </div>
             ) : (
               // Multiple media - carousel
-              <div className="relative px-12">
-                <Carousel className="w-full">
-                  <CarouselContent>
+              <Carousel className="w-full">
+                <CarouselContent>
                     {allMedia.map((url, index) => {
                       const isVideo = isVideoUrl(url);
                       return (
@@ -349,7 +348,6 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                   <CarouselPrevious />
                   <CarouselNext />
                 </Carousel>
-              </div>
             )}
           </div>
         )}
