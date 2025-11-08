@@ -213,13 +213,13 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
           <div className="w-full">
             {allMedia.length === 1 ? (
               // Single media
-              <AspectRatio ratio={16/9} className="bg-card rounded-lg overflow-hidden">
+              <AspectRatio ratio={16/9} className="bg-card rounded-lg">
                 {isVideoUrl(allMedia[0]) ? (
                   <video
                     controls
                     playsInline
                     preload="metadata"
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-contain rounded-lg"
                     data-testid="video-media-0"
                     src={convertToProxyUrl(allMedia[0])}
                   >
@@ -244,13 +244,13 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                       const isVideo = isVideoUrl(url);
                       return (
                         <CarouselItem key={index}>
-                          <AspectRatio ratio={16/9} className="bg-card rounded-lg overflow-hidden">
+                          <AspectRatio ratio={16/9} className="bg-card rounded-lg">
                             {isVideo ? (
                               <video
                                 controls
                                 playsInline
                                 preload="metadata"
-                                className="w-full h-full object-contain"
+                                className="w-full h-full object-contain rounded-lg"
                                 data-testid={`video-media-${index}`}
                                 src={convertToProxyUrl(url)}
                               >
