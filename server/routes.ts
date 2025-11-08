@@ -200,7 +200,9 @@ async function generateUniqueCouponCode(): Promise<string> {
 async function translateCampaignContent(
   sourceLang: 'zh-cn' | 'en-us' | 'th-th',
   titleSource: string,
-  descriptionSource: string
+  descriptionSource: string,
+  staffInstructionsSource?: string,
+  staffTrainingSource?: string
 ) {
   const targetLangs = ['zh-cn', 'en-us', 'th-th'].filter(lang => lang !== sourceLang) as Array<'zh-cn' | 'en-us' | 'th-th'>;
   
@@ -214,24 +216,52 @@ async function translateCampaignContent(
     descriptionTh: sourceLang === 'th-th' ? descriptionSource : descriptionSource,
   };
 
+  // 如果有员工指引和培训内容，也初始化它们
+  if (staffInstructionsSource) {
+    translations.staffInstructionsZh = sourceLang === 'zh-cn' ? staffInstructionsSource : staffInstructionsSource;
+    translations.staffInstructionsEn = sourceLang === 'en-us' ? staffInstructionsSource : staffInstructionsSource;
+    translations.staffInstructionsTh = sourceLang === 'th-th' ? staffInstructionsSource : staffInstructionsSource;
+  }
+  
+  if (staffTrainingSource) {
+    translations.staffTrainingZh = sourceLang === 'zh-cn' ? staffTrainingSource : staffTrainingSource;
+    translations.staffTrainingEn = sourceLang === 'en-us' ? staffTrainingSource : staffTrainingSource;
+    translations.staffTrainingTh = sourceLang === 'th-th' ? staffTrainingSource : staffTrainingSource;
+  }
+
   // 尝试翻译到其他语言，失败时使用原文（已在上面设置）
   for (const targetLang of targetLangs) {
     try {
-      const [translatedTitle, translatedDesc] = await Promise.all([
-        translateText(titleSource, sourceLang, targetLang),
-        translateText(descriptionSource, sourceLang, targetLang),
-      ]);
+      const textsToTranslate = [titleSource, descriptionSource];
+      if (staffInstructionsSource) textsToTranslate.push(staffInstructionsSource);
+      if (staffTrainingSource) textsToTranslate.push(staffTrainingSource);
+
+      const translatedTexts = await Promise.all(
+        textsToTranslate.map(text => translateText(text, sourceLang, targetLang))
+      );
+
+      let idx = 0;
+      const translatedTitle = translatedTexts[idx++];
+      const translatedDesc = translatedTexts[idx++];
+      const translatedInstructions = staffInstructionsSource ? translatedTexts[idx++] : undefined;
+      const translatedTraining = staffTrainingSource ? translatedTexts[idx++] : undefined;
 
       // 只有翻译成功且不是原文时才更新（translateText失败时返回原文）
       if (targetLang === 'zh-cn') {
         translations.titleZh = translatedTitle;
         translations.descriptionZh = translatedDesc;
+        if (translatedInstructions) translations.staffInstructionsZh = translatedInstructions;
+        if (translatedTraining) translations.staffTrainingZh = translatedTraining;
       } else if (targetLang === 'en-us') {
         translations.titleEn = translatedTitle;
         translations.descriptionEn = translatedDesc;
+        if (translatedInstructions) translations.staffInstructionsEn = translatedInstructions;
+        if (translatedTraining) translations.staffTrainingEn = translatedTraining;
       } else if (targetLang === 'th-th') {
         translations.titleTh = translatedTitle;
         translations.descriptionTh = translatedDesc;
+        if (translatedInstructions) translations.staffInstructionsTh = translatedInstructions;
+        if (translatedTraining) translations.staffTrainingTh = translatedTraining;
       }
     } catch (error) {
       // 翻译失败不影响系统运行，使用原文兜底
@@ -767,8 +797,14 @@ export function registerRoutes(app: Express): Server {
           originalPrice: campaigns.originalPrice,
           startAt: campaigns.startAt,
           endAt: campaigns.endAt,
-          staffInstructions: campaigns.staffInstructions,
-          staffTraining: campaigns.staffTraining,
+          staffInstructionsSource: campaigns.staffInstructionsSource,
+          staffInstructionsZh: campaigns.staffInstructionsZh,
+          staffInstructionsEn: campaigns.staffInstructionsEn,
+          staffInstructionsTh: campaigns.staffInstructionsTh,
+          staffTrainingSource: campaigns.staffTrainingSource,
+          staffTrainingZh: campaigns.staffTrainingZh,
+          staffTrainingEn: campaigns.staffTrainingEn,
+          staffTrainingTh: campaigns.staffTrainingTh,
           staffTrainingMediaUrls: campaigns.staffTrainingMediaUrls,
         })
         .from(campaigns)
@@ -856,8 +892,14 @@ export function registerRoutes(app: Express): Server {
           maxTotal: campaign.maxTotal,
           currentClaimed: campaign.currentClaimed,
           channel: campaign.channel,
-          staffInstructions: campaign.staffInstructions,
-          staffTraining: campaign.staffTraining,
+          staffInstructionsSource: campaign.staffInstructionsSource,
+          staffInstructionsZh: campaign.staffInstructionsZh,
+          staffInstructionsEn: campaign.staffInstructionsEn,
+          staffInstructionsTh: campaign.staffInstructionsTh,
+          staffTrainingSource: campaign.staffTrainingSource,
+          staffTrainingZh: campaign.staffTrainingZh,
+          staffTrainingEn: campaign.staffTrainingEn,
+          staffTrainingTh: campaign.staffTrainingTh,
           staffTrainingMediaUrls: campaign.staffTrainingMediaUrls || [],
           stores: storeList.map(s => ({
             id: s.id,
@@ -1583,8 +1625,14 @@ export function registerRoutes(app: Express): Server {
           originalPrice: campaigns.originalPrice,
           startAt: campaigns.startAt,
           endAt: campaigns.endAt,
-          staffInstructions: campaigns.staffInstructions,
-          staffTraining: campaigns.staffTraining,
+          staffInstructionsSource: campaigns.staffInstructionsSource,
+          staffInstructionsZh: campaigns.staffInstructionsZh,
+          staffInstructionsEn: campaigns.staffInstructionsEn,
+          staffInstructionsTh: campaigns.staffInstructionsTh,
+          staffTrainingSource: campaigns.staffTrainingSource,
+          staffTrainingZh: campaigns.staffTrainingZh,
+          staffTrainingEn: campaigns.staffTrainingEn,
+          staffTrainingTh: campaigns.staffTrainingTh,
           staffTrainingMediaUrls: campaigns.staffTrainingMediaUrls,
         })
         .from(campaigns)
@@ -2074,8 +2122,11 @@ export function registerRoutes(app: Express): Server {
         maxTotal,
         channel,
         storeIds,
-        staffInstructions,
-        staffTraining,
+        staffInstructionsSourceLang = 'th-th',
+        staffInstructionsSource,
+        staffTrainingSourceLang = 'th-th',
+        staffTrainingSource,
+        staffTrainingMediaUrls,
       } = req.body;
 
       if (!titleSource || !descriptionSource) {
@@ -2085,7 +2136,9 @@ export function registerRoutes(app: Express): Server {
       const translations = await translateCampaignContent(
         titleSourceLang,
         titleSource,
-        descriptionSource
+        descriptionSource,
+        staffInstructionsSource,
+        staffTrainingSource
       );
 
       const [newCampaign] = await db
@@ -2111,8 +2164,17 @@ export function registerRoutes(app: Express): Server {
           maxPerUser,
           maxTotal,
           channel,
-          staffInstructions,
-          staffTraining,
+          staffInstructionsSourceLang,
+          staffInstructionsSource,
+          staffInstructionsZh: translations.staffInstructionsZh,
+          staffInstructionsEn: translations.staffInstructionsEn,
+          staffInstructionsTh: translations.staffInstructionsTh,
+          staffTrainingSourceLang,
+          staffTrainingSource,
+          staffTrainingZh: translations.staffTrainingZh,
+          staffTrainingEn: translations.staffTrainingEn,
+          staffTrainingTh: translations.staffTrainingTh,
+          staffTrainingMediaUrls,
           isActive: true,
         })
         .returning();
@@ -2153,8 +2215,11 @@ export function registerRoutes(app: Express): Server {
         channel,
         isActive,
         storeIds,
-        staffInstructions,
-        staffTraining,
+        staffInstructionsSourceLang,
+        staffInstructionsSource,
+        staffTrainingSourceLang,
+        staffTrainingSource,
+        staffTrainingMediaUrls,
       } = req.body;
 
       let translations: any = {};
@@ -2162,7 +2227,9 @@ export function registerRoutes(app: Express): Server {
         translations = await translateCampaignContent(
           titleSourceLang || 'th-th',
           titleSource,
-          descriptionSource
+          descriptionSource,
+          staffInstructionsSource,
+          staffTrainingSource
         );
       }
 
@@ -2186,6 +2253,22 @@ export function registerRoutes(app: Express): Server {
         updateData.descriptionTh = translations.descriptionTh;
       }
 
+      if (staffInstructionsSource) {
+        updateData.staffInstructionsSourceLang = staffInstructionsSourceLang || 'th-th';
+        updateData.staffInstructionsSource = staffInstructionsSource;
+        updateData.staffInstructionsZh = translations.staffInstructionsZh;
+        updateData.staffInstructionsEn = translations.staffInstructionsEn;
+        updateData.staffInstructionsTh = translations.staffInstructionsTh;
+      }
+
+      if (staffTrainingSource) {
+        updateData.staffTrainingSourceLang = staffTrainingSourceLang || 'th-th';
+        updateData.staffTrainingSource = staffTrainingSource;
+        updateData.staffTrainingZh = translations.staffTrainingZh;
+        updateData.staffTrainingEn = translations.staffTrainingEn;
+        updateData.staffTrainingTh = translations.staffTrainingTh;
+      }
+
       if (bannerImageUrl !== undefined) updateData.bannerImageUrl = bannerImageUrl;
       if (mediaUrls !== undefined) updateData.mediaUrls = mediaUrls;
       if (couponValue !== undefined) updateData.couponValue = couponValue;
@@ -2197,9 +2280,7 @@ export function registerRoutes(app: Express): Server {
       if (maxTotal !== undefined) updateData.maxTotal = maxTotal;
       if (channel !== undefined) updateData.channel = channel;
       if (isActive !== undefined) updateData.isActive = isActive;
-      if (staffInstructions !== undefined) updateData.staffInstructions = staffInstructions;
-      if (staffTraining !== undefined) updateData.staffTraining = staffTraining;
-      if (req.body.staffTrainingMediaUrls !== undefined) updateData.staffTrainingMediaUrls = req.body.staffTrainingMediaUrls;
+      if (staffTrainingMediaUrls !== undefined) updateData.staffTrainingMediaUrls = staffTrainingMediaUrls;
 
       const [updatedCampaign] = await db
         .update(campaigns)
