@@ -8,10 +8,13 @@ GoodPick Go is a multi-language coupon recommendation platform designed for the 
 Preferred communication style: Simple, everyday language in Chinese.
 
 ## Recent Updates (2025-11-08)
-- **视频播放修复（关键）**: 解决阿里云OSS培训视频无法播放的问题
-  - **根本原因**: OSS返回`Content-Disposition: attachment`和`x-oss-force-download: true`导致浏览器强制下载而非播放
-  - **解决方案**: 实现视频代理路由`/api/media/video/:objectKey`，前端自动将OSS URL转换为代理URL
-  - **技术验证**: OSS视频支持HTTP Range请求（206 Partial Content），支持流式播放和进度条拖动
+- **视频播放修复完成（关键）**: 彻底解决阿里云OSS培训视频无法播放的问题
+  - **根本原因1**: OSS返回`Content-Disposition: attachment`和`x-oss-force-download: true`导致浏览器强制下载而非播放
+  - **根本原因2**: OSS签名URL带查询参数（如`?Expires=123&Signature=...`），正则表达式要求扩展名在末尾，导致`isVideoUrl()`返回false，URL未转换为代理
+  - **解决方案**: 
+    1. 后端：实现视频代理路由`/api/media/video/:objectKey`，流式转发OSS内容，移除强制下载头
+    2. 前端：使用`new URL()`解析URL（替代正则表达式），检查`pathname`而非整个字符串，正确处理带查询参数的OSS签名URL
+  - **技术验证**: 服务器日志显示`HEAD /api/media/video/public/...mp4 200`，OSS视频支持HTTP Range请求（206 Partial Content），支持流式播放和进度条拖动
   - **安全措施**: 代理路由限制只允许`public/*`路径，防止开放代理滥用
 - **员工活动详情页UI优化**: 完成16:9媒体展示和文本格式化
   1. **16:9媒体展示**: 使用shadcn AspectRatio组件 + object-contain，视频/图片完整显示不裁剪，竖版内容有letterboxing但使用bg-card背景

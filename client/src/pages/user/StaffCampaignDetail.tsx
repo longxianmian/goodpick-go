@@ -103,20 +103,39 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
     return `${start} - ${end}`;
   };
 
-  // 判断是否为视频
+  // 判断是否为视频（支持带查询参数的URL）
   const isVideoUrl = (url: string): boolean => {
-    return /\.(mp4|webm|ogg|mov)$/i.test(url);
+    try {
+      const urlObj = new URL(url.trim());
+      const pathname = urlObj.pathname.toLowerCase();
+      return /\.(mp4|webm|ogg|mov)$/i.test(pathname);
+    } catch {
+      // 如果不是有效URL，回退到简单正则
+      return /\.(mp4|webm|ogg|mov)$/i.test(url.trim());
+    }
   };
 
-  // 转换OSS URL为代理URL（用于视频播放）
+  // 转换OSS URL为代理URL（用于视频播放，支持带查询参数的URL）
   const convertToProxyUrl = (ossUrl: string): string => {
-    // 检查是否是阿里云OSS的public路径视频
-    const match = ossUrl.match(/https?:\/\/[^/]+\/(.+\.(mp4|webm|ogg|mov))$/i);
-    if (match && match[1].startsWith('public/')) {
-      return `/api/media/video/${match[1]}`;
+    try {
+      const urlObj = new URL(ossUrl.trim());
+      const pathname = urlObj.pathname;
+      
+      // 检查是否是视频文件
+      if (!/\.(mp4|webm|ogg|mov)$/i.test(pathname)) {
+        return ossUrl;
+      }
+      
+      // 检查是否是public路径
+      if (pathname.startsWith('/public/')) {
+        return `/api/media/video${pathname}`;
+      }
+      
+      return ossUrl;
+    } catch {
+      // 如果URL解析失败，返回原URL
+      return ossUrl;
     }
-    // 如果不是视频或不是public路径，返回原URL
-    return ossUrl;
   };
 
   // 获取所有媒体（优先培训媒体，然后横幅图片）
