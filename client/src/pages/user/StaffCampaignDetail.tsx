@@ -221,8 +221,8 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                     preload="metadata"
                     className="w-full h-full object-contain rounded-lg"
                     data-testid="video-media-0"
-                    src={convertToProxyUrl(allMedia[0])}
                   >
+                    <source src={allMedia[0]} type="video/mp4" />
                     您的浏览器不支持视频播放
                   </video>
                 ) : (
@@ -252,8 +252,8 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                                 preload="metadata"
                                 className="w-full h-full object-contain rounded-lg"
                                 data-testid={`video-media-${index}`}
-                                src={convertToProxyUrl(url)}
                               >
+                                <source src={url} type="video/mp4" />
                                 您的浏览器不支持视频播放
                               </video>
                             ) : (
