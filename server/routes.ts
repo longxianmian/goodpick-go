@@ -297,12 +297,10 @@ export function registerRoutes(app: Express): Server {
         });
       }
       
-      // Generate streamable URL with inline content-disposition
-      const ossService = getOssService();
-      const streamableUrl = await ossService.getStreamableVideoUrl(objectKey, 3600);
-      
-      // Redirect to the streamable URL
-      res.redirect(streamableUrl);
+      // 直接重定向到公开的OSS URL
+      // 浏览器会尝试内联播放视频，即使有attachment头
+      const publicUrl = `https://prodee-h5-assets.oss-ap-southeast-1.aliyuncs.com/${objectKey}`;
+      res.redirect(publicUrl);
     } catch (error) {
       console.error('[Media Proxy Error]', error);
       res.status(500).json({ 

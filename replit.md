@@ -8,10 +8,15 @@ GoodPick Go is a multi-language coupon recommendation platform designed for the 
 Preferred communication style: Simple, everyday language in Chinese.
 
 ## Recent Updates (2025-11-08)
-- **员工OA活动说明页面UI/UX重构**: 完成员工活动说明页面的全面优化，解决3个关键显示问题：
-  1. **折叠式展示**: 使用shadcn Accordion组件实现，默认只显示活动标题、横幅图片、日期和折扣徽章，点击后才展开详细内容（员工操作说明、培训材料），大幅改善页面可读性
-  2. **文本格式化**: 实现formatTextContent工具函数，智能识别并正确渲染：编号列表（1）2）3）等）使用`<ol>`保留数字顺序、符号列表（• - *）使用`<ul>`、普通段落保留换行格式，彻底解决文字挤在一起的问题
-  3. **媒体轮播**: 支持图片和视频混合展示，单个媒体直接显示，多个媒体使用shadcn Carousel (Embla)轮播组件，视频添加playsInline和controls属性确保移动端（特别是iOS LINE WebView）正常播放
+- **视频播放修复（关键）**: 解决阿里云OSS培训视频无法播放的问题
+  - **根本原因**: OSS返回`Content-Disposition: attachment`和`x-oss-force-download: true`导致浏览器强制下载而非播放
+  - **解决方案**: 实现视频代理路由`/api/media/video/:objectKey`，前端自动将OSS URL转换为代理URL
+  - **技术验证**: OSS视频支持HTTP Range请求（206 Partial Content），支持流式播放和进度条拖动
+  - **安全措施**: 代理路由限制只允许`public/*`路径，防止开放代理滥用
+- **员工活动详情页UI优化**: 完成16:9媒体展示和文本格式化
+  1. **16:9媒体展示**: 使用shadcn AspectRatio组件 + object-contain，视频/图片完整显示不裁剪，竖版内容有letterboxing但使用bg-card背景
+  2. **文本格式化增强**: formatTextContent支持空格可选的编号列表（1. 1) 1） ①等）和符号列表，HTML内容自动转义避免XSS
+  3. **活动规则显示**: 将"活动介绍"改为"活动规则"，使用formatTextContent格式化，支持三语言翻译
 - **扫码核销功能**: Staff OA核销页面新增二维码扫描功能，使用html5-qrcode库实现。页面分为两个核销方式：1) 扫码核销（主要方式）- 调用摄像头扫描用户优惠券二维码，自动提取8位核销码并核销；2) 手动核销（兜底方式）- 输入8位数字核销码。支持中文/英文/泰语三种语言，优化移动端体验。
 - **Staff OA菜单优化**: 简化LINE OA官方账号底部菜单设计，只保留单一入口"我的工作台"链接到核销页面(/staff/redeem)，员工进入后通过底部导航（核销/活动说明/我的数据）在三个功能间自由切换，降低理解成本，符合移动端使用习惯。
 - **智能领券按钮显示逻辑**: 优化活动详情页领券按钮的显示策略，已领取优惠券的用户将不再看到领券按钮（彻底隐藏），未登录用户和未领取用户仍显示"用LINE一键领取"按钮，提升用户体验，避免混淆。
