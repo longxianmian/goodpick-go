@@ -184,28 +184,30 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
             {allMedia.length === 1 ? (
               // Single media
               <AspectRatio ratio={16/9} className="bg-card rounded-lg overflow-hidden">
-                <div className="w-full h-full flex items-center justify-center">
-                  {isVideoUrl(allMedia[0]) ? (
-                    <video
-                      controls
-                      playsInline
-                      preload="metadata"
-                      className="w-full h-full object-contain"
-                      data-testid="video-media-0"
-                    >
-                      <source src={allMedia[0]} type="video/mp4" />
-                      您的浏览器不支持视频播放
-                    </video>
-                  ) : (
-                    <img
-                      src={allMedia[0]}
-                      alt={getTranslatedText(campaign, "title")}
-                      className="w-full h-full object-contain"
-                      loading="lazy"
-                      data-testid="image-media-0"
-                    />
-                  )}
-                </div>
+                {isVideoUrl(allMedia[0]) ? (
+                  <video
+                    controls
+                    playsInline
+                    webkit-playsinline="true"
+                    x5-playsinline="true"
+                    preload="auto"
+                    crossOrigin="anonymous"
+                    className="w-full h-full object-contain"
+                    data-testid="video-media-0"
+                    style={{ display: 'block' }}
+                  >
+                    <source src={allMedia[0]} type="video/mp4" />
+                    您的浏览器不支持视频播放
+                  </video>
+                ) : (
+                  <img
+                    src={allMedia[0]}
+                    alt={getTranslatedText(campaign, "title")}
+                    className="w-full h-full object-contain"
+                    loading="lazy"
+                    data-testid="image-media-0"
+                  />
+                )}
               </AspectRatio>
             ) : (
               // Multiple media - carousel
@@ -217,28 +219,30 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                       return (
                         <CarouselItem key={index}>
                           <AspectRatio ratio={16/9} className="bg-card rounded-lg overflow-hidden">
-                            <div className="w-full h-full flex items-center justify-center">
-                              {isVideo ? (
-                                <video
-                                  controls
-                                  playsInline
-                                  preload="metadata"
-                                  className="w-full h-full object-contain"
-                                  data-testid={`video-media-${index}`}
-                                >
-                                  <source src={url} type="video/mp4" />
-                                  您的浏览器不支持视频播放
-                                </video>
-                              ) : (
-                                <img
-                                  src={url}
-                                  alt={`${getTranslatedText(campaign, "title")} ${index + 1}`}
-                                  className="w-full h-full object-contain"
-                                  loading="lazy"
-                                  data-testid={`image-media-${index}`}
-                                />
-                              )}
-                            </div>
+                            {isVideo ? (
+                              <video
+                                controls
+                                playsInline
+                                webkit-playsinline="true"
+                                x5-playsinline="true"
+                                preload="auto"
+                                crossOrigin="anonymous"
+                                className="w-full h-full object-contain"
+                                data-testid={`video-media-${index}`}
+                                style={{ display: 'block' }}
+                              >
+                                <source src={url} type="video/mp4" />
+                                您的浏览器不支持视频播放
+                              </video>
+                            ) : (
+                              <img
+                                src={url}
+                                alt={`${getTranslatedText(campaign, "title")} ${index + 1}`}
+                                className="w-full h-full object-contain"
+                                loading="lazy"
+                                data-testid={`image-media-${index}`}
+                              />
+                            )}
                           </AspectRatio>
                         </CarouselItem>
                       );
