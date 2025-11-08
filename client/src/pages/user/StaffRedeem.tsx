@@ -64,21 +64,12 @@ export default function StaffRedeem() {
   const [authChecking, setAuthChecking] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // 【修复】异步检测LIFF环境（等待SDK加载）
+  // 【修复】异步检测LIFF环境（等待SDK加载，不依赖UA）
   const detectLiffEnvironment = async (): Promise<boolean> => {
-    // 1. 检查User Agent（快速初步判断）
     const ua = navigator.userAgent;
-    const hasLineUA = ua.includes('Line/') || ua.includes('LIFF');
-    
-    console.log('[detectLiffEnvironment] UA检测:', { ua, hasLineUA });
+    console.log('[detectLiffEnvironment] UA:', ua);
 
-    // 2. 如果不是LINE浏览器，直接返回false
-    if (!hasLineUA) {
-      console.log('[detectLiffEnvironment] 非LINE环境');
-      return false;
-    }
-
-    // 3. 等待LIFF SDK加载（最多等5秒）
+    // 【关键修复】等待LIFF SDK加载（最多等5秒），不管UA如何
     const maxWaitTime = 5000;
     const startTime = Date.now();
     
@@ -86,15 +77,13 @@ export default function StaffRedeem() {
       if ((window as any).liff) {
         console.log('[detectLiffEnvironment] LIFF SDK已加载');
         
-        // 4. 使用官方API检测
+        // 使用官方API检测
         try {
           const isInClient = (window as any).liff.isInClient?.() || false;
           console.log('[detectLiffEnvironment] liff.isInClient():', isInClient);
           return isInClient;
         } catch (e) {
           console.error('[detectLiffEnvironment] liff.isInClient() error:', e);
-          // fallback到UA检测
-          return hasLineUA;
         }
       }
       
@@ -102,8 +91,9 @@ export default function StaffRedeem() {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    // 5. 超时后fallback到UA检测
-    console.log('[detectLiffEnvironment] LIFF SDK加载超时，使用UA判断');
+    // 【Fallback】LIFF SDK未加载，检查UA
+    const hasLineUA = ua.includes('Line/') || ua.includes('LIFF');
+    console.log('[detectLiffEnvironment] LIFF SDK超时，UA判断:', hasLineUA);
     return hasLineUA;
   };
 
