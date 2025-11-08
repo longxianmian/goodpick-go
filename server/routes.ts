@@ -20,7 +20,8 @@ declare module 'express-session' {
   interface SessionData {
     oauthStates?: {
       [key: string]: {
-        campaignId: string;
+        campaignId?: string;
+        returnTo?: string;
         timestamp: number;
       };
     };
@@ -464,10 +465,10 @@ export function registerRoutes(app: Express): Server {
 
   // Store OAuth state for CSRF protection
   app.post('/api/auth/line/init-oauth', (req: Request, res: Response) => {
-    const { state, campaignId } = req.body;
+    const { state, campaignId, returnTo } = req.body;
 
-    if (!state || !campaignId) {
-      return res.status(400).json({ success: false, message: 'State and campaignId required' });
+    if (!state) {
+      return res.status(400).json({ success: false, message: 'State required' });
     }
 
     // Validate state format
@@ -488,6 +489,7 @@ export function registerRoutes(app: Express): Server {
 
     req.session.oauthStates[state] = {
       campaignId,
+      returnTo,
       timestamp: Date.now(),
     };
 
@@ -584,8 +586,18 @@ export function registerRoutes(app: Express): Server {
         { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
       );
 
-      // Redirect to campaign page with token and campaignId from verified session
-      const redirectUrl = `/campaign/${storedOAuthData.campaignId}?token=${encodeURIComponent(token)}&autoClaim=true`;
+      // Redirect based on returnTo or campaignId
+      let redirectUrl: string;
+      if (storedOAuthData.returnTo) {
+        // Custom return path (e.g., /staff/redeem)
+        redirectUrl = `${storedOAuthData.returnTo}?token=${encodeURIComponent(token)}&firstLogin=true`;
+      } else if (storedOAuthData.campaignId) {
+        // Campaign page with auto-claim
+        redirectUrl = `/campaign/${storedOAuthData.campaignId}?token=${encodeURIComponent(token)}&autoClaim=true`;
+      } else {
+        // Fallback to home
+        redirectUrl = `/?token=${encodeURIComponent(token)}`;
+      }
       
       res.redirect(redirectUrl);
     } catch (error) {
