@@ -213,13 +213,12 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
           <div className="w-full">
             {allMedia.length === 1 ? (
               // Single media
-              <AspectRatio ratio={16/9} className="bg-card rounded-lg">
+              <div className="w-full aspect-video rounded-lg overflow-hidden bg-black relative">
                 {isVideoUrl(allMedia[0]) ? (
                   <video
                     controls
                     playsInline
-                    preload="metadata"
-                    className="w-full h-full object-contain rounded-lg"
+                    className="w-full h-full object-contain"
                     data-testid="video-media-0"
                   >
                     <source src={allMedia[0]} type="video/mp4" />
@@ -234,7 +233,7 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                     data-testid="image-media-0"
                   />
                 )}
-              </AspectRatio>
+              </div>
             ) : (
               // Multiple media - carousel
               <div className="relative px-12">
@@ -244,13 +243,12 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                       const isVideo = isVideoUrl(url);
                       return (
                         <CarouselItem key={index}>
-                          <AspectRatio ratio={16/9} className="bg-card rounded-lg">
+                          <div className="w-full aspect-video rounded-lg overflow-hidden bg-black relative">
                             {isVideo ? (
                               <video
                                 controls
                                 playsInline
-                                preload="metadata"
-                                className="w-full h-full object-contain rounded-lg"
+                                className="w-full h-full object-contain"
                                 data-testid={`video-media-${index}`}
                               >
                                 <source src={url} type="video/mp4" />
@@ -265,7 +263,7 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                                 data-testid={`image-media-${index}`}
                               />
                             )}
-                          </AspectRatio>
+                          </div>
                         </CarouselItem>
                       );
                     })}
