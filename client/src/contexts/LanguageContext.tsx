@@ -326,6 +326,9 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.callStore': '拨打电话',
     'campaign.navigate': '导航',
     'campaign.navigateAria': '导航至 {store}',
+    'campaign.discountBadge.percentageOff': '{value}折',
+    'campaign.discountBadge.cashVoucher': '抵{value}元',
+    'campaign.discountBadge.finalPrice': '特价{value}元',
     
     // My Coupons Page
     'myCoupons.title': '我的优惠券',
@@ -418,15 +421,18 @@ const translations: Record<Language, Record<string, string>> = {
     
     // Staff OA - Campaign Page
     'staffCampaign.title': '当前活动',
+    'staffCampaign.subtitle': '查看正在进行的活动信息',
     'staffCampaign.description': '查看正在进行的活动信息',
     'staffCampaign.activeCampaigns': '进行中的活动',
     'staffCampaign.campaignDetails': '活动详情',
+    'staffCampaign.detailTitle': '活动详情',
     'staffCampaign.period': '活动期间',
     'staffCampaign.showDetails': '显示详情',
     'staffCampaign.hideDetails': '隐藏详情',
     'staffCampaign.instructions': '执行说明',
     'staffCampaign.training': '培训内容',
     'staffCampaign.noCampaigns': '暂无进行中的活动',
+    'staffCampaign.notFound': '未找到活动',
     'staffCampaign.originalPrice': '原价',
     
     // Dashboard - Summary
@@ -804,6 +810,9 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.callStore': 'Call',
     'campaign.navigate': 'Navigate',
     'campaign.navigateAria': 'Navigate to {store}',
+    'campaign.discountBadge.percentageOff': '{value}% OFF',
+    'campaign.discountBadge.cashVoucher': '฿{value} Voucher',
+    'campaign.discountBadge.finalPrice': '฿{value} Special',
     
     // My Coupons Page
     'myCoupons.title': 'My Coupons',
@@ -896,15 +905,18 @@ const translations: Record<Language, Record<string, string>> = {
     
     // Staff OA - Campaign Page
     'staffCampaign.title': 'Current Campaigns',
+    'staffCampaign.subtitle': 'View active campaign information',
     'staffCampaign.description': 'View active campaign information',
     'staffCampaign.activeCampaigns': 'Active Campaigns',
     'staffCampaign.campaignDetails': 'Campaign Details',
+    'staffCampaign.detailTitle': 'Campaign Details',
     'staffCampaign.period': 'Period',
     'staffCampaign.showDetails': 'Show Details',
     'staffCampaign.hideDetails': 'Hide Details',
     'staffCampaign.instructions': 'Instructions',
     'staffCampaign.training': 'Training',
     'staffCampaign.noCampaigns': 'No active campaigns',
+    'staffCampaign.notFound': 'Campaign not found',
     'staffCampaign.originalPrice': 'Original Price',
     
     // Dashboard - Summary
@@ -1282,6 +1294,9 @@ const translations: Record<Language, Record<string, string>> = {
     'campaign.callStore': 'โทร',
     'campaign.navigate': 'นำทาง',
     'campaign.navigateAria': 'นำทางไปยัง {store}',
+    'campaign.discountBadge.percentageOff': 'ส่วนลด {value}%',
+    'campaign.discountBadge.cashVoucher': 'บัตรกำนัล ฿{value}',
+    'campaign.discountBadge.finalPrice': 'ราคาพิเศษ ฿{value}',
     
     // My Coupons Page
     'myCoupons.title': 'คูปองของฉัน',
@@ -1374,15 +1389,18 @@ const translations: Record<Language, Record<string, string>> = {
     
     // Staff OA - Campaign Page
     'staffCampaign.title': 'แคมเปญปัจจุบัน',
+    'staffCampaign.subtitle': 'ดูข้อมูลแคมเปญที่กำลังดำเนินการ',
     'staffCampaign.description': 'ดูข้อมูลแคมเปญที่กำลังดำเนินการ',
     'staffCampaign.activeCampaigns': 'แคมเปญที่กำลังดำเนินการ',
     'staffCampaign.campaignDetails': 'รายละเอียดแคมเปญ',
+    'staffCampaign.detailTitle': 'รายละเอียดแคมเปญ',
     'staffCampaign.period': 'ระยะเวลา',
     'staffCampaign.showDetails': 'แสดงรายละเอียด',
     'staffCampaign.hideDetails': 'ซ่อนรายละเอียด',
     'staffCampaign.instructions': 'คำแนะนำ',
     'staffCampaign.training': 'คู่มือ',
     'staffCampaign.noCampaigns': 'ไม่มีแคมเปญที่กำลังดำเนินการ',
+    'staffCampaign.notFound': 'ไม่พบแคมเปญ',
     'staffCampaign.originalPrice': 'ราคาเดิม',
     
     // Dashboard - Summary
