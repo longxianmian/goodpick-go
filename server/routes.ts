@@ -2481,18 +2481,20 @@ export function registerRoutes(app: Express): Server {
       const monthStart = new Date(year, monthNum - 1, 1);
       const monthEnd = new Date(year, monthNum, 0, 23, 59, 59, 999);
 
+      // Get brand stats by joining through campaign_stores
       const brandStats = await db
         .select({
           brand: stores.brand,
           storeCount: sql<number>`count(DISTINCT ${stores.id})::int`,
-          issuedCount: sql<number>`count(CASE WHEN ${coupons.issuedAt} >= ${monthStart} AND ${coupons.issuedAt} <= ${monthEnd} THEN 1 END)::int`,
-          redeemedCount: sql<number>`count(CASE WHEN ${coupons.status} = 'used' AND ${coupons.usedAt} >= ${monthStart} AND ${coupons.usedAt} <= ${monthEnd} THEN 1 END)::int`,
+          issuedCount: sql<number>`count(DISTINCT CASE WHEN ${coupons.issuedAt} >= ${monthStart} AND ${coupons.issuedAt} <= ${monthEnd} THEN ${coupons.id} END)::int`,
+          redeemedCount: sql<number>`count(DISTINCT CASE WHEN ${coupons.status} = 'used' AND ${coupons.usedAt} >= ${monthStart} AND ${coupons.usedAt} <= ${monthEnd} AND ${coupons.redeemedStoreId} = ${stores.id} THEN ${coupons.id} END)::int`,
         })
         .from(stores)
-        .leftJoin(coupons, eq(stores.id, coupons.redeemedStoreId))
+        .leftJoin(campaignStores, eq(stores.id, campaignStores.storeId))
+        .leftJoin(coupons, eq(campaignStores.campaignId, coupons.campaignId))
         .where(isNotNull(stores.brand))
         .groupBy(stores.brand)
-        .orderBy(sql`count(CASE WHEN ${coupons.status} = 'used' AND ${coupons.usedAt} >= ${monthStart} AND ${coupons.usedAt} <= ${monthEnd} THEN 1 END) DESC`);
+        .orderBy(sql`count(DISTINCT CASE WHEN ${coupons.status} = 'used' AND ${coupons.usedAt} >= ${monthStart} AND ${coupons.usedAt} <= ${monthEnd} AND ${coupons.redeemedStoreId} = ${stores.id} THEN ${coupons.id} END) DESC`);
 
       const enrichedStats = brandStats.map((stat) => ({
         ...stat,
@@ -2526,19 +2528,21 @@ export function registerRoutes(app: Express): Server {
       const monthStart = new Date(year, monthNum - 1, 1);
       const monthEnd = new Date(year, monthNum, 0, 23, 59, 59, 999);
 
+      // Get store stats by joining through campaign_stores
       const storeStats = await db
         .select({
           storeId: stores.id,
           storeName: stores.name,
           brand: stores.brand,
           city: stores.city,
-          issuedCount: sql<number>`count(CASE WHEN ${coupons.issuedAt} >= ${monthStart} AND ${coupons.issuedAt} <= ${monthEnd} THEN 1 END)::int`,
-          redeemedCount: sql<number>`count(CASE WHEN ${coupons.status} = 'used' AND ${coupons.usedAt} >= ${monthStart} AND ${coupons.usedAt} <= ${monthEnd} THEN 1 END)::int`,
+          issuedCount: sql<number>`count(DISTINCT CASE WHEN ${coupons.issuedAt} >= ${monthStart} AND ${coupons.issuedAt} <= ${monthEnd} THEN ${coupons.id} END)::int`,
+          redeemedCount: sql<number>`count(DISTINCT CASE WHEN ${coupons.status} = 'used' AND ${coupons.usedAt} >= ${monthStart} AND ${coupons.usedAt} <= ${monthEnd} AND ${coupons.redeemedStoreId} = ${stores.id} THEN ${coupons.id} END)::int`,
         })
         .from(stores)
-        .leftJoin(coupons, eq(stores.id, coupons.redeemedStoreId))
+        .leftJoin(campaignStores, eq(stores.id, campaignStores.storeId))
+        .leftJoin(coupons, eq(campaignStores.campaignId, coupons.campaignId))
         .groupBy(stores.id, stores.name, stores.brand, stores.city)
-        .orderBy(sql`count(CASE WHEN ${coupons.status} = 'used' AND ${coupons.usedAt} >= ${monthStart} AND ${coupons.usedAt} <= ${monthEnd} THEN 1 END) DESC`)
+        .orderBy(sql`count(DISTINCT CASE WHEN ${coupons.status} = 'used' AND ${coupons.usedAt} >= ${monthStart} AND ${coupons.usedAt} <= ${monthEnd} AND ${coupons.redeemedStoreId} = ${stores.id} THEN ${coupons.id} END) DESC`)
         .limit(limit)
         .offset(offset);
 

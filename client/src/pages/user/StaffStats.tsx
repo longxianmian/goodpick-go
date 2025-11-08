@@ -15,8 +15,8 @@ import StaffBottomNav from "@/components/StaffBottomNav";
 
 interface SummaryData {
   today: number;
-  week: number;
-  month: number;
+  thisWeek: number;
+  thisMonth: number;
   byCampaign: Array<{
     campaignId: number;
     campaignTitle: string;
@@ -105,7 +105,7 @@ export default function StaffStats() {
                   <Skeleton className="h-8 w-16" />
                 ) : (
                   <div className="text-2xl font-bold">
-                    {summaryData?.week || 0}
+                    {summaryData?.thisWeek || 0}
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
@@ -127,7 +127,7 @@ export default function StaffStats() {
                   <Skeleton className="h-8 w-16" />
                 ) : (
                   <div className="text-2xl font-bold">
-                    {summaryData?.month || 0}
+                    {summaryData?.thisMonth || 0}
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
