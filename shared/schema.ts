@@ -89,9 +89,20 @@ export const campaigns = pgTable('campaigns', {
   // Promotion channel (optional)
   channel: channelEnum('channel'),
   
-  // Staff operational guidance
-  staffInstructions: text('staff_instructions'),
-  staffTraining: text('staff_training'),
+  // Staff Instructions - multi-language
+  staffInstructionsSourceLang: languageEnum('staff_instructions_source_lang').default('th-th'),
+  staffInstructionsSource: text('staff_instructions_source'),
+  staffInstructionsZh: text('staff_instructions_zh'),
+  staffInstructionsEn: text('staff_instructions_en'),
+  staffInstructionsTh: text('staff_instructions_th'),
+  
+  // Staff Training - multi-language
+  staffTrainingSourceLang: languageEnum('staff_training_source_lang').default('th-th'),
+  staffTrainingSource: text('staff_training_source'),
+  staffTrainingZh: text('staff_training_zh'),
+  staffTrainingEn: text('staff_training_en'),
+  staffTrainingTh: text('staff_training_th'),
+  
   staffTrainingMediaUrls: text('staff_training_media_urls').array(),
   
   isActive: boolean('is_active').notNull().default(true),
