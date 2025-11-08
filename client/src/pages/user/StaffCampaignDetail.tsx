@@ -3,7 +3,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
 import {
   Carousel,
   CarouselContent,
@@ -17,9 +16,11 @@ import {
   ArrowLeft,
   FileText,
   GraduationCap,
+  Play,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import StaffBottomNav from "@/components/StaffBottomNav";
+import { useState } from "react";
 import { format } from "date-fns";
 import { zhCN, enUS, th } from "date-fns/locale";
 import { formatTextContent } from "@/lib/formatTextContent";
@@ -49,6 +50,7 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
   const [, navigate] = useLocation();
   const { t, language } = useLanguage();
   const campaignId = params.id;
+  const [playingVideos, setPlayingVideos] = useState<Set<number>>(new Set());
 
   // 获取活动详情
   const { data, isLoading } = useQuery<{ success: boolean; data: Campaign }>({
@@ -215,15 +217,53 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
               // Single media
               <div className="w-full aspect-video rounded-lg overflow-hidden bg-black relative">
                 {isVideoUrl(allMedia[0]) ? (
-                  <video
-                    controls
-                    playsInline
-                    className="w-full h-full object-contain"
-                    data-testid="video-media-0"
+                  <div 
+                    className="w-full h-full relative cursor-pointer"
+                    onClick={(e) => {
+                      const video = e.currentTarget.querySelector('video') as HTMLVideoElement;
+                      if (video) {
+                        if (video.paused) {
+                          video.play();
+                        } else {
+                          video.pause();
+                        }
+                      }
+                    }}
                   >
-                    <source src={allMedia[0]} type="video/mp4" />
-                    您的浏览器不支持视频播放
-                  </video>
+                    <video
+                      ref={(el) => {
+                        if (el) {
+                          el.onplay = () => setPlayingVideos(prev => new Set(prev).add(0));
+                          el.onpause = () => {
+                            const newSet = new Set(playingVideos);
+                            newSet.delete(0);
+                            setPlayingVideos(newSet);
+                          };
+                          el.onended = () => {
+                            const newSet = new Set(playingVideos);
+                            newSet.delete(0);
+                            setPlayingVideos(newSet);
+                          };
+                        }
+                      }}
+                      controls
+                      className="w-full h-full object-contain pointer-events-none"
+                      data-testid="video-media-0"
+                    >
+                      <source src={allMedia[0]} type="video/mp4" />
+                      您的浏览器不支持视频播放
+                    </video>
+                    {!playingVideos.has(0) && (
+                      <div
+                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                        data-testid="video-play-indicator-0"
+                      >
+                        <div className="bg-black/70 backdrop-blur-sm rounded-full p-2.5 shadow-lg">
+                          <Play className="w-6 h-6 text-white fill-white" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <img
                     src={allMedia[0]}
@@ -245,15 +285,53 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                         <CarouselItem key={index}>
                           <div className="w-full aspect-video rounded-lg overflow-hidden bg-black relative">
                             {isVideo ? (
-                              <video
-                                controls
-                                playsInline
-                                className="w-full h-full object-contain"
-                                data-testid={`video-media-${index}`}
+                              <div 
+                                className="w-full h-full relative cursor-pointer"
+                                onClick={(e) => {
+                                  const video = e.currentTarget.querySelector('video') as HTMLVideoElement;
+                                  if (video) {
+                                    if (video.paused) {
+                                      video.play();
+                                    } else {
+                                      video.pause();
+                                    }
+                                  }
+                                }}
                               >
-                                <source src={url} type="video/mp4" />
-                                您的浏览器不支持视频播放
-                              </video>
+                                <video
+                                  ref={(el) => {
+                                    if (el) {
+                                      el.onplay = () => setPlayingVideos(prev => new Set(prev).add(index));
+                                      el.onpause = () => {
+                                        const newSet = new Set(playingVideos);
+                                        newSet.delete(index);
+                                        setPlayingVideos(newSet);
+                                      };
+                                      el.onended = () => {
+                                        const newSet = new Set(playingVideos);
+                                        newSet.delete(index);
+                                        setPlayingVideos(newSet);
+                                      };
+                                    }
+                                  }}
+                                  controls
+                                  className="w-full h-full object-contain pointer-events-none"
+                                  data-testid={`video-media-${index}`}
+                                >
+                                  <source src={url} type="video/mp4" />
+                                  您的浏览器不支持视频播放
+                                </video>
+                                {!playingVideos.has(index) && (
+                                  <div
+                                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                                    data-testid={`video-play-indicator-${index}`}
+                                  >
+                                    <div className="bg-black/70 backdrop-blur-sm rounded-full p-2.5 shadow-lg">
+                                      <Play className="w-6 h-6 text-white fill-white" />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             ) : (
                               <img
                                 src={url}
