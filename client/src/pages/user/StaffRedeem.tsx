@@ -62,6 +62,151 @@ export default function StaffRedeem() {
   const [redeeming, setRedeeming] = useState(false);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // 检测LIFF环境
+  const isLiffEnvironment = typeof window !== 'undefined' && 
+    (window.location.href.includes('liff.line.me') || 
+     (window as any).liff !== undefined);
+
+  // LIFF登录
+  const handleLiffLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      if (!(window as any).liff) {
+        console.error('[StaffRedeem] LIFF SDK not available');
+        toast({
+          title: t('common.error'),
+          description: 'LIFF not available',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const liff = (window as any).liff;
+
+      // 初始化LIFF（如果还没初始化）
+      if (!(window as any).__LIFF_INITED__) {
+        const liffId = import.meta.env.VITE_LIFF_ID;
+        if (!liffId) {
+          console.error('[StaffRedeem] No LIFF ID configured');
+          toast({
+            title: t('common.error'),
+            description: 'LIFF ID not configured',
+            variant: 'destructive',
+          });
+          return;
+        }
+        
+        console.log('[StaffRedeem] Initializing LIFF');
+        await liff.init({ liffId });
+        (window as any).__LIFF_INITED__ = true;
+        console.log('[StaffRedeem] LIFF initialized');
+      }
+
+      // 检查登录状态
+      if (!liff.isLoggedIn()) {
+        console.log('[StaffRedeem] User not logged in, redirecting to LINE login');
+        await liff.login();
+        return;
+      }
+
+      // 获取ID Token并登录后端
+      console.log('[StaffRedeem] User logged in to LIFF, getting ID Token');
+      const idToken = liff.getIDToken();
+      const response = await fetch('/api/auth/line/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        console.log('[StaffRedeem] Backend login successful');
+        loginUser(data.token, data.user);
+        toast({
+          title: t('common.success'),
+          description: t('staffRedeem.bindSuccessDesc'),
+        });
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error: any) {
+      console.error('[StaffRedeem] Login error:', error);
+      toast({
+        title: t('common.error'),
+        description: error.message || 'Login failed',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  // Web OAuth登录
+  const handleWebLogin = async () => {
+    setIsLoggingIn(true);
+    const lineChannelId = import.meta.env.VITE_LINE_CHANNEL_ID;
+    if (!lineChannelId) {
+      toast({
+        title: t('common.error'),
+        description: 'LINE Channel ID not configured',
+        variant: 'destructive',
+      });
+      setIsLoggingIn(false);
+      return;
+    }
+
+    const origin = window.location.origin.replace(/^http:/, 'https:');
+    const redirectUri = `${origin}/api/auth/line/callback`;
+    
+    const stateNonce = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    
+    try {
+      const initResponse = await fetch('/api/auth/line/init-oauth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          state: stateNonce,
+          returnTo: '/staff/redeem',
+        }),
+        credentials: 'include',
+      });
+
+      if (!initResponse.ok) {
+        throw new Error('Failed to initialize OAuth');
+      }
+
+      const authUrl = new URL('https://access.line.me/oauth2/v2.1/authorize');
+      authUrl.searchParams.set('response_type', 'code');
+      authUrl.searchParams.set('client_id', lineChannelId);
+      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('state', stateNonce);
+      authUrl.searchParams.set('scope', 'profile openid');
+      authUrl.searchParams.set('nonce', stateNonce);
+      
+      window.location.href = authUrl.toString();
+    } catch (error) {
+      toast({
+        title: t('common.error'),
+        description: 'Login failed',
+        variant: 'destructive',
+      });
+      setIsLoggingIn(false);
+    }
+  };
+
+  // 处理登录按钮点击
+  const handleLoginClick = async () => {
+    if (isLiffEnvironment) {
+      await handleLiffLogin();
+    } else {
+      await handleWebLogin();
+    }
+  };
 
   // Check URL for token (staff binding callback)
   useEffect(() => {
@@ -125,9 +270,25 @@ export default function StaffRedeem() {
               {t("staffRedeem.loginRequiredDesc")}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
+            <Button
+              onClick={handleLoginClick}
+              disabled={isLoggingIn}
+              className="w-full"
+              data-testid="button-login-with-line"
+            >
+              {isLoggingIn ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("common.loading")}
+                </>
+              ) : (
+                t("staffRedeem.loginWithLine")
+              )}
+            </Button>
             <Button
               onClick={() => navigate("/")}
+              variant="outline"
               className="w-full"
               data-testid="button-goto-home"
             >
