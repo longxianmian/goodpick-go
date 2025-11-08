@@ -204,15 +204,17 @@ async function translateCampaignContent(
 ) {
   const targetLangs = ['zh-cn', 'en-us', 'th-th'].filter(lang => lang !== sourceLang) as Array<'zh-cn' | 'en-us' | 'th-th'>;
   
+  // 初始化翻译结果：源语言使用原文，其他语言先用原文作为兜底
   const translations: any = {
-    titleZh: sourceLang === 'zh-cn' ? titleSource : null,
-    titleEn: sourceLang === 'en-us' ? titleSource : null,
-    titleTh: sourceLang === 'th-th' ? titleSource : null,
-    descriptionZh: sourceLang === 'zh-cn' ? descriptionSource : null,
-    descriptionEn: sourceLang === 'en-us' ? descriptionSource : null,
-    descriptionTh: sourceLang === 'th-th' ? descriptionSource : null,
+    titleZh: sourceLang === 'zh-cn' ? titleSource : titleSource,
+    titleEn: sourceLang === 'en-us' ? titleSource : titleSource,
+    titleTh: sourceLang === 'th-th' ? titleSource : titleSource,
+    descriptionZh: sourceLang === 'zh-cn' ? descriptionSource : descriptionSource,
+    descriptionEn: sourceLang === 'en-us' ? descriptionSource : descriptionSource,
+    descriptionTh: sourceLang === 'th-th' ? descriptionSource : descriptionSource,
   };
 
+  // 尝试翻译到其他语言，失败时使用原文（已在上面设置）
   for (const targetLang of targetLangs) {
     try {
       const [translatedTitle, translatedDesc] = await Promise.all([
@@ -220,6 +222,7 @@ async function translateCampaignContent(
         translateText(descriptionSource, sourceLang, targetLang),
       ]);
 
+      // 只有翻译成功且不是原文时才更新（translateText失败时返回原文）
       if (targetLang === 'zh-cn') {
         translations.titleZh = translatedTitle;
         translations.descriptionZh = translatedDesc;
@@ -231,7 +234,8 @@ async function translateCampaignContent(
         translations.descriptionTh = translatedDesc;
       }
     } catch (error) {
-      console.error(`Translation failed for ${targetLang}:`, error);
+      // 翻译失败不影响系统运行，使用原文兜底
+      console.error(`❌ 翻译${targetLang}失败，使用原文:`, error);
     }
   }
 
