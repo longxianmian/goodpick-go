@@ -39,22 +39,24 @@ export default function StaffStats() {
   const { t, language } = useLanguage();
 
   const { data: summaryData, isLoading: summaryLoading } =
-    useQuery<SummaryData>({
+    useQuery<SummaryData, Error, SummaryData, [string]>({
       queryKey: ["/api/staff/summary"],
       enabled: !!userToken,
       refetchOnMount: true,
       refetchOnWindowFocus: true,
       staleTime: 0,
+      select: (response: any) => response.data,
     });
 
   const { data: recentData, isLoading: recentLoading } = useQuery<
-    RecentRedemption[]
+    RecentRedemption[], Error, RecentRedemption[], [string]
   >({
     queryKey: ["/api/staff/recent-redemptions"],
     enabled: !!userToken,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     staleTime: 0,
+    select: (response: any) => response.data,
   });
 
   if (!user || !userToken) {
