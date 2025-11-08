@@ -345,8 +345,6 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                       );
                     })}
                   </CarouselContent>
-                  <CarouselPrevious />
-                  <CarouselNext />
                 </Carousel>
             )}
           </div>
