@@ -8,6 +8,13 @@ GoodPick Go is a multi-language coupon recommendation platform designed for the 
 Preferred communication style: Simple, everyday language in Chinese.
 
 ## Recent Updates (2025-11-08)
+- **员工指引和培训内容多语言支持完成（重要）**: 为staffInstructions和staffTraining实现完整的多语言架构
+  - **数据库Schema扩展**: 新增10个字段（staffInstructionsSourceLang/Source/Zh/En/Th + staffTrainingSourceLang/Source/Zh/En/Th），符合现有多语言字段约定
+  - **数据迁移**: 通过SQL成功将旧字段（staff_instructions/staff_training）数据复制到新的Source字段，3个活动数据迁移完成
+  - **后端翻译增强**: translateCampaignContent函数扩展支持员工指引和培训内容的自动翻译，CREATE/UPDATE Campaign API正确使用新字段
+  - **前端多语言显示**: StaffCampaignDetail的getTranslatedText函数支持新字段，翻译为空时优雅fallback到原文
+  - **端到端测试验证**: 测试通过，三种语言（中文/英文/泰语）切换时UI元素和内容正确显示，格式化正常
+  - **Architect建议**: (1) 将SQL迁移记录到版本控制文档 (2) 监控生产环境OpenAI翻译速率限制 (3) 考虑去重翻译逻辑
 - **视频缩略图黑屏修复（关键）**: 恢复阿里云OSS视频快照功能，解决视频缩略图显示问题
   - **根本原因**: 代码清理时误删了`getVideoPoster()`函数，导致video标签缺少poster属性，浏览器（尤其是LINE内嵌浏览器）无法显示视频第一帧
   - **解决方案**: 
