@@ -8,6 +8,18 @@ GoodPick Go is a multi-language coupon recommendation platform designed for the 
 Preferred communication style: Simple, everyday language in Chinese.
 
 ## Recent Updates (2025-11-08)
+- **数据统计逻辑重大修复（关键）**: 修复员工统计和运营后台Dashboard的数据统计错误
+  - **员工统计API字段名修复**: 前端interface从`week/month`改为`thisWeek/thisMonth`，与后端API响应结构一致
+  - **Dashboard统计逻辑错误**: 
+    - **问题**: Brand/Store统计使用`leftJoin(coupons, eq(stores.id, coupons.redeemedStoreId))`，只能匹配已核销优惠券（未核销的`redeemedStoreId`为NULL）
+    - **影响**: `issuedCount`统计错误，实际统计的是"已核销优惠券的发放时间"，而非"该门店相关活动发放的所有优惠券"
+    - **修复**: 改为通过`campaign_stores`表关联，正确统计门店参与的活动发放的所有优惠券
+  - **SQL优化**: 
+    - 发放数量：`COUNT(DISTINCT CASE WHEN issued_at IN range THEN coupon.id END)` 通过`campaign_stores`关联
+    - 核销数量：`COUNT(DISTINCT CASE WHEN status='used' AND used_at IN range AND redeemedStoreId=storeId THEN coupon.id END)`
+    - 使用`COUNT(DISTINCT coupon.id)`避免多表JOIN导致的重复计数
+  - **架构师审查**: 通过验证，SQL性能可接受，建议添加多门店活动场景测试和生产环境延迟监控
+  - **端到端测试**: 管理后台Dashboard三个维度（活动、品牌、门店）数据展示准确，核销率计算正确
 - **视频播放修复完成（关键）**: 彻底解决阿里云OSS培训视频无法播放的问题
   - **根本原因1**: OSS返回`Content-Disposition: attachment`和`x-oss-force-download: true`导致浏览器强制下载而非播放
   - **根本原因2**: OSS签名URL带查询参数（如`?Expires=123&Signature=...`），正则表达式要求扩展名在末尾，导致`isVideoUrl()`返回false，URL未转换为代理
