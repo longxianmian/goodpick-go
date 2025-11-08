@@ -317,6 +317,8 @@ export function registerRoutes(app: Express): Server {
       res.status(ossResponse.status);
       res.setHeader('Content-Type', 'video/mp4');
       res.setHeader('Accept-Ranges', 'bytes');
+      // 关键：强制内联播放，覆盖OSS的attachment头
+      res.setHeader('Content-Disposition', 'inline');
       
       // 转发关键头信息
       if (ossResponse.headers['content-length']) {
