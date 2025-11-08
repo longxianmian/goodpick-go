@@ -218,14 +218,11 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                   <video
                     controls
                     playsInline
-                    webkit-playsinline="true"
-                    x5-playsinline="true"
-                    preload="auto"
+                    preload="metadata"
                     className="w-full h-full object-contain"
                     data-testid="video-media-0"
-                    style={{ display: 'block' }}
+                    src={convertToProxyUrl(allMedia[0])}
                   >
-                    <source src={convertToProxyUrl(allMedia[0])} type="video/mp4" />
                     您的浏览器不支持视频播放
                   </video>
                 ) : (
@@ -252,14 +249,11 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                               <video
                                 controls
                                 playsInline
-                                webkit-playsinline="true"
-                                x5-playsinline="true"
-                                preload="auto"
+                                preload="metadata"
                                 className="w-full h-full object-contain"
                                 data-testid={`video-media-${index}`}
-                                style={{ display: 'block' }}
+                                src={convertToProxyUrl(url)}
                               >
-                                <source src={convertToProxyUrl(url)} type="video/mp4" />
                                 您的浏览器不支持视频播放
                               </video>
                             ) : (
