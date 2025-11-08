@@ -283,6 +283,35 @@ export function registerRoutes(app: Express): Server {
     });
   });
 
+  // ============ Media Proxy Endpoint ============
+  // Proxies OSS videos to fix Content-Disposition headers and enable inline playback
+  app.get('/api/media/video/:objectKey(*)', async (req: Request, res: Response) => {
+    try {
+      const objectKey = req.params.objectKey;
+      
+      // Security: Only allow public/* prefix to prevent open proxy abuse
+      if (!objectKey.startsWith('public/')) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Access denied: Invalid object path' 
+        });
+      }
+      
+      // Generate streamable URL with inline content-disposition
+      const ossService = getOssService();
+      const streamableUrl = await ossService.getStreamableVideoUrl(objectKey, 3600);
+      
+      // Redirect to the streamable URL
+      res.redirect(streamableUrl);
+    } catch (error) {
+      console.error('[Media Proxy Error]', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to proxy video' 
+      });
+    }
+  });
+
   // ============ A. User Authentication ============
 
   // Verify JWT token and return user info

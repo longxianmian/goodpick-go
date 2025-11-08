@@ -108,6 +108,17 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
     return /\.(mp4|webm|ogg|mov)$/i.test(url);
   };
 
+  // 转换OSS URL为代理URL（用于视频播放）
+  const convertToProxyUrl = (ossUrl: string): string => {
+    // 检查是否是阿里云OSS的public路径视频
+    const match = ossUrl.match(/https?:\/\/[^/]+\/(.+\.(mp4|webm|ogg|mov))$/i);
+    if (match && match[1].startsWith('public/')) {
+      return `/api/media/video/${match[1]}`;
+    }
+    // 如果不是视频或不是public路径，返回原URL
+    return ossUrl;
+  };
+
   // 获取所有媒体（优先培训媒体，然后横幅图片）
   const getAllMedia = (campaign: Campaign): string[] => {
     const media: string[] = [];
@@ -191,12 +202,11 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                     webkit-playsinline="true"
                     x5-playsinline="true"
                     preload="auto"
-                    crossOrigin="anonymous"
                     className="w-full h-full object-contain"
                     data-testid="video-media-0"
                     style={{ display: 'block' }}
                   >
-                    <source src={allMedia[0]} type="video/mp4" />
+                    <source src={convertToProxyUrl(allMedia[0])} type="video/mp4" />
                     您的浏览器不支持视频播放
                   </video>
                 ) : (
@@ -226,12 +236,11 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                                 webkit-playsinline="true"
                                 x5-playsinline="true"
                                 preload="auto"
-                                crossOrigin="anonymous"
                                 className="w-full h-full object-contain"
                                 data-testid={`video-media-${index}`}
                                 style={{ display: 'block' }}
                               >
-                                <source src={url} type="video/mp4" />
+                                <source src={convertToProxyUrl(url)} type="video/mp4" />
                                 您的浏览器不支持视频播放
                               </video>
                             ) : (

@@ -83,6 +83,31 @@ export class AliOssService {
     }
   }
 
+  async getStreamableVideoUrl(objectName: string, expiresInSeconds: number = 3600): Promise<string> {
+    try {
+      const url = this.client.signatureUrl(objectName, {
+        expires: expiresInSeconds,
+        response: {
+          'content-disposition': 'inline',
+          'content-type': 'video/mp4'
+        }
+      });
+      return url;
+    } catch (error) {
+      console.error('OSS streamable video URL error:', error);
+      throw new Error(`Failed to generate streamable video URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async getObject(objectName: string): Promise<OSS.GetObjectResult> {
+    try {
+      return await this.client.get(objectName);
+    } catch (error) {
+      console.error('OSS get object error:', error);
+      throw new Error(`Failed to get object from OSS: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   async fileExists(objectName: string): Promise<boolean> {
     try {
       await this.client.head(objectName);
