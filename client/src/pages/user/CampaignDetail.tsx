@@ -480,6 +480,7 @@ export default function CampaignDetail() {
                                     }
                                   }}
                                   controls
+                                  preload="metadata"
                                   className="w-full h-full object-contain pointer-events-none"
                                   data-testid={`media-video-${index}`}
                                 >

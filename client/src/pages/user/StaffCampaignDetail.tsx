@@ -247,6 +247,7 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                         }
                       }}
                       controls
+                      preload="metadata"
                       className="w-full h-full object-contain pointer-events-none"
                       data-testid="video-media-0"
                     >
@@ -314,6 +315,7 @@ export default function StaffCampaignDetail({ params }: { params: { id: string }
                                     }
                                   }}
                                   controls
+                                  preload="metadata"
                                   className="w-full h-full object-contain pointer-events-none"
                                   data-testid={`video-media-${index}`}
                                 >
