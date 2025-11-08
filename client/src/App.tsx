@@ -15,7 +15,8 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import StaffBind from "@/pages/user/StaffBind";
 import StaffRedeem from "@/pages/user/StaffRedeem";
 import StaffStats from "@/pages/user/StaffStats";
-import StaffCampaign from "@/pages/user/StaffCampaign";
+import StaffCampaignList from "@/pages/user/StaffCampaignList";
+import StaffCampaignDetail from "@/pages/user/StaffCampaignDetail";
 import CampaignDetail from "@/pages/user/CampaignDetail";
 import MyCoupons from "@/pages/user/MyCoupons";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
@@ -136,8 +137,8 @@ function Router() {
       <Route path="/staff/bind" component={StaffBind} />
       <Route path="/staff/redeem" component={StaffRedeem} />
       <Route path="/staff/stats" component={StaffStats} />
-      <Route path="/staff/campaign/:id" component={StaffCampaign} />
-      <Route path="/staff/campaign" component={StaffCampaign} />
+      <Route path="/staff/campaign/:id" component={StaffCampaignDetail} />
+      <Route path="/staff/campaign" component={StaffCampaignList} />
       <Route path="/admin/:rest*">
         <ProtectedAdminRoutes />
       </Route>
