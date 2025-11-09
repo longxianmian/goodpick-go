@@ -837,7 +837,37 @@ export function registerRoutes(app: Express): Server {
       const language = req.headers['accept-language'] || 'th-th';
 
       const [campaign] = await db
-        .select()
+        .select({
+          id: campaigns.id,
+          titleSource: campaigns.titleSource,
+          titleZh: campaigns.titleZh,
+          titleEn: campaigns.titleEn,
+          titleTh: campaigns.titleTh,
+          descriptionSource: campaigns.descriptionSource,
+          descriptionZh: campaigns.descriptionZh,
+          descriptionEn: campaigns.descriptionEn,
+          descriptionTh: campaigns.descriptionTh,
+          bannerImageUrl: campaigns.bannerImageUrl,
+          mediaUrls: campaigns.mediaUrls,
+          couponValue: campaigns.couponValue,
+          discountType: campaigns.discountType,
+          originalPrice: campaigns.originalPrice,
+          startAt: campaigns.startAt,
+          endAt: campaigns.endAt,
+          maxPerUser: campaigns.maxPerUser,
+          maxTotal: campaigns.maxTotal,
+          currentClaimed: campaigns.currentClaimed,
+          channel: campaigns.channel,
+          staffInstructionsSource: campaigns.staffInstructionsSource,
+          staffInstructionsZh: campaigns.staffInstructionsZh,
+          staffInstructionsEn: campaigns.staffInstructionsEn,
+          staffInstructionsTh: campaigns.staffInstructionsTh,
+          staffTrainingSource: campaigns.staffTrainingSource,
+          staffTrainingZh: campaigns.staffTrainingZh,
+          staffTrainingEn: campaigns.staffTrainingEn,
+          staffTrainingTh: campaigns.staffTrainingTh,
+          staffTrainingMediaUrls: campaigns.staffTrainingMediaUrls,
+        })
         .from(campaigns)
         .where(and(eq(campaigns.id, campaignId), eq(campaigns.isActive, true)))
         .limit(1);
