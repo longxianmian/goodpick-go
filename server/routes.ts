@@ -827,7 +827,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.get('/api/campaigns/:id', optionalUserAuth, async (req: Request, res: Response) => {
+  app.get('/api/campaigns/:id', async (req: Request, res: Response) => {
     try {
       const sessionId = req.headers['x-gpgo-session'] || 'no-session-id';
       const ua = req.headers['user-agent'] || 'no-ua';
