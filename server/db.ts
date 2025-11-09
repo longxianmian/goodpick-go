@@ -3,7 +3,14 @@ import { drizzle } from 'drizzle-orm/neon-serverless';
 import ws from "ws";
 import * as schema from "@shared/schema";
 
-neonConfig.webSocketConstructor = ws;
+// 只在 Replit 环境中使用 WebSocket
+// 在阿里云 ECS 等非 Replit 环境中，使用 HTTP 连接（Neon 默认行为）
+if (process.env.REPL_ID || process.env.REPLIT_ENVIRONMENT) {
+  neonConfig.webSocketConstructor = ws;
+  console.log('🔌 Neon: 使用 WebSocket 连接（Replit 环境）');
+} else {
+  console.log('🌐 Neon: 使用 HTTP 连接（非 Replit 环境）');
+}
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
