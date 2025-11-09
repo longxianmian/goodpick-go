@@ -1,32 +1,28 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
-import * as schema from "@shared/schema";
+// 标准 Node.js Postgres 连接配置（适用于阿里云 ECS、本地开发等）
+// 不再使用 Neon serverless / WebSocket 方式
 
-// 只在 Replit 环境中使用 WebSocket
-// 在阿里云 ECS 等非 Replit 环境中，使用 HTTP 连接（Neon 默认行为）
-if (process.env.REPL_ID || process.env.REPLIT_ENVIRONMENT) {
-  neonConfig.webSocketConstructor = ws;
-  console.log('🔌 Neon: 使用 WebSocket 连接（Replit 环境）');
-} else {
-  console.log('🌐 Neon: 使用 HTTP 连接（非 Replit 环境）');
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error('DATABASE_URL is not set');
 }
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
-}
+// 兼容两种场景：
+// - 本地 / ECS 自建 PostgreSQL：不启用 SSL
+// - 将来如果用外部托管（比如 Neon），可以通过 DB_SSL=true 打开 SSL
+const useSSL = process.env.DB_SSL === 'true';
 
-export const pool = new Pool({ 
-  connectionString: process.env.DATABASE_URL,
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
+const pool = new Pool({
+  connectionString,
+  ssl: useSSL
+    ? {
+        rejectUnauthorized: false,
+      }
+    : undefined,
 });
 
-pool.on('error', (err) => {
-  console.error('Unexpected database pool error:', err);
-});
-
-export const db = drizzle({ client: pool, schema });
+// drizzle ORM 实例，全项目共用
+export const db = drizzle(pool);
