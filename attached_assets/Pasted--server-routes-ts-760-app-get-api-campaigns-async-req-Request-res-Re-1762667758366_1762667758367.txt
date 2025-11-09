@@ -1,0 +1,77 @@
+文件树里打开：server/routes.ts
+
+搜索这一行（差不多 760 行附近）：
+
+app.get('/api/campaigns', async (req: Request, res: Response) => {
+
+
+在这个 handler 里，找到中间这块 activeCampaigns = await db.select({...}) 的代码，大概长这样（你现在可能还看到有 staffInstructionsSource、staffTrainingSource）：
+
+const activeCampaigns = await db
+  .select({
+    id: campaigns.id,
+    titleSource: campaigns.titleSource,
+    titleZh: campaigns.titleZh,
+    titleEn: campaigns.titleEn,
+    titleTh: campaigns.titleTh,
+    descriptionSource: campaigns.descriptionSource,
+    descriptionZh: campaigns.descriptionZh,
+    descriptionEn: campaigns.descriptionEn,
+    descriptionTh: campaigns.descriptionTh,
+    bannerImageUrl: campaigns.bannerImageUrl,
+    couponValue: campaigns.couponValue,
+    discountType: campaigns.discountType,
+    originalPrice: campaigns.originalPrice,
+    startAt: campaigns.startAt,
+    endAt: campaigns.endAt,
+    // ⚠️ 这两行就是现在 PG 报错的根源：
+    // staffInstructionsSource: campaigns.staffInstructionsSource,
+    // staffTrainingSource: campaigns.staffTrainingSource,
+    // 还有若干 staffTraining/staffInstructions 相关字段...
+  })
+  .from(campaigns)
+  ...
+
+
+请把 整个 select({ ... }) 替换为下面这一整块（直接复制覆盖）：
+
+   const activeCampaigns = await db
+     .select({
+       id: campaigns.id,
+       titleSource: campaigns.titleSource,
+       titleZh: campaigns.titleZh,
+       titleEn: campaigns.titleEn,
+       titleTh: campaigns.titleTh,
+       descriptionSource: campaigns.descriptionSource,
+       descriptionZh: campaigns.descriptionZh,
+       descriptionEn: campaigns.descriptionEn,
+       descriptionTh: campaigns.descriptionTh,
+       bannerImageUrl: campaigns.bannerImageUrl,
+       couponValue: campaigns.couponValue,
+       discountType: campaigns.discountType,
+       originalPrice: campaigns.originalPrice,
+       startAt: campaigns.startAt,
+       endAt: campaigns.endAt,
+       // ⚠️ 注意：这里 **不要再有 staffInstructionsSource / staffTrainingSource**
+       staffInstructions: campaigns.staffInstructions,
+       staffInstructionsZh: campaigns.staffInstructionsZh,
+       staffInstructionsEn: campaigns.staffInstructionsEn,
+       staffInstructionsTh: campaigns.staffInstructionsTh,
+       staffTraining: campaigns.staffTraining,
+       staffTrainingZh: campaigns.staffTrainingZh,
+       staffTrainingEn: campaigns.staffTrainingEn,
+       staffTrainingTh: campaigns.staffTrainingTh,
+       staffTrainingMediaUrls: campaigns.staffTrainingMediaUrls,
+     })
+     .from(campaigns)
+     .where(
+       and(
+         eq(campaigns.isActive, true),
+         sql`${campaigns.startAt} <= ${now}`,
+         sql`${campaigns.endAt} >= ${now}`
+       )
+     )
+     .orderBy(desc(campaigns.startAt));
+
+
+核心点只有一句话：确保这块代码里面完全没有 staffInstructionsSource 或 staffTrainingSource。
