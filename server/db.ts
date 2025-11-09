@@ -1,28 +1,32 @@
-// 标准 Node.js Postgres 连接配置（适用于阿里云 ECS、本地开发等）
-// 不再使用 Neon serverless / WebSocket 方式
+// server/db.ts
+// 统一使用 pg + drizzle-orm/node-postgres，彻底不用 Neon/WebSocket
 
+import pkg from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
+
+// pg 是 CommonJS 模块，这里用默认导入再解构出 Pool
+const { Pool } = pkg;
 
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
-  throw new Error('DATABASE_URL is not set');
+  throw new Error('DATABASE_URL is not set. 请在环境变量中配置 DATABASE_URL');
 }
 
-// 兼容两种场景：
-// - 本地 / ECS 自建 PostgreSQL：不启用 SSL
-// - 将来如果用外部托管（比如 Neon），可以通过 DB_SSL=true 打开 SSL
-const useSSL = process.env.DB_SSL === 'true';
+// 阿里云 RDS 一般不需要 SSL，如果你那边必须走 SSL，可以在环境变量里写 DB_SSL=true
+const useSsl = process.env.DB_SSL === 'true';
 
 const pool = new Pool({
   connectionString,
-  ssl: useSSL
-    ? {
-        rejectUnauthorized: false,
-      }
-    : undefined,
+  ssl: useSsl ? { rejectUnauthorized: false } : undefined,
+  // 如有需要可以开启：
+  // max: 10,
+  // idleTimeoutMillis: 30000,
+  // connectionTimeoutMillis: 10000,
 });
 
-// drizzle ORM 实例，全项目共用
+// 不带 schema，保持和之前代码结构兼容
 export const db = drizzle(pool);
+
+// 如果以后要写原生 SQL，也可以直接用这个 pool
+export { pool };
