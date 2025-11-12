@@ -281,19 +281,37 @@ export default function AdminStores() {
       if (data.success && data.place) {
         const details = data.place;
         
+        // 优先使用 Google 返回的数据填充表单（作为草稿），所有字段仍可手动修改
         setFormData(prev => ({
           ...prev,
-          name: prev.name || details.name || '',
-          address: details.address || '',
+          // 名称：优先使用 Google 的值，如果 Google 没有则保留原值
+          name: details.name || prev.name,
+          // 地址：优先使用 Google 的值
+          address: details.address || prev.address,
+          // 城市：优先使用 Google 智能提取的城市名
           city: details.city || prev.city,
-          latitude: details.latitude ? String(details.latitude) : '',
-          longitude: details.longitude ? String(details.longitude) : '',
-          rating: details.rating ? String(details.rating) : '',
-          imageUrl: details.imageUrl || '',
+          // 经纬度：优先使用 Google 的值
+          latitude: details.latitude ? String(details.latitude) : prev.latitude,
+          longitude: details.longitude ? String(details.longitude) : prev.longitude,
+          // 评分：优先使用 Google 的值
+          rating: details.rating ? String(details.rating) : prev.rating,
+          // 图片：优先使用 Google 的第一张图片
+          imageUrl: details.imageUrl || prev.imageUrl,
+          // 电话：优先使用 Google 的值
           phone: details.phone || prev.phone,
         }));
-        setAddressSearchValue(details.address || '');
+        setAddressSearchValue(details.address || place.description);
         setAddressSearchOpen(false);
+        
+        console.log('[Google Places] 自动填充表单字段:', {
+          name: details.name || '(无)',
+          city: details.city || '(无)',
+          phone: details.phone || '(无)',
+          rating: details.rating || '(无)',
+          hasImage: !!details.imageUrl,
+          coordinates: details.latitude && details.longitude ? 'Yes' : 'No'
+        });
+        
         toast({ title: t('common.success'), description: t('stores.placeSelected') });
       }
     } catch (error) {

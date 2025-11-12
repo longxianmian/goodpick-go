@@ -1,0 +1,258 @@
+给 Replit AI 的开发任务说明（门店新建页 + Google 自动填草稿）
+
+你现在作为开发助手，需要在这个项目里只修改前端代码，不改后端，不推送 git。
+目标：在“新建门店 / 编辑门店”的弹窗中，让 Google 地址搜索自动填一份草稿，但所有字段仍然可以手动修改后再保存。
+
+请严格按下面要求实现：
+
+一、限制条件（很重要）
+
+不要修改后端代码（server/ 目录下的任何文件都不要动）。
+
+不要改数据库 / migration / Drizzle 配置。
+
+不要推送仓库：
+
+不要执行 git push。
+
+允许在最后执行 git status 给我看。
+
+优先复用项目里已有的 Google / Places / Map 相关代码和封装；如果已有 env / 配置也要沿用，不要重新硬编码 API key。
+
+二、要修改的页面范围
+
+主要文件：
+
+client/src/pages/admin/AdminStores.tsx
+（如果文件路径略有不同，请以实际文件为准，但就是门店管理 / 新建门店弹窗对应的页面组件。）
+
+如果当前项目里还有单独封装的组件，例如：
+
+GooglePlacesAutocomplete、PlaceSearchInput、GoogleMapSearch 等，
+可以在上面文件中引用和使用，而不是重新造轮子。
+
+三、期望的业务行为（核心需求）
+
+在“新建门店” / “编辑门店”的弹窗中有这些字段（字段名可能略有不同）：
+
+名称（name）
+
+品牌（brand，可选）
+
+城市（city）
+
+电话（phone）
+
+地址（address）
+
+经纬度：latitude、longitude
+
+评分（rating，0–5）
+
+门店图片（上传）
+
+还有一个“Google 地址搜索”输入框 + 查询按钮（或自动下拉列表）。
+
+目标行为：
+
+运营在「Google 地址搜索」框中输入关键词（例如“7-11 xxx”）；
+
+展示 Google Places 自动完成的下拉候选（如果项目里本来就是手动输入也没关系，按项目现有方式实现搜索）。
+
+运营从候选列表中选中一个地址 / place 后，系统从 Google 获取 place 详情，并将以下字段自动填入表单，但都允许改：
+
+名称：填到「名称」字段
+
+默认用 place.name。
+
+城市：填到「城市」字段
+
+从 place.address_components 中解析城市（至少用 locality / administrative_area_level_1 / administrative_area_level_2 中一个最合理的；如果解析不到，就保留原来的值）。
+
+地址：填到「地址」字段
+
+使用 place.formatted_address。
+
+电话：填到「电话」字段
+
+使用 place.formatted_phone_number 或 place.international_phone_number，如果都没有则不改。
+
+经纬度：
+
+latitude 使用 place.geometry.location.lat()
+
+longitude 使用 place.geometry.location.lng()
+
+评分：
+
+如果 place.rating 存在，则填入评分字段；否则保持原值。
+
+图片：
+
+如果 place.photos 存在，取第一张 photo 生成 URL：
+photo.getUrl({ maxWidth: 800 })
+
+将这个 URL 填到门店图片的预览里（如果当前表单有保存图片 URL 的字段，可以一起写入）。
+
+仅作为默认值，运营可以通过“上传图片”替换。
+
+自动填只是“草稿”：所有字段运营都可以继续手动修改，然后点击“保存”时，以当前表单中的值为准写入后端。
+
+编辑门店时：
+
+打开弹窗时先用数据库里的值填充（这部分应该已经有逻辑了，不要动）。
+
+如果再次使用 Google 地址搜索，允许覆盖当前表单字段（依旧是“自动填草稿 + 手动可改”模式）。
+
+如果网络错误或 Google 没返回完整字段，不要卡死：
+
+失败时只在控制台打印错误，
+
+不要清空已有表单中的值。
+
+四、实现细节建议（供参考，不是死规定）
+
+查找现有 Google 相关代码
+
+搜索 Places, google.maps, Autocomplete, Google 等关键词：
+
+grep -R "google.maps" client/src -n
+grep -R "Places" client/src -n
+grep -R "Google 地址" client/src -n
+
+
+如果已有封装的地址搜索组件，尽量直接在“新建门店”弹窗中调用，并在选中回调里调用我们的填充方法。
+
+在 AdminStores.tsx 中增加一个处理函数
+
+伪代码示意（TypeScript）：
+
+type StoreForm = {
+  name: string;
+  brand?: string;
+  city: string;
+  phone?: string;
+  address: string;
+  latitude?: number;
+  longitude?: number;
+  rating?: number;
+  imageUrl?: string;
+  googlePlaceId?: string;
+};
+
+// 这里假设有 formState / setFormState，你用实际变量名替换
+const handleGooglePlaceSelected = (place: google.maps.places.PlaceResult) => {
+  setFormState(prev => {
+    const next = { ...prev };
+
+    if (place.name) {
+      next.name = place.name;
+    }
+
+    if (place.formatted_address) {
+      next.address = place.formatted_address;
+    }
+
+    // 解析城市
+    if (place.address_components) {
+      const cityComponent =
+        place.address_components.find(c =>
+          c.types.includes('locality') ||
+          c.types.includes('administrative_area_level_1') ||
+          c.types.includes('administrative_area_level_2')
+        );
+      if (cityComponent) {
+        next.city = cityComponent.long_name;
+      }
+    }
+
+    // 经纬度
+    if (place.geometry && place.geometry.location) {
+      const loc = place.geometry.location;
+      next.latitude = typeof loc.lat === 'function' ? loc.lat() : (loc.lat as number);
+      next.longitude = typeof loc.lng === 'function' ? loc.lng() : (loc.lng as number);
+    }
+
+    // 电话
+    if (place.formatted_phone_number || (place as any).international_phone_number) {
+      next.phone =
+        place.formatted_phone_number ||
+        (place as any).international_phone_number;
+    }
+
+    // 评分
+    if (typeof place.rating === 'number') {
+      next.rating = place.rating;
+    }
+
+    // 图片
+    if (place.photos && place.photos.length > 0) {
+      const photoUrl = place.photos[0].getUrl({ maxWidth: 800 });
+      (next as any).imageUrl = photoUrl;
+    }
+
+    // 记录 placeId 方便以后排查
+    if (place.place_id) {
+      (next as any).googlePlaceId = place.place_id;
+    }
+
+    return next;
+  });
+};
+
+
+注意：请使用项目中已有的 form 状态变量名，不要照抄 formState，以实际代码为准。
+
+把上面函数接到地址搜索组件的“选中回调”上
+
+如果有类似 onPlaceSelected / onSelectPlace 的 props，就把 handleGooglePlaceSelected 传过去。
+
+如果现在只是一个普通 <input> + 手动请求 API，那么请在成功拿到 PlaceResult 后调用这个函数。
+
+确保不会影响手动输入
+
+所有 <input>、<Input>、<TextField> 保持现有的 value={form.xxx}、onChange 逻辑即可。
+
+自动填只是改 form 的默认值；用户之后输入的都会覆盖。
+
+五、完成后的自检步骤
+
+修改完成后，请在 Replit 里做以下自测，并在日志里简要说明结果：
+
+在本地运行前端（如果已有命令，请照原来使用，比如 npm run dev）。
+
+登录后台，打开「门店管理 → 新建门店」弹窗。
+
+在「Google 地址搜索」中输入一个真实存在的店，比如：
+
+“7-Eleven Bangkok xxx”
+
+或者我提供的任意地址。
+
+选择下拉候选中的一项，确认：
+
+名称字段被自动填入；
+
+城市字段被填入合理的城市名；
+
+地址被填入；
+
+电话（如果 Google 有）被填入；
+
+经度 / 纬度被填入；
+
+评分如果有被填入；
+
+图片预览如果有逻辑的话能展示 Google 返回的第一张图片。
+
+手动修改名称或电话，再点“保存”，确认后台能正常创建门店。
+
+最后输出：
+
+修改了哪些文件（完整路径）；
+
+大致改了哪些逻辑；
+
+手动测试是否通过；
+
+不要执行 git push。
