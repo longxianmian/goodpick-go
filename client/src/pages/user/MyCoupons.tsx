@@ -143,7 +143,7 @@ export default function MyCoupons({ hideNavigation = false }: MyCouponsProps = {
 
   // Web环境登录（OAuth）
   const handleWebLogin = async () => {
-    const lineChannelId = import.meta.env.VITE_LINE_CHANNEL_ID;
+    const lineChannelId = import.meta.env.VITE_LINE_CHANNEL_ID || '2008410104';
     if (!lineChannelId) {
       toast({
         title: t('common.error'),

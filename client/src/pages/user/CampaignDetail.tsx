@@ -1,6 +1,7 @@
 import { useParams } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import SiteFooter from '@/components/layout/SiteFooter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +21,7 @@ declare global {
 
 export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
-  const { isUserAuthenticated, loginUser, logoutUser } = useAuth();
+  const { isUserAuthenticated, loginUser, logoutUser, userToken } = useAuth();
   const { t, language } = useLanguage();
   const { toast } = useToast();
 
@@ -30,20 +31,13 @@ export default function CampaignDetail() {
   const [error, setError] = useState<string | null>(null);
   const [claiming, setClaiming] = useState(false);
   
-  const [isLiffEnvironment, setIsLiffEnvironment] = useState(false);
+  // v1：普通用户 H5 一律走 Web OAuth，不启用 LIFF 登录
+  const [isLiffEnvironment] = useState(false);
   const [rulesDialogOpen, setRulesDialogOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [activeView, setActiveView] = useState<'campaign' | 'my-coupons'>('campaign');
   const [playingVideos, setPlayingVideos] = useState<Set<number>>(new Set());
-  
   const autoplayPlugin = useRef(Autoplay({ delay: 3000, stopOnInteraction: true }));
-
-  // 【方案要求】检查LIFF环境（只执行一次）
-  useEffect(() => {
-    if (window.liff) {
-      setIsLiffEnvironment(window.liff.isInClient());
-    }
-  }, []);
 
   // 【方案要求】加载活动详情（只执行一次，最简单的fetch）
   useEffect(() => {
@@ -90,7 +84,8 @@ export default function CampaignDetail() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+    }, [id, userToken]);
+
 
   // 获取用户位置用于计算距离
   useEffect(() => {
@@ -107,6 +102,65 @@ export default function CampaignDetail() {
       );
     }
   }, []);
+
+  // 处理 LINE OAuth 回调带回来的 token & autoClaim
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      const token = url.searchParams.get('token');
+      const autoClaim = url.searchParams.get('autoClaim') === 'true';
+
+      if (!token) {
+        return;
+      }
+
+      // 优先用已有的 user 信息（如果有的话）
+      let userData: any = null;
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          userData = JSON.parse(storedUser);
+        } catch {
+          userData = null;
+        }
+      }
+
+      // 没有的话就先用一个最简单的占位用户，后端主要靠 token 做鉴权
+      if (!userData) {
+        userData = {
+          id: 0,
+          lineUserId: '',
+          displayName: '',
+          avatarUrl: null,
+          language: 'th-th',
+        };
+      }
+
+      // 把 token 和 user 写入 AuthContext + localStorage
+      loginUser(token, userData);
+
+      // 安全起见，把 URL 里的 token 和 autoClaim 删掉（避免暴露在地址栏）
+      url.searchParams.delete('token');
+      url.searchParams.delete('autoClaim');
+      window.history.replaceState({}, document.title, url.toString());
+
+      // 如果要求自动领券，等一点点时间，确保活动数据已经加载完成
+      setTimeout(() => {
+        try {
+          // 直接复用现有的领取逻辑
+          // @ts-ignore
+          if (typeof handleClaim === 'function') {
+            // @ts-ignore
+            handleClaim();
+          }
+        } catch (e) {
+          console.error('autoClaim 执行出错:', e);
+        }
+      }, 500);
+    } catch (e) {
+      console.error('处理 LINE 回调参数出错:', e);
+    }
+  }, [loginUser]);
 
   // 计算两点之间的距离（Haversine公式）
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): string => {
@@ -214,27 +268,40 @@ export default function CampaignDetail() {
         return;
       }
 
-      const liff = (window as any).liff;
+        const liff = (window as any).liff;
 
-      // 【按需初始化 LIFF】如果还没有初始化，则在这里初始化
-      if (!(window as any).__LIFF_INITED__) {
-        // 优先使用 VITE_LIFF_ID
-        const liffId = import.meta.env.VITE_LIFF_ID;
-        if (!liffId) {
-          console.error('[handleLiffLogin] No LIFF ID configured');
-          toast({
-            title: t('common.error'),
-            description: 'LIFF ID not configured',
-            variant: 'destructive',
-          });
-          return;
-        }
-        
-        console.log('[handleLiffLogin] 开始按需初始化 LIFF');
-        await liff.init({ liffId });
-        (window as any).__LIFF_INITED__ = true;
-        console.log('[handleLiffLogin] LIFF 初始化完成');
-      }
+  // 【按需初始化 LIFF】如果还没初始化，则在这里初始化
+  if (!(window as any).__LIFF_INITED__) {
+    // 依次兜底：VITE_LIFF_ID -> VITE_LINE_LIFF_ID_MAIN -> 后端下发的配置
+    const envLiffId = import.meta.env.VITE_LIFF_ID;
+    const envLiffIdMain = import.meta.env.VITE_LINE_LIFF_ID_MAIN;
+    const configLiffId = (window as any).__GPGO_CONFIG__?.liffId;
+
+    const liffId = envLiffId || envLiffIdMain || configLiffId;
+
+    console.log('[handleLiffLogin] 选择 LIFF ID', {
+      envLiffId,
+      envLiffIdMain,
+      configLiffId,
+      final: liffId,
+    });
+
+    if (!liffId) {
+      console.error('[handleLiffLogin] No LIFF ID configured');
+      toast({
+        title: t('common.error'),
+        description: 'LIFF ID not configured',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    console.log('[handleLiffLogin] 开始按需初始化 LIFF');
+    await liff.init({ liffId });
+    (window as any).__LIFF_INITED__ = true;
+    console.log('[handleLiffLogin] LIFF 初始化完成');
+  }
+     
 
       // LIFF 初始化完成后，检查登录状态
       if (!liff.isLoggedIn()) {
@@ -274,7 +341,7 @@ export default function CampaignDetail() {
 
   // 【方案要求】Web登录（只在按钮点击时调用）
   const handleWebLogin = async () => {
-    const lineChannelId = import.meta.env.VITE_LINE_CHANNEL_ID;
+    const lineChannelId = import.meta.env.VITE_LINE_CHANNEL_ID || '2008410104';
     if (!lineChannelId) {
       toast({
         title: t('common.error'),
@@ -284,8 +351,7 @@ export default function CampaignDetail() {
       return;
     }
 
-    const origin = window.location.origin.replace(/^http:/, 'https:');
-    const redirectUri = `${origin}/api/auth/line/callback`;
+        const redirectUri = 'https://goodpickgo.com/api/auth/line/callback';
     
     const stateNonce = Array.from(crypto.getRandomValues(new Uint8Array(32)))
       .map(b => b.toString(16).padStart(2, '0'))
@@ -376,24 +442,34 @@ export default function CampaignDetail() {
     }
   };
 
-  // 【方案要求】领券按钮点击（只在这里触发登录或领券）
-  const handleClaimClick = async () => {
-    if (!campaign) return;
+   // 【修复版】领券按钮点击
+const handleClaimClick = async () => {
+  if (!campaign) return;
 
-    // 已达上限的用户看不到按钮，所以不需要判断
-    
-    if (isUserAuthenticated) {
-      // 已登录：直接领券
-      await handleClaim();
+  const userClaimedCount = campaign.userClaimedCount ?? 0;
+  const maxPerUser = campaign.maxPerUser ?? 1;
+  const userReachedLimit = userClaimedCount >= maxPerUser;
+
+  // 已登录 & 已达个人上限：直接跳到「我的优惠券」
+  if (isUserAuthenticated && userReachedLimit) {
+    setActiveView('my-coupons');
+    return;
+  }
+
+  // 未登录：先去登录（登录成功后再自动领券或手动点一次）
+  if (!isUserAuthenticated) {
+    if (isLiffEnvironment) {
+      await handleLiffLogin();
     } else {
-      // 未登录：触发登录
-      if (isLiffEnvironment) {
-        await handleLiffLogin();
-      } else {
-        await handleWebLogin();
-      }
+      await handleWebLogin();
     }
-  };
+    return;
+  }
+
+  // 已登录 & 未达上限：正常领券
+  await handleClaim();
+};
+  
 
   // 加载中
   if (loading) {
@@ -454,20 +530,37 @@ export default function CampaignDetail() {
     shouldShowButton: !userReachedLimit
   });
 
-  // 按钮文案
-  const getButtonText = () => {
-    if (claiming) return t('campaign.claiming');
-    if (isSoldOut) return t('campaign.soldOut');
-    if (isExpired) return t('campaign.expired');
-    // 已领取用户按钮不显示，所以不需要 userReachedLimit 的文案
-    if (!isUserAuthenticated) {
-      return isLiffEnvironment ? t('campaign.claimNow') : t('campaign.claimWithLine');
-    }
-    return t('campaign.claimNow');
-  };
+  // 按钮文案（区分三种状态）
+const getButtonText = () => {
+  if (claiming) return t('campaign.claiming');
+  if (isSoldOut) return t('campaign.soldOut');
+  if (isExpired) return t('campaign.expired');
 
-  return (
-    <div className="h-screen flex flex-col bg-background">
+  const userClaimedCount = campaign.userClaimedCount ?? 0;
+  const maxPerUser = campaign.maxPerUser ?? 1;
+  const userReachedLimit = userClaimedCount >= maxPerUser;
+
+  // 未登录
+  if (!isUserAuthenticated) {
+    return isLiffEnvironment ? t('campaign.claimNow') : t('campaign.claimWithLine');
+  }
+
+  // 已登录 & 已领过
+  if (userReachedLimit) {
+    // 这里你可以先写死中文，后面再去 i18n 里加 key
+    return '请查看我的优惠券';
+    // 或者：return t('campaign.viewMyCoupons');
+  }
+
+  // 已登录 & 还可以领
+  return t('campaign.claimNow');
+};
+  
+      return (
+    <>
+      <div className="h-screen flex flex-col bg-background">
+
+
       {activeView === 'campaign' ? (
         <>
           {/* 固定头部 - 图片/视频 */}
@@ -735,22 +828,20 @@ export default function CampaignDetail() {
             </div>
           </div>
 
-          {/* 固定在底部的区域 */}
-          <div className="border-t bg-background">
-            {/* 领取按钮 - 已领取用户隐藏 */}
-            {!userReachedLimit && (
-              <div className="container max-w-4xl mx-auto px-4 pt-3 pb-2">
-                <Button
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-                  size="lg"
-                  onClick={handleClaimClick}
-                  disabled={!canClaim || claiming}
-                  data-testid="button-claim"
-                >
-                  {getButtonText()}
-                </Button>
-              </div>
-            )}
+              {/* 固定在底部的区域 */}
+<div className="border-t bg-background">
+  <div className="container max-w-4xl mx-auto px-4 pt-3 pb-2">
+    <button
+      className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+      onClick={handleClaimClick}
+      // 已领过的用户也要能点按钮跳到“我的优惠券”，所以这里不要用 canClaim
+      disabled={claiming || isExpired || isSoldOut}
+      data-testid="button-claim"
+    >
+      {getButtonText()}
+    </button>
+  </div>
+</div>
             
             {/* 底部导航菜单 */}
             <div className="border-t">
@@ -773,7 +864,6 @@ export default function CampaignDetail() {
                 </button>
               </div>
             </div>
-          </div>
         </>
       ) : (
         <>
@@ -782,32 +872,55 @@ export default function CampaignDetail() {
             <MyCoupons hideNavigation={true} />
           </div>
 
-          {/* 固定在底部的区域 */}
-          <div className="border-t bg-background">
-            {/* 底部导航菜单 */}
-            <div className="border-t">
-              <div className="container max-w-4xl mx-auto grid grid-cols-2">
-                <button 
-                  onClick={() => setActiveView('campaign')}
-                  className={`flex flex-col items-center justify-center py-3 gap-1 hover-elevate ${activeView === 'campaign' ? 'border-b-2 border-orange-500' : ''}`}
-                  data-testid="nav-activities"
-                >
-                  <Tag className={`h-5 w-5 ${activeView === 'campaign' ? 'text-orange-500' : 'text-muted-foreground'}`} />
-                  <span className={`text-xs ${activeView === 'campaign' ? 'font-medium text-orange-500' : 'text-muted-foreground'}`}>{t('nav.activities')}</span>
-                </button>
-                <button 
-                  onClick={() => setActiveView('my-coupons')}
-                  className={`flex flex-col items-center justify-center py-3 gap-1 hover-elevate ${activeView === 'my-coupons' ? 'border-b-2 border-orange-500' : ''}`}
-                  data-testid="nav-my-coupons"
-                >
-                  <Ticket className={`h-5 w-5 ${activeView === 'my-coupons' ? 'text-orange-500' : 'text-muted-foreground'}`} />
-                  <span className={`text-xs ${activeView === 'my-coupons' ? 'font-medium text-orange-500' : 'text-muted-foreground'}`}>{t('nav.myCoupons')}</span>
-                </button>
-              </div>
-            </div>
+              {/* 固定在底部的区域 */}
+      <div className="border-t bg-background">
+        {/* 底部导航栏 */}
+        <div className="border-t">
+          <div className="container max-w-4xl mx-auto grid grid-cols-2">
+            <button
+              onClick={() => setActiveView('campaign')}
+              className={`flex flex-col items-center justify-center py-3 gap-1 hover:elevate ${
+                activeView === 'campaign' ? 'border-b-2 border-orange-500' : ''
+              }`}
+              data-testid="nav-activities"
+            >
+              <Tag className="h-5 w-5" />
+              <span
+                className={`text-xs ${
+                  activeView === 'campaign'
+                    ? 'font-medium text-orange-500'
+                    : 'text-muted-foreground'
+                }`}
+              >
+                {t('nav.activities')}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveView('my-coupons')}
+              className={`flex flex-col items-center justify-center py-3 gap-1 hover:elevate ${
+                activeView === 'my-coupons' ? 'border-b-2 border-orange-500' : ''
+              }`}
+              data-testid="nav-my-coupons"
+            >
+              <Ticket className="h-5 w-5" />
+              <span
+                className={`text-xs ${
+                  activeView === 'my-coupons'
+                    ? 'font-medium text-orange-500'
+                    : 'text-muted-foreground'
+                }`}
+              >
+                {t('nav.myCoupons')}
+              </span>
+            </button>
           </div>
-        </>
-      )}
+        </div>
+
+        {/* 页脚：隐私政策 / 使用条款 / 版权 */}
+        <SiteFooter />
+      </div>
     </div>
   );
 }
+          

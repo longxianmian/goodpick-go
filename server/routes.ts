@@ -291,34 +291,63 @@ function getCampaignTranslatedContent(campaign: any, language: string) {
 }
 
 export function registerRoutes(app: Express): Server {
+  // 告诉 Express：我们跑在反向代理（Nginx）后面，要信任 X-Forwarded-* 头
+  // 这样在 HTTPS + secure cookie 的情况下，才会正确设置 Session Cookie
+  app.set('trust proxy', 1);
+
   // Configure session middleware for OAuth state management
   const MemoryStore = createMemoryStore(session);
+  const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined;
+
   app.use(session({
     cookie: {
       maxAge: 86400000, // 24 hours
       secure: process.env.NODE_ENV === 'production', // HTTPS only in production
       httpOnly: true,
-      sameSite: 'lax' // CSRF protection
+      sameSite: 'lax', // CSRF protection
+      domain: COOKIE_DOMAIN,
     },
     store: new MemoryStore({
-      checkPeriod: 86400000 // prune expired entries every 24h
+      checkPeriod: 86400000, // prune expired entries every 24h
     }),
     secret: process.env.SESSION_SECRET || 'default-session-secret-change-in-production',
     resave: false,
     saveUninitialized: false,
   }));
 
-  // ============ Config Endpoint ============
+     // ============ Config Endpoint ============
   app.get('/api/config', (req: Request, res: Response) => {
     const sessionId = req.headers['x-gpgo-session'] || 'no-session-id';
     const ua = req.headers['user-agent'] || 'no-ua';
-    console.log('[API]', new Date().toISOString(), req.method, req.path, 'session=', sessionId, 'ua=', ua);
-    
+    console.log(
+      '[API]',
+      new Date().toISOString(),
+      req.method,
+      req.path,
+      'session=',
+      sessionId,
+      'ua=',
+      ua
+    );
+
+    // 兼容两种配置方式
+    const liffId =
+      process.env.LIFF_ID ||
+      process.env.VITE_LINE_LIFF_ID_MAIN ||
+      '';
+
+    const lineChannelId =
+      process.env.LINE_CHANNEL_ID ||
+      process.env.LINE_LOGIN_CHANNEL_ID ||
+      '';
+
+    console.log('[API CONFIG]', { liffId, lineChannelId });
+
     res.json({
       success: true,
       data: {
-        liffId: process.env.LIFF_ID || '',
-        lineChannelId: process.env.LINE_CHANNEL_ID || '',
+        liffId,
+        lineChannelId,
       },
     });
   });
@@ -503,25 +532,31 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Store OAuth state for CSRF protection
+       // Store OAuth state for CSRF protection
   app.post('/api/auth/line/init-oauth', (req: Request, res: Response) => {
     const { state, campaignId, returnTo } = req.body;
 
+    console.log('[OAUTH INIT] body=', { state, campaignId, returnTo });
+    console.log('[OAUTH INIT] cookie=', req.headers.cookie || '');
+    console.log('[OAUTH INIT] sessionID=', (req as any).sessionID);
+
     if (!state) {
+      console.error('[OAUTH INIT] missing state');
       return res.status(400).json({ success: false, message: 'State required' });
     }
 
     // Validate state format
     if (typeof state !== 'string' || !/^[0-9a-f]{64}$/i.test(state)) {
+      console.error('[OAUTH INIT] invalid state format:', state);
       return res.status(400).json({ success: false, message: 'Invalid state format' });
     }
 
     // Check if session is available
     if (!req.session) {
-      console.error('Session not available on init-oauth endpoint');
+      console.error('[OAUTH INIT] Session not available on init-oauth endpoint');
       return res.status(500).json({ success: false, message: 'Session not initialized' });
     }
 
-    // Store state in session for CSRF validation
     if (!req.session.oauthStates) {
       req.session.oauthStates = {};
     }
@@ -532,35 +567,65 @@ export function registerRoutes(app: Express): Server {
       timestamp: Date.now(),
     };
 
+    console.log(
+      '[OAUTH INIT] stored state OK. keys=',
+      Object.keys(req.session.oauthStates || {})
+    );
+
     res.json({ success: true });
   });
+ 
+
 
   // LINE OAuth callback endpoint
+      // LINE OAuth callback endpoint
   app.get('/api/auth/line/callback', async (req: Request, res: Response) => {
     try {
+      console.log('[OAUTH CB] query=', req.query);
+      console.log('[OAUTH CB] cookie=', req.headers.cookie || '');
+      console.log('[OAUTH CB] sessionID=', (req as any).sessionID);
+      console.log(
+        '[OAUTH CB] hasSession=',
+        !!req.session,
+        'oauthStatesKeys=',
+        req.session && req.session.oauthStates
+          ? Object.keys(req.session.oauthStates)
+          : []
+      );
+
       const { code, state } = req.query;
 
       if (!code || !state) {
+        console.error('[OAUTH CB] missing code or state', { code, state });
         return res.redirect(`/?error=missing_params`);
       }
 
       // Validate state format (should be 64 hex characters for cryptographic nonce)
       if (typeof state !== 'string' || !/^[0-9a-f]{64}$/i.test(state)) {
+        console.error('[OAUTH CB] invalid state format:', state);
         return res.redirect(`/?error=invalid_state`);
+      }
+
+      if (!req.session) {
+        console.error('[OAUTH CB] req.session is undefined');
+        return res.redirect('/?error=session_missing');
       }
 
       // CSRF Protection: Validate state against server-side stored value
       const storedStates = req.session.oauthStates || {};
       const storedOAuthData = storedStates[state];
 
+      console.log('[OAUTH CB] storedOAuthData=', storedOAuthData);
+
       if (!storedOAuthData) {
-        console.error('OAuth state not found in session');
+        console.error('[OAUTH CB] OAuth state not found in session. state=', state);
         return res.redirect(`/?error=csrf_invalid_state`);
       }
 
       // Check timestamp to prevent replay attacks (valid for 5 minutes)
       const fiveMinutes = 5 * 60 * 1000;
       if (Date.now() - storedOAuthData.timestamp > fiveMinutes) {
+        console.warn('[OAUTH CB] oauth state expired, state=', state);
         delete storedStates[state];
         return res.redirect(`/?error=oauth_expired`);
       }
@@ -569,13 +634,14 @@ export function registerRoutes(app: Express): Server {
       delete storedStates[state];
 
       // Build redirect URI (must match what was used in OAuth request)
-      // Force HTTPS for LINE OAuth (req.protocol may return 'http' due to reverse proxy)
       const redirectUri = `https://${req.get('host')}/api/auth/line/callback`;
+      console.log('[OAUTH CB] redirectUri for token exchange=', redirectUri);
 
       // Exchange authorization code for tokens
       const tokens = await exchangeLineAuthCode(code as string, redirectUri);
 
       if (!tokens || !tokens.id_token) {
+        console.error('[OAUTH CB] token_exchange_failed, tokens=', tokens);
         return res.redirect(`/?error=token_exchange_failed`);
       }
 
@@ -583,6 +649,7 @@ export function registerRoutes(app: Express): Server {
       const lineProfile = await verifyLineIdToken(tokens.id_token);
 
       if (!lineProfile) {
+        console.error('[OAUTH CB] invalid id_token');
         return res.redirect(`/?error=invalid_token`);
       }
 
@@ -614,7 +681,6 @@ export function registerRoutes(app: Express): Server {
           .where(eq(users.id, existingUser.id));
       }
 
-      // Generate JWT
       const token = jwt.sign(
         {
           id: existingUser.id,
@@ -625,19 +691,21 @@ export function registerRoutes(app: Express): Server {
         { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
       );
 
-      // Redirect based on returnTo or campaignId
       let redirectUrl: string;
       if (storedOAuthData.returnTo) {
-        // Custom return path (e.g., /staff/redeem)
-        redirectUrl = `${storedOAuthData.returnTo}?token=${encodeURIComponent(token)}&firstLogin=true`;
+        redirectUrl = `${storedOAuthData.returnTo}?token=${encodeURIComponent(
+          token
+        )}&firstLogin=true`;
       } else if (storedOAuthData.campaignId) {
-        // Campaign page with auto-claim
-        redirectUrl = `/campaign/${storedOAuthData.campaignId}?token=${encodeURIComponent(token)}&autoClaim=true`;
+        redirectUrl = `/campaign/${storedOAuthData.campaignId}?token=${encodeURIComponent(
+          token
+        )}&autoClaim=true`;
       } else {
-        // Fallback to home
         redirectUrl = `/?token=${encodeURIComponent(token)}`;
       }
-      
+
+      console.log('[OAUTH CB] success, redirectUrl=', redirectUrl);
+
       res.redirect(redirectUrl);
     } catch (error) {
       console.error('LINE OAuth callback error:', error);
@@ -827,7 +895,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.get('/api/campaigns/:id', async (req: Request, res: Response) => {
+      app.get('/api/campaigns/:id', optionalUserAuth, async (req: Request, res: Response) => {
     try {
       const sessionId = req.headers['x-gpgo-session'] || 'no-session-id';
       const ua = req.headers['user-agent'] || 'no-ua';

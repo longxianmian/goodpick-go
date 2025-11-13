@@ -49,6 +49,14 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
+   // API 兜底 404，防止 /api/.env 等被前端 SPA 接管
+  app.use('/api', (req: Request, res: Response) => {
+    res.status(404).json({
+      success: false,
+      message: 'Not Found',
+    });
+  });
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";

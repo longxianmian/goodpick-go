@@ -153,7 +153,16 @@ const translations: Record<Language, Record<string, string>> = {
     'staffBind.invalidToken': '无效的授权令牌',
     'staffBind.alreadyUsed': '此授权已被使用',
     'staffBind.mustUseLine': '必须从LINE应用打开此页面',
-    
+      'footer.privacy': '隐私政策',
+  'footer.terms': '使用条款',
+  'footer.copyright': '© 2025 Gencross Co., Ltd. · GoodPick Go',
+
+  'privacy.title': '隐私政策',
+  'privacy.content': '我们非常重视您的隐私。本页面简要说明 GoodPick Go 如何收集、使用和保护您的个人信息。未来如有更新，我们会在本页面公告。',
+
+  'terms.title': '使用条款',
+  'terms.content': '使用 GoodPick Go 提供的服务，即表示您同意遵守平台规则和各活动页面公布的具体活动条款。如有违反，平台有权限制或终止相关服务。',
+
     // Campaigns
     'campaigns.title': '活动管理',
     'campaigns.createNew': '新建活动',
@@ -643,7 +652,17 @@ const translations: Record<Language, Record<string, string>> = {
     'staffBind.invalidToken': 'Invalid authorization token',
     'staffBind.alreadyUsed': 'This authorization has already been used',
     'staffBind.mustUseLine': 'This page must be opened from LINE app',
-    
+      // Footer & legal
+  'footer.privacy': 'Privacy Policy',
+  'footer.terms': 'Terms of Use',
+  'footer.copyright': '© 2025 Gencross Co., Ltd. · GoodPick Go',
+
+  'privacy.title': 'Privacy Policy',
+  'privacy.content': 'We value your privacy. This page briefly explains how GoodPick Go collects, uses and protects your personal information. Future updates will be announced on this page.',
+
+  'terms.title': 'Terms of Use',
+  'terms.content': 'By using the services provided by GoodPick Go, you agree to follow the platform rules and the specific terms and conditions published on each campaign page. If you violate these rules, the platform may suspend or terminate the relevant services.',
+
     // Campaigns
     'campaigns.title': 'Campaigns Management',
     'campaigns.createNew': 'Create Campaign',
@@ -1133,7 +1152,17 @@ const translations: Record<Language, Record<string, string>> = {
     'staffBind.invalidToken': 'โทเค็นการอนุมัติไม่ถูกต้อง',
     'staffBind.alreadyUsed': 'การอนุมัตินี้ถูกใช้ไปแล้ว',
     'staffBind.mustUseLine': 'ต้องเปิดหน้านี้จากแอป LINE',
-    
+      // Footer & legal
+  'footer.privacy': 'นโยบายความเป็นส่วนตัว',
+  'footer.terms': 'ข้อตกลงการใช้งาน',
+  'footer.copyright': '© 2025 Gencross Co., Ltd. · GoodPick Go',
+
+  'privacy.title': 'นโยบายความเป็นส่วนตัว',
+  'privacy.content': 'เราให้ความสำคัญกับความเป็นส่วนตัวของคุณ หน้านี้อธิบายโดยย่อว่า GoodPick Go เก็บ ใช้ และปกป้องข้อมูลส่วนบุคคลของคุณอย่างไร หากมีการปรับปรุงในอนาคต เราจะแจ้งบนหน้านี้',
+
+  'terms.title': 'ข้อตกลงการใช้งาน',
+  'terms.content': 'เมื่อคุณใช้บริการของ GoodPick Go ถือว่าคุณได้ยอมรับและปฏิบัติตามกฎของแพลตฟอร์ม และเงื่อนไขของแต่ละแคมเปญที่ประกาศไว้ หากมีการฝ่าฝืน แพลตฟอร์มอาจระงับหรือหยุดให้บริการที่เกี่ยวข้องได้',
+
     // Campaigns
     'campaigns.title': 'จัดการแคมเปญ',
     'campaigns.createNew': 'สร้างแคมเปญ',
