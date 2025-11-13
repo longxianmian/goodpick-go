@@ -1,0 +1,107 @@
+你现在是 GoodPick Go 项目的前端工程师，请只修改 client/ 下的前端代码，不要改 .env、不推 Git、不写死任何生产环境的密码或密钥。
+
+【背景重要信息】
+- Admin 运营后台在 Replit 开发环境是正常的；
+- 部署到线上服务器并 build 之后，访问 /admin/stores 会白屏，浏览器报错：
+  "Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node."
+- 推测是生产 bundle 下某些挂载在 document.body 或其他根节点上的 DOM 被重复 removeChild，或父子关系已经改变却仍然调用 removeChild，开发模式下刚好不触发。
+
+【任务目标】
+在不改变业务逻辑的前提下，对 client/ 里所有直接操作 DOM 的代码做“安全删除”改造 + 统一 script 管理，并开启构建 sourcemap。目的是让生产环境不再出现 removeChild 报错，从而不再白屏。
+
+【具体要求】
+
+1) 新建安全删除工具函数
+在 client/src/utils/dom.ts 新建文件，内容如下：
+
+export function safeRemove(node: Node | null | undefined) {
+  try {
+    if (!node) return;
+    const p = node.parentNode;
+    if (p && p.contains(node)) {
+      p.removeChild(node);
+    }
+  } catch {
+    // ignore double-remove / cross-root detach
+  }
+}
+
+2) 全局替换不安全的 removeChild 调用
+在 client/ 目录下全局搜索：
+  removeChild(
+对于所有直接调用 parent.removeChild(child) 的地方（例如 document.body.removeChild(portalEl) 等）：
+
+- 引入工具函数：
+  import { safeRemove } from '@/utils/dom';
+
+- 把原来的：
+  document.body.removeChild(portalEl);
+  someParent.removeChild(someNode);
+
+  统一替换为：
+  safeRemove(portalEl);
+  safeRemove(someNode);
+
+不要改动其他业务逻辑，只是把直接 removeChild 调用替换为 safeRemove。
+
+3) 规范 Google Maps / Places script 加载（如果有）
+
+在 client/ 里搜索 maps.googleapis.com / google.com/maps / PlacesService / <script 等关键词。如果存在“动态插入 Google Maps/Places <script>”的代码，例如：
+
+const script = document.createElement('script');
+script.src = 'https://maps.googleapis.com/maps/api/js?...';
+document.body.appendChild(script);
+
+return () => {
+  document.body.removeChild(script); // 卸载时删除 script
+};
+
+请改造成“只注入一次 script 的单例加载器”，示意结构：
+
+let googleMapsLoading: Promise<typeof google> | null = null;
+
+export function loadGoogleMaps(): Promise<typeof google> {
+  if (window.google && window.google.maps) {
+    return Promise.resolve(window.google);
+  }
+  if (googleMapsLoading) return googleMapsLoading;
+
+  googleMapsLoading = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://maps.googleapis.com/maps/api/js?...';
+    script.async = true;
+    script.onload = () => resolve(window.google);
+    script.onerror = reject;
+    document.body.appendChild(script);
+  });
+
+  return googleMapsLoading;
+}
+
+注意：
+- 不要在组件卸载时 remove 这个 script；
+- 如果有 removeChild(script) 之类的卸载逻辑，要么删除这句，要么改成 safeRemove(script)。
+
+4) 开启生产 sourcemap
+
+打开 client/vite.config.ts（或项目真实的 Vite 配置文件），在 build 配置中加入 sourcemap: true，例如：
+
+export default defineConfig({
+  // ...
+  build: {
+    sourcemap: true,
+    // 保持其他已有配置不变
+  },
+});
+
+5) 本地验证
+
+- 确保在 Replit 环境下执行 npm run build 能通过（不一定要真正跑生产服务器，只要本地构建 OK 即可）；
+- 最后给出：
+  - 被修改的文件列表；
+  - 每个文件改动的大致说明（比如“xxx 文件中的 Portal 卸载逻辑改用 safeRemove”）。
+
+不要做：
+- 不要创建或修改 server/ 后端代码；
+- 不要写死任何生产用的密钥或 URL；
+- 不要推送到 Git 仓库。
