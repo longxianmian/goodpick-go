@@ -3,6 +3,8 @@
  * 用于防止生产环境中的 DOM 操作错误
  */
 
+import { useEffect, useRef } from 'react';
+
 /**
  * 安全地从 DOM 树中移除节点
  * 在调用 removeChild 前检查父子关系，避免 "node to be removed is not a child" 错误
@@ -36,6 +38,38 @@ export function safeRemove(node: Node | null | undefined): void {
       console.warn('[DOM] safeRemove 捕获到错误:', error);
     }
   }
+}
+
+/**
+ * 用于 Portal 组件的安全清理 Hook
+ * 在组件卸载时防御性地移除 Portal 节点，避免生产环境中的重复删除错误
+ * 
+ * @returns React ref，应附加到 Portal 容器元素上
+ * 
+ * @example
+ * ```typescript
+ * import { useSafePortalCleanup } from '@/utils/dom';
+ * 
+ * function MyPortalComponent() {
+ *   const portalRef = useSafePortalCleanup<HTMLDivElement>();
+ *   
+ *   return <div ref={portalRef}>Portal content</div>;
+ * }
+ * ```
+ */
+export function useSafePortalCleanup<T extends HTMLElement = HTMLElement>(): React.RefObject<T | null> {
+  const ref = useRef<T | null>(null);
+  
+  useEffect(() => {
+    // Cleanup 函数：在组件卸载时安全地移除节点
+    return () => {
+      if (ref.current) {
+        safeRemove(ref.current);
+      }
+    };
+  }, []);
+  
+  return ref;
 }
 
 /**
