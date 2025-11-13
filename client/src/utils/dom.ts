@@ -3,8 +3,6 @@
  * 用于防止生产环境中的 DOM 操作错误
  */
 
-import { useEffect, useRef } from 'react';
-
 /**
  * 安全地从 DOM 树中移除节点
  * 在调用 removeChild 前检查父子关系，避免 "node to be removed is not a child" 错误
@@ -34,73 +32,8 @@ export function safeRemove(node: Node | null | undefined): void {
   } catch (error) {
     // 忽略重复删除或跨根节点分离的错误
     // 在生产环境中静默失败，避免白屏
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.warn('[DOM] safeRemove 捕获到错误:', error);
-    }
-  }
-}
-
-/**
- * 用于 Portal 组件的安全清理 Hook
- * 在组件卸载时防御性地移除 Portal 节点，避免生产环境中的重复删除错误
- * 
- * @returns React ref，应附加到 Portal 容器元素上
- * 
- * @example
- * ```typescript
- * import { useSafePortalCleanup } from '@/utils/dom';
- * 
- * function MyPortalComponent() {
- *   const portalRef = useSafePortalCleanup<HTMLDivElement>();
- *   
- *   return <div ref={portalRef}>Portal content</div>;
- * }
- * ```
- */
-export function useSafePortalCleanup<T extends HTMLElement = HTMLElement>(): React.RefObject<T | null> {
-  const ref = useRef<T | null>(null);
-  
-  useEffect(() => {
-    // Cleanup 函数：在组件卸载时安全地移除节点
-    return () => {
-      if (ref.current) {
-        safeRemove(ref.current);
-      }
-    };
-  }, []);
-  
-  return ref;
-}
-
-/**
- * 安全地添加子节点到父节点
- * 在添加前检查节点是否已经是子节点，避免重复添加
- * 
- * @param parent - 父节点
- * @param child - 要添加的子节点
- * 
- * @example
- * ```typescript
- * import { safeAppend } from '@/utils/dom';
- * safeAppend(document.body, scriptElement);
- * ```
- */
-export function safeAppend(
-  parent: Node | null | undefined,
-  child: Node | null | undefined
-): void {
-  try {
-    if (!parent || !child) return;
-    
-    // 如果子节点已经在父节点中，先移除再添加（避免重复）
-    if (parent.contains(child)) {
-      parent.removeChild(child);
-    }
-    
-    parent.appendChild(child);
-  } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[DOM] safeAppend 捕获到错误:', error);
     }
   }
 }

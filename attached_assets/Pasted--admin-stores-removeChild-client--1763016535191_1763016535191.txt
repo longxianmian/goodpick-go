@@ -1,0 +1,128 @@
+任务：
+修复生产环境 /admin/stores 页面因 removeChild 报错导致的白屏问题。
+要求：
+
+只修改 client/ 前端代码；
+
+不改业务逻辑、不改接口；
+
+在浏览器启动阶段添加一个全局安全补丁，拦截所有无效的 Node.prototype.removeChild 调用；
+
+删掉你之前自己加的 useSafePortalCleanup / safeAppend 等无效 hook，只保留 sourcemap。
+
+一、清理上一轮无效改动（保留 sourcemap）
+
+在仓库里找到你之前新增的工具文件和 hook，例如（名称可能略有不同）：
+
+client/src/utils/dom.ts
+
+client/src/components/ui/dialog.tsx
+
+client/src/components/ui/popover.tsx
+
+删除或还原以下内容：
+
+safeAppend()
+
+useSafePortalCleanup()
+
+与它相关的 mergeRefs / cleanup hook 注入代码
+
+保留以下内容：
+
+safeRemove(node) 函数可以保留（以后也许有用，但不是这次核心）；
+
+vite.config.ts 里生产构建开启 sourcemap: true 的改动也保留。
+
+目标：回到一个“正常但仍会在生产报 removeChild 错”的版本，同时保留 sourcemap。
+
+二、在浏览器入口注入全局 removeChild 安全补丁
+
+找到 React 应用的浏览器入口文件（你自己搜索）：
+
+很可能是：client/src/main.tsx、client/src/main.ts 或者 client/src/entry-client.tsx 之类；
+
+这个文件里会调用 createRoot(...) / ReactDOM.createRoot(...) 或者 ReactDOM.render(...)。
+
+在这个入口文件的最顶部（所有 React 代码之前），加入下面这一段补丁代码：
+
+// === Global DOM safety patch: avoid "removeChild" errors from third-party libs ===
+if (typeof window !== 'undefined' && typeof Node !== 'undefined') {
+  const originalRemoveChild = Node.prototype.removeChild;
+
+  // 给 TypeScript 一个 any 强制转换，避免类型报错
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (Node.prototype as any).removeChild = function safeRemoveChild(child: Node) {
+    try {
+      // 如果 child 不是当前节点的子节点，说明：
+      // - 要么已经被别的逻辑删掉；
+      // - 要么本来就不是这个父节点的 child；
+      // 这类调用没有必要抛异常，直接跳过即可。
+      if (!child || child.parentNode !== this) {
+        return child;
+      }
+      return originalRemoveChild.call(this, child);
+    } catch (err) {
+      // 这里统一吞掉异常，防止整个 React 应用白屏；
+      // 只在控制台打印一条调试信息，方便将来排查。
+      console.warn('[DOM patch] safeRemoveChild suppressed error:', err);
+      return child;
+    }
+  };
+}
+
+
+注意点：
+
+这段代码必须跑在任何 UI 逻辑之前（包括 Radix UI）；
+
+不需要改 Radix 源码，也不需要改每一个调用 document.body.removeChild 的位置；
+
+所有调用 node.removeChild(child) 的地方最终都会走这个安全版本。
+
+确保这段代码只在浏览器环境执行：
+
+我已经用 typeof window !== 'undefined' 做了保护，避免 SSR 或测试环境出问题。
+
+三、本地验证（Replit 内部）
+
+在 Replit Shell 里执行生产构建 + 预览：
+
+npm run build
+npm run preview -- --host 0.0.0.0 --port 4173
+
+
+在 Replit 提供的预览 URL 打开：
+
+/admin/login → 登录后台
+
+/admin/stores → 多次打开 / 关闭弹窗，模拟实际使用
+
+在浏览器 DevTools Console 中观察：
+
+✅ 目标：不再出现
+Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+
+允许看到类似
+[DOM patch] safeRemoveChild suppressed error: ...
+这是我们预期的“被补丁拦住”的异常日志，不会导致页面白屏。
+
+确认 /admin/stores 页面可以正常使用：
+
+门店列表正常展示；
+
+弹窗正常打开 / 关闭；
+
+页面不会整体报错白屏。
+
+四、提交改动（不负责部署）
+
+输出一个简短的改动说明（供用户在 ChatGPT 里查看），包括：
+
+所有修改/新增的文件路径列表；
+
+简要说明全局 removeChild 补丁的作用；
+
+本地 npm run build + npm run preview 的测试结果。
+
+不要执行 git push / 不要部署到服务器，只在 Replit 项目里完成代码修改与本地验证。
