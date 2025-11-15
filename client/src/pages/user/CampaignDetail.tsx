@@ -825,6 +825,9 @@ const getButtonText = () => {
                   </CardContent>
                 </Card>
               )}
+
+              {/* 页脚：隐私政策 / 使用条款 / 版权（滚动内容区域底部） */}
+              <SiteFooter />
             </div>
           </div>
 
@@ -864,9 +867,6 @@ const getButtonText = () => {
                 </button>
               </div>
             </div>
-
-            {/* 页脚：隐私政策 / 使用条款 / 版权 */}
-            <SiteFooter />
         </>
       ) : (
         <>
