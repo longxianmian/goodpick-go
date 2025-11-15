@@ -873,56 +873,53 @@ const getButtonText = () => {
           {/* 我的优惠券视图 */}
           <div className="flex-1 overflow-y-auto">
             <MyCoupons hideNavigation={true} />
+            
+            {/* 页脚：隐私政策 / 使用条款 / 版权（滚动内容区域底部） */}
+            <SiteFooter />
           </div>
 
-              {/* 固定在底部的区域 */}
-      <div className="border-t bg-background">
-        {/* 底部导航栏 */}
-        <div className="border-t">
-          <div className="container max-w-4xl mx-auto grid grid-cols-2">
-            <button
-              onClick={() => setActiveView('campaign')}
-              className={`flex flex-col items-center justify-center py-3 gap-1 hover:elevate ${
-                activeView === 'campaign' ? 'border-b-2 border-orange-500' : ''
-              }`}
-              data-testid="nav-activities"
-            >
-              <Tag className="h-5 w-5" />
-              <span
-                className={`text-xs ${
-                  activeView === 'campaign'
-                    ? 'font-medium text-orange-500'
-                    : 'text-muted-foreground'
+          {/* 底部导航栏 */}
+          <div className="border-t">
+            <div className="container max-w-4xl mx-auto grid grid-cols-2">
+              <button
+                onClick={() => setActiveView('campaign')}
+                className={`flex flex-col items-center justify-center py-3 gap-1 hover-elevate ${
+                  activeView === 'campaign' ? 'border-b-2 border-orange-500' : ''
                 }`}
+                data-testid="nav-activities"
               >
-                {t('nav.activities')}
-              </span>
-            </button>
+                <Tag className={`h-5 w-5 ${activeView === 'campaign' ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                <span
+                  className={`text-xs ${
+                    activeView === 'campaign'
+                      ? 'font-medium text-orange-500'
+                      : 'text-muted-foreground'
+                  }`}
+                >
+                  {t('nav.activities')}
+                </span>
+              </button>
 
-            <button
-              onClick={() => setActiveView('my-coupons')}
-              className={`flex flex-col items-center justify-center py-3 gap-1 hover:elevate ${
-                activeView === 'my-coupons' ? 'border-b-2 border-orange-500' : ''
-              }`}
-              data-testid="nav-my-coupons"
-            >
-              <Ticket className="h-5 w-5" />
-              <span
-                className={`text-xs ${
-                  activeView === 'my-coupons'
-                    ? 'font-medium text-orange-500'
-                    : 'text-muted-foreground'
+              <button
+                onClick={() => setActiveView('my-coupons')}
+                className={`flex flex-col items-center justify-center py-3 gap-1 hover-elevate ${
+                  activeView === 'my-coupons' ? 'border-b-2 border-orange-500' : ''
                 }`}
+                data-testid="nav-my-coupons"
               >
-                {t('nav.myCoupons')}
-              </span>
-            </button>
+                <Ticket className={`h-5 w-5 ${activeView === 'my-coupons' ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                <span
+                  className={`text-xs ${
+                    activeView === 'my-coupons'
+                      ? 'font-medium text-orange-500'
+                      : 'text-muted-foreground'
+                  }`}
+                >
+                  {t('nav.myCoupons')}
+                </span>
+              </button>
+            </div>
           </div>
-        </div>
-
-        {/* 页脚：隐私政策 / 使用条款 / 版权 */}
-        <SiteFooter />
-      </div>
         </>
       )}
     </div>
