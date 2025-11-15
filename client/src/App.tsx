@@ -19,6 +19,8 @@ import StaffCampaignList from "@/pages/user/StaffCampaignList";
 import StaffCampaignDetail from "@/pages/user/StaffCampaignDetail";
 import CampaignDetail from "@/pages/user/CampaignDetail";
 import MyCoupons from "@/pages/user/MyCoupons";
+import PrivacyPage from "@/pages/PrivacyPage";
+import TermsPage from "@/pages/TermsPage";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import { Store, Tag, LogOut, LayoutDashboard } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -132,6 +134,8 @@ function Router() {
       <Route path="/" component={() => <Redirect to="/campaign/1" />} />
       <Route path="/campaign/:id" component={CampaignDetail} />
       <Route path="/my-coupons" component={MyCoupons} />
+      <Route path="/privacy" component={PrivacyPage} />
+      <Route path="/terms" component={TermsPage} />
       <Route path="/admin" component={() => <Redirect to="/admin/login" />} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/staff/bind" component={StaffBind} />

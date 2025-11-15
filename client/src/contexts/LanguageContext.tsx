@@ -157,11 +157,31 @@ const translations: Record<Language, Record<string, string>> = {
   'footer.terms': '使用条款',
   'footer.copyright': '© 2025 Gencross Co., Ltd. · GoodPick Go',
 
+  // Privacy Policy
   'privacy.title': '隐私政策',
-  'privacy.content': '我们非常重视您的隐私。本页面简要说明 GoodPick Go 如何收集、使用和保护您的个人信息。未来如有更新，我们会在本页面公告。',
+  'privacy.intro': '我们非常重视您的隐私。本页面简要说明 GoodPick Go 如何收集、使用和保护您的个人信息。',
+  'privacy.section1.title': '信息收集',
+  'privacy.section1.content': '我们通过 LINE 登录收集您的基本信息（如显示名称、头像），以便为您提供优惠券领取和会员营销服务。这些信息仅用于活动参与和优惠券管理。',
+  'privacy.section2.title': '信息使用',
+  'privacy.section2.content': '您的个人信息仅用于提供 GoodPick Go 服务，包括优惠券发放、活动通知等。我们不会将您的信息出售给第三方。',
+  'privacy.section3.title': '信息保护',
+  'privacy.section3.content': '我们采用行业标准的安全措施保护您的个人信息。所有数据传输均经过加密处理。',
+  'privacy.section4.title': '您的权利',
+  'privacy.section4.content': '您有权随时通过 LINE OA 联系我们的客服，要求查看、更正或删除您的个人数据。',
+  'privacy.updateNotice': '如有政策更新，我们会在本页面及时公告。',
 
+  // Terms of Use
   'terms.title': '使用条款',
-  'terms.content': '使用 GoodPick Go 提供的服务，即表示您同意遵守平台规则和各活动页面公布的具体活动条款。如有违反，平台有权限制或终止相关服务。',
+  'terms.intro': '欢迎使用 GoodPick Go 服务。使用本服务即表示您同意以下条款。',
+  'terms.section1.title': '服务说明',
+  'terms.section1.content': 'GoodPick Go 是一个优惠券领取与会员营销平台，为用户提供商家优惠活动信息和电子优惠券服务。',
+  'terms.section2.title': '用户责任',
+  'terms.section2.content': '您需遵守平台规则和各活动页面公布的具体条款。每个优惠券的使用规则以活动详情页为准。请勿滥用服务或进行欺诈行为。',
+  'terms.section3.title': '服务限制',
+  'terms.section3.content': '如发现违规行为，平台有权限制或终止相关服务，包括但不限于取消优惠券、禁止参与活动等。',
+  'terms.section4.title': '免责声明',
+  'terms.section4.content': '平台提供的优惠信息由商家发布，具体使用条件以商家规定为准。平台不对商家服务质量承担责任。',
+  'terms.contactUs': '如有疑问，请通过 LINE OA 联系我们的客服团队。',
 
     // Campaigns
     'campaigns.title': '活动管理',
@@ -657,11 +677,31 @@ const translations: Record<Language, Record<string, string>> = {
   'footer.terms': 'Terms of Use',
   'footer.copyright': '© 2025 Gencross Co., Ltd. · GoodPick Go',
 
+  // Privacy Policy
   'privacy.title': 'Privacy Policy',
-  'privacy.content': 'We value your privacy. This page briefly explains how GoodPick Go collects, uses and protects your personal information. Future updates will be announced on this page.',
+  'privacy.intro': 'We value your privacy. This page explains how GoodPick Go collects, uses, and protects your personal information.',
+  'privacy.section1.title': 'Information Collection',
+  'privacy.section1.content': 'We collect your basic information (such as display name and avatar) through LINE login to provide coupon services and membership marketing. This information is used solely for campaign participation and coupon management.',
+  'privacy.section2.title': 'Information Use',
+  'privacy.section2.content': 'Your personal information is used only to provide GoodPick Go services, including coupon distribution and campaign notifications. We do not sell your information to third parties.',
+  'privacy.section3.title': 'Information Protection',
+  'privacy.section3.content': 'We employ industry-standard security measures to protect your personal information. All data transmission is encrypted.',
+  'privacy.section4.title': 'Your Rights',
+  'privacy.section4.content': 'You have the right to contact our customer service via LINE OA at any time to request access, correction, or deletion of your personal data.',
+  'privacy.updateNotice': 'Any policy updates will be announced on this page in a timely manner.',
 
+  // Terms of Use
   'terms.title': 'Terms of Use',
-  'terms.content': 'By using the services provided by GoodPick Go, you agree to follow the platform rules and the specific terms and conditions published on each campaign page. If you violate these rules, the platform may suspend or terminate the relevant services.',
+  'terms.intro': 'Welcome to GoodPick Go. By using this service, you agree to the following terms.',
+  'terms.section1.title': 'Service Description',
+  'terms.section1.content': 'GoodPick Go is a coupon distribution and membership marketing platform that provides users with merchant promotional campaign information and digital coupon services.',
+  'terms.section2.title': 'User Responsibilities',
+  'terms.section2.content': 'You must comply with platform rules and specific terms published on each campaign page. Usage rules for each coupon are subject to the campaign details page. Do not abuse the service or engage in fraudulent activities.',
+  'terms.section3.title': 'Service Restrictions',
+  'terms.section3.content': 'If violations are found, the platform has the right to restrict or terminate related services, including but not limited to canceling coupons and prohibiting participation in campaigns.',
+  'terms.section4.title': 'Disclaimer',
+  'terms.section4.content': 'Promotional information provided on the platform is published by merchants, and specific usage conditions are subject to merchant regulations. The platform is not responsible for merchant service quality.',
+  'terms.contactUs': 'If you have any questions, please contact our customer service team via LINE OA.',
 
     // Campaigns
     'campaigns.title': 'Campaigns Management',
@@ -1157,11 +1197,31 @@ const translations: Record<Language, Record<string, string>> = {
   'footer.terms': 'ข้อตกลงการใช้งาน',
   'footer.copyright': '© 2025 Gencross Co., Ltd. · GoodPick Go',
 
+  // Privacy Policy
   'privacy.title': 'นโยบายความเป็นส่วนตัว',
-  'privacy.content': 'เราให้ความสำคัญกับความเป็นส่วนตัวของคุณ หน้านี้อธิบายโดยย่อว่า GoodPick Go เก็บ ใช้ และปกป้องข้อมูลส่วนบุคคลของคุณอย่างไร หากมีการปรับปรุงในอนาคต เราจะแจ้งบนหน้านี้',
+  'privacy.intro': 'เราให้ความสำคัญกับความเป็นส่วนตัวของคุณ หน้านี้อธิบายว่า GoodPick Go เก็บ ใช้ และปกป้องข้อมูลส่วนบุคคลของคุณอย่างไร',
+  'privacy.section1.title': 'การเก็บรวบรวมข้อมูล',
+  'privacy.section1.content': 'เราเก็บข้อมูลพื้นฐานของคุณ (เช่น ชื่อที่แสดงและรูปโปรไฟล์) ผ่านการเข้าสู่ระบบ LINE เพื่อให้บริการคูปองและการตลาดสมาชิก ข้อมูลเหล่านี้ใช้เฉพาะสำหรับการเข้าร่วมแคมเปญและการจัดการคูปอง',
+  'privacy.section2.title': 'การใช้ข้อมูล',
+  'privacy.section2.content': 'ข้อมูลส่วนบุคคลของคุณใช้เฉพาะสำหรับการให้บริการ GoodPick Go รวมถึงการแจกคูปองและการแจ้งเตือนแคมเปญ เราจะไม่ขายข้อมูลของคุณให้บุคคลที่สาม',
+  'privacy.section3.title': 'การปกป้องข้อมูล',
+  'privacy.section3.content': 'เราใช้มาตรการรักษาความปลอดภัยมาตรฐานอุตสาหกรรมเพื่อปกป้องข้อมูลส่วนบุคคลของคุณ การส่งข้อมูลทั้งหมดได้รับการเข้ารหัส',
+  'privacy.section4.title': 'สิทธิ์ของคุณ',
+  'privacy.section4.content': 'คุณมีสิทธิ์ติดต่อฝ่ายบริการลูกค้าของเราผ่าน LINE OA ได้ตลอดเวลาเพื่อขอดู แก้ไข หรือลบข้อมูลส่วนบุคคลของคุณ',
+  'privacy.updateNotice': 'หากมีการอัปเดตนโยบาย เราจะประกาศบนหน้านี้ทันที',
 
+  // Terms of Use
   'terms.title': 'ข้อตกลงการใช้งาน',
-  'terms.content': 'เมื่อคุณใช้บริการของ GoodPick Go ถือว่าคุณได้ยอมรับและปฏิบัติตามกฎของแพลตฟอร์ม และเงื่อนไขของแต่ละแคมเปญที่ประกาศไว้ หากมีการฝ่าฝืน แพลตฟอร์มอาจระงับหรือหยุดให้บริการที่เกี่ยวข้องได้',
+  'terms.intro': 'ยินดีต้อนรับสู่ GoodPick Go การใช้บริการนี้แสดงว่าคุณยอมรับข้อตกลงต่อไปนี้',
+  'terms.section1.title': 'คำอธิบายบริการ',
+  'terms.section1.content': 'GoodPick Go เป็นแพลตฟอร์มแจกคูปองและการตลาดสมาชิกที่ให้ข้อมูลแคมเปญโปรโมชันของร้านค้าและบริการคูปองดิจิทัลแก่ผู้ใช้',
+  'terms.section2.title': 'ความรับผิดชอบของผู้ใช้',
+  'terms.section2.content': 'คุณต้องปฏิบัติตามกฎของแพลตฟอร์มและข้อกำหนดเฉพาะที่ประกาศในแต่ละหน้าแคมเปญ กฎการใช้งานสำหรับแต่ละคูปองอยู่ภายใต้หน้ารายละเอียดแคมเปญ ห้ามใช้บริการในทางที่ผิดหรือมีส่วนร่วมในกิจกรรมฉ้อโกง',
+  'terms.section3.title': 'ข้อจำกัดการบริการ',
+  'terms.section3.content': 'หากพบการละเมิด แพลตฟอร์มมีสิทธิ์จำกัดหรือยุติบริการที่เกี่ยวข้อง รวมถึงแต่ไม่จำกัดเพียงการยกเลิกคูปองและห้ามเข้าร่วมแคมเปญ',
+  'terms.section4.title': 'ข้อจำกัดความรับผิด',
+  'terms.section4.content': 'ข้อมูลโปรโมชันที่ให้บนแพลตฟอร์มถูกเผยแพร่โดยร้านค้า และเงื่อนไขการใช้งานที่เฉพาะเจาะจงอยู่ภายใต้ข้อบังคับของร้านค้า แพลตฟอร์มไม่รับผิดชอบต่อคุณภาพการบริการของร้านค้า',
+  'terms.contactUs': 'หากคุณมีคำถามใด ๆ โปรดติดต่อทีมบริการลูกค้าของเราผ่าน LINE OA',
 
     // Campaigns
     'campaigns.title': 'จัดการแคมเปญ',
