@@ -2,8 +2,9 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import SiteFooter from '@/components/layout/SiteFooter';
-import { FileText } from 'lucide-react';
+import { FileText, ArrowLeft } from 'lucide-react';
 import { formatTextContent } from '@/lib/formatTextContent';
+import { Button } from '@/components/ui/button';
 
 const termsContent = {
   'zh-cn': {
@@ -304,6 +305,15 @@ export default function TermsPage() {
       <header className="border-b bg-background sticky top-0 z-10">
         <div className="container max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => window.history.back()}
+              data-testid="button-back"
+              aria-label="返回"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <FileText className="h-5 w-5 text-primary" />
             <h1 className="text-lg font-semibold" data-testid="terms-title">
               {content.title}
