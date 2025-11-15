@@ -920,7 +920,10 @@ const getButtonText = () => {
         {/* 页脚：隐私政策 / 使用条款 / 版权 */}
         <SiteFooter />
       </div>
+        </>
+      )}
     </div>
+    </>
   );
 }
           
