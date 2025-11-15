@@ -129,7 +129,7 @@ function ProtectedAdminRoutes() {
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={() => <Redirect to="/campaign/1" />} />
+      <Route path="/" component={() => <Redirect to="/admin/login" />} />
       <Route path="/campaign/:id" component={CampaignDetail} />
       <Route path="/my-coupons" component={MyCoupons} />
       <Route path="/admin" component={() => <Redirect to="/admin/login" />} />
