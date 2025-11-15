@@ -203,7 +203,7 @@ export default function MyCoupons({ hideNavigation = false }: MyCouponsProps = {
 
   if (!isUserAuthenticated) {
     return (
-      <div className={`flex items-center justify-center p-4 bg-background ${hideNavigation ? 'min-h-full' : 'min-h-screen'}`}>
+      <div className={`flex items-center justify-center p-4 bg-background ${hideNavigation ? 'py-12' : 'min-h-screen'}`}>
         <Card className="max-w-md w-full">
           <CardHeader>
             <CardTitle>{t('myCoupons.loginRequired') || '请先登录'}</CardTitle>
