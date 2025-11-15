@@ -835,7 +835,7 @@ const getButtonText = () => {
 <div className="border-t bg-background">
   <div className="container max-w-4xl mx-auto px-4 pt-3 pb-2">
     <button
-      className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+      className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-md py-3 font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       onClick={handleClaimClick}
       // 已领过的用户也要能点按钮跳到“我的优惠券”，所以这里不要用 canClaim
       disabled={claiming || isExpired || isSoldOut}
