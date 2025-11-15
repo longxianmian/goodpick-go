@@ -871,11 +871,13 @@ const getButtonText = () => {
       ) : (
         <>
           {/* 我的优惠券视图 */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto flex flex-col">
             <MyCoupons hideNavigation={true} />
             
-            {/* 页脚：隐私政策 / 使用条款 / 版权（滚动内容区域底部） */}
-            <SiteFooter />
+            {/* 页脚：隐私政策 / 使用条款 / 版权（固定在底部导航栏上方） */}
+            <div className="mt-auto">
+              <SiteFooter />
+            </div>
           </div>
 
           {/* 底部导航栏 */}
