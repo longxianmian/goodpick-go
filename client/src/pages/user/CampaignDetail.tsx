@@ -547,9 +547,7 @@ const getButtonText = () => {
 
   // 已登录 & 已领过
   if (userReachedLimit) {
-    // 这里你可以先写死中文，后面再去 i18n 里加 key
-    return '请查看我的优惠券';
-    // 或者：return t('campaign.viewMyCoupons');
+    return t('campaign.viewMyCoupons');
   }
 
   // 已登录 & 还可以领
