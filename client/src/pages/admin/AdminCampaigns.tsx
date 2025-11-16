@@ -99,6 +99,9 @@ export default function AdminCampaigns() {
     trainingMediaFiles: [] as MediaFile[],
   });
 
+  // 广播状态
+  const [broadcastingCampaignId, setBroadcastingCampaignId] = useState<number | null>(null);
+
   const { data: campaignsData, isLoading } = useQuery<{ success: boolean; data: Campaign[] }>({
     queryKey: ['/api/admin/campaigns'],
     queryFn: async () => {
@@ -300,6 +303,41 @@ export default function AdminCampaigns() {
     },
   });
 
+  // 广播 mutation
+  const broadcastMutation = useMutation({
+    mutationFn: async (campaignId: number) => {
+      const res = await fetch(`/api/admin/campaigns/${campaignId}/broadcast`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`,
+        },
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to create broadcast');
+      }
+      return res.json();
+    },
+    onSuccess: (data, campaignId) => {
+      toast({ 
+        title: '广播任务已创建', 
+        description: '已创建 DeeCard OA 广播任务' 
+      });
+      // Invalidate broadcasts query to refresh the latest broadcast info
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/campaigns', campaignId, 'broadcasts'] });
+      setBroadcastingCampaignId(null);
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: '创建失败', 
+        description: error.message || '创建广播任务失败，请稍后重试', 
+        variant: 'destructive' 
+      });
+      setBroadcastingCampaignId(null);
+    },
+  });
+
   // 城市筛选逻辑
   const availableCities = useMemo(() => {
     const cities = new Set<string>();
@@ -437,6 +475,11 @@ export default function AdminCampaigns() {
     if (confirm(t('campaigns.deleteConfirm'))) {
       deleteMutation.mutate(id);
     }
+  };
+
+  const handleBroadcast = (campaignId: number) => {
+    setBroadcastingCampaignId(campaignId);
+    broadcastMutation.mutate(campaignId);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
