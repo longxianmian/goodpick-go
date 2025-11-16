@@ -64,6 +64,52 @@ function normalizeLanguageCode(lang: string): 'zh-cn' | 'en-us' | 'th-th' {
   return 'en-us';
 }
 
+// Component to display broadcast info for a campaign
+function BroadcastInfo({ campaignId, adminToken }: { campaignId: number; adminToken: string | null }) {
+  const { data: broadcastsData } = useQuery<{ success: boolean; data: CampaignBroadcast[] }>({
+    queryKey: ['/api/admin/campaigns', campaignId, 'broadcasts'],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/campaigns/${campaignId}/broadcasts`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      return res.json();
+    },
+    enabled: !!adminToken,
+  });
+
+  const latestBroadcast = broadcastsData?.data?.[0];
+
+  if (!latestBroadcast) {
+    return <span className="text-xs text-muted-foreground">暂无广播记录</span>;
+  }
+
+  const statusMap = {
+    pending: '待处理',
+    processing: '处理中',
+    done: '已完成',
+    failed: '失败',
+  };
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '-';
+    return format(new Date(dateStr), 'yyyy-MM-dd HH:mm');
+  };
+
+  return (
+    <div className="text-xs">
+      <div className="font-medium">{statusMap[latestBroadcast.status]}</div>
+      <div className="text-muted-foreground">
+        {formatDate(latestBroadcast.createdAt)}
+      </div>
+      {latestBroadcast.status === 'done' && (
+        <div className="text-muted-foreground">
+          发送 {latestBroadcast.totalTargetUsers} 人，成功 {latestBroadcast.successCount}，失败 {latestBroadcast.failedCount}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminCampaigns() {
   const { adminToken, logoutAdmin } = useAuth();
   const { t, language } = useLanguage();
@@ -580,6 +626,7 @@ export default function AdminCampaigns() {
                   <TableHead>{t('campaigns.startDate')}</TableHead>
                   <TableHead>{t('campaigns.endDate')}</TableHead>
                   <TableHead>{t('campaigns.status')}</TableHead>
+                  <TableHead>最近广播</TableHead>
                   <TableHead className="text-right">{t('campaigns.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -605,6 +652,9 @@ export default function AdminCampaigns() {
                       <Badge variant={campaign.isActive ? 'default' : 'secondary'}>
                         {campaign.isActive ? t('campaigns.active') : t('campaigns.inactive')}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <BroadcastInfo campaignId={campaign.id} adminToken={adminToken} />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -662,7 +712,7 @@ export default function AdminCampaigns() {
                 ))}
                 {(!(campaignsData?.data || []).length) && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
                       {t('campaigns.noCampaigns')}
                     </TableCell>
                   </TableRow>
