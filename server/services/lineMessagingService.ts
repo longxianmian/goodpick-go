@@ -55,3 +55,45 @@ export async function pushLineMessage(to: string, message: any): Promise<void> {
     });
   }
 }
+
+/**
+ * Campaign broadcast message templates in three languages
+ * v1: Simple text messages with campaign link
+ */
+const CAMPAIGN_MESSAGE_TEMPLATES = {
+  th: (campaignUrl: string) =>
+    `🎉 มีดีลใหม่จาก DeeCard แล้ว!\nคลิกเพื่อดูรายละเอียดและรับสิทธิ์ของคุณ: ${campaignUrl}`,
+  en: (campaignUrl: string) =>
+    `🎉 New offer is now available on DeeCard!\nTap to view details and claim your coupon: ${campaignUrl}`,
+  zh: (campaignUrl: string) =>
+    `🎉 DeeCard 有新的优惠活动上线啦！\n点击查看活动详情并领取你的优惠券：${campaignUrl}`,
+};
+
+/**
+ * Send campaign broadcast message to a LINE user
+ * 
+ * @param lineUserId - LINE user ID (recipient)
+ * @param lang - User's preferred language
+ * @param payload - Campaign information
+ */
+export async function sendCampaignMessage(
+  lineUserId: string,
+  lang: 'th' | 'en' | 'zh',
+  payload: { campaignId: number }
+): Promise<void> {
+  // 1. Build campaign URL (production H5 page)
+  const campaignUrl = `https://goodpickgo.com/campaign/${payload.campaignId}`;
+
+  // 2. Select message template based on language
+  const templateFn = CAMPAIGN_MESSAGE_TEMPLATES[lang] ?? CAMPAIGN_MESSAGE_TEMPLATES['th'];
+  const messageText = templateFn(campaignUrl);
+
+  // 3. Build message object
+  const message = {
+    type: 'text',
+    text: messageText,
+  };
+
+  // 4. Send via LINE Messaging API
+  await pushLineMessage(lineUserId, message);
+}

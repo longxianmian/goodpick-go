@@ -7,12 +7,13 @@ import jwt from 'jsonwebtoken';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks } from '@shared/schema';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts } from '@shared/schema';
 import { eq, and, desc, sql, inArray, isNotNull } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
 import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
 import { translateText } from './services/translationService';
 import { sendWelcomeMessageIfNeeded } from './services/welcomeService';
+import { createCampaignBroadcast, runBroadcastTask } from './services/broadcastService';
 import { mapLineLangToPreferredLang } from './utils/language';
 import type { Admin, User } from '@shared/schema';
 import { nanoid } from 'nanoid';
@@ -2590,6 +2591,132 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Update campaign stores error:', error);
       res.status(500).json({ success: false, message: 'Failed to update campaign stores' });
+    }
+  });
+
+  // ============ E2. Admin - Campaign Broadcast ============
+
+  /**
+   * Create and trigger a campaign broadcast
+   * POST /api/admin/campaigns/:id/broadcast
+   * 
+   * Creates a broadcast task and immediately executes it.
+   * Sends campaign message to all OA-linked users.
+   */
+  app.post('/api/admin/campaigns/:id/broadcast', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const admin = req.admin as Admin;
+      const oaId = GOODPICK_MAIN_OA_ID;
+
+      // Validate campaign exists
+      const [campaign] = await db
+        .select()
+        .from(campaigns)
+        .where(eq(campaigns.id, campaignId))
+        .limit(1);
+
+      if (!campaign) {
+        return res.status(404).json({
+          success: false,
+          message: 'Campaign not found',
+        });
+      }
+
+      console.log('[ADMIN BROADCAST] Creating broadcast for campaign:', {
+        campaignId,
+        adminId: admin.id,
+        oaId,
+      });
+
+      // Create broadcast task
+      const broadcast = await createCampaignBroadcast(campaignId, admin.id, oaId);
+
+      // Trigger broadcast execution asynchronously
+      // Don't await - let it run in background
+      runBroadcastTask(broadcast.id).catch(error => {
+        console.error('[ADMIN BROADCAST] Background broadcast task failed:', {
+          broadcastId: broadcast.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+
+      res.json({
+        success: true,
+        message: 'Broadcast task created and started',
+        data: {
+          broadcastId: broadcast.id,
+          campaignId: broadcast.campaignId,
+          status: broadcast.status,
+        },
+      });
+    } catch (error) {
+      console.error('[ADMIN BROADCAST] Error creating broadcast:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to create broadcast',
+      });
+    }
+  });
+
+  /**
+   * Get broadcast history for a campaign
+   * GET /api/admin/campaigns/:id/broadcasts
+   */
+  app.get('/api/admin/campaigns/:id/broadcasts', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+
+      const broadcasts = await db
+        .select()
+        .from(campaignBroadcasts)
+        .where(eq(campaignBroadcasts.campaignId, campaignId))
+        .orderBy(desc(campaignBroadcasts.createdAt));
+
+      res.json({
+        success: true,
+        data: broadcasts,
+      });
+    } catch (error) {
+      console.error('[ADMIN BROADCAST] Error fetching broadcasts:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch broadcast history',
+      });
+    }
+  });
+
+  /**
+   * Get broadcast task status
+   * GET /api/admin/broadcasts/:id
+   */
+  app.get('/api/admin/broadcasts/:id', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const broadcastId = parseInt(req.params.id);
+
+      const [broadcast] = await db
+        .select()
+        .from(campaignBroadcasts)
+        .where(eq(campaignBroadcasts.id, broadcastId))
+        .limit(1);
+
+      if (!broadcast) {
+        return res.status(404).json({
+          success: false,
+          message: 'Broadcast not found',
+        });
+      }
+
+      res.json({
+        success: true,
+        data: broadcast,
+      });
+    } catch (error) {
+      console.error('[ADMIN BROADCAST] Error fetching broadcast:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch broadcast status',
+      });
     }
   });
 
