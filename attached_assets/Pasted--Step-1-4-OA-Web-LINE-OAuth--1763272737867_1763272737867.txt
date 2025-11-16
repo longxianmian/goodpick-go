@@ -1,0 +1,147 @@
+很好，Step 1–4 到这里为止都没问题，数据结构和语言工具函数都准备好了 👍
+
+接下来进入下一阶段：**只把“语言识别 + OA 关联”接入 Web LINE OAuth 回调，不发送欢迎消息**。
+
+请严格按下面的 Step 5 来做，一次只改一块逻辑，改完要向我解释你动了哪些文件。
+
+---
+
+【Step 5：在 Web OAuth 登录回调中接入语言识别 + oa_user_links 记录（不发消息）】
+
+目标：当用户通过 OA 菜单打开 H5 并完成 Web LINE OAuth 登录时，我们要在数据库里：
+
+1. 更新 `users.preferred_language`（如果还没设置）
+2. 在 `oa_user_links` 表里 upsert 关联关系（记录 line_user_id、初始语言、user_id）
+
+暂时 **不发送欢迎消息**，只做数据写入。
+
+### 5.1 找到当前的 Web LINE OAuth 回调逻辑
+
+1. 请你先在代码里找出处理 `LINE Web OAuth callback` 的后端入口函数：
+   - 很可能在 `server/routes.ts` 或某个 auth / lineAuth 相关的 controller 中；
+   - 一般会处理：
+     - 从 LINE 拿 `id_token` / `access_token`
+     - 验证并解析出 `line_user_id`
+     - 查/建平台用户（users 表）
+     - 签发 JWT 返回给前端。
+
+2. 找到之后，请先用文字简要说明：
+   - 回调路由的路径（例如 `/api/auth/line/callback`）
+   - 回调处理函数所在文件和函数名
+
+> 这一步先不要改代码，只是告诉我你找到了哪里。
+
+---
+
+【5.2 接入语言识别：更新 users.preferred_language】
+
+在确认了回调函数后，按以下要求修改：
+
+1. 在回调处理逻辑中，获取 LINE Profile 的 `language` 字段：
+   - 如果当前逻辑已经有 profile 对象（例如 `{ userId, displayName, language, ... }`）→ 直接复用；
+   - 如果还没有 `language`，请在保持现有风格的前提下，从 LINE 的 profile API 里取一次（使用现有的 lineService，如果已有）。
+
+2. 使用我们刚建的工具函数：
+
+   ```ts
+   import { mapLineLangToPreferredLang } from './utils/language'; // 实际路径按项目结构调整
+调用：
+
+ts
+复制代码
+const preferredLang = mapLineLangToPreferredLang(profile.language);
+对于当前登录成功的用户（已经有 user.id）：
+
+如果 user.preferred_language 目前是 null / 未设置：
+
+更新为 preferredLang；
+
+如果已经有值：
+
+暂时不要覆盖，保留原值（未来由 H5 手动切换来更新）。
+
+请你：
+
+在代码中加入这段逻辑；
+
+保持事务/错误处理风格与原有代码一致；
+
+修改完后，用文字说明你是在哪个文件、哪个位置插入的代码，并贴出相关代码片段（不需要整文件）。
+
+【5.3 写入 / 更新 oa_user_links（只管记录，不发消息）】
+
+在同一个回调处理流程中（完成用户登录 & 确认 user.id 之后），增加以下逻辑：
+
+决定一个 OA 标识 oaId 的来源：
+
+为了 v1 简化，可以先使用配置/常量，例如：
+
+从环境变量读取：process.env.GOODPICK_MAIN_OA_ID || 'GOODPICK_MAIN_OA'
+
+请在一个统一的配置文件（例如 server/config.ts 或现有的 config 模块）里定义，而不要写死在业务函数中。
+
+使用 Drizzle 对 oa_user_links 进行 upsert 风格的操作：
+
+逻辑要求：
+
+根据 (oa_id, line_user_id) 查询现有记录；
+
+若不存在：
+
+插入一条新记录：
+
+oa_id = oaId
+
+line_user_id = lineUserId
+
+user_id = 当前登录的 user.id
+
+initial_language = preferredLang（就是上一步得到的）
+
+welcome_sent = false
+
+welcome_sent_at = null
+
+若已存在：
+
+如果 user_id 为空，则更新为当前 user.id；
+
+initial_language 不要改（保持第一次识别结果）；
+
+welcome_sent / welcome_sent_at 也不要改（欢迎消息逻辑放到下一步）。
+
+同样，保持错误处理风格与现有代码一致，避免因数据库错误导致整个登录流程崩溃。
+
+请你：
+
+完成这段逻辑后，用文字说明：
+
+哪个文件增加了对 oa_user_links 的写入；
+
+调用了哪些 Drizzle 方法（例如 db.insert(oaUserLinks) / db.update 等）；
+
+贴出关键的 upsert 代码片段，方便我检查。
+
+【重要提醒】
+
+本步骤 只做数据写入与更新：
+
+不要发送任何 LINE 消息；
+
+不要调用 Messaging API；
+
+不要修改生产环境配置，只在开发环境验证；
+
+任何新增的常量（如 GOODPICK_MAIN_OA_ID）都必须从配置/环境变量中读取，保持可配置性。
+
+完成 Step 5 之后，请向我整体汇报：
+
+回调路由路径 & 函数位置；
+
+preferred_language 在回调中的更新逻辑代码片段；
+
+oa_user_links 写入/更新的代码片段；
+
+在开发环境简单跑一次 LINE 登录流程（或至少模拟调用），确认不会报错。
+
+等你完成 Step 5，我们再进入 Step 6：欢迎消息 service（真正给用户发那条“像朋友一样打招呼”的 OA 消息）。
