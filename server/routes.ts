@@ -7,11 +7,12 @@ import jwt from 'jsonwebtoken';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets } from '@shared/schema';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks } from '@shared/schema';
 import { eq, and, desc, sql, inArray, isNotNull } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
 import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
 import { translateText } from './services/translationService';
+import { mapLineLangToPreferredLang } from './utils/language';
 import type { Admin, User } from '@shared/schema';
 import { nanoid } from 'nanoid';
 
@@ -52,6 +53,9 @@ if (!JWT_SECRET) {
 }
 
 const JWT_SECRET_VALUE = JWT_SECRET || 'change_this_to_strong_secret';
+
+// OA Configuration for messaging system
+const GOODPICK_MAIN_OA_ID = process.env.GOODPICK_MAIN_OA_ID ?? 'GOODPICK_MAIN_OA';
 
 declare global {
   namespace Express {
@@ -679,6 +683,84 @@ export function registerRoutes(app: Express): Server {
             updatedAt: new Date(),
           })
           .where(eq(users.id, existingUser.id));
+      }
+
+      // Step 5.2-B: Update user's preferred_language if not set
+      const preferredLang = mapLineLangToPreferredLang(lineProfile.language);
+      
+      // Refresh user data to get latest values
+      const [currentUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, existingUser.id))
+        .limit(1);
+
+      if (currentUser && !currentUser.preferredLanguage) {
+        await db
+          .update(users)
+          .set({
+            preferredLanguage: preferredLang,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, existingUser.id));
+        
+        console.log('[OAUTH CB] Set preferred_language for user:', {
+          userId: existingUser.id,
+          preferredLanguage: preferredLang,
+        });
+      }
+
+      // Step 5.3: Upsert oa_user_links (track OA relationship, no welcome message yet)
+      const oaId = GOODPICK_MAIN_OA_ID;
+      const lineUserId = lineProfile.sub;
+
+      const [existingLink] = await db
+        .select()
+        .from(oaUserLinks)
+        .where(
+          and(
+            eq(oaUserLinks.oaId, oaId),
+            eq(oaUserLinks.lineUserId, lineUserId)
+          )
+        )
+        .limit(1);
+
+      if (!existingLink) {
+        // First time seeing this LINE user for this OA - create new link
+        await db.insert(oaUserLinks).values({
+          oaId,
+          lineUserId,
+          userId: existingUser.id,
+          initialLanguage: preferredLang,
+          welcomeSent: false,
+          welcomeSentAt: null,
+        });
+
+        console.log('[OAUTH CB] Created new oa_user_link:', {
+          oaId,
+          lineUserId,
+          userId: existingUser.id,
+          initialLanguage: preferredLang,
+        });
+      } else if (!existingLink.userId) {
+        // Link exists but userId not set (from follow event?) - update it
+        await db
+          .update(oaUserLinks)
+          .set({
+            userId: existingUser.id,
+            updatedAt: new Date(),
+          })
+          .where(eq(oaUserLinks.id, existingLink.id));
+
+        console.log('[OAUTH CB] Updated oa_user_link with userId:', {
+          linkId: existingLink.id,
+          userId: existingUser.id,
+        });
+      } else {
+        console.log('[OAUTH CB] oa_user_link already exists and complete:', {
+          linkId: existingLink.id,
+          userId: existingLink.userId,
+        });
       }
 
       const token = jwt.sign(

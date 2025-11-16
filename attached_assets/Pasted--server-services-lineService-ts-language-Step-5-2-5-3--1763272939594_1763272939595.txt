@@ -1,0 +1,170 @@
+可以，允许你现在修改 server/services/lineService.ts，把 language 字段串起来，然后继续完成 Step 5.2 和 5.3。
+
+请按下面顺序来，一次只做一小块，并在每步后用文字说明改动。
+
+---
+
+【Step 5.2-A：在 lineService 里补上 language 字段】
+
+目标：让 `verifyLineIdToken` 返回的 `lineProfile` 里带上 `language`，方便后续做映射。
+
+1. 修改 `server/services/lineService.ts` 中的 `LineVerifyResponse` 接口：
+
+   - 在原有字段基础上增加：
+     ```ts
+     language?: string;
+     ```
+
+2. 在 `verifyLineIdToken` 函数里，如果你是这样拿 payload 的：
+
+   ```ts
+   const payload = decoded.payload as any;
+请在返回的对象里，补上 language：
+
+ts
+复制代码
+return {
+  sub: payload.sub,
+  name: payload.name,
+  picture: payload.picture,
+  email: payload.email,
+  phone: payload.phone,
+  language: payload.language, // 新增这一行（如果没有就 undefined）
+};
+确保：
+
+其他调用 verifyLineIdToken 的代码不会被破坏（多一个可选字段是安全的）；
+
+构建能通过，没有类型错误。
+
+完成后，请贴出：
+
+修改后的 LineVerifyResponse 接口定义片段；
+
+verifyLineIdToken 函数里 return 那一段的片段。
+
+【Step 5.2-B：在 OAuth 回调中更新 users.preferred_language】
+
+在确认 lineProfile.language 已经可用之后，继续在 /api/auth/line/callback 中接入语言更新逻辑：
+
+在 server/routes.ts 的 /api/auth/line/callback 处理函数里：
+
+找到调用 verifyLineIdToken 获取 lineProfile 的位置（你刚才已经确认有 lineProfile = await verifyLineIdToken(tokens.id_token)）。
+
+在创建/更新用户完成、拿到 user 对象之后，增加逻辑：
+
+引入语言映射工具函数：
+
+ts
+复制代码
+import { mapLineLangToPreferredLang } from './utils/language'; 
+// 实际路径请按项目相对路径写：通常从 routes.ts 到 utils 要用 '../utils/language'
+计算首选语言（允许 lineProfile.language 为 undefined）：
+
+ts
+复制代码
+const preferredLang = mapLineLangToPreferredLang(lineProfile.language);
+如果当前数据库里的 user.preferredLanguage 为空 / null：
+
+调用 Drizzle 更新该用户，设置 preferred_language = preferredLang；
+
+如果已有值，则暂时不要覆盖，保留现有值（后续由 H5 手动切换来修改）。
+
+完成后，请贴出：
+
+/api/auth/line/callback 中，创建/查找用户之后，你插入的“更新 preferred_language”那一小段代码。
+
+注意：
+
+保持原有错误处理和事务风格；
+
+不要改变 JWT 签发和前端重定向逻辑。
+
+【Step 5.3：在 OAuth 回调中写入/更新 oa_user_links（不发欢迎消息）】
+
+继续在同一个 /api/auth/line/callback 函数里，在你已经拿到 user.id 和 preferredLang 之后，增加以下逻辑：
+
+确定 OA 标识 oaId：
+
+在一个统一的配置文件中定义（如果已有 config 模块就沿用），例如：
+
+ts
+复制代码
+export const GOODPICK_MAIN_OA_ID = process.env.GOODPICK_MAIN_OA_ID ?? 'GOODPICK_MAIN_OA';
+在 routes.ts 里引用这个常量，而不是写死字符串。
+
+使用 Drizzle 操作 oa_user_links 表，执行“伪 upsert”逻辑：
+
+伪代码类似这样（请按项目风格写）：
+
+ts
+复制代码
+const oaId = GOODPICK_MAIN_OA_ID;
+const lineUserId = lineProfile.sub; // 或者你目前用的 line user id 字段
+
+const [existingLink] = await db
+  .select()
+  .from(oaUserLinks)
+  .where(
+    and(
+      eq(oaUserLinks.oaId, oaId),
+      eq(oaUserLinks.lineUserId, lineUserId),
+    ),
+  )
+  .limit(1);
+
+if (!existingLink) {
+  await db.insert(oaUserLinks).values({
+    oaId,
+    lineUserId,
+    userId: user.id,
+    initialLanguage: preferredLang,
+    welcomeSent: false,
+    welcomeSentAt: null,
+  });
+} else if (!existingLink.userId) {
+  await db
+    .update(oaUserLinks)
+    .set({
+      userId: user.id,
+      updatedAt: new Date(),
+    })
+    .where(eq(oaUserLinks.id, existingLink.id));
+}
+要点：
+
+initialLanguage 只在“首次插入”时设置，以后不再修改；
+
+welcomeSent 和 welcomeSentAt 现在只保持默认值 / 不动（欢迎消息放在下一步做）；
+
+如果记录已经存在且有 userId，就什么都不改。
+
+完成后，请贴出：
+
+你在 routes.ts 中实际实现的 upsert 代码片段；
+
+简要说明你从哪取的 lineUserId、oaId 和 user.id。
+
+【Step 5 结束后的自测】
+
+完成以上改动后，请在开发环境做一个简单自测（可以用测试账号）：
+
+通过 OA 菜单 / 测试入口走一遍 Web LINE 登录；
+
+确认：
+
+users 表中，该用户有 preferred_language 值；
+
+oa_user_links 表中，有对应 (oa_id, line_user_id) 记录，initial_language 正确，user_id 已绑定。
+
+如果暂时不方便实际走 LINE 流程，可以至少通过模拟调用（构造一个假的 lineProfile）来验证不报错。
+
+最后，请用文字总结：
+
+修改了哪些文件；
+
+每个文件增加了哪一块逻辑；
+
+数据库里是否成功写入了 preferred_language 和 oa_user_links 记录（如果你有做查询的话）。
+
+完成 Step 5 后，我们再进入 Step 6：实现欢迎消息 service，并在合适的位置调用 Messaging API 发那条“像朋友一样打招呼”的 OA 消息。
