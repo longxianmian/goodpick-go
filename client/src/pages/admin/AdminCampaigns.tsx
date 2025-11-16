@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
-import { Plus, Pencil, Trash2, Store as StoreIcon, MapPin, FileText } from 'lucide-react';
+import { Plus, Pencil, Trash2, Store as StoreIcon, MapPin, FileText, Megaphone } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,10 +19,26 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { MediaUploader } from '@/components/MediaUploader';
 import type { Campaign, Store as StoreType } from '@shared/schema';
 import { format } from 'date-fns';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface MediaFile {
   type: 'image' | 'video';
   url: string;
+}
+
+interface CampaignBroadcast {
+  id: number;
+  campaignId: number;
+  oaId: string;
+  status: 'pending' | 'processing' | 'done' | 'failed';
+  totalTargetUsers: number;
+  sentCount: number;
+  successCount: number;
+  failedCount: number;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  error: string | null;
 }
 
 type CampaignFormData = {
