@@ -37,8 +37,8 @@ type SendWelcomeOptions = {
  * Send welcome message to user if conditions are met
  * 
  * Conditions:
- * 1. Development environment: Only send to LINE_DEV_TEST_USER_ID
- * 2. Production environment: Send to all users
+ * 1. If LINE_DEV_TEST_USER_ID is set: Only send to that specific test user
+ * 2. If LINE_DEV_TEST_USER_ID is not set: Send to all users normally
  * 3. Only send if welcome_sent === false in oa_user_links
  * 
  * @param options - User and OA link information
@@ -48,20 +48,15 @@ export async function sendWelcomeMessageIfNeeded(
 ): Promise<void> {
   const { user, lineUserId, oaId, initialLanguage } = options;
 
-  // A. Development environment safety valve
+  // A. Optional test user filter (if configured)
   const devTestUserId = process.env.LINE_DEV_TEST_USER_ID;
-  const isDevEnvironment = process.env.NODE_ENV !== 'production';
 
-  if (isDevEnvironment && devTestUserId) {
-    if (lineUserId !== devTestUserId) {
-      console.log('[WELCOME DEV] Skip sending welcome message to non-test user', {
-        lineUserId: lineUserId.substring(0, 8) + '...',
-      });
-      return;
-    }
-    console.log('[WELCOME DEV] Sending welcome message to test user', {
+  // 如果设置了测试用户 ID，则只给这个 userId 发送
+  if (devTestUserId && lineUserId !== devTestUserId) {
+    console.log('[WELCOME] Skip sending in dev, not the test user', {
       lineUserId: lineUserId.substring(0, 8) + '...',
     });
+    return;
   }
 
   // B. Check oa_user_links record and welcome_sent status
