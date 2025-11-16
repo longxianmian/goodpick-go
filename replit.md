@@ -35,6 +35,7 @@ Security features include bcryptjs for password hashing, JWT secrets from enviro
 - **Intelligent Coupon Button Display**: Hides the "Claim Coupon" button for users who have already claimed a coupon.
 - **Bottom Navigation Menu**: Fixed bottom navigation for users on campaign details and "My Coupons" pages.
 - **Optimized LIFF Initialization**: LIFF initialization moved to CampaignDetail.tsx for on-demand loading, preventing redundant initialization.
+- **LINE OAuth Session Fix**: Fixed production OAuth state loss issue by using dedicated `goodpickgo.sid` cookie name (avoiding historical `connect.sid` conflicts), extended session lifetime to 7 days, and enhanced callback logging for better debugging.
 
 ## External Dependencies
 

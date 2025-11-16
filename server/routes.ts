@@ -304,13 +304,15 @@ export function registerRoutes(app: Express): Server {
   // Configure session middleware for OAuth state management
   const MemoryStore = createMemoryStore(session);
   const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined;
+  const ONE_WEEK_MS = 1000 * 60 * 60 * 24 * 7;
 
   app.use(session({
+    name: 'goodpickgo.sid',  // ✅ 新的 cookie 名，避免和历史 connect.sid 冲突
     cookie: {
-      maxAge: 86400000, // 24 hours
-      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
       httpOnly: true,
-      sameSite: 'lax', // CSRF protection
+      secure: process.env.NODE_ENV === 'production', // 线上必须是 true（HTTPS）
+      sameSite: 'lax', // CSRF protection，当前同域访问足够
+      maxAge: ONE_WEEK_MS, // 一周过期
       domain: COOKIE_DOMAIN,
     },
     store: new MemoryStore({
@@ -623,8 +625,13 @@ export function registerRoutes(app: Express): Server {
 
       console.log('[OAUTH CB] storedOAuthData=', storedOAuthData);
 
-      if (!storedOAuthData) {
-        console.error('[OAUTH CB] OAuth state not found in session. state=', state);
+      if (!req.session.oauthStates || !storedOAuthData) {
+        console.error('[OAUTH CB] state not found', {
+          state,
+          sessionID: (req as any).sessionID,
+          hasStates: !!req.session.oauthStates,
+          availableStates: req.session.oauthStates ? Object.keys(req.session.oauthStates) : [],
+        });
         return res.redirect(`/?error=csrf_invalid_state`);
       }
 

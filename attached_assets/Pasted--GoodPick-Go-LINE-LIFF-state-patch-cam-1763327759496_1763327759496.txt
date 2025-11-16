@@ -1,0 +1,127 @@
+【任务】修复 GoodPick Go 线上环境中 LINE LIFF 登录后「state 丢失」导致一键领取失败的问题，要求是生产级可维护方案，不是临时 patch。
+
+【现象】
+- 前端在 /campaign/:id 页面点击「用 LINE 一键领取」后，跳转 LINE 授权并回到 /api/auth/line/callback，但页面又回到活动详情，一直是「用 LINE 一键领取」，领取逻辑没有执行。
+- 后端日志中能看到：
+  - [OAUTH INIT] stored state OK. keys= [...]，说明 init-oauth 时已经把 state 写入 session。
+  - 但 callback 时：
+    - [OAUTH CB] hasSession= true oauthStatesKeys= [] storedOAuthData= undefined
+    - 并且 sessionID 和 INIT 不一样。
+- 原始 Cookie 头类似：
+  - INIT: cookie= connect.sid=s%3AwT31EeU_...
+  - CB: cookie= connect.sid=s%3AQcSJHOwm...; connect.sid=s%3AwT31EeU_...
+- 日志中还有多次出现：
+  - [OAUTH CB] OAuth state not found in session. state= ...
+
+【根因分析】
+- 后端使用的是 express-session，当前 cookie 名是默认的 connect.sid。
+- 浏览器里残留了多份 connect.sid（可能来自历史的 www.goodpickgo.com / goodpickgo.com / 本地调试，以及之前多次改 SESSION_SECRET 产生的无效 cookie）。
+- init-oauth 请求时，恰好用的是最新那份 cookie，sessionID 比如是 wT31EeU_...，state 成功写入这个 session。
+- callback 请求时，请求头里带了两份 connect.sid，express-session 没有正确使用带有 state 的那一份，而是根据另一份（或解签失败）创建了一个全新的空 session，sessionID 完全不同。
+- 所以 callback 中虽然 hasSession=true（有一个 session 对象），但 oauthStatesKeys=[]（这个 session 里没有之前写入的 state），于是走到了「state 不存在」分支，直接 302 回活动详情页。
+
+【修复方案（不要跳步骤）】
+
+1. 统一使用新的 session cookie 名，避免和历史 connect.sid 冲突
+   - 找到后端创建 express-session 的位置（TypeScript 或 JavaScript），大概率在 server/index.ts、server/app.ts 或类似文件。
+   - 当前代码类似：
+
+     ```ts
+     import session from "express-session";
+
+     app.use(session({
+       secret: process.env.SESSION_SECRET!,
+       resave: false,
+       saveUninitialized: false,
+       // cookie: { ... }
+     }));
+     ```
+
+   - 修改为显式指定一个新的 cookie 名，例如 goodpickgo.sid，并补全推荐的 cookie 配置：
+
+     ```ts
+     import session from "express-session";
+
+     const ONE_WEEK_MS = 1000 * 60 * 60 * 24 * 7;
+
+     app.use(session({
+       name: "goodpickgo.sid",               // ✅ 新的 cookie 名，避免和历史 connect.sid 冲突
+       secret: process.env.SESSION_SECRET!,  // 使用环境变量 SESSION_SECRET
+       resave: false,
+       saveUninitialized: false,
+       cookie: {
+         httpOnly: true,
+         secure: process.env.NODE_ENV === "production", // 线上必须是 true（目前是 HTTPS）
+         sameSite: "lax",                                // 当前是同域访问，Lax 足够，未来如有跨域再改 None+Secure
+         maxAge: ONE_WEEK_MS,
+         // 如项目已有 COOKIE_DOMAIN，可以配置为 ".goodpickgo.com" 或 "goodpickgo.com"
+         // domain: process.env.COOKIE_DOMAIN,
+       },
+       // 如果项目已有 store（例如 connect-pg-simple 等），保留现有 store 配置
+     }));
+     ```
+
+   - 这样浏览器里旧的 connect.sid 会被服务器完全忽略，新的 OAuth 流程只会使用 goodpickgo.sid 对应的 session，INIT 和 CB 肯定是在同一个 session 上操作。
+
+2. 保持 SESSION_SECRET 稳定，不再在代码或部署脚本里动态生成
+   - 线上服务器的 .env.production 目前已经有固定的：
+     - SESSION_SECRET=goodpickgo_session_2025_JnT3o7fKx9uQvL2p（示例）
+   - 请确认项目代码和部署脚本里不要再有任何类似
+     `SESSION_SECRET=...$(date +%s)...`
+     这种自动生成逻辑。
+   - 本地开发可以用 .env.local 或类似文件单独配置，不要影响生产环境。
+
+3. 保持现有的 OAuth state 逻辑，但增强一点健壮性（可选优化）
+   - 当前逻辑大致是：
+     - init-oauth:
+       ```ts
+       const state = randomHex(64);
+       if (!req.session.oauthStates) req.session.oauthStates = {};
+       req.session.oauthStates[state] = { campaignId, returnTo };
+       await saveSession();
+       返回给前端 state。
+       ```
+     - callback:
+       ```ts
+       const data = req.session.oauthStates?.[state];
+       if (!data) {
+         // 现在会打印 "OAuth state not found in session" 然后 302 回去
+       }
+       ```
+   - 在 callback 里增加更清晰的日志，方便以后排查（但仍然保持严格校验，不要为了「能跑通」直接跳过 state 校验）：
+
+     ```ts
+     if (!req.session.oauthStates || !req.session.oauthStates[state]) {
+       logger.error("[OAUTH CB] state not found", {
+         state,
+         sessionID: req.sessionID,
+         hasStates: !!req.session.oauthStates,
+       });
+       // 按原来的逻辑继续 302 回去
+       return res.redirect(...);
+     }
+     ```
+
+   - 不要删除 state 校验逻辑，这是 CSRF 防护的一部分。
+
+4. 确保构建 & 启动脚本在生产环境中使用相同的配置
+   - 构建：保持现有 `npm run build`。
+   - 启动：pm2 使用的是 dist/index.js，并通过 ecosystem.config.cjs 或类似文件注入：
+     - NODE_ENV=production
+     - SESSION_SECRET=（来自 .env.production）
+   - 如果项目里有专门的 config 文件，请统一读取环境变量，避免配置分散。
+
+5. 顺手处理一下启动日志里的 Vite 报错（非必须，但建议）
+   - 日志中有：`Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vite' imported from /var/www/goodpick-go/dist/index.js`
+   - 如果服务器上确实需要 import("vite")（例如 dev server 模式），请确保 package.json 的 dependencies 或 devDependencies 中包含 "vite"，并且线上安装了 node_modules。
+   - 如果生产环境不会用到 dev server，建议在源码中用 `if (process.env.NODE_ENV !== "production")` 包住 import("vite") 相关逻辑，避免生产启动时报错。
+
+【完成后的检查项】
+1. 在本地或 Replit 开发环境：
+   - 启动服务；
+   - 打开 /campaign/1；
+   - 走一遍 LINE 登录 + 回调流程，确认：
+     - init-oauth 和 callback 日志里 sessionID 一致；
+     - callback 中可以读到 oauthStates 对应的 state；
+     - 返回 H5 后，接口 /api/campaigns/:id 显示用户已领取的状态（按项目原有设计）。
+2. 推送到 GitHub 仓库（保持 main 或 production 分支与服务器一致）。
