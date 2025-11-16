@@ -8,6 +8,7 @@ export const couponStatusEnum = pgEnum('coupon_status', ['unused', 'used', 'expi
 export const languageEnum = pgEnum('language', ['zh-cn', 'en-us', 'th-th']);
 export const preferredLanguageEnum = pgEnum('preferred_language', ['th', 'en', 'zh']);
 export const channelEnum = pgEnum('channel', ['line_menu', 'tiktok', 'facebook', 'ig', 'youtube', 'other']);
+export const broadcastStatusEnum = pgEnum('broadcast_status', ['pending', 'sending', 'done', 'failed', 'cancelled']);
 
 // Admin table
 export const admins = pgTable('admins', {
@@ -245,3 +246,27 @@ export const insertStaffPresetSchema = createInsertSchema(staffPresets).omit({
 });
 export type InsertStaffPreset = z.infer<typeof insertStaffPresetSchema>;
 export type StaffPreset = typeof staffPresets.$inferSelect;
+
+// Campaign Broadcasts table (for OA campaign message broadcasting)
+export const campaignBroadcasts = pgTable('campaign_broadcasts', {
+  id: serial('id').primaryKey(),
+  campaignId: integer('campaign_id').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
+  oaId: text('oa_id').notNull(), // OA identifier
+  targetType: text('target_type').notNull().default('ALL'), // v1: fixed to 'ALL', future: 'SEGMENT'
+  sendTime: timestamp('send_time').notNull(), // Scheduled send time
+  status: broadcastStatusEnum('status').notNull().default('pending'),
+  totalTargets: integer('total_targets').notNull().default(0), // Planned target count
+  sentCount: integer('sent_count').notNull().default(0), // Actual sent count
+  failedCount: integer('failed_count').notNull().default(0), // Failed count
+  createdBy: integer('created_by').notNull().references(() => admins.id), // Admin who created the broadcast
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertCampaignBroadcastSchema = createInsertSchema(campaignBroadcasts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertCampaignBroadcast = z.infer<typeof insertCampaignBroadcastSchema>;
+export type CampaignBroadcast = typeof campaignBroadcasts.$inferSelect;
