@@ -58,6 +58,7 @@ const JWT_SECRET_VALUE = JWT_SECRET || 'change_this_to_strong_secret';
 
 // OA Configuration for messaging system
 const GOODPICK_MAIN_OA_ID = process.env.GOODPICK_MAIN_OA_ID ?? 'GOODPICK_MAIN_OA';
+const DEECARD_MAIN_OA_ID = process.env.DEECARD_MAIN_OA_ID ?? 'DEECARD_MAIN_OA';
 
 declare global {
   namespace Express {
@@ -720,7 +721,8 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Step 5.3: Upsert oa_user_links (track OA relationship, no welcome message yet)
-      const oaId = GOODPICK_MAIN_OA_ID;
+      // 产品设计：入口是 GoodPick Go OA，但欢迎消息来自 DeeCard OA
+      const oaId = DEECARD_MAIN_OA_ID;
       const lineUserId = lineProfile.sub;
 
       const [existingLink] = await db

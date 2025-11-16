@@ -165,19 +165,29 @@ export async function runBroadcastTask(broadcastId: number): Promise<void> {
         const lang = (user.preferredLanguage ?? link.initialLanguage ?? 'th') as 'th' | 'en' | 'zh';
 
         // 6. Send campaign message
-        await sendCampaignMessage(link.lineUserId, lang, {
+        const result = await sendCampaignMessage(link.lineUserId, lang, {
           campaignId: broadcast.campaignId,
         });
 
-        sentCount++;
-
-        console.log('[BROADCAST] Message sent:', {
-          broadcastId,
-          userId: user.id,
-          lineUserId: link.lineUserId.substring(0, 8) + '...',
-          language: lang,
-          progress: `${sentCount}/${oaLinks.length}`,
-        });
+        if (result.success) {
+          sentCount++;
+          console.log('[BROADCAST] Message sent:', {
+            broadcastId,
+            userId: user.id,
+            lineUserId: link.lineUserId.substring(0, 8) + '...',
+            language: lang,
+            progress: `${sentCount}/${oaLinks.length}`,
+          });
+        } else {
+          failedCount++;
+          console.error('[BROADCAST] Message send failed:', {
+            broadcastId,
+            userId: user.id,
+            lineUserId: link.lineUserId.substring(0, 8) + '...',
+            error: result.error,
+            status: result.status,
+          });
+        }
 
         // Update counters every 10 messages for performance
         if (sentCount % 10 === 0) {

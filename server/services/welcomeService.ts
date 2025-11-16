@@ -97,7 +97,8 @@ export async function sendWelcomeMessageIfNeeded(
     text: template.text,
   };
 
-  console.log('[WELCOME SEND] Preparing to send welcome message', {
+  console.log('[WELCOME] Sending welcome message', {
+    oaId,
     userId: user.id,
     lineUserId: lineUserId.substring(0, 8) + '...',
     language: lang,
@@ -105,29 +106,51 @@ export async function sendWelcomeMessageIfNeeded(
 
   // E. Call LINE Messaging API to send message
   try {
-    await pushLineMessage(lineUserId, message);
+    const result = await pushLineMessage(lineUserId, message, oaId);
 
-    // F. Update welcome_sent status
-    await db
-      .update(oaUserLinks)
-      .set({
-        welcomeSent: true,
-        welcomeSentAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(oaUserLinks.id, link.id));
-
-    console.log('[WELCOME SUCCESS] Welcome message sent and status updated', {
-      linkId: link.id,
+    console.log('[WELCOME] LINE response', {
+      success: result.success,
+      status: result.status,
+      error: result.error,
+      oaId,
       userId: user.id,
-      language: lang,
     });
+
+    // F. Only update welcome_sent if message was actually sent successfully
+    if (result.success) {
+      await db
+        .update(oaUserLinks)
+        .set({
+          welcomeSent: true,
+          welcomeSentAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(oaUserLinks.id, link.id));
+
+      console.log('[WELCOME SUCCESS] Welcome message sent and status updated', {
+        linkId: link.id,
+        userId: user.id,
+        language: lang,
+        oaId,
+      });
+    } else {
+      console.error('[WELCOME] Send failed, not marking as sent', {
+        error: result.error,
+        status: result.status,
+        userId: user.id,
+        oaId,
+        lineUserId: lineUserId.substring(0, 8) + '...',
+      });
+      // Don't update welcome_sent - keep it false so we can retry later
+    }
   } catch (error) {
-    console.error('[WELCOME ERROR] Failed to send welcome message', {
+    console.error('[WELCOME ERROR] Exception during welcome message send', {
       error: error instanceof Error ? error.message : String(error),
       userId: user.id,
+      oaId,
       lineUserId: lineUserId.substring(0, 8) + '...',
     });
     // Don't throw - we don't want welcome message failure to break login flow
+    // Don't update welcome_sent - keep it false so we can retry later
   }
 }
