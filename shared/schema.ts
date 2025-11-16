@@ -1,4 +1,4 @@
-import { pgTable, text, integer, boolean, timestamp, serial, decimal, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, boolean, timestamp, serial, decimal, pgEnum, unique } from 'drizzle-orm/pg-core';
 import { createInsertSchema } from 'drizzle-zod';
 import { z } from 'zod';
 
@@ -153,6 +153,30 @@ export const insertUserSchema = createInsertSchema(users).omit({
 });
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+// OA User Links table (tracks LINE OA relationships and welcome message status)
+export const oaUserLinks = pgTable('oa_user_links', {
+  id: serial('id').primaryKey(),
+  oaId: text('oa_id').notNull(), // OA identifier (e.g., 'GOODPICK_MAIN_OA')
+  lineUserId: text('line_user_id').notNull(), // LINE user ID
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }), // Platform user ID (nullable)
+  initialLanguage: preferredLanguageEnum('initial_language').notNull(), // First detected language
+  welcomeSent: boolean('welcome_sent').notNull().default(false), // Whether welcome message was sent
+  welcomeSentAt: timestamp('welcome_sent_at'), // When welcome message was sent (nullable)
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  // Composite unique constraint: one LINE user per OA
+  uniqueOaLineUser: unique().on(table.oaId, table.lineUserId),
+}));
+
+export const insertOaUserLinkSchema = createInsertSchema(oaUserLinks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertOaUserLink = z.infer<typeof insertOaUserLinkSchema>;
+export type OaUserLink = typeof oaUserLinks.$inferSelect;
 
 // Coupons table (user claimed coupons)
 export const coupons = pgTable('coupons', {
