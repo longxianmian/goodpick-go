@@ -6,6 +6,7 @@ import { z } from 'zod';
 export const discountTypeEnum = pgEnum('discount_type', ['final_price', 'percentage_off', 'cash_voucher']);
 export const couponStatusEnum = pgEnum('coupon_status', ['unused', 'used', 'expired']);
 export const languageEnum = pgEnum('language', ['zh-cn', 'en-us', 'th-th']);
+export const preferredLanguageEnum = pgEnum('preferred_language', ['th', 'en', 'zh']);
 export const channelEnum = pgEnum('channel', ['line_menu', 'tiktok', 'facebook', 'ig', 'youtube', 'other']);
 
 // Admin table
@@ -140,6 +141,7 @@ export const users = pgTable('users', {
   avatarUrl: text('avatar_url'),
   phone: text('phone'), // Phone number from LINE profile (for staff binding verification)
   language: languageEnum('language').notNull().default('th-th'),
+  preferredLanguage: preferredLanguageEnum('preferred_language'), // User's preferred language for OA messages (nullable)
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
