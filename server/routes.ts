@@ -12,6 +12,7 @@ import { eq, and, desc, sql, inArray, isNotNull } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
 import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
 import { translateText } from './services/translationService';
+import { sendWelcomeMessageIfNeeded } from './services/welcomeService';
 import { mapLineLangToPreferredLang } from './utils/language';
 import type { Admin, User } from '@shared/schema';
 import { nanoid } from 'nanoid';
@@ -761,6 +762,46 @@ export function registerRoutes(app: Express): Server {
           linkId: existingLink.id,
           userId: existingLink.userId,
         });
+      }
+
+      // Step 6: Send welcome message if needed
+      // Re-fetch the link to get the latest state (including initialLanguage)
+      const [latestLink] = await db
+        .select()
+        .from(oaUserLinks)
+        .where(
+          and(
+            eq(oaUserLinks.oaId, oaId),
+            eq(oaUserLinks.lineUserId, lineUserId)
+          )
+        )
+        .limit(1);
+
+      // Re-fetch user to get latest preferredLanguage
+      const [latestUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, existingUser.id))
+        .limit(1);
+
+      if (latestLink && latestUser) {
+        try {
+          await sendWelcomeMessageIfNeeded({
+            user: {
+              id: latestUser.id,
+              preferredLanguage: latestUser.preferredLanguage ?? null,
+            },
+            lineUserId,
+            oaId,
+            initialLanguage: latestLink.initialLanguage,
+          });
+        } catch (error) {
+          // Don't let welcome message failure break the login flow
+          console.error('[OAUTH CB] Welcome message failed, but login continues:', {
+            error: error instanceof Error ? error.message : String(error),
+            userId: latestUser.id,
+          });
+        }
       }
 
       const token = jwt.sign(
