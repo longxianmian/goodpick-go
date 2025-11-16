@@ -608,6 +608,22 @@ export default function AdminCampaigns() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleBroadcast(campaign.id)}
+                              disabled={broadcastingCampaignId === campaign.id}
+                              data-testid={`button-broadcast-${campaign.id}`}
+                            >
+                              <Megaphone className="w-4 h-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>向 DeeCard 会员发送本活动</p>
+                          </TooltipContent>
+                        </Tooltip>
                         <Button
                           size="sm"
                           variant="ghost"
