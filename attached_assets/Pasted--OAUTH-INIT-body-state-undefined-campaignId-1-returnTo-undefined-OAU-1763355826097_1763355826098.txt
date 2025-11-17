@@ -1,0 +1,130 @@
+一、目标
+
+目前线上阿里云日志：
+
+[OAUTH INIT] body= { state: undefined, campaignId: '1', returnTo: undefined }
+[OAUTH INIT] missing state
+400 POST /api/auth/line/init-oauth :: {"success":false,"message":"State ..."}
+
+
+导致 H5 详情页点击「用 LINE 一键领取」直接报错。
+
+需求：后端统一在服务器端生成 state，即使前端没传 state，也不再返回 400，而是正常走 OAuth 流程。
+
+二、代码修改（后端 routes）
+
+文件位置
+
+仓库：goodpick-go
+
+分支：backup-20251115-prod
+
+文件：server/routes.ts
+
+目标：app.post('/api/auth/line/init-oauth', ...) 这个路由
+
+1. 引入 nanoid（如果未引入）
+
+在文件顶部已有 nanoid 就复用；如果没有，则在其它 import 附近加一行：
+
+import { nanoid } from 'nanoid';
+
+2. 修改 /api/auth/line/init-oauth 路由逻辑
+
+当前大致结构类似：
+
+app.post('/api/auth/line/init-oauth', async (req: Request, res: Response) => {
+  try {
+    const { state, campaignId, returnTo } = req.body;
+
+    if (!state) {
+      console.warn('[OAUTH INIT] missing state', { body: req.body, sessionID: req.sessionID });
+      return res.status(400).json({ success: false, message: 'State missing' });
+    }
+
+    // 读取 / 初始化 session.oauthStates
+    // 构造 redirectUri
+    // 生成 LINE OAuth URL（带 state）
+    // 保存 oauthStates[state] = { campaignId, returnTo, timestamp }
+    // 返回 { success: true }
+  } catch (err) {
+    ...
+  }
+});
+
+
+👉 改成：后端兜底生成 state，不再返回 400。
+
+请把该路由改成类似下面的逻辑（保持原有功能不变，只调整 state 处理）：
+
+app.post('/api/auth/line/init-oauth', async (req: Request, res: Response) => {
+  try {
+    let { state, campaignId, returnTo } = (req.body ?? {}) as {
+      state?: string;
+      campaignId?: string;
+      returnTo?: string;
+    };
+
+    if (!campaignId) {
+      return res.status(400).json({ success: false, message: 'campaignId is required' });
+    }
+
+    // ✅ 后端兜底生成 state，避免 400
+    if (!state) {
+      state = nanoid();
+      console.warn('[OAUTH INIT] missing state from client, generated on server', {
+        state,
+        campaignId,
+        sessionID: (req as any).sessionID,
+      });
+    }
+
+    // 初始化 session.oauthStates
+    const sess: any = (req as any).session;
+    if (!sess) {
+      console.error('[OAUTH INIT] no session object');
+      return res.status(500).json({ success: false, message: 'Session not available' });
+    }
+
+    if (!sess.oauthStates) {
+      sess.oauthStates = {};
+    }
+
+    sess.oauthStates[state] = {
+      campaignId,
+      returnTo: returnTo || undefined,
+      timestamp: Date.now(),
+    };
+
+    // 构造 redirectUri（保留原有逻辑）
+    const protocol = req.get('x-forwarded-proto') || req.protocol;
+    const host = req.get('host');
+    const redirectUri = `${protocol}://${host}/api/auth/line/callback`;
+
+    // 利用现有工具方法构造 LINE 授权 URL（保持原来的实现）
+    const authUrl = buildLineAuthUrl({
+      clientId: LINE_CHANNEL_ID,
+      redirectUri,
+      state,
+    });
+
+    console.log('[OAUTH INIT] stored state OK', {
+      state,
+      campaignId,
+      returnTo,
+      sessionID: (req as any).sessionID,
+    });
+
+    return res.json({ success: true, redirectUrl: authUrl });
+  } catch (error) {
+    console.error('[OAUTH INIT] error', error);
+    return res.status(500).json({ success: false, message: 'Internal error' });
+  }
+});
+
+
+注意：
+
+保留项目里原来构造 LINE OAuth URL 的方式，只把 “state 为空就 400” 改为 “state 为空时自动生成”。
+
+确保日志前缀继续使用 [OAUTH INIT] ...，方便服务器查看。

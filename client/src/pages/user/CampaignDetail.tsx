@@ -221,12 +221,12 @@ export default function CampaignDetail() {
 
       const data = await res.json();
 
-      if (!data.success || !data.liffUrl) {
+      if (!data.success || !data.redirectUrl) {
         throw new Error(data.message || 'Failed to initialize OAuth');
       }
 
       console.log('[状态机] 跳转到 LINE 授权页面');
-      window.location.href = data.liffUrl;
+      window.location.href = data.redirectUrl;
     } catch (error: any) {
       console.error('[状态机] LINE 登录失败:', error);
       toast({

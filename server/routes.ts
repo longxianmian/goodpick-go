@@ -541,47 +541,81 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Store OAuth state for CSRF protection
-       // Store OAuth state for CSRF protection
   app.post('/api/auth/line/init-oauth', (req: Request, res: Response) => {
-    const { state, campaignId, returnTo } = req.body;
+    try {
+      let { state, campaignId, returnTo } = (req.body ?? {}) as {
+        state?: string;
+        campaignId?: string;
+        returnTo?: string;
+      };
 
-    console.log('[OAUTH INIT] body=', { state, campaignId, returnTo });
-    console.log('[OAUTH INIT] cookie=', req.headers.cookie || '');
-    console.log('[OAUTH INIT] sessionID=', (req as any).sessionID);
+      console.log('[OAUTH INIT] body=', { state, campaignId, returnTo });
+      console.log('[OAUTH INIT] cookie=', req.headers.cookie || '');
+      console.log('[OAUTH INIT] sessionID=', (req as any).sessionID);
 
-    if (!state) {
-      console.error('[OAUTH INIT] missing state');
-      return res.status(400).json({ success: false, message: 'State required' });
+      if (!campaignId) {
+        return res.status(400).json({ success: false, message: 'campaignId is required' });
+      }
+
+      // ✅ 后端兜底生成 state，避免 400
+      if (!state) {
+        state = nanoid();
+        console.warn('[OAUTH INIT] missing state from client, generated on server', {
+          state,
+          campaignId,
+          sessionID: (req as any).sessionID,
+        });
+      }
+
+      // Check if session is available
+      const sess: any = req.session;
+      if (!sess) {
+        console.error('[OAUTH INIT] no session object');
+        return res.status(500).json({ success: false, message: 'Session not available' });
+      }
+
+      if (!sess.oauthStates) {
+        sess.oauthStates = {};
+      }
+
+      sess.oauthStates[state] = {
+        campaignId,
+        returnTo: returnTo || undefined,
+        timestamp: Date.now(),
+      };
+
+      // 构造 redirectUri
+      const protocol = req.get('x-forwarded-proto') || req.protocol;
+      const host = req.get('host');
+      const redirectUri = `${protocol}://${host}/api/auth/line/callback`;
+
+      // 构造 LINE OAuth URL
+      const LINE_CHANNEL_ID = process.env.LINE_CHANNEL_ID || process.env.LINE_LOGIN_CHANNEL_ID || '';
+      
+      if (!LINE_CHANNEL_ID) {
+        console.error('[OAUTH INIT] LINE_CHANNEL_ID not configured');
+        return res.status(500).json({ success: false, message: 'LINE channel not configured' });
+      }
+
+      const authUrl = new URL('https://access.line.me/oauth2/v2.1/authorize');
+      authUrl.searchParams.set('response_type', 'code');
+      authUrl.searchParams.set('client_id', LINE_CHANNEL_ID);
+      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('state', state);
+      authUrl.searchParams.set('scope', 'profile openid');
+
+      console.log('[OAUTH INIT] stored state OK', {
+        state,
+        campaignId,
+        returnTo,
+        sessionID: (req as any).sessionID,
+      });
+
+      return res.json({ success: true, redirectUrl: authUrl.toString() });
+    } catch (error) {
+      console.error('[OAUTH INIT] error', error);
+      return res.status(500).json({ success: false, message: 'Internal error' });
     }
-
-    // Validate state format
-    if (typeof state !== 'string' || !/^[0-9a-f]{64}$/i.test(state)) {
-      console.error('[OAUTH INIT] invalid state format:', state);
-      return res.status(400).json({ success: false, message: 'Invalid state format' });
-    }
-
-    // Check if session is available
-    if (!req.session) {
-      console.error('[OAUTH INIT] Session not available on init-oauth endpoint');
-      return res.status(500).json({ success: false, message: 'Session not initialized' });
-    }
-
-    if (!req.session.oauthStates) {
-      req.session.oauthStates = {};
-    }
-
-    req.session.oauthStates[state] = {
-      campaignId,
-      returnTo,
-      timestamp: Date.now(),
-    };
-
-    console.log(
-      '[OAUTH INIT] stored state OK. keys=',
-      Object.keys(req.session.oauthStates || {})
-    );
-
-    res.json({ success: true });
   });
  
 
@@ -609,9 +643,9 @@ export function registerRoutes(app: Express): Server {
         return res.redirect(`/?error=missing_params`);
       }
 
-      // Validate state format (should be 64 hex characters for cryptographic nonce)
-      if (typeof state !== 'string' || !/^[0-9a-f]{64}$/i.test(state)) {
-        console.error('[OAUTH CB] invalid state format:', state);
+      // State 由后端生成（nanoid），无需格式验证
+      if (typeof state !== 'string') {
+        console.error('[OAUTH CB] invalid state type:', typeof state);
         return res.redirect(`/?error=invalid_state`);
       }
 
