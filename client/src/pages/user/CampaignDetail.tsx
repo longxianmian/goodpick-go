@@ -595,8 +595,16 @@ export default function CampaignDetail() {
                       {campaign.stores.slice(0, 3).map((store: any) => (
                         <div
                           key={store.id}
-                          className="flex gap-3 p-3 border rounded-lg hover-elevate"
+                          className="flex gap-3 p-3 border rounded-lg hover-elevate cursor-pointer"
                           data-testid={`store-${store.id}`}
+                          onClick={() => {
+                            const navUrl = getNavigationUrl(store);
+                            if (isMobileDevice()) {
+                              window.location.href = navUrl;
+                            } else {
+                              window.open(navUrl, '_blank', 'noopener,noreferrer');
+                            }
+                          }}
                         >
                           {store.imageUrl && (
                             <div className="w-20 h-20 flex-shrink-0 rounded-md overflow-hidden bg-muted">
@@ -631,6 +639,7 @@ export default function CampaignDetail() {
                                   href={`tel:${store.phone.replace(/\s/g, '')}`}
                                   className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 hover:underline shrink-0"
                                   data-testid={`store-phone-${store.id}`}
+                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   <Phone className="h-3.5 w-3.5" />
                                   <span className="text-xs">{store.phone.replace(/\s/g, '')}</span>
@@ -643,24 +652,6 @@ export default function CampaignDetail() {
                                   {calculateDistance(userLocation.lat, userLocation.lng, store.latitude, store.longitude)}
                                 </span>
                               ) : null}
-                              
-                              <a
-                                href={getNavigationUrl(store)}
-                                target={isMobileDevice() ? '_self' : '_blank'}
-                                rel="noopener noreferrer"
-                                aria-label={t('campaign.navigateAria', { store: store.name })}
-                                data-testid={`store-navigate-${store.id}`}
-                                className="shrink-0"
-                              >
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-auto py-0.5 px-1.5 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-                                >
-                                  <Navigation className="h-3.5 w-3.5 mr-1 text-orange-500" />
-                                  <span className="text-xs">{t('campaign.navigate')}</span>
-                                </Button>
-                              </a>
                             </div>
                           </div>
                         </div>
