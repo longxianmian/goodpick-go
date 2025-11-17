@@ -37,6 +37,7 @@ Security features include bcryptjs for password hashing, JWT secrets from enviro
 - **Optimized LIFF Initialization**: LIFF initialization moved to CampaignDetail.tsx for on-demand loading, preventing redundant initialization.
 - **LINE OAuth Session Fix**: Fixed production OAuth state loss issue by using dedicated `goodpickgo.sid` cookie name (avoiding historical `connect.sid` conflicts), extended session lifetime to 7 days, and enhanced callback logging for better debugging.
 - **DeeCard OA Welcome Message Fix**: Fixed welcome message delivery by correctly routing messages to DeeCard OA (instead of GoodPick Go OA), implementing multi-OA token management, strict failure handling (only marks `welcome_sent = true` on actual success), and comprehensive logging for debugging LINE Messaging API responses.
+- **Campaign Detail Page State Machine Refactor**: Completely refactored the campaign detail page claim flow to use a unified state machine based on backend `myStatus` field (containing `loggedIn` and `hasClaimed`). Removed all LIFF-related code, implemented proper login state validation via GET /api/me, fixed OAuth callback race conditions, and ensured button states correctly reflect user authentication and claim status at all times.
 
 ## External Dependencies
 

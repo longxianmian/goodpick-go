@@ -1144,6 +1144,10 @@ export function registerRoutes(app: Express): Server {
             floorInfo: s.floorInfo,
           })),
           userClaimedCount,
+          myStatus: {
+            loggedIn: !!req.user,
+            hasClaimed: userClaimedCount > 0,
+          },
         },
       });
     } catch (error) {

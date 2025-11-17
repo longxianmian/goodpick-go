@@ -21,29 +21,27 @@ declare global {
 
 export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
-  const { isUserAuthenticated, loginUser, logoutUser, userToken, isLoading: authLoading } = useAuth();
+  const { isUserAuthenticated, loginUser, logoutUser, userToken } = useAuth();
   const { t, language } = useLanguage();
   const { toast } = useToast();
 
-  // 统一状态机管理
+  // 【方案要求】最简单的状态
   const [campaign, setCampaign] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [claiming, setClaiming] = useState(false);
-  const [oauthCallbackProcessed, setOauthCallbackProcessed] = useState(false); // OAuth 回调保护（单调，只设置一次）
-  const [reloadVersion, setReloadVersion] = useState(0); // 数据重载触发器（可递增）
   
-  // UI 状态
+  // v1：普通用户 H5 一律走 Web OAuth，不启用 LIFF 登录
+  const [isLiffEnvironment] = useState(false);
   const [rulesDialogOpen, setRulesDialogOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [activeView, setActiveView] = useState<'campaign' | 'my-coupons'>('campaign');
   const [playingVideos, setPlayingVideos] = useState<Set<number>>(new Set());
   const autoplayPlugin = useRef(Autoplay({ delay: 3000, stopOnInteraction: true }));
 
-  // 【统一状态机】加载活动详情（先验证登录状态，再获取活动数据含 myStatus）
+  // 【方案要求】加载活动详情（只执行一次，最简单的fetch）
   useEffect(() => {
-    // 等待 AuthContext 初始化完成
-    if (!id || authLoading) return;
+    if (!id) return;
 
     let cancelled = false;
     setLoading(true);
@@ -51,74 +49,33 @@ export default function CampaignDetail() {
 
     (async () => {
       try {
+        // 【多语言支持】设置 accept-language 请求头
         const sessionId = (window as any).__GPGO_SESSION_ID__;
+        const userToken = localStorage.getItem('userToken');
         
-        // 1. 先调用 GET /api/me 验证登录状态（权威来源，使用 useAuth 的 token）
-        let isLoggedIn = false;
-        let validToken: string | null = null;
-        
-        if (userToken) {
-          try {
-            const meRes = await fetch('/api/me', {
-              headers: {
-                'Authorization': `Bearer ${userToken}`,
-              },
-            });
-            
-            if (meRes.ok) {
-              const meData = await meRes.json();
-              isLoggedIn = true;
-              validToken = userToken;
-              console.log('[状态机] 用户已登录', {
-                userId: meData.user?.id,
-              });
-            } else if (meRes.status === 401) {
-              // Token 失效，清除本地数据并短路请求
-              console.log('[状态机] Token 失效，清除本地数据');
-              localStorage.removeItem('userToken');
-              localStorage.removeItem('user');
-              logoutUser();
-              validToken = null;
-            }
-          } catch (e) {
-            console.warn('[状态机] /api/me 调用失败:', e);
-          }
-        }
-        
-        // 2. 获取活动详情（后端会基于 session 返回 myStatus）
         const headers: Record<string, string> = {
           'Accept-Language': language,
           'X-GPGO-Session': sessionId || 'unknown',
         };
         
-        if (validToken && isLoggedIn) {
-          headers['Authorization'] = `Bearer ${validToken}`;
+        // 【关键修复】如果用户已登录，发送 JWT token 让后端识别用户身份
+        if (userToken) {
+          headers['Authorization'] = `Bearer ${userToken}`;
         }
         
         const res = await fetch(`/api/campaigns/${id}`, {
           headers,
         });
-        
         if (!res.ok) throw new Error('Failed to load campaign');
         const data = await res.json();
         
         if (!cancelled) {
-          // 确保 myStatus 始终存在（容错处理）
-          if (!data.data.myStatus) {
-            data.data.myStatus = { loggedIn: false, hasClaimed: false };
-          }
-          
           setCampaign(data.data);
           setLoading(false);
-          
-          console.log('[状态机] 活动数据加载完成', {
-            campaignId: data.data.id,
-            myStatus: data.data.myStatus,
-          });
         }
       } catch (e) {
         if (!cancelled) {
-          setError(t('campaign.loadFailed'));
+          setError('加载失败，请稍后重试');
           setLoading(false);
         }
       }
@@ -127,7 +84,7 @@ export default function CampaignDetail() {
     return () => {
       cancelled = true;
     };
-  }, [id, language, reloadVersion, userToken, authLoading]);
+    }, [id, userToken]);
 
 
   // 获取用户位置用于计算距离
@@ -146,19 +103,18 @@ export default function CampaignDetail() {
     }
   }, []);
 
-  // 处理 LINE OAuth 回调（token 回传，单次处理保护）
+  // 处理 LINE OAuth 回调带回来的 token & autoClaim
   useEffect(() => {
-    if (oauthCallbackProcessed) return; // 已处理过，直接返回
-    
     try {
       const url = new URL(window.location.href);
       const token = url.searchParams.get('token');
+      const autoClaim = url.searchParams.get('autoClaim') === 'true';
 
-      if (!token) return;
+      if (!token) {
+        return;
+      }
 
-      console.log('[OAuth 回调] 检测到 token，开始处理');
-
-      // 从 localStorage 获取用户信息（如果有）
+      // 优先用已有的 user 信息（如果有的话）
       let userData: any = null;
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
@@ -169,7 +125,7 @@ export default function CampaignDetail() {
         }
       }
 
-      // 如果没有用户信息，创建占位数据（后端主要靠 token 鉴权）
+      // 没有的话就先用一个最简单的占位用户，后端主要靠 token 做鉴权
       if (!userData) {
         userData = {
           id: 0,
@@ -180,25 +136,31 @@ export default function CampaignDetail() {
         };
       }
 
-      // 保存 token 和用户信息到 AuthContext + localStorage
+      // 把 token 和 user 写入 AuthContext + localStorage
       loginUser(token, userData);
 
-      // 清除 URL 参数（避免暴露 token）
+      // 安全起见，把 URL 里的 token 和 autoClaim 删掉（避免暴露在地址栏）
       url.searchParams.delete('token');
       url.searchParams.delete('autoClaim');
       window.history.replaceState({}, document.title, url.toString());
 
-      console.log('[OAuth 回调] Token 已保存，触发数据重新加载');
-      
-      // 标记已处理（单调，永不重置）
-      setOauthCallbackProcessed(true);
-      
-      // 触发数据重新加载
-      setReloadVersion(v => v + 1);
+      // 如果要求自动领券，等一点点时间，确保活动数据已经加载完成
+      setTimeout(() => {
+        try {
+          // 直接复用现有的领取逻辑
+          // @ts-ignore
+          if (typeof handleClaim === 'function') {
+            // @ts-ignore
+            handleClaim();
+          }
+        } catch (e) {
+          console.error('autoClaim 执行出错:', e);
+        }
+      }, 500);
     } catch (e) {
-      console.error('[OAuth 回调] 处理出错:', e);
+      console.error('处理 LINE 回调参数出错:', e);
     }
-  }, [loginUser, oauthCallbackProcessed]);
+  }, [loginUser]);
 
   // 计算两点之间的距离（Haversine公式）
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): string => {
@@ -293,30 +255,82 @@ export default function CampaignDetail() {
     }
   };
 
-  // 【统一状态机】LINE OAuth 登录（未登录用户点击按钮触发）
-  const handleLineLogin = async () => {
+  // 【方案要求】LIFF登录（只在按钮点击时调用）
+  const handleLiffLogin = async () => {
     try {
-      console.log('[状态机] 发起 LINE OAuth 登录');
-      
-      const res = await fetch('/api/auth/line/init-oauth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          campaignId: id,
-        }),
-        credentials: 'include',
-      });
-
-      const data = await res.json();
-
-      if (!data.success || !data.liffUrl) {
-        throw new Error(data.message || 'Failed to initialize OAuth');
+      if (!(window as any).liff) {
+        console.error('[handleLiffLogin] LIFF SDK not available');
+        toast({
+          title: t('common.error'),
+          description: t('campaign.liffNotReady'),
+          variant: 'destructive',
+        });
+        return;
       }
 
-      console.log('[状态机] 跳转到 LINE 授权页面');
-      window.location.href = data.liffUrl;
+        const liff = (window as any).liff;
+
+  // 【按需初始化 LIFF】如果还没初始化，则在这里初始化
+  if (!(window as any).__LIFF_INITED__) {
+    // 依次兜底：VITE_LIFF_ID -> VITE_LINE_LIFF_ID_MAIN -> 后端下发的配置
+    const envLiffId = import.meta.env.VITE_LIFF_ID;
+    const envLiffIdMain = import.meta.env.VITE_LINE_LIFF_ID_MAIN;
+    const configLiffId = (window as any).__GPGO_CONFIG__?.liffId;
+
+    const liffId = envLiffId || envLiffIdMain || configLiffId;
+
+    console.log('[handleLiffLogin] 选择 LIFF ID', {
+      envLiffId,
+      envLiffIdMain,
+      configLiffId,
+      final: liffId,
+    });
+
+    if (!liffId) {
+      console.error('[handleLiffLogin] No LIFF ID configured');
+      toast({
+        title: t('common.error'),
+        description: 'LIFF ID not configured',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    console.log('[handleLiffLogin] 开始按需初始化 LIFF');
+    await liff.init({ liffId });
+    (window as any).__LIFF_INITED__ = true;
+    console.log('[handleLiffLogin] LIFF 初始化完成');
+  }
+     
+
+      // LIFF 初始化完成后，检查登录状态
+      if (!liff.isLoggedIn()) {
+        console.log('[handleLiffLogin] 用户未登录，跳转 LIFF 登录');
+        await liff.login();
+        return;
+      }
+
+      // 已登录LIFF但未登录后端
+      console.log('[handleLiffLogin] 用户已登录 LIFF，获取 ID Token');
+      const idToken = liff.getIDToken();
+      const response = await fetch('/api/auth/line/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        console.log('[handleLiffLogin] 后端登录成功');
+        loginUser(data.token, data.user);
+        // 登录成功后自动领券
+        await handleClaim();
+      } else {
+        throw new Error(data.message);
+      }
     } catch (error: any) {
-      console.error('[状态机] LINE 登录失败:', error);
+      console.error('[handleLiffLogin] 错误:', error);
       toast({
         title: t('common.error'),
         description: error.message || t('login.failed'),
@@ -325,75 +339,99 @@ export default function CampaignDetail() {
     }
   };
 
-  // 【统一状态机】领券函数（已登录用户点击"立即领取"触发）
-  const handleClaim = async () => {
-    // 使用 useAuth 的 token，不从 localStorage 读取
-    if (!userToken) {
-      console.error('[状态机] 缺少 token，无法领券');
+  // 【方案要求】Web登录（只在按钮点击时调用）
+  const handleWebLogin = async () => {
+    const lineChannelId = import.meta.env.VITE_LINE_CHANNEL_ID || '2008410104';
+    if (!lineChannelId) {
       toast({
         title: t('common.error'),
-        description: t('login.sessionExpired'),
+        description: 'LINE Channel ID not configured',
         variant: 'destructive',
       });
       return;
     }
 
+        const redirectUri = 'https://goodpickgo.com/api/auth/line/callback';
+    
+    const stateNonce = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    
+    try {
+      const initResponse = await fetch('/api/auth/line/init-oauth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          state: stateNonce,
+          campaignId: id,
+        }),
+        credentials: 'include',
+      });
+
+      if (!initResponse.ok) {
+        throw new Error('Failed to initialize OAuth');
+      }
+
+      const authUrl = new URL('https://access.line.me/oauth2/v2.1/authorize');
+      authUrl.searchParams.set('response_type', 'code');
+      authUrl.searchParams.set('client_id', lineChannelId);
+      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('state', stateNonce);
+      authUrl.searchParams.set('scope', 'profile openid');
+      authUrl.searchParams.set('nonce', stateNonce);
+      
+      window.location.href = authUrl.toString();
+    } catch (error) {
+      toast({
+        title: t('common.error'),
+        description: t('login.failed'),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // 【方案要求】领券函数（只在按钮点击时调用）
+  const handleClaim = async () => {
     setClaiming(true);
     try {
-      console.log('[状态机] 发起领券请求');
-      
       const res = await fetch(`/api/campaigns/${id}/claim`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userToken}`,
+          'Authorization': `Bearer ${localStorage.getItem('userToken')}`,
         },
         body: JSON.stringify({ channel: 'line_menu' }),
       });
 
       const data = await res.json();
 
-      // Token 失效，清除并依赖状态机重新渲染
+      // 【修复】如果token失效（401），清除localStorage并重新登录
       if (res.status === 401) {
-        console.log('[状态机] Token 失效，清除本地数据');
+        console.log('[handleClaim] Token失效，清除localStorage并重新登录');
         localStorage.removeItem('userToken');
         localStorage.removeItem('user');
         logoutUser();
+        setClaiming(false);
         
-        toast({
-          title: t('common.error'),
-          description: t('login.sessionExpired'),
-          variant: 'destructive',
-        });
-        
-        // 不再强制刷新，依赖状态机自动重新渲染
+        // 自动触发登录
+        if (isLiffEnvironment) {
+          await handleLiffLogin();
+        } else {
+          await handleWebLogin();
+        }
         return;
       }
 
       if (data.success) {
-        console.log('[状态机] 领券成功');
         toast({
           title: t('campaign.claimSuccess'),
           description: t('campaign.claimSuccessDesc'),
         });
-        
-        // 触发数据重新加载（使用专用 reload 计数器）
-        setReloadVersion(v => v + 1);
-      } else if (res.status === 409) {
-        // 已达上限
-        console.log('[状态机] 已达领券上限');
-        toast({
-          title: t('campaign.limitReached'),
-          description: data.message,
-        });
-        
-        // 触发数据重新加载
-        setReloadVersion(v => v + 1);
+        setActiveView('my-coupons');
       } else {
         throw new Error(data.message);
       }
     } catch (error: any) {
-      console.error('[状态机] 领券失败:', error);
       toast({
         title: t('common.error'),
         description: error.message || t('campaign.claimError'),
@@ -404,30 +442,33 @@ export default function CampaignDetail() {
     }
   };
 
-  // 【统一状态机】按钮点击处理（根据 myStatus 决定行为）
-  const handleClaimClick = async () => {
-    if (!campaign) return;
+   // 【修复版】领券按钮点击
+const handleClaimClick = async () => {
+  if (!campaign) return;
 
-    // 默认 myStatus（容错处理，确保按钮始终可用）
-    const { loggedIn, hasClaimed } = campaign.myStatus || { loggedIn: false, hasClaimed: false };
+  const userClaimedCount = campaign.userClaimedCount ?? 0;
+  const maxPerUser = campaign.maxPerUser ?? 1;
+  const userReachedLimit = userClaimedCount >= maxPerUser;
 
-    console.log('[状态机] 按钮点击', { loggedIn, hasClaimed });
+  // 已登录 & 已达个人上限：直接跳到「我的优惠券」
+  if (isUserAuthenticated && userReachedLimit) {
+    setActiveView('my-coupons');
+    return;
+  }
 
-    // 未登录：跳转 LINE OAuth
-    if (!loggedIn) {
-      await handleLineLogin();
-      return;
+  // 未登录：先去登录（登录成功后再自动领券或手动点一次）
+  if (!isUserAuthenticated) {
+    if (isLiffEnvironment) {
+      await handleLiffLogin();
+    } else {
+      await handleWebLogin();
     }
+    return;
+  }
 
-    // 已登录已领券：切换到"我的优惠券"视图
-    if (hasClaimed) {
-      setActiveView('my-coupons');
-      return;
-    }
-
-    // 已登录未领券：调用领券接口
-    await handleClaim();
-  };
+  // 已登录 & 未达上限：正常领券
+  await handleClaim();
+};
   
 
   // 加载中
@@ -490,34 +531,28 @@ export default function CampaignDetail() {
   });
 
   // 按钮文案（区分三种状态）
-  // 【统一状态机】按钮文本（根据 myStatus 和活动状态决定）
-  const getButtonText = () => {
-    // 加载中
-    if (!campaign) return t('common.loading');
-    
-    // 领券中
-    if (claiming) return t('campaign.claiming');
-    
-    // 活动已结束
-    if (isSoldOut) return t('campaign.soldOut');
-    if (isExpired) return t('campaign.expired');
+const getButtonText = () => {
+  if (claiming) return t('campaign.claiming');
+  if (isSoldOut) return t('campaign.soldOut');
+  if (isExpired) return t('campaign.expired');
 
-    // 获取状态机状态
-    const { loggedIn, hasClaimed } = campaign.myStatus || { loggedIn: false, hasClaimed: false };
+  const userClaimedCount = campaign.userClaimedCount ?? 0;
+  const maxPerUser = campaign.maxPerUser ?? 1;
+  const userReachedLimit = userClaimedCount >= maxPerUser;
 
-    // 未登录：显示"用 LINE 一键领取"
-    if (!loggedIn) {
-      return t('campaign.claimWithLine');
-    }
+  // 未登录
+  if (!isUserAuthenticated) {
+    return isLiffEnvironment ? t('campaign.claimNow') : t('campaign.claimWithLine');
+  }
 
-    // 已登录已领券：显示"查看我的优惠券"
-    if (hasClaimed) {
-      return t('campaign.viewMyCoupons');
-    }
+  // 已登录 & 已领过
+  if (userReachedLimit) {
+    return t('campaign.viewMyCoupons');
+  }
 
-    // 已登录未领券：显示"立即领取"
-    return t('campaign.claimNow');
-  };
+  // 已登录 & 还可以领
+  return t('campaign.claimNow');
+};
   
       return (
     <>
