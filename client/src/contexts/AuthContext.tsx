@@ -14,15 +14,20 @@ interface User {
   language: string;
 }
 
+type AuthPhase = 'booting' | 'ready' | 'error';
+
 interface AuthContextType {
   admin: Admin | null;
   user: User | null;
   adminToken: string | null;
   userToken: string | null;
+  authPhase: AuthPhase;
+  authError: string | null;
   loginAdmin: (token: string, admin: Admin) => void;
   loginUser: (token: string, user: User) => void;
   logoutAdmin: () => void;
   logoutUser: () => void;
+  reloadAuth: () => void;
   isAdminAuthenticated: boolean;
   isUserAuthenticated: boolean;
   isLoading: boolean;
@@ -35,65 +40,145 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [adminToken, setAdminToken] = useState<string | null>(null);
   const [userToken, setUserToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  const [authPhase, setAuthPhase] = useState<AuthPhase>('booting');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [reloadVersion, setReloadVersion] = useState(0);
+
+  function bootstrapTokenFromUrlAndStorage(): string | null {
+    console.log('[AUTH] bootstrapTokenFromUrlAndStorage 开始');
+    
+    try {
+      const url = new URL(window.location.href);
+      const urlToken = url.searchParams.get('token');
+
+      if (urlToken) {
+        console.log('[AUTH] token from url');
+        localStorage.setItem('userToken', urlToken);
+        setUserToken(urlToken);
+
+        url.searchParams.delete('token');
+        url.searchParams.delete('autoClaim');
+        const cleanUrl = url.pathname + url.search + url.hash;
+        window.history.replaceState(null, '', cleanUrl);
+        return urlToken;
+      }
+
+      const stored = localStorage.getItem('userToken');
+      if (stored) {
+        console.log('[AUTH] token from localStorage');
+        setUserToken(stored);
+        return stored;
+      }
+
+      console.log('[AUTH] no token found');
+      setUserToken(null);
+      return null;
+    } catch (e) {
+      console.error('[AUTH] bootstrapTokenFromUrlAndStorage 失败', e);
+      setUserToken(null);
+      return null;
+    }
+  }
+
+  async function fetchCurrentUser(token: string): Promise<User | null> {
+    try {
+      const res = await fetch('/api/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          console.log('[AUTH] token 失效，清除本地存储');
+          localStorage.removeItem('userToken');
+          localStorage.removeItem('user');
+          setUserToken(null);
+          setUser(null);
+          return null;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (data.success && data.data) {
+        localStorage.setItem('user', JSON.stringify(data.data));
+        return data.data;
+      }
+      
+      return null;
+    } catch (e) {
+      console.error('[AUTH] fetchCurrentUser 失败', e);
+      throw e;
+    }
+  }
 
   useEffect(() => {
-    const initAuth = () => {
+    let cancelled = false;
+
+    async function run() {
+      console.log('[AUTH] bootstrap start');
+      setAuthPhase('booting');
+      setAuthError(null);
+
       const storedAdminToken = localStorage.getItem('adminToken');
       const storedAdmin = localStorage.getItem('admin');
-      const storedUserToken = localStorage.getItem('userToken');
-      const storedUser = localStorage.getItem('user');
-
-      // 恢复后台登录态
       if (storedAdminToken && storedAdmin) {
-        setAdminToken(storedAdminToken);
-        setAdmin(JSON.parse(storedAdmin));
+        try {
+          setAdminToken(storedAdminToken);
+          setAdmin(JSON.parse(storedAdmin));
+        } catch {
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('admin');
+        }
       }
 
-      // 先看 URL 里有没有 token（LINE OAuth 回调带回来的）
-      let tokenFromUrl: string | null = null;
       try {
-        const url = new URL(window.location.href);
-        tokenFromUrl = url.searchParams.get('token');
+        const token = bootstrapTokenFromUrlAndStorage();
 
-        if (tokenFromUrl) {
-          // 这是最新的用户登录 token
-          setUserToken(tokenFromUrl);
-          localStorage.setItem('userToken', tokenFromUrl);
-
-          // 如果本地已经有旧的 user 信息，就先用着；以后也可以加「拉 profile」接口
-          if (storedUser) {
-            setUser(JSON.parse(storedUser));
+        if (!token) {
+          console.log('[AUTH] 无 token，匿名用户状态');
+          if (!cancelled) {
+            setUser(null);
+            setAuthPhase('ready');
           }
+          return;
+        }
 
-          // 清理 URL 上的 token / autoClaim 参数（避免泄露 & 反复解析）
-          url.searchParams.delete('token');
-          url.searchParams.delete('autoClaim');
-          window.history.replaceState({}, '', url.toString());
-        } else if (storedUserToken && storedUser) {
-          // 没有新 token，就恢复之前的登录态
-          setUserToken(storedUserToken);
-          setUser(JSON.parse(storedUser));
-        } else if (storedUserToken) {
-          // 只有 token 没有 user 信息，也先恢复 token，确保接口能带 Authorization
-          setUserToken(storedUserToken);
+        console.log('[AUTH] 尝试用 token 获取用户信息');
+        const me = await fetchCurrentUser(token);
+        if (cancelled) return;
+
+        if (me) {
+          console.log('[AUTH] 用户信息获取成功', me);
+          setUser(me);
+          setAuthPhase('ready');
+        } else {
+          console.log('[AUTH] 用户信息获取失败或 token 无效');
+          setUser(null);
+          setAuthPhase('ready');
         }
-      } catch {
-        // URL 解析失败时，退回到本地存储
-        if (storedUserToken && storedUser) {
-          setUserToken(storedUserToken);
-          setUser(JSON.parse(storedUser));
-        } else if (storedUserToken) {
-          setUserToken(storedUserToken);
-        }
+      } catch (err) {
+        if (cancelled) return;
+
+        console.error('[AUTH] bootstrap failed', err);
+        setUser(null);
+        setAuthError('auth_bootstrap_failed');
+
+        localStorage.removeItem('userToken');
+        localStorage.removeItem('user');
+        setUserToken(null);
+        setAuthPhase('error');
       }
+    }
 
-      // 不再自动发起 LINE 登录，只恢复状态
-      setIsLoading(false);
+    run();
+
+    return () => {
+      cancelled = true;
     };
-
-    initAuth();
-  }, []);
+  }, [reloadVersion]);
 
   const loginAdmin = (token: string, adminData: Admin) => {
     setAdminToken(token);
@@ -103,10 +188,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const loginUser = (token: string, userData: User) => {
+    console.log('[AUTH] loginUser 被调用', userData);
     setUserToken(token);
     setUser(userData);
     localStorage.setItem('userToken', token);
     localStorage.setItem('user', JSON.stringify(userData));
+    
+    setReloadVersion(v => v + 1);
   };
 
   const logoutAdmin = () => {
@@ -117,10 +205,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logoutUser = () => {
-    setUserToken(null);
-    setUser(null);
+    console.log('[AUTH] logoutUser 被调用');
     localStorage.removeItem('userToken');
     localStorage.removeItem('user');
+    setUserToken(null);
+    setUser(null);
+    
+    setReloadVersion(v => v + 1);
+  };
+
+  const reloadAuth = () => {
+    console.log('[AUTH] reloadAuth 被调用');
+    setReloadVersion(v => v + 1);
   };
 
   return (
@@ -130,13 +226,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         adminToken,
         userToken,
+        authPhase,
+        authError,
         loginAdmin,
         loginUser,
         logoutAdmin,
         logoutUser,
+        reloadAuth,
         isAdminAuthenticated: !!adminToken,
-        isUserAuthenticated: !!userToken,
-        isLoading,
+        isUserAuthenticated: !!userToken && !!user,
+        isLoading: authPhase === 'booting',
       }}
     >
       {children}
