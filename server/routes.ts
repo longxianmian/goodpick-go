@@ -60,6 +60,9 @@ const JWT_SECRET_VALUE = JWT_SECRET || 'change_this_to_strong_secret';
 const GOODPICK_MAIN_OA_ID = process.env.GOODPICK_MAIN_OA_ID ?? 'GOODPICK_MAIN_OA';
 const DEECARD_MAIN_OA_ID = process.env.DEECARD_MAIN_OA_ID ?? 'DEECARD_MAIN_OA';
 
+// LINE OAuth Configuration
+const LINE_CHANNEL_ID = process.env.LINE_CHANNEL_ID || process.env.LINE_LOGIN_CHANNEL_ID || '';
+
 declare global {
   namespace Express {
     interface Request {
@@ -540,81 +543,79 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Store OAuth state for CSRF protection
-  app.post('/api/auth/line/init-oauth', (req: Request, res: Response) => {
+  // LINE OAuth 初始化（H5 用）
+  app.post("/api/auth/line/init-oauth", async (req, res) => {
     try {
-      let { state, campaignId, returnTo } = (req.body ?? {}) as {
-        state?: string;
-        campaignId?: string;
-        returnTo?: string;
-      };
-
-      console.log('[OAUTH INIT] body=', { state, campaignId, returnTo });
-      console.log('[OAUTH INIT] cookie=', req.headers.cookie || '');
-      console.log('[OAUTH INIT] sessionID=', (req as any).sessionID);
+      const { state: rawState, campaignId, returnTo } = req.body ?? {};
+      const sessionID = (req as any).sessionID;
 
       if (!campaignId) {
-        return res.status(400).json({ success: false, message: 'campaignId is required' });
-      }
-
-      // ✅ 后端兜底生成 state，避免 400
-      if (!state) {
-        state = nanoid();
-        console.warn('[OAUTH INIT] missing state from client, generated on server', {
-          state,
-          campaignId,
-          sessionID: (req as any).sessionID,
+        console.warn("[OAUTH INIT] missing campaignId", { campaignId, sessionID });
+        return res.status(400).json({
+          success: false,
+          message: "campaignId is required",
         });
       }
 
-      // Check if session is available
-      const sess: any = req.session;
-      if (!sess) {
-        console.error('[OAUTH INIT] no session object');
-        return res.status(500).json({ success: false, message: 'Session not available' });
+      if (!LINE_CHANNEL_ID) {
+        console.error("[OAUTH INIT] LINE_CHANNEL_ID not configured");
+        return res.status(500).json({
+          success: false,
+          message: "LINE login not configured",
+        });
       }
 
-      if (!sess.oauthStates) {
-        sess.oauthStates = {};
+      let state: string;
+      if (typeof rawState === "string" && rawState.length > 0) {
+        state = rawState;
+        console.log("[OAUTH INIT] using client state", { state, campaignId, sessionID });
+      } else {
+        state = nanoid();
+        console.warn("[OAUTH INIT] missing state from client, generated on server", {
+          state,
+          campaignId,
+          sessionID,
+        });
       }
 
-      sess.oauthStates[state] = {
-        campaignId,
-        returnTo: returnTo || undefined,
+      if (!req.session) {
+        throw new Error("Session is not initialized");
+      }
+      if (!(req.session as any).oauthStates) {
+        (req.session as any).oauthStates = {};
+      }
+
+      (req.session as any).oauthStates[state] = {
+        campaignId: String(campaignId),
+        returnTo: typeof returnTo === "string" ? returnTo : undefined,
         timestamp: Date.now(),
       };
 
-      // 构造 redirectUri
-      const protocol = req.get('x-forwarded-proto') || req.protocol;
-      const host = req.get('host');
-      const redirectUri = `${protocol}://${host}/api/auth/line/callback`;
-
-      // 构造 LINE OAuth URL
-      const LINE_CHANNEL_ID = process.env.LINE_CHANNEL_ID || process.env.LINE_LOGIN_CHANNEL_ID || '';
-      
-      if (!LINE_CHANNEL_ID) {
-        console.error('[OAUTH INIT] LINE_CHANNEL_ID not configured');
-        return res.status(500).json({ success: false, message: 'LINE channel not configured' });
-      }
-
-      const authUrl = new URL('https://access.line.me/oauth2/v2.1/authorize');
-      authUrl.searchParams.set('response_type', 'code');
-      authUrl.searchParams.set('client_id', LINE_CHANNEL_ID);
-      authUrl.searchParams.set('redirect_uri', redirectUri);
-      authUrl.searchParams.set('state', state);
-      authUrl.searchParams.set('scope', 'profile openid');
-
-      console.log('[OAUTH INIT] stored state OK', {
+      console.log("[OAUTH INIT] stored state OK", {
+        sessionID,
         state,
-        campaignId,
-        returnTo,
-        sessionID: (req as any).sessionID,
+        oauthStatesKeys: Object.keys((req.session as any).oauthStates),
       });
 
-      return res.json({ success: true, redirectUrl: authUrl.toString() });
-    } catch (error) {
-      console.error('[OAUTH INIT] error', error);
-      return res.status(500).json({ success: false, message: 'Internal error' });
+      const redirectUri = `${req.protocol}://${req.get("host")}/api/auth/line/callback`;
+      const authUrl = new URL("https://access.line.me/oauth2/v2.1/authorize");
+      authUrl.searchParams.set("response_type", "code");
+      authUrl.searchParams.set("client_id", LINE_CHANNEL_ID);
+      authUrl.searchParams.set("redirect_uri", redirectUri);
+      authUrl.searchParams.set("state", state);
+      authUrl.searchParams.set("scope", "profile openid");
+
+      console.log("[OAUTH INIT] response 200 redirectUrl=", authUrl.toString());
+      return res.json({
+        success: true,
+        redirectUrl: authUrl.toString(),
+      });
+    } catch (err) {
+      console.error("[OAUTH INIT] error:", err);
+      return res.status(500).json({
+        success: false,
+        message: "LINE OAuth init failed",
+      });
     }
   });
  
@@ -638,15 +639,9 @@ export function registerRoutes(app: Express): Server {
 
       const { code, state } = req.query;
 
-      if (!code || !state) {
-        console.error('[OAUTH CB] missing code or state', { code, state });
-        return res.redirect(`/?error=missing_params`);
-      }
-
-      // State 由后端生成（nanoid），无需格式验证
-      if (typeof state !== 'string') {
-        console.error('[OAUTH CB] invalid state type:', typeof state);
-        return res.redirect(`/?error=invalid_state`);
+      if (!code || !state || typeof state !== "string") {
+        console.warn("[OAUTH CB] missing code or state", { code, state });
+        return res.redirect("/?error=missing_params");
       }
 
       if (!req.session) {
