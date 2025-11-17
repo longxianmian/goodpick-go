@@ -544,6 +544,78 @@ export function registerRoutes(app: Express): Server {
   });
 
   // LINE OAuth 初始化（H5 用）
+
+  // 当前登录用户信息（给前端 AuthContext 用）
+  app.get('/api/me', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+
+      const userId = (req.user as any).id;
+
+      const [user] = await db
+        .select({
+          id: users.id,
+          lineUserId: users.lineUserId,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          id: user.id,
+          lineUserId: user.lineUserId,
+        },
+      });
+    } catch (error) {
+      console.error('[API /api/me] error', error);
+      return res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+  });
+
+
+  // 当前登录用户信息（给前端 AuthContext 用）
+  app.get('/api/me', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+
+      const userId = (req.user as any).id;
+
+      const [user] = await db
+        .select({
+          id: users.id,
+          lineUserId: users.lineUserId,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          id: user.id,
+          lineUserId: user.lineUserId,
+        },
+      });
+    } catch (error) {
+      console.error('[API /api/me] error', error);
+      return res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+  });
+
   app.post("/api/auth/line/init-oauth", async (req, res) => {
     try {
       const { state: rawState, campaignId, returnTo } = req.body ?? {};
