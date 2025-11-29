@@ -22,6 +22,11 @@ import MyCoupons from "@/pages/user/MyCoupons";
 import ShuaShuaHome from "@/pages/user/ShuaShuaHome";
 import ShopHome from "@/pages/user/ShopHome";
 import UserCenter from "@/pages/user/UserCenter";
+import LanguageSettings from "@/pages/user/LanguageSettings";
+import HelpPage from "@/pages/user/HelpPage";
+import AboutPage from "@/pages/user/AboutPage";
+import MerchantHome from "@/pages/merchant/MerchantHome";
+import MerchantOperations from "@/pages/merchant/MerchantOperations";
 import PrivacyPage from "@/pages/PrivacyPage";
 import TermsPage from "@/pages/TermsPage";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
@@ -138,6 +143,12 @@ function Router() {
       <Route path="/" component={ShuaShuaHome} />
       <Route path="/shop" component={ShopHome} />
       <Route path="/me" component={UserCenter} />
+      <Route path="/settings/language" component={LanguageSettings} />
+      <Route path="/help" component={HelpPage} />
+      <Route path="/about" component={AboutPage} />
+      {/* 商户端 */}
+      <Route path="/merchant" component={MerchantHome} />
+      <Route path="/merchant/operations" component={MerchantOperations} />
       <Route path="/campaign/:id" component={CampaignDetail} />
       <Route path="/my-coupons" component={MyCoupons} />
       <Route path="/privacy" component={PrivacyPage} />
