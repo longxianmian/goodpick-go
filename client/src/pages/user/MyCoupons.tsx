@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLocation, Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -305,7 +305,8 @@ export default function MyCoupons({ hideNavigation = false }: MyCouponsProps = {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value={activeTab} className="space-y-4 mt-6">
+          {/* 使用 div 替代 TabsContent，因为数据是动态获取的，不需要标签切换隐藏逻辑 */}
+          <div className="space-y-4 mt-6">
             {isLoading ? (
               <>
                 <Skeleton className="h-48 w-full" />
@@ -394,7 +395,7 @@ export default function MyCoupons({ hideNavigation = false }: MyCouponsProps = {
                 );
               })
             )}
-          </TabsContent>
+          </div>
         </Tabs>
 
         {/* 优惠券详情对话框（含二维码） */}
