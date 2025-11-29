@@ -686,12 +686,9 @@ export function registerRoutes(app: Express): Server {
       const { state: rawState, campaignId, returnTo } = req.body ?? {};
       const sessionID = (req as any).sessionID;
 
+      // campaignId is now optional - if not provided, will redirect to /me after login
       if (!campaignId) {
-        console.warn("[OAUTH INIT] missing campaignId", { campaignId, sessionID });
-        return res.status(400).json({
-          success: false,
-          message: "campaignId is required",
-        });
+        console.log("[OAUTH INIT] no campaignId provided, will redirect to /me after login");
       }
 
       if (!LINE_CHANNEL_ID) {
@@ -723,8 +720,8 @@ export function registerRoutes(app: Express): Server {
       }
 
       (req.session as any).oauthStates[state] = {
-        campaignId: String(campaignId),
-        returnTo: typeof returnTo === "string" ? returnTo : undefined,
+        campaignId: campaignId ? String(campaignId) : null,
+        returnTo: typeof returnTo === "string" ? returnTo : (campaignId ? undefined : '/me'),
         timestamp: Date.now(),
       };
 
