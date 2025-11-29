@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { ChevronLeft, Store, Users, Ticket, TrendingUp, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { MerchantBottomNav } from '@/components/MerchantBottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface StoreRole {
   storeId: number;
@@ -64,7 +65,7 @@ function StatCard({
   );
 }
 
-function StoreCard({ store }: { store: StoreRole }) {
+function StoreCard({ store, onClick }: { store: StoreRole; onClick: () => void }) {
   const { t } = useLanguage();
   
   const roleLabel = {
@@ -74,7 +75,7 @@ function StoreCard({ store }: { store: StoreRole }) {
   }[store.role];
 
   return (
-    <Card className="hover-elevate active-elevate-2 cursor-pointer">
+    <Card className="hover-elevate active-elevate-2 cursor-pointer" onClick={onClick}>
       <CardContent className="p-4">
         <div className="flex items-center gap-3">
           <Avatar className="w-12 h-12">
@@ -99,6 +100,8 @@ function StoreCard({ store }: { store: StoreRole }) {
 export default function MerchantHome() {
   const { t } = useLanguage();
   const { user, userToken } = useAuth();
+  const [, navigate] = useLocation();
+  const { toast } = useToast();
   
   const isLoggedIn = !!userToken && !!user;
   
@@ -109,6 +112,21 @@ export default function MerchantHome() {
 
   const roles = rolesData?.data?.roles || [];
   const merchantRoles = roles.filter(r => r.role === 'owner' || r.role === 'operator');
+
+  const handleStoreClick = (storeId: number) => {
+    toast({
+      title: t('common.comingSoon'),
+      description: t('common.featureInDevelopment'),
+    });
+  };
+
+  const handleQuickAction = (action: 'campaigns' | 'staff') => {
+    if (action === 'campaigns') {
+      navigate('/admin/campaigns');
+    } else if (action === 'staff') {
+      navigate('/admin/staff-presets');
+    }
+  };
 
   if (!isLoggedIn) {
     return (
@@ -185,7 +203,11 @@ export default function MerchantHome() {
               </h2>
               <div className="space-y-3">
                 {merchantRoles.map((role) => (
-                  <StoreCard key={`${role.storeId}-${role.role}`} store={role} />
+                  <StoreCard 
+                    key={`${role.storeId}-${role.role}`} 
+                    store={role} 
+                    onClick={() => handleStoreClick(role.storeId)}
+                  />
                 ))}
               </div>
             </div>
@@ -199,11 +221,23 @@ export default function MerchantHome() {
               </CardHeader>
               <CardContent className="p-3">
                 <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" className="justify-start" size="sm">
+                  <Button 
+                    variant="outline" 
+                    className="justify-start" 
+                    size="sm"
+                    onClick={() => handleQuickAction('campaigns')}
+                    data-testid="button-view-campaigns"
+                  >
                     <Ticket className="w-4 h-4 mr-2" />
                     {t('merchant.viewCampaigns')}
                   </Button>
-                  <Button variant="outline" className="justify-start" size="sm">
+                  <Button 
+                    variant="outline" 
+                    className="justify-start" 
+                    size="sm"
+                    onClick={() => handleQuickAction('staff')}
+                    data-testid="button-manage-staff"
+                  >
                     <Users className="w-4 h-4 mr-2" />
                     {t('merchant.manageStaff')}
                   </Button>

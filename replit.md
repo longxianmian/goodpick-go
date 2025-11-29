@@ -47,6 +47,11 @@ Security features include bcryptjs for password hashing, JWT secrets from enviro
   - **Auto Role Assignment**: Staff binding flows (OAuth callback + regular binding) now auto-assign verifier role in `merchantStaffRoles`.
   - **C-端 Three-Tab Navigation**: Created `UserBottomNav` component with Discover/Shop/Me tabs, `ShuaShuaHome` (content feed with campaign cards), `ShopHome` (campaign listings), and `UserCenter` (profile, coupons, workstation entry).
   - **i18n Updates**: Complete translations for all new UI elements in Chinese, English, and Thai.
+- **ShuaShua Platform Upgrade Phase 2 (2025-11-29)**: Continued platform development:
+  - **Merchant Portal**: Created `MerchantHome` (store list, stats, quick actions) and `MerchantOperations` (campaign/staff/settings management) pages with `MerchantBottomNav` navigation.
+  - **User Center Pages**: Added `LanguageSettings` (tri-language selector), `HelpPage` (FAQ, contact, phone, email), and `AboutPage` (app info, version, legal links).
+  - **Navigation Handlers**: All merchant operation menu items now have proper onClick handlers linking to admin pages or showing "coming soon" toast.
+  - **i18n Expansion**: Added merchant.* translations for all new features in Chinese, English, and Thai, plus common.comingSoon and common.featureInDevelopment keys.
 
 ## External Dependencies
 

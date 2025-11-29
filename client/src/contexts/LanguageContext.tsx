@@ -33,6 +33,8 @@ const translations: Record<Language, Record<string, string>> = {
     'common.page': '第',
     'common.previous': '上一页',
     'common.next': '下一页',
+    'common.comingSoon': '即将上线',
+    'common.featureInDevelopment': '该功能正在开发中，敬请期待',
     
     // Navigation
     'nav.stores': '门店管理',
@@ -640,6 +642,8 @@ const translations: Record<Language, Record<string, string>> = {
     'common.page': 'Page',
     'common.previous': 'Previous',
     'common.next': 'Next',
+    'common.comingSoon': 'Coming Soon',
+    'common.featureInDevelopment': 'This feature is under development',
     
     // Navigation
     'nav.stores': 'Stores',
@@ -1248,6 +1252,8 @@ const translations: Record<Language, Record<string, string>> = {
     'common.page': 'หน้า',
     'common.previous': 'ก่อนหน้า',
     'common.next': 'ถัดไป',
+    'common.comingSoon': 'เร็วๆ นี้',
+    'common.featureInDevelopment': 'ฟีเจอร์นี้อยู่ระหว่างการพัฒนา',
     
     // Navigation
     'nav.stores': 'จัดการร้านค้า',

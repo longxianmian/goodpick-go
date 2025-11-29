@@ -1,9 +1,10 @@
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { ChevronLeft, ChevronRight, Users, Ticket, BarChart3, Settings, Bell, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { MerchantBottomNav } from '@/components/MerchantBottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface MenuItem {
   icon: typeof Users;
@@ -12,7 +13,7 @@ interface MenuItem {
   href?: string;
 }
 
-function MenuSection({ title, items }: { title: string; items: MenuItem[] }) {
+function MenuSection({ title, items, onItemClick }: { title: string; items: MenuItem[]; onItemClick: (href?: string) => void }) {
   return (
     <div className="mb-6">
       <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">{title}</h2>
@@ -23,7 +24,8 @@ function MenuSection({ title, items }: { title: string; items: MenuItem[] }) {
               <div 
                 key={index}
                 className="flex items-center justify-between py-4 px-4 hover-elevate active-elevate-2 cursor-pointer"
-                data-testid={`menu-item-${index}`}
+                data-testid={`menu-item-${item.label.replace(/\s+/g, '-').toLowerCase()}`}
+                onClick={() => onItemClick(item.href)}
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-muted rounded-md">
@@ -46,12 +48,26 @@ function MenuSection({ title, items }: { title: string; items: MenuItem[] }) {
 
 export default function MerchantOperations() {
   const { t } = useLanguage();
+  const [, navigate] = useLocation();
+  const { toast } = useToast();
+
+  const handleMenuClick = (href?: string) => {
+    if (href) {
+      navigate(href);
+    } else {
+      toast({
+        title: t('common.comingSoon'),
+        description: t('common.featureInDevelopment'),
+      });
+    }
+  };
 
   const campaignItems: MenuItem[] = [
     {
       icon: Ticket,
       label: t('merchant.campaignManage'),
       description: t('merchant.campaignManageDesc'),
+      href: '/admin/campaigns',
     },
     {
       icon: BarChart3,
@@ -65,6 +81,7 @@ export default function MerchantOperations() {
       icon: Users,
       label: t('merchant.staffManage'),
       description: t('merchant.staffManageDesc'),
+      href: '/admin/staff-presets',
     },
   ];
 
@@ -78,6 +95,7 @@ export default function MerchantOperations() {
       icon: Settings,
       label: t('merchant.storeSettings'),
       description: t('merchant.storeSettingsDesc'),
+      href: '/admin/stores',
     },
     {
       icon: FileText,
@@ -100,9 +118,9 @@ export default function MerchantOperations() {
       </header>
 
       <main className="px-4 py-4 max-w-lg mx-auto">
-        <MenuSection title={t('merchant.campaignSection')} items={campaignItems} />
-        <MenuSection title={t('merchant.staffSection')} items={staffItems} />
-        <MenuSection title={t('merchant.settingsSection')} items={settingsItems} />
+        <MenuSection title={t('merchant.campaignSection')} items={campaignItems} onItemClick={handleMenuClick} />
+        <MenuSection title={t('merchant.staffSection')} items={staffItems} onItemClick={handleMenuClick} />
+        <MenuSection title={t('merchant.settingsSection')} items={settingsItems} onItemClick={handleMenuClick} />
       </main>
 
       <MerchantBottomNav />
