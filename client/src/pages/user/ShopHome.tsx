@@ -1,20 +1,53 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { MapPin, Clock, Ticket, SlidersHorizontal } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Search, ShoppingCart, Ticket, MessageCircle, Footprints, Receipt, Gift, Sparkles, Percent, Heart, Store, Radio } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserBottomNav } from '@/components/UserBottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
-import type { Campaign, Store } from '@shared/schema';
+import type { Campaign, Store as StoreType } from '@shared/schema';
 
 interface CampaignWithStores extends Campaign {
-  stores: Store[];
+  stores: StoreType[];
 }
 
-function CampaignListItem({ campaign }: { campaign: CampaignWithStores }) {
-  const { language } = useLanguage();
+const CATEGORIES = ['recommend', 'digital', 'fashion', 'home', 'beauty', 'food', 'trendy'] as const;
+type CategoryType = typeof CATEGORIES[number];
+
+interface QuickEntry {
+  icon: typeof Radio;
+  labelKey: string;
+  color: string;
+}
+
+const QUICK_ENTRIES: QuickEntry[] = [
+  { icon: Radio, labelKey: 'shop.entryLive', color: 'bg-pink-100 dark:bg-pink-900/30' },
+  { icon: Store, labelKey: 'shop.entryShowroom', color: 'bg-purple-100 dark:bg-purple-900/30' },
+  { icon: Sparkles, labelKey: 'shop.entryNewArrivals', color: 'bg-blue-100 dark:bg-blue-900/30' },
+  { icon: Percent, labelKey: 'shop.entrySuperSale', color: 'bg-orange-100 dark:bg-orange-900/30' },
+  { icon: Heart, labelKey: 'shop.entryFanList', color: 'bg-red-100 dark:bg-red-900/30' },
+];
+
+interface FunctionEntry {
+  icon: typeof Receipt;
+  labelKey: string;
+  badge?: string;
+}
+
+const FUNCTION_ENTRIES: FunctionEntry[] = [
+  { icon: Receipt, labelKey: 'shop.funcOrders' },
+  { icon: ShoppingCart, labelKey: 'shop.funcCart' },
+  { icon: Ticket, labelKey: 'shop.funcCoupons', badge: 'shop.discountBadge' },
+  { icon: MessageCircle, labelKey: 'shop.funcMessages' },
+  { icon: Footprints, labelKey: 'shop.funcHistory' },
+];
+
+function ProductCard({ campaign }: { campaign: CampaignWithStores }) {
+  const { language, t } = useLanguage();
   
   const getTitle = () => {
     if (language === 'zh-cn') return campaign.titleZh || campaign.titleSource;
@@ -22,94 +55,84 @@ function CampaignListItem({ campaign }: { campaign: CampaignWithStores }) {
     return campaign.titleTh || campaign.titleSource;
   };
   
-  const formatValue = () => {
+  const formatPrice = () => {
     if (campaign.discountType === 'percentage_off') {
-      return `${campaign.couponValue}% OFF`;
+      return `${campaign.couponValue}%`;
     }
     return `฿${campaign.couponValue}`;
   };
 
-  const daysRemaining = () => {
-    if (!campaign.endAt) return null;
-    const now = new Date();
-    const end = new Date(campaign.endAt);
-    const days = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    if (days <= 0) return null;
-    if (days <= 3) return language === 'th-th' ? `เหลือ ${days} วัน` : (language === 'en-us' ? `${days}d left` : `${days}天`);
-    return null;
-  };
-
-  const remaining = daysRemaining();
+  const storeName = campaign.stores?.[0]?.name || t('shop.storeFallback');
+  const soldCount = Math.floor(Math.random() * 500) + 50;
 
   return (
     <Link href={`/campaign/${campaign.id}`}>
-      <Card className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer" data-testid={`card-campaign-${campaign.id}`}>
-        <div className="flex">
-          <div className="relative w-28 h-28 flex-shrink-0">
-            {campaign.bannerImageUrl ? (
-              <img 
-                src={campaign.bannerImageUrl} 
-                alt={getTitle()} 
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-muted flex items-center justify-center">
-                <Ticket className="w-8 h-8 text-muted-foreground" />
-              </div>
-            )}
-          </div>
-          <CardContent className="flex-1 p-3 flex flex-col justify-between">
-            <div>
-              <h3 className="font-medium text-sm line-clamp-2 mb-1" data-testid={`text-campaign-title-${campaign.id}`}>
-                {getTitle()}
-              </h3>
-              {campaign.stores && campaign.stores.length > 0 && (
-                <div className="flex items-center text-xs text-muted-foreground mb-2">
-                  <MapPin className="w-3 h-3 mr-1 flex-shrink-0" />
-                  <span className="truncate">
-                    {campaign.stores[0].name}
-                    {campaign.stores.length > 1 && ` +${campaign.stores.length - 1}`}
-                  </span>
-                </div>
-              )}
+      <div 
+        className="rounded-lg overflow-hidden bg-card cursor-pointer hover-elevate active-elevate-2"
+        data-testid={`card-product-${campaign.id}`}
+      >
+        <div className="relative aspect-square overflow-hidden">
+          {campaign.bannerImageUrl ? (
+            <img 
+              src={campaign.bannerImageUrl} 
+              alt={getTitle()} 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <Ticket className="w-10 h-10 text-muted-foreground" />
             </div>
-            <div className="flex items-center justify-between">
-              <Badge variant="secondary" className="bg-primary/10 text-primary font-bold text-sm">
-                {formatValue()}
-              </Badge>
-              {remaining && (
-                <div className="flex items-center text-xs text-orange-500">
-                  <Clock className="w-3 h-3 mr-1" />
-                  {remaining}
-                </div>
-              )}
-            </div>
-          </CardContent>
+          )}
         </div>
-      </Card>
+        
+        <div className="p-2 space-y-1.5">
+          <div className="flex items-start gap-1">
+            <Badge variant="outline" className="text-[10px] px-1 py-0 flex-shrink-0 border-primary text-primary">
+              {storeName.slice(0, 4)}
+            </Badge>
+            <p className="text-xs text-muted-foreground line-clamp-1">
+              {getTitle()}
+            </p>
+          </div>
+          
+          <h3 
+            className="font-medium text-sm line-clamp-2 leading-tight min-h-[2.5rem]"
+            data-testid={`text-product-title-${campaign.id}`}
+          >
+            {getTitle()}
+          </h3>
+          
+          <div className="flex items-end justify-between">
+            <div className="flex items-baseline gap-1">
+              <span className="text-lg font-bold text-destructive">{formatPrice()}</span>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {t('shop.sold')}{soldCount}
+            </span>
+          </div>
+        </div>
+      </div>
     </Link>
   );
 }
 
-function CampaignListSkeleton() {
+function ProductSkeleton() {
   return (
-    <Card className="overflow-hidden">
-      <div className="flex">
-        <Skeleton className="w-28 h-28 rounded-none" />
-        <CardContent className="flex-1 p-3 space-y-2">
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-3 w-1/2" />
-          <div className="pt-2">
-            <Skeleton className="h-5 w-16" />
-          </div>
-        </CardContent>
+    <div className="rounded-lg overflow-hidden bg-card">
+      <Skeleton className="aspect-square" />
+      <div className="p-2 space-y-2">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-5 w-1/2" />
       </div>
-    </Card>
+    </div>
   );
 }
 
 export default function ShopHome() {
   const { t } = useLanguage();
+  const [activeCategory, setActiveCategory] = useState<CategoryType>('recommend');
+  const [searchQuery, setSearchQuery] = useState('');
   
   const { data: campaignsData, isLoading } = useQuery<{ success: boolean; data: CampaignWithStores[] }>({
     queryKey: ['/api/campaigns'],
@@ -117,45 +140,130 @@ export default function ShopHome() {
 
   const campaigns = campaignsData?.data || [];
 
+  const categoryLabels: Record<CategoryType, string> = {
+    recommend: t('shop.catRecommend'),
+    digital: t('shop.catDigital'),
+    fashion: t('shop.catFashion'),
+    home: t('shop.catHome'),
+    beauty: t('shop.catBeauty'),
+    food: t('shop.catFood'),
+    trendy: t('shop.catTrendy'),
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-        <div className="flex items-center justify-between h-12 px-4">
-          <h1 className="text-lg font-bold" data-testid="text-page-title">{t('shop.title')}</h1>
-          <Button variant="ghost" size="icon" data-testid="button-filter">
-            <SlidersHorizontal className="w-5 h-5" />
-          </Button>
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="px-4 py-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder={t('shop.searchPlaceholder')}
+              className="pl-9 pr-16 h-9 bg-muted border-0"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              data-testid="input-search"
+            />
+            <Button 
+              size="sm" 
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7"
+              data-testid="button-search"
+            >
+              {t('shop.search')}
+            </Button>
+          </div>
+        </div>
+        
+        <div className="px-4 pb-2 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-4 min-w-max">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`text-sm whitespace-nowrap transition-colors pb-1 ${
+                  activeCategory === cat
+                    ? 'text-foreground font-semibold border-b-2 border-primary'
+                    : 'text-muted-foreground'
+                }`}
+                data-testid={`category-${cat}`}
+              >
+                {categoryLabels[cat]}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
-      <main className="px-4 py-4 max-w-lg mx-auto">
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-semibold">{t('shop.allDeals')}</h2>
-            <span className="text-xs text-muted-foreground">
-              {campaigns.length} {t('nav.activities').toLowerCase()}
-            </span>
+      <main className="px-4 py-3 space-y-4">
+        <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
+          <div className="flex gap-4 min-w-max">
+            {QUICK_ENTRIES.map((entry, i) => (
+              <button 
+                key={i} 
+                className="flex flex-col items-center gap-1.5 w-16"
+                data-testid={`quick-entry-${i}`}
+              >
+                <div className={`w-14 h-14 rounded-full ${entry.color} flex items-center justify-center`}>
+                  <Avatar className="w-12 h-12">
+                    <AvatarFallback className="bg-transparent">
+                      <entry.icon className="w-6 h-6 text-foreground" />
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
+                <span className="text-xs text-center line-clamp-1">{t(entry.labelKey)}</span>
+              </button>
+            ))}
           </div>
-          
-          {isLoading ? (
-            <div className="space-y-3">
-              <CampaignListSkeleton />
-              <CampaignListSkeleton />
-              <CampaignListSkeleton />
-            </div>
-          ) : campaigns.length === 0 ? (
-            <Card className="p-8 text-center">
-              <Ticket className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-              <p className="text-muted-foreground">{t('shuashua.noActivities')}</p>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {campaigns.map((campaign) => (
-                <CampaignListItem key={campaign.id} campaign={campaign} />
-              ))}
-            </div>
-          )}
-        </section>
+        </div>
+
+        <div className="grid grid-cols-5 gap-2 bg-card rounded-lg p-3">
+          {FUNCTION_ENTRIES.map((entry, i) => (
+            <button 
+              key={i} 
+              className="flex flex-col items-center gap-1 relative"
+              data-testid={`func-entry-${i}`}
+            >
+              <div className="relative">
+                <entry.icon className="w-6 h-6 text-primary" />
+                {entry.badge && (
+                  <Badge 
+                    variant="destructive" 
+                    className="absolute -top-2 -right-3 text-[8px] px-1 py-0 h-4"
+                  >
+                    {t(entry.badge)}
+                  </Badge>
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground">{t(entry.labelKey)}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 text-xs text-muted-foreground pb-1">
+          <Badge variant="outline" className="text-xs border-green-500 text-green-600 dark:text-green-400">
+            {t('shop.verified')}
+          </Badge>
+          <span>{t('shop.nearbyDeals')}</span>
+        </div>
+
+        {isLoading ? (
+          <div className="grid grid-cols-2 gap-2">
+            {[1, 2, 3, 4].map((i) => (
+              <ProductSkeleton key={i} />
+            ))}
+          </div>
+        ) : campaigns.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16">
+            <Ticket className="w-16 h-16 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">{t('shuashua.noActivities')}</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {campaigns.map((campaign) => (
+              <ProductCard key={campaign.id} campaign={campaign} />
+            ))}
+          </div>
+        )}
       </main>
 
       <UserBottomNav />

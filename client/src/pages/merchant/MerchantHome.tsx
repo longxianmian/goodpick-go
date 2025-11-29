@@ -1,15 +1,19 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
-import { ChevronLeft, Store, Users, Ticket, TrendingUp, ChevronRight } from 'lucide-react';
+import { ChevronLeft, Search, MessageCircle, Share2, Star, Ticket, Package, ThumbsUp, Clock, Headphones, Sparkles, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MerchantBottomNav } from '@/components/MerchantBottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import type { Campaign, Store } from '@shared/schema';
+
+interface CampaignWithStores extends Campaign {
+  stores: Store[];
+}
 
 interface StoreRole {
   storeId: number;
@@ -30,70 +34,165 @@ interface RolesResponse {
   };
 }
 
-function StatCard({ 
-  icon: Icon, 
-  label, 
-  value, 
-  trend 
-}: { 
-  icon: typeof Users; 
-  label: string; 
-  value: string | number; 
-  trend?: string;
-}) {
+const SORT_OPTIONS = ['comprehensive', 'sales', 'new', 'price'] as const;
+type SortType = typeof SORT_OPTIONS[number];
+
+function StoreTag({ icon: Icon, text }: { icon: typeof Package; text: string }) {
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-md">
-              <Icon className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">{label}</p>
-              <p className="text-xl font-bold">{value}</p>
-            </div>
-          </div>
-          {trend && (
-            <Badge variant="secondary" className="text-xs">
-              {trend}
-            </Badge>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+      <Icon className="w-3 h-3 text-green-500" />
+      <span>{text}</span>
+    </div>
   );
 }
 
-function StoreCard({ store, onClick }: { store: StoreRole; onClick: () => void }) {
-  const { t } = useLanguage();
+function ProductCard({ campaign, rank }: { campaign: CampaignWithStores; rank?: number }) {
+  const { language, t } = useLanguage();
   
-  const roleLabel = {
-    owner: t('userCenter.roleOwner'),
-    operator: t('userCenter.roleOperator'),
-    verifier: t('userCenter.roleVerifier'),
-  }[store.role];
+  const getTitle = () => {
+    if (language === 'zh-cn') return campaign.titleZh || campaign.titleSource;
+    if (language === 'en-us') return campaign.titleEn || campaign.titleSource;
+    return campaign.titleTh || campaign.titleSource;
+  };
+  
+  const formatPrice = () => {
+    if (campaign.discountType === 'percentage_off') {
+      return campaign.couponValue;
+    }
+    return campaign.couponValue;
+  };
+
+  const soldCount = Math.floor(Math.random() * 30000) + 1000;
+  const formatSoldCount = (count: number) => {
+    if (count >= 10000) {
+      const formatted = (count / 10000).toFixed(1);
+      return `${formatted}${t('merchant.units.wan')}+`;
+    }
+    return `${count}+`;
+  };
 
   return (
-    <Card className="hover-elevate active-elevate-2 cursor-pointer" onClick={onClick}>
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3">
-          <Avatar className="w-12 h-12">
-            <AvatarImage src={store.storeImageUrl || undefined} />
-            <AvatarFallback>
-              <Store className="w-6 h-6" />
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-medium truncate">{store.storeName}</h3>
-            <Badge variant="outline" className="text-xs mt-1">
-              {roleLabel}
+    <Link href={`/campaign/${campaign.id}`}>
+      <div 
+        className="rounded-lg overflow-hidden bg-card cursor-pointer hover-elevate active-elevate-2"
+        data-testid={`card-product-${campaign.id}`}
+      >
+        <div className="relative aspect-square overflow-hidden">
+          {campaign.bannerImageUrl ? (
+            <img 
+              src={campaign.bannerImageUrl} 
+              alt={getTitle()} 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <Ticket className="w-10 h-10 text-muted-foreground" />
+            </div>
+          )}
+          
+          {rank && (
+            <Badge 
+              variant="secondary" 
+              className="absolute top-2 left-2 text-xs bg-orange-500 text-white border-0"
+            >
+              {t('merchant.topRank', { rank: String(rank) })}
             </Badge>
-          </div>
-          <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+          )}
         </div>
-      </CardContent>
-    </Card>
+        
+        <div className="p-2 space-y-1.5">
+          <h3 
+            className="font-medium text-sm line-clamp-2 leading-tight min-h-[2.5rem]"
+            data-testid={`text-product-title-${campaign.id}`}
+          >
+            {getTitle()}
+          </h3>
+          
+          <div className="flex items-end justify-between">
+            <div className="flex items-baseline gap-0.5">
+              <span className="text-xs text-destructive">{t('common.currencySymbol')}</span>
+              <span className="text-lg font-bold text-destructive">{formatPrice()}</span>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {t('merchant.sold')}{formatSoldCount(soldCount)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function ProductSkeleton() {
+  return (
+    <div className="rounded-lg overflow-hidden bg-card">
+      <Skeleton className="aspect-square" />
+      <div className="p-2 space-y-2">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-5 w-1/2" />
+      </div>
+    </div>
+  );
+}
+
+function StoreHeader({ store }: { store: StoreRole }) {
+  const { t } = useLanguage();
+  const rating = 4.5;
+  const soldTotal = 49000;
+  const followers = 2426;
+  const recentNotes = 1;
+
+  const formatLargeNumber = (num: number) => {
+    if (num >= 10000) {
+      const formatted = (num / 10000).toFixed(1);
+      return `${formatted}${t('merchant.units.wan')}`;
+    }
+    return String(num);
+  };
+
+  return (
+    <div className="bg-gradient-to-b from-muted/50 to-background pt-12 pb-4 px-4">
+      <div className="flex items-start gap-4">
+        <Avatar className="w-20 h-20 border-4 border-background shadow-lg">
+          <AvatarImage src={store.storeImageUrl || undefined} />
+          <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+            {store.storeName.charAt(0)}
+          </AvatarFallback>
+        </Avatar>
+        
+        <div className="flex-1 pt-2">
+          <h1 className="text-xl font-bold mb-1" data-testid="text-store-name">
+            {store.storeName}
+          </h1>
+          <div className="flex items-center gap-3 text-sm">
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Star 
+                  key={i} 
+                  className={`w-4 h-4 ${i <= Math.floor(rating) ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} 
+                />
+              ))}
+              <span className="ml-1 font-medium">{rating}</span>
+            </div>
+            <span className="text-muted-foreground">
+              {t('merchant.sold')}{formatLargeNumber(soldTotal)}
+            </span>
+          </div>
+          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+            <span>{t('merchant.followers')}{followers}</span>
+            <span>{recentNotes}{t('merchant.notesCount')}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex flex-wrap gap-3 mt-4">
+        <StoreTag icon={Package} text={t('merchant.tagFreeReturn')} />
+        <StoreTag icon={ThumbsUp} text={`${t('merchant.tagApproval')}93.2%`} />
+        <StoreTag icon={Clock} text={`${t('merchant.tagShipping')}20${t('merchant.units.hours')}`} />
+        <StoreTag icon={Headphones} text={`${t('merchant.tagSupport')}31${t('merchant.units.seconds')}`} />
+      </div>
+    </div>
   );
 }
 
@@ -101,31 +200,29 @@ export default function MerchantHome() {
   const { t } = useLanguage();
   const { user, userToken } = useAuth();
   const [, navigate] = useLocation();
-  const { toast } = useToast();
+  const [activeSort, setActiveSort] = useState<SortType>('comprehensive');
   
   const isLoggedIn = !!userToken && !!user;
   
-  const { data: rolesData, isLoading } = useQuery<RolesResponse>({
+  const { data: rolesData, isLoading: rolesLoading } = useQuery<RolesResponse>({
     queryKey: ['/api/me/roles'],
     enabled: isLoggedIn,
   });
 
+  const { data: campaignsData, isLoading: campaignsLoading } = useQuery<{ success: boolean; data: CampaignWithStores[] }>({
+    queryKey: ['/api/campaigns'],
+  });
+
   const roles = rolesData?.data?.roles || [];
   const merchantRoles = roles.filter(r => r.role === 'owner' || r.role === 'operator');
+  const currentStore = merchantRoles[0];
+  const campaigns = campaignsData?.data || [];
 
-  const handleStoreClick = (storeId: number) => {
-    toast({
-      title: t('common.comingSoon'),
-      description: t('common.featureInDevelopment'),
-    });
-  };
-
-  const handleQuickAction = (action: 'campaigns' | 'staff') => {
-    if (action === 'campaigns') {
-      navigate('/admin/campaigns');
-    } else if (action === 'staff') {
-      navigate('/admin/staff-presets');
-    }
+  const sortLabels: Record<SortType, string> = {
+    comprehensive: t('merchant.sortComprehensive'),
+    sales: t('merchant.sortSales'),
+    new: t('merchant.sortNew'),
+    price: t('merchant.sortPrice'),
   };
 
   if (!isLoggedIn) {
@@ -142,7 +239,7 @@ export default function MerchantHome() {
           </div>
         </header>
         <main className="px-4 py-8 max-w-lg mx-auto text-center">
-          <Store className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+          <Ticket className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-lg font-semibold mb-2">{t('merchant.loginRequired')}</h2>
           <p className="text-sm text-muted-foreground mb-4">{t('merchant.loginRequiredDesc')}</p>
           <Link href="/">
@@ -154,97 +251,111 @@ export default function MerchantHome() {
     );
   }
 
+  if (rolesLoading) {
+    return (
+      <div className="min-h-screen bg-background pb-20">
+        <Skeleton className="h-48 w-full" />
+        <div className="px-4 py-4 space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <div className="grid grid-cols-2 gap-2">
+            {[1, 2, 3, 4].map((i) => (
+              <ProductSkeleton key={i} />
+            ))}
+          </div>
+        </div>
+        <MerchantBottomNav />
+      </div>
+    );
+  }
+
+  if (!currentStore) {
+    return (
+      <div className="min-h-screen bg-background pb-20">
+        <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+          <div className="flex items-center h-12 px-4 gap-2">
+            <Link href="/me">
+              <Button variant="ghost" size="icon" data-testid="button-back">
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+            <h1 className="text-lg font-bold">{t('merchant.home')}</h1>
+          </div>
+        </header>
+        <main className="px-4 py-8 max-w-lg mx-auto text-center">
+          <Ticket className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+          <h2 className="text-lg font-semibold mb-2">{t('merchant.noStores')}</h2>
+          <p className="text-sm text-muted-foreground">{t('merchant.noStoresDesc')}</p>
+        </main>
+        <MerchantBottomNav />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-        <div className="flex items-center h-12 px-4 gap-2">
-          <Link href="/me">
-            <Button variant="ghost" size="icon" data-testid="button-back">
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-          </Link>
-          <h1 className="text-lg font-bold" data-testid="text-page-title">{t('merchant.home')}</h1>
+      <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between h-12 px-4">
+        <Link href="/me">
+          <Button variant="ghost" size="icon" className="bg-background/60 backdrop-blur-sm" data-testid="button-back">
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+        </Link>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="bg-background/60 backdrop-blur-sm" data-testid="button-search">
+            <Search className="w-5 h-5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="bg-background/60 backdrop-blur-sm" data-testid="button-message">
+            <MessageCircle className="w-5 h-5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="bg-background/60 backdrop-blur-sm" data-testid="button-share">
+            <Share2 className="w-5 h-5" />
+          </Button>
         </div>
       </header>
 
-      <main className="px-4 py-4 max-w-lg mx-auto">
-        {isLoading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
+      <StoreHeader store={currentStore} />
+
+      <div className="sticky top-0 z-30 bg-background border-b">
+        <div className="flex items-center gap-4 px-4 py-2">
+          {SORT_OPTIONS.map((sort) => (
+            <button
+              key={sort}
+              onClick={() => setActiveSort(sort)}
+              className={`text-sm whitespace-nowrap transition-colors ${
+                activeSort === sort
+                  ? 'text-foreground font-semibold'
+                  : 'text-muted-foreground'
+              }`}
+              data-testid={`sort-${sort}`}
+            >
+              {sortLabels[sort]}
+              {sort === 'price' && <ArrowUpDown className="inline-block ml-0.5 w-3 h-3" />}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <main className="px-2 py-2">
+        {campaignsLoading ? (
+          <div className="grid grid-cols-2 gap-2">
+            {[1, 2, 3, 4].map((i) => (
+              <ProductSkeleton key={i} />
+            ))}
           </div>
-        ) : merchantRoles.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <Store className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="font-semibold mb-2">{t('merchant.noStores')}</h3>
-              <p className="text-sm text-muted-foreground">{t('merchant.noStoresDesc')}</p>
-            </CardContent>
-          </Card>
+        ) : campaigns.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16">
+            <Ticket className="w-16 h-16 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">{t('shuashua.noActivities')}</p>
+          </div>
         ) : (
-          <>
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              <StatCard 
-                icon={Users} 
-                label={t('merchant.totalCustomers')} 
-                value="--" 
+          <div className="grid grid-cols-2 gap-2">
+            {campaigns.map((campaign, index) => (
+              <ProductCard 
+                key={campaign.id} 
+                campaign={campaign} 
+                rank={index === 0 ? 1 : undefined}
               />
-              <StatCard 
-                icon={Ticket} 
-                label={t('merchant.totalRedemptions')} 
-                value="--" 
-              />
-            </div>
-
-            <div className="mb-4">
-              <h2 className="text-sm font-medium text-muted-foreground mb-3">
-                {t('merchant.myStores')}
-              </h2>
-              <div className="space-y-3">
-                {merchantRoles.map((role) => (
-                  <StoreCard 
-                    key={`${role.storeId}-${role.role}`} 
-                    store={role} 
-                    onClick={() => handleStoreClick(role.storeId)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <Card className="mb-4">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4" />
-                  {t('merchant.quickActions')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <Button 
-                    variant="outline" 
-                    className="justify-start" 
-                    size="sm"
-                    onClick={() => handleQuickAction('campaigns')}
-                    data-testid="button-view-campaigns"
-                  >
-                    <Ticket className="w-4 h-4 mr-2" />
-                    {t('merchant.viewCampaigns')}
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="justify-start" 
-                    size="sm"
-                    onClick={() => handleQuickAction('staff')}
-                    data-testid="button-manage-staff"
-                  >
-                    <Users className="w-4 h-4 mr-2" />
-                    {t('merchant.manageStaff')}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </>
+            ))}
+          </div>
         )}
       </main>
 
