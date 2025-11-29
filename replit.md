@@ -54,8 +54,8 @@ Security features include bcryptjs for password hashing, JWT secrets from enviro
   - **i18n Expansion**: Added merchant.* translations for all new features in Chinese, English, and Thai, plus common.comingSoon and common.featureInDevelopment keys.
 - **i18n Hardcoded Strings Fix (2025-11-29)**: Fixed all hardcoded Chinese/English strings in the three main pages to use translation functions:
   - **ShopHome.tsx**: Replaced "9折券" with `t('shop.discountBadge')`, "已售" with `t('shop.sold')`, and "Store" fallback with `t('shop.storeFallback')`.
-  - **MerchantHome.tsx**: Replaced "当月加购第{rank}名" with `t('merchant.topRank')`, "篇笔记" with `t('merchant.notesCount')`, time units with `t('merchant.units.hours/seconds')`, and large number suffixes with `t('merchant.units.wan')`.
-  - **LanguageContext.tsx**: Added 10+ new translation keys (shop.sold, shop.discountBadge, shop.storeFallback, merchant.notesCount, merchant.topRank, merchant.units.wan/hours/seconds) for Chinese, English, and Thai.
+  - **MerchantHome.tsx**: Replaced "当月加购第{rank}名" with `t('merchant.topRank')`, "篇笔记" with `t('merchant.notesCount')`, time units with `t('merchant.units.hours/seconds')`, large number suffixes with `t('merchant.units.wan')`, currency symbol (฿) with `t('common.currencySymbol')`, and sort arrow (↕) with Lucide `ArrowUpDown` icon.
+  - **LanguageContext.tsx**: Added 10+ new translation keys (shop.sold, shop.discountBadge, shop.storeFallback, merchant.notesCount, merchant.topRank, merchant.units.wan/hours/seconds, common.currencySymbol) for Chinese, English, and Thai.
 
 ## External Dependencies
 
