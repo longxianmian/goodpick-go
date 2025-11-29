@@ -19,6 +19,9 @@ import StaffCampaignList from "@/pages/user/StaffCampaignList";
 import StaffCampaignDetail from "@/pages/user/StaffCampaignDetail";
 import CampaignDetail from "@/pages/user/CampaignDetail";
 import MyCoupons from "@/pages/user/MyCoupons";
+import ShuaShuaHome from "@/pages/user/ShuaShuaHome";
+import ShopHome from "@/pages/user/ShopHome";
+import UserCenter from "@/pages/user/UserCenter";
 import PrivacyPage from "@/pages/PrivacyPage";
 import TermsPage from "@/pages/TermsPage";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
@@ -131,7 +134,10 @@ function ProtectedAdminRoutes() {
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={() => <Redirect to="/campaign/1" />} />
+      {/* 刷刷升级 - C端三栏结构 */}
+      <Route path="/" component={ShuaShuaHome} />
+      <Route path="/shop" component={ShopHome} />
+      <Route path="/me" component={UserCenter} />
       <Route path="/campaign/:id" component={CampaignDetail} />
       <Route path="/my-coupons" component={MyCoupons} />
       <Route path="/privacy" component={PrivacyPage} />

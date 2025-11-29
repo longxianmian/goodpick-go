@@ -41,6 +41,49 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.activities': '优惠活动',
     'nav.myCoupons': '我的优惠券',
     
+    // 刷刷底部导航
+    'bottomNav.shuashua': '刷刷',
+    'bottomNav.shop': '购物',
+    'bottomNav.me': '我的',
+    
+    // 用户中心
+    'userCenter.title': '个人中心',
+    'userCenter.myCoupons': '我的优惠券',
+    'userCenter.workstation': '我的工作台',
+    'userCenter.merchantHome': '商户首页',
+    'userCenter.operateCenter': '运营中心',
+    'userCenter.staffRedeem': '核销中心',
+    'userCenter.settings': '设置',
+    'userCenter.language': '语言设置',
+    'userCenter.notifications': '通知设置',
+    'userCenter.help': '帮助与反馈',
+    'userCenter.about': '关于我们',
+    'userCenter.login': '登录',
+    'userCenter.loginHint': '登录后查看更多内容',
+    'userCenter.roleOwner': '店长',
+    'userCenter.roleOperator': '运营',
+    'userCenter.roleVerifier': '核销员',
+    
+    // 刷刷首页
+    'shuashua.title': '刷刷',
+    'shuashua.nearby': '附近优惠',
+    'shuashua.trending': '热门活动',
+    'shuashua.forYou': '为你推荐',
+    'shuashua.noActivities': '暂无活动',
+    'shuashua.viewAll': '查看全部',
+    
+    // 购物页
+    'shop.title': '购物',
+    'shop.allDeals': '全部优惠',
+    'shop.categories': '分类',
+    'shop.brands': '品牌',
+    'shop.stores': '门店',
+    'shop.filter': '筛选',
+    'shop.sort': '排序',
+    'shop.newest': '最新',
+    'shop.popular': '最热',
+    'shop.ending': '即将结束',
+    
     // Login
     'login.title': '管理后台登录',
     'login.email': '邮箱',
@@ -559,6 +602,49 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.dashboard': 'Dashboard',
     'nav.activities': 'Activities',
     'nav.myCoupons': 'My Coupons',
+    
+    // Bottom Navigation (ShuaShua)
+    'bottomNav.shuashua': 'Discover',
+    'bottomNav.shop': 'Shop',
+    'bottomNav.me': 'Me',
+    
+    // User Center
+    'userCenter.title': 'My Profile',
+    'userCenter.myCoupons': 'My Coupons',
+    'userCenter.workstation': 'Workstation',
+    'userCenter.merchantHome': 'Merchant Home',
+    'userCenter.operateCenter': 'Operations',
+    'userCenter.staffRedeem': 'Redeem Center',
+    'userCenter.settings': 'Settings',
+    'userCenter.language': 'Language',
+    'userCenter.notifications': 'Notifications',
+    'userCenter.help': 'Help & Feedback',
+    'userCenter.about': 'About Us',
+    'userCenter.login': 'Log In',
+    'userCenter.loginHint': 'Log in to see more',
+    'userCenter.roleOwner': 'Owner',
+    'userCenter.roleOperator': 'Operator',
+    'userCenter.roleVerifier': 'Verifier',
+    
+    // ShuaShua Home
+    'shuashua.title': 'Discover',
+    'shuashua.nearby': 'Nearby Deals',
+    'shuashua.trending': 'Trending',
+    'shuashua.forYou': 'For You',
+    'shuashua.noActivities': 'No activities',
+    'shuashua.viewAll': 'View All',
+    
+    // Shop Page
+    'shop.title': 'Shop',
+    'shop.allDeals': 'All Deals',
+    'shop.categories': 'Categories',
+    'shop.brands': 'Brands',
+    'shop.stores': 'Stores',
+    'shop.filter': 'Filter',
+    'shop.sort': 'Sort',
+    'shop.newest': 'Newest',
+    'shop.popular': 'Popular',
+    'shop.ending': 'Ending Soon',
     
     // Login
     'login.title': 'Admin Login',
@@ -1079,6 +1165,49 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.dashboard': 'แดชบอร์ด',
     'nav.activities': 'โปรโมชั่น',
     'nav.myCoupons': 'คูปองของฉัน',
+    
+    // Bottom Navigation (ShuaShua)
+    'bottomNav.shuashua': 'ดีล',
+    'bottomNav.shop': 'ช้อป',
+    'bottomNav.me': 'ฉัน',
+    
+    // User Center
+    'userCenter.title': 'โปรไฟล์',
+    'userCenter.myCoupons': 'คูปองของฉัน',
+    'userCenter.workstation': 'พื้นที่ทำงาน',
+    'userCenter.merchantHome': 'หน้าร้านค้า',
+    'userCenter.operateCenter': 'ศูนย์ดำเนินการ',
+    'userCenter.staffRedeem': 'ศูนย์แลกคูปอง',
+    'userCenter.settings': 'การตั้งค่า',
+    'userCenter.language': 'ภาษา',
+    'userCenter.notifications': 'การแจ้งเตือน',
+    'userCenter.help': 'ความช่วยเหลือ',
+    'userCenter.about': 'เกี่ยวกับเรา',
+    'userCenter.login': 'เข้าสู่ระบบ',
+    'userCenter.loginHint': 'เข้าสู่ระบบเพื่อดูเพิ่มเติม',
+    'userCenter.roleOwner': 'เจ้าของร้าน',
+    'userCenter.roleOperator': 'ผู้ดำเนินการ',
+    'userCenter.roleVerifier': 'พนักงาน',
+    
+    // ShuaShua Home
+    'shuashua.title': 'ดีล',
+    'shuashua.nearby': 'ดีลใกล้ฉัน',
+    'shuashua.trending': 'ยอดนิยม',
+    'shuashua.forYou': 'สำหรับคุณ',
+    'shuashua.noActivities': 'ไม่มีกิจกรรม',
+    'shuashua.viewAll': 'ดูทั้งหมด',
+    
+    // Shop Page
+    'shop.title': 'ช้อป',
+    'shop.allDeals': 'ดีลทั้งหมด',
+    'shop.categories': 'หมวดหมู่',
+    'shop.brands': 'แบรนด์',
+    'shop.stores': 'ร้านค้า',
+    'shop.filter': 'กรอง',
+    'shop.sort': 'เรียง',
+    'shop.newest': 'ล่าสุด',
+    'shop.popular': 'ยอดนิยม',
+    'shop.ending': 'ใกล้หมด',
     
     // Login
     'login.title': 'เข้าสู่ระบบผู้ดูแล',

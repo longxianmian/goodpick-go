@@ -10,6 +10,34 @@ export const preferredLanguageEnum = pgEnum('preferred_language', ['th', 'en', '
 export const channelEnum = pgEnum('channel', ['line_menu', 'tiktok', 'facebook', 'ig', 'youtube', 'other']);
 export const broadcastStatusEnum = pgEnum('broadcast_status', ['pending', 'sending', 'done', 'failed', 'cancelled']);
 
+// 刷刷升级 - 新增枚举
+export const staffRoleEnum = pgEnum('staff_role', [
+  'owner',      // 老板 / 创始人
+  'operator',   // 运营号：负责发内容、上商品、配活动
+  'verifier',   // 核销员：负责扫码/手动核销
+]);
+
+export const oauthProviderEnum = pgEnum('oauth_provider', [
+  'line',    // LINE Login
+  'google',  // Google OAuth
+  'apple',   // Sign in with Apple
+  'phone',   // 手机号 + 验证码登录
+]);
+
+export const membershipTierEnum = pgEnum('membership_tier', [
+  'basic',     // 基础会员
+  'silver',    // 银卡
+  'gold',      // 金卡
+  'platinum',  // 白金卡
+]);
+
+export const paymentStatusEnum = pgEnum('payment_status', [
+  'pending',    // 待支付
+  'paid',       // 已支付
+  'failed',     // 支付失败
+  'refunded',   // 已退款
+]);
+
 // Admin table
 export const admins = pgTable('admins', {
   id: serial('id').primaryKey(),
@@ -270,3 +298,155 @@ export const insertCampaignBroadcastSchema = createInsertSchema(campaignBroadcas
 });
 export type InsertCampaignBroadcast = z.infer<typeof insertCampaignBroadcastSchema>;
 export type CampaignBroadcast = typeof campaignBroadcasts.$inferSelect;
+
+// ============================================
+// 刷刷升级 - 新增表定义
+// ============================================
+
+// 门店角色关联表 (老板/运营/核销员)
+export const merchantStaffRoles = pgTable('merchant_staff_roles', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  role: staffRoleEnum('role').notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqUserStoreRole: unique().on(table.userId, table.storeId, table.role),
+}));
+
+export const insertMerchantStaffRoleSchema = createInsertSchema(merchantStaffRoles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertMerchantStaffRole = z.infer<typeof insertMerchantStaffRoleSchema>;
+export type MerchantStaffRole = typeof merchantStaffRoles.$inferSelect;
+
+// OAuth 多端登录绑定表
+export const oauthAccounts = pgTable('oauth_accounts', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  provider: oauthProviderEnum('provider').notNull(),
+  providerUserId: text('provider_user_id').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqProviderUser: unique().on(table.provider, table.providerUserId),
+}));
+
+export const insertOAuthAccountSchema = createInsertSchema(oauthAccounts).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertOAuthAccount = z.infer<typeof insertOAuthAccountSchema>;
+export type OAuthAccount = typeof oauthAccounts.$inferSelect;
+
+// 数字人接入凭证表 (Agent Token)
+export const agentTokens = pgTable('agent_tokens', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  label: text('label').notNull(),
+  tokenHash: text('token_hash').notNull(),
+  scopes: text('scopes').notNull().default('basic'),
+  expiresAt: timestamp('expires_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertAgentTokenSchema = createInsertSchema(agentTokens).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertAgentToken = z.infer<typeof insertAgentTokenSchema>;
+export type AgentToken = typeof agentTokens.$inferSelect;
+
+// 支付配置表 (每个门店一条)
+export const paymentConfigs = pgTable('payment_configs', {
+  id: serial('id').primaryKey(),
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }).unique(),
+  provider: text('provider').notNull().default('mock'),
+  providerMerchantId: text('provider_merchant_id'),
+  webhookSecret: text('webhook_secret'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertPaymentConfigSchema = createInsertSchema(paymentConfigs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertPaymentConfig = z.infer<typeof insertPaymentConfigSchema>;
+export type PaymentConfig = typeof paymentConfigs.$inferSelect;
+
+// 支付交易表
+export const paymentTransactions = pgTable('payment_transactions', {
+  id: serial('id').primaryKey(),
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  provider: text('provider').notNull(),
+  providerTxnId: text('provider_txn_id').notNull(),
+  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+  currency: text('currency').notNull().default('THB'),
+  status: paymentStatusEnum('status').notNull().default('pending'),
+  paidAt: timestamp('paid_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqProviderTxn: unique().on(table.provider, table.providerTxnId),
+}));
+
+export const insertPaymentTransactionSchema = createInsertSchema(paymentTransactions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertPaymentTransaction = z.infer<typeof insertPaymentTransactionSchema>;
+export type PaymentTransaction = typeof paymentTransactions.$inferSelect;
+
+// 会员规则表 (每个门店一条)
+export const membershipRules = pgTable('membership_rules', {
+  id: serial('id').primaryKey(),
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }).unique(),
+  silverThreshold: decimal('silver_threshold', { precision: 10, scale: 2 }).notNull().default('500'),
+  goldThreshold: decimal('gold_threshold', { precision: 10, scale: 2 }).notNull().default('2000'),
+  platinumThreshold: decimal('platinum_threshold', { precision: 10, scale: 2 }).notNull().default('5000'),
+  pointsDivisor: integer('points_divisor').notNull().default(10),
+  welcomeCampaignId: integer('welcome_campaign_id').references(() => campaigns.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertMembershipRuleSchema = createInsertSchema(membershipRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertMembershipRule = z.infer<typeof insertMembershipRuleSchema>;
+export type MembershipRule = typeof membershipRules.$inferSelect;
+
+// 用户门店会员表
+export const userStoreMemberships = pgTable('user_store_memberships', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  tier: membershipTierEnum('tier').notNull().default('basic'),
+  points: integer('points').notNull().default(0),
+  totalAmount: decimal('total_amount', { precision: 10, scale: 2 }).notNull().default('0'),
+  visitCount: integer('visit_count').notNull().default(0),
+  lastVisitAt: timestamp('last_visit_at'),
+  joinedAt: timestamp('joined_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqUserStore: unique().on(table.userId, table.storeId),
+}));
+
+export const insertUserStoreMembershipSchema = createInsertSchema(userStoreMemberships).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertUserStoreMembership = z.infer<typeof insertUserStoreMembershipSchema>;
+export type UserStoreMembership = typeof userStoreMemberships.$inferSelect;

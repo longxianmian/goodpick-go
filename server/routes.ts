@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts } from '@shared/schema';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships } from '@shared/schema';
 import { eq, and, desc, sql, inArray, isNotNull } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
 import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
@@ -616,6 +616,71 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // 刷刷升级 - 获取当前用户在各门店的角色
+  app.get('/api/me/roles', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+
+      const userId = (req.user as any).id;
+
+      // 获取用户基本信息
+      const [user] = await db
+        .select({
+          id: users.id,
+          displayName: users.displayName,
+          avatarUrl: users.avatarUrl,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      // 获取用户在各门店的角色
+      const roles = await db
+        .select({
+          storeId: merchantStaffRoles.storeId,
+          storeName: stores.name,
+          storeImageUrl: stores.imageUrl,
+          role: merchantStaffRoles.role,
+        })
+        .from(merchantStaffRoles)
+        .innerJoin(stores, eq(merchantStaffRoles.storeId, stores.id))
+        .where(
+          and(
+            eq(merchantStaffRoles.userId, userId),
+            eq(merchantStaffRoles.isActive, true),
+            eq(stores.isActive, true)
+          )
+        )
+        .orderBy(desc(merchantStaffRoles.createdAt));
+
+      return res.json({
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            displayName: user.displayName,
+            avatarUrl: user.avatarUrl,
+          },
+          roles: roles.map(r => ({
+            storeId: r.storeId,
+            storeName: r.storeName,
+            storeImageUrl: r.storeImageUrl,
+            role: r.role,
+          })),
+        },
+      });
+    } catch (error) {
+      console.error('[API /api/me/roles] error', error);
+      return res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+  });
+
   app.post("/api/auth/line/init-oauth", async (req, res) => {
     try {
       const { state: rawState, campaignId, returnTo } = req.body ?? {};
@@ -1047,6 +1112,16 @@ export function registerRoutes(app: Express): Server {
           updatedAt: new Date(),
         })
         .where(eq(staffPresets.id, staffPreset.id));
+
+      // 刷刷升级：同时写入 merchantStaffRoles 表，授予核销员角色
+      await db
+        .insert(merchantStaffRoles)
+        .values({
+          userId: user.id,
+          storeId: staffPreset.storeId,
+          role: 'verifier',
+        })
+        .onConflictDoNothing();
 
       // Generate JWT token for staff
       const token = jwt.sign(
@@ -1565,6 +1640,16 @@ export function registerRoutes(app: Express): Server {
         })
         .where(eq(staffPresets.id, preset.id))
         .returning();
+
+      // 刷刷升级：同时写入 merchantStaffRoles 表，授予核销员角色
+      await db
+        .insert(merchantStaffRoles)
+        .values({
+          userId: user.id,
+          storeId: preset.storeId,
+          role: 'verifier',
+        })
+        .onConflictDoNothing();
 
       res.json({ 
         success: true, 
