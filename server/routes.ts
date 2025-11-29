@@ -3241,7 +3241,341 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // ============ H. Media Upload ============
+  // ============ H. Payment Config API ============
+
+  // Get store payment config
+  app.get('/api/admin/stores/:id/payment', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      
+      const [config] = await db
+        .select()
+        .from(paymentConfigs)
+        .where(eq(paymentConfigs.storeId, storeId));
+      
+      const [rule] = await db
+        .select()
+        .from(membershipRules)
+        .where(eq(membershipRules.storeId, storeId));
+      
+      res.json({
+        success: true,
+        data: {
+          paymentConfig: config || null,
+          membershipRule: rule || null,
+        },
+      });
+    } catch (error) {
+      console.error('Get payment config error:', error);
+      res.status(500).json({ success: false, message: '获取支付配置失败' });
+    }
+  });
+
+  // Create or update store payment config
+  app.put('/api/admin/stores/:id/payment', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      const { bankName, accountNumber, accountName, promptpayId, qrCodeUrl, isActive } = req.body;
+      
+      const [existing] = await db
+        .select()
+        .from(paymentConfigs)
+        .where(eq(paymentConfigs.storeId, storeId));
+      
+      let config;
+      if (existing) {
+        [config] = await db
+          .update(paymentConfigs)
+          .set({
+            bankName,
+            accountNumber,
+            accountName,
+            promptpayId,
+            qrCodeUrl,
+            isActive: isActive ?? true,
+            updatedAt: new Date(),
+          })
+          .where(eq(paymentConfigs.storeId, storeId))
+          .returning();
+      } else {
+        [config] = await db
+          .insert(paymentConfigs)
+          .values({
+            storeId,
+            provider: 'promptpay',
+            bankName,
+            accountNumber,
+            accountName,
+            promptpayId,
+            qrCodeUrl,
+            isActive: isActive ?? true,
+          })
+          .returning();
+      }
+      
+      res.json({ success: true, data: config });
+    } catch (error) {
+      console.error('Update payment config error:', error);
+      res.status(500).json({ success: false, message: '更新支付配置失败' });
+    }
+  });
+
+  // Update membership rules
+  app.put('/api/admin/stores/:id/membership-rules', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      const { silverThreshold, goldThreshold, platinumThreshold, pointsDivisor, welcomeCampaignId } = req.body;
+      
+      const [existing] = await db
+        .select()
+        .from(membershipRules)
+        .where(eq(membershipRules.storeId, storeId));
+      
+      let rule;
+      if (existing) {
+        [rule] = await db
+          .update(membershipRules)
+          .set({
+            silverThreshold: silverThreshold?.toString(),
+            goldThreshold: goldThreshold?.toString(),
+            platinumThreshold: platinumThreshold?.toString(),
+            pointsDivisor,
+            welcomeCampaignId,
+            updatedAt: new Date(),
+          })
+          .where(eq(membershipRules.storeId, storeId))
+          .returning();
+      } else {
+        [rule] = await db
+          .insert(membershipRules)
+          .values({
+            storeId,
+            silverThreshold: silverThreshold?.toString() || '500',
+            goldThreshold: goldThreshold?.toString() || '2000',
+            platinumThreshold: platinumThreshold?.toString() || '5000',
+            pointsDivisor: pointsDivisor || 10,
+            welcomeCampaignId,
+          })
+          .returning();
+      }
+      
+      res.json({ success: true, data: rule });
+    } catch (error) {
+      console.error('Update membership rules error:', error);
+      res.status(500).json({ success: false, message: '更新会员规则失败' });
+    }
+  });
+
+  // Generate store payment QR code page URL
+  app.get('/api/stores/:id/pay', async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      
+      const [store] = await db
+        .select()
+        .from(stores)
+        .where(eq(stores.id, storeId));
+      
+      if (!store) {
+        return res.status(404).json({ success: false, message: '门店不存在' });
+      }
+      
+      const [config] = await db
+        .select()
+        .from(paymentConfigs)
+        .where(eq(paymentConfigs.storeId, storeId));
+      
+      res.json({
+        success: true,
+        data: {
+          store: {
+            id: store.id,
+            name: store.name,
+            brand: store.brand,
+            imageUrl: store.imageUrl,
+          },
+          paymentConfig: config ? {
+            provider: config.provider,
+            bankName: config.bankName,
+            accountName: config.accountName,
+            promptpayId: config.promptpayId,
+            qrCodeUrl: config.qrCodeUrl,
+            isActive: config.isActive,
+          } : null,
+        },
+      });
+    } catch (error) {
+      console.error('Get store payment info error:', error);
+      res.status(500).json({ success: false, message: '获取门店支付信息失败' });
+    }
+  });
+
+  // Payment callback webhook (for future payment provider integration)
+  app.post('/api/webhooks/payment/:provider', async (req: Request, res: Response) => {
+    try {
+      const provider = req.params.provider;
+      console.log(`[PAYMENT WEBHOOK] Received from ${provider}:`, JSON.stringify(req.body));
+      
+      // TODO: Implement actual payment provider verification
+      // For now, just log and acknowledge
+      
+      res.json({ success: true, message: 'Webhook received' });
+    } catch (error) {
+      console.error('Payment webhook error:', error);
+      res.status(500).json({ success: false, message: 'Webhook processing failed' });
+    }
+  });
+
+  // Record payment and create membership
+  app.post('/api/stores/:id/payment-complete', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      const userId = (req.user as any).id;
+      const { amount, providerTxnId } = req.body;
+      
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ success: false, message: '金额无效' });
+      }
+      
+      // Create payment transaction record
+      const [transaction] = await db
+        .insert(paymentTransactions)
+        .values({
+          storeId,
+          userId,
+          provider: 'promptpay',
+          providerTxnId: providerTxnId || `manual_${Date.now()}`,
+          amount: amount.toString(),
+          status: 'paid',
+          paidAt: new Date(),
+        })
+        .returning();
+      
+      // Get membership rules
+      const [rule] = await db
+        .select()
+        .from(membershipRules)
+        .where(eq(membershipRules.storeId, storeId));
+      
+      const pointsDivisor = rule?.pointsDivisor || 10;
+      const earnedPoints = Math.floor(amount / pointsDivisor);
+      
+      // Update or create membership
+      const [existingMembership] = await db
+        .select()
+        .from(userStoreMemberships)
+        .where(and(
+          eq(userStoreMemberships.userId, userId),
+          eq(userStoreMemberships.storeId, storeId)
+        ));
+      
+      let membership;
+      if (existingMembership) {
+        const newTotalAmount = parseFloat(existingMembership.totalAmount || '0') + amount;
+        const newPoints = (existingMembership.points || 0) + earnedPoints;
+        const newVisitCount = (existingMembership.visitCount || 0) + 1;
+        
+        // Calculate new tier
+        let newTier: 'basic' | 'silver' | 'gold' | 'platinum' = 'basic';
+        const silverThreshold = parseFloat(rule?.silverThreshold || '500');
+        const goldThreshold = parseFloat(rule?.goldThreshold || '2000');
+        const platinumThreshold = parseFloat(rule?.platinumThreshold || '5000');
+        
+        if (newTotalAmount >= platinumThreshold) newTier = 'platinum';
+        else if (newTotalAmount >= goldThreshold) newTier = 'gold';
+        else if (newTotalAmount >= silverThreshold) newTier = 'silver';
+        
+        [membership] = await db
+          .update(userStoreMemberships)
+          .set({
+            totalAmount: newTotalAmount.toString(),
+            points: newPoints,
+            visitCount: newVisitCount,
+            tier: newTier,
+            lastVisitAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(userStoreMemberships.id, existingMembership.id))
+          .returning();
+      } else {
+        // Create new membership
+        let tier: 'basic' | 'silver' | 'gold' | 'platinum' = 'basic';
+        const silverThreshold = parseFloat(rule?.silverThreshold || '500');
+        
+        if (amount >= silverThreshold) tier = 'silver';
+        
+        [membership] = await db
+          .insert(userStoreMemberships)
+          .values({
+            userId,
+            storeId,
+            tier,
+            points: earnedPoints,
+            totalAmount: amount.toString(),
+            visitCount: 1,
+            lastVisitAt: new Date(),
+            joinedAt: new Date(),
+          })
+          .returning();
+      }
+      
+      // Get store info for response
+      const [store] = await db
+        .select()
+        .from(stores)
+        .where(eq(stores.id, storeId));
+      
+      res.json({
+        success: true,
+        data: {
+          transaction,
+          membership,
+          store: {
+            id: store.id,
+            name: store.name,
+            brand: store.brand,
+          },
+          earnedPoints,
+        },
+      });
+    } catch (error) {
+      console.error('Payment complete error:', error);
+      res.status(500).json({ success: false, message: '处理支付失败' });
+    }
+  });
+
+  // Get user's memberships
+  app.get('/api/me/memberships', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.user as any).id;
+      
+      const memberships = await db
+        .select({
+          id: userStoreMemberships.id,
+          tier: userStoreMemberships.tier,
+          points: userStoreMemberships.points,
+          totalAmount: userStoreMemberships.totalAmount,
+          visitCount: userStoreMemberships.visitCount,
+          lastVisitAt: userStoreMemberships.lastVisitAt,
+          joinedAt: userStoreMemberships.joinedAt,
+          storeId: stores.id,
+          storeName: stores.name,
+          storeBrand: stores.brand,
+          storeImageUrl: stores.imageUrl,
+        })
+        .from(userStoreMemberships)
+        .innerJoin(stores, eq(userStoreMemberships.storeId, stores.id))
+        .where(eq(userStoreMemberships.userId, userId))
+        .orderBy(desc(userStoreMemberships.lastVisitAt));
+      
+      res.json({ success: true, data: memberships });
+    } catch (error) {
+      console.error('Get memberships error:', error);
+      res.status(500).json({ success: false, message: '获取会员信息失败' });
+    }
+  });
+
+  // ============ I. Media Upload ============
 
   app.post('/api/admin/upload', adminAuthMiddleware, upload.single('file'), async (req: Request, res: Response) => {
     try {

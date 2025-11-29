@@ -27,6 +27,9 @@ import HelpPage from "@/pages/user/HelpPage";
 import AboutPage from "@/pages/user/AboutPage";
 import MerchantHome from "@/pages/merchant/MerchantHome";
 import MerchantOperations from "@/pages/merchant/MerchantOperations";
+import AdminPaymentSettings from "@/pages/admin/AdminPaymentSettings";
+import PaymentPage from "@/pages/user/PaymentPage";
+import PaymentSuccess from "@/pages/user/PaymentSuccess";
 import PrivacyPage from "@/pages/PrivacyPage";
 import TermsPage from "@/pages/TermsPage";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
@@ -127,6 +130,7 @@ function ProtectedAdminRoutes() {
   return (
     <AdminLayout>
       <Switch location={location}>
+        <Route path="/admin/stores/:id/payment" component={AdminPaymentSettings} />
         <Route path="/admin/stores" component={AdminStores} />
         <Route path="/admin/campaigns" component={AdminCampaigns} />
         <Route path="/admin/dashboard" component={AdminDashboard} />
@@ -149,6 +153,9 @@ function Router() {
       {/* 商户端 */}
       <Route path="/merchant" component={MerchantHome} />
       <Route path="/merchant/operations" component={MerchantOperations} />
+      {/* 支付页面 */}
+      <Route path="/pay/:id/success" component={PaymentSuccess} />
+      <Route path="/pay/:id" component={PaymentPage} />
       <Route path="/campaign/:id" component={CampaignDetail} />
       <Route path="/my-coupons" component={MyCoupons} />
       <Route path="/privacy" component={PrivacyPage} />
