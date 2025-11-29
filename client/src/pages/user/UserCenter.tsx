@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
-import { ChevronRight, Ticket, Store, QrCode, Settings, HelpCircle, Info, User, LogIn } from 'lucide-react';
+import { ChevronRight, Ticket, Store, QrCode, Settings, HelpCircle, Info, User, LogIn, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { UserBottomNav } from '@/components/UserBottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface StoreRole {
   storeId: number;
@@ -103,6 +105,8 @@ export default function UserCenter() {
   const { t } = useLanguage();
   const { user, authPhase, userToken } = useAuth();
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const [loggingIn, setLoggingIn] = useState(false);
   
   const isLoggedIn = !!userToken && !!user;
   
@@ -119,8 +123,35 @@ export default function UserCenter() {
   const hasVerifierRole = roles.some(r => r.role === 'verifier');
   const hasAnyRole = roles.length > 0;
 
-  const handleLogin = () => {
-    navigate('/');
+  const handleLogin = async () => {
+    try {
+      setLoggingIn(true);
+      console.log('[UserCenter] 发起 LINE OAuth 登录');
+      
+      const res = await fetch('/api/auth/line/init-oauth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+        credentials: 'include',
+      });
+
+      const data = await res.json();
+
+      if (!data.success || !data.redirectUrl) {
+        throw new Error(data.message || 'Failed to initialize OAuth');
+      }
+
+      console.log('[UserCenter] 跳转到 LINE 授权页面');
+      window.location.href = data.redirectUrl;
+    } catch (error: any) {
+      console.error('[UserCenter] LINE 登录失败:', error);
+      setLoggingIn(false);
+      toast({
+        title: t('common.error'),
+        description: error.message || t('login.failed'),
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -176,9 +207,18 @@ export default function UserCenter() {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                  <Button onClick={handleLogin} className="mb-1" data-testid="button-login">
-                    <LogIn className="w-4 h-4 mr-2" />
-                    {t('userCenter.login')}
+                  <Button 
+                    onClick={handleLogin} 
+                    className="mb-1" 
+                    data-testid="button-login"
+                    disabled={loggingIn}
+                  >
+                    {loggingIn ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <LogIn className="w-4 h-4 mr-2" />
+                    )}
+                    {loggingIn ? t('common.loading') : t('userCenter.login')}
                   </Button>
                   <p className="text-xs text-muted-foreground">
                     {t('userCenter.loginHint')}
