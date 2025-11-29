@@ -56,6 +56,17 @@ Security features include bcryptjs for password hashing, JWT secrets from enviro
   - **ShopHome.tsx**: Replaced "9折券" with `t('shop.discountBadge')`, "已售" with `t('shop.sold')`, and "Store" fallback with `t('shop.storeFallback')`.
   - **MerchantHome.tsx**: Replaced "当月加购第{rank}名" with `t('merchant.topRank')`, "篇笔记" with `t('merchant.notesCount')`, time units with `t('merchant.units.hours/seconds')`, large number suffixes with `t('merchant.units.wan')`, currency symbol (฿) with `t('common.currencySymbol')`, and sort arrow (↕) with Lucide `ArrowUpDown` icon.
   - **LanguageContext.tsx**: Added 10+ new translation keys (shop.sold, shop.discountBadge, shop.storeFallback, merchant.notesCount, merchant.topRank, merchant.units.wan/hours/seconds, common.currencySymbol) for Chinese, English, and Thai.
+- **Product Detail Page E-commerce UI Refactor (2025-11-29)**: Complete redesign of `CampaignDetail.tsx` to match modern e-commerce app design:
+  - **Header**: Floating back/favorite/share buttons with translucent backgrounds.
+  - **Image Carousel**: Uses 1:1.618 golden ratio, supports images and videos, shows image counter and style button.
+  - **Thumbnail Selector**: Horizontal scrollable thumbnails with active indicator and total styles count.
+  - **Price Section**: Large red price, sold count, promo tag, followed discount.
+  - **Service Tags**: Free return, recently added to cart, recent buyers indicators.
+  - **Delivery Info**: Clock, location, shield, checkmark icons with delivery details.
+  - **Tab Navigation**: Product/Reviews/Details/Recommend tabs.
+  - **Store Card**: Avatar, name, rating, product quality/logistics/customer service scores.
+  - **Bottom Action Bar**: Store/Service/Cart buttons + Add to Cart + Claim/Buy buttons.
+  - **i18n**: Added 40+ new translation keys (productDetail.*) for Chinese, English, and Thai, all parameters converted to strings for type safety.
 
 ## External Dependencies
 
