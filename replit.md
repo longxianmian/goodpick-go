@@ -1,7 +1,7 @@
-# GoodPick Go MVP
+# ShuaShua (刷刷) O2O Platform
 
 ## Overview
-GoodPick Go is a multi-language coupon recommendation platform targeting the Thai/Asian market. It enables consumers to discover and redeem digital coupons primarily through LINE and other social media. The platform supports Consumers, Administrators, and Store Staff, featuring LINE-based authentication, multi-language content (Chinese Simplified, English, Thai), and AI-powered translation. It emphasizes a mobile-first, product-agnostic architecture to streamline coupon distribution and redemption for businesses.
+ShuaShua (刷刷) is a multi-merchant O2O local life platform evolved from GoodPick Go. It enables consumers to discover deals, redeem coupons, and connect with local businesses through LINE and other social media. The platform supports three user terminals: **Consumer (C-端)** with three-tab structure (Discover/Shop/Me), **Merchant Portal (商户端)** with home and operations center, and **Staff Workstation (员工端)** for coupon verification. It features multi-role authorization (owner/operator/verifier), multi-platform login (LINE/Google/Apple/Phone), payment-as-membership, and AI agent integration readiness.
 
 ## User Preferences
 语言要求: 必须使用中文沟通（用户不懂英文，这是强制要求）
@@ -41,6 +41,12 @@ Security features include bcryptjs for password hashing, JWT secrets from enviro
 - **AuthContext Centralized State Machine (2025-11-17)**: Completely refactored authentication state management by centralizing all auth logic in AuthContext. Implemented `authPhase` ('booting'|'ready'|'error') to replace scattered loading flags, unified token handling (URL + localStorage) in a single bootstrap function, and added `reloadAuth()` trigger to safely reload user state after login/logout/claim operations. Removed all OAuth callback handling from page components (now managed centrally in AuthContext). Fixed critical issue where `logoutUser()` would leave stale state by making data reload independent of `userToken` dependency. CampaignDetail page now uses `authPhase` and `user` from AuthContext, ensuring correct button states: "用 LINE 一键领取" for anonymous users, "立即领取" for logged-in users without coupons, and "查看我的优惠券" for logged-in users with coupons.
 - **Backend OAuth State Generation Fix (2025-11-17)**: Fixed production OAuth initialization issue where undefined state caused 400 errors. Backend now automatically generates state using nanoid when frontend doesn't provide it, ensuring OAuth flow works even when state is missing. Modified `/api/auth/line/init-oauth` to construct and return LINE OAuth URL (redirectUrl) instead of requiring frontend to build it. Removed strict state format validation (64-char hex) to support nanoid-generated states. Frontend updated to use `redirectUrl` instead of `liffUrl`. This ensures robust OAuth initialization that tolerates missing state parameters from client.
 - **Store Card Navigation Interaction (2025-11-17)**: Optimized store card UX on campaign detail page. Entire store card now triggers Google Maps navigation on click (reusing existing `getNavigationUrl()` logic), while phone number link independently triggers dialing without propagating click to parent. Removed redundant standalone navigation button. Uses `e.stopPropagation()` to prevent phone clicks from triggering navigation, ensuring clean mobile-first interaction pattern.
+- **ShuaShua Platform Upgrade Phase 1 (2025-11-29)**: Major architecture upgrade from GoodPick Go to ShuaShua multi-merchant O2O platform:
+  - **Database Layer**: Added `merchantStaffRoles` table for multi-role system (owner/operator/verifier), `oauthAccounts` for multi-platform login binding, `agentTokens` for AI agent integration, and payment-related tables (`paymentConfigs`, `paymentTransactions`, `userStoreMemberships`, `membershipRules`).
+  - **Role System API**: Implemented GET `/api/me/roles` endpoint returning user roles per store.
+  - **Auto Role Assignment**: Staff binding flows (OAuth callback + regular binding) now auto-assign verifier role in `merchantStaffRoles`.
+  - **C-端 Three-Tab Navigation**: Created `UserBottomNav` component with Discover/Shop/Me tabs, `ShuaShuaHome` (content feed with campaign cards), `ShopHome` (campaign listings), and `UserCenter` (profile, coupons, workstation entry).
+  - **i18n Updates**: Complete translations for all new UI elements in Chinese, English, and Thai.
 
 ## External Dependencies
 
