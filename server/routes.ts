@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings } from '@shared/schema';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments } from '@shared/schema';
 import { eq, and, desc, sql, inArray, isNotNull } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
 import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
@@ -4202,6 +4202,435 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Get creator stats error:', error);
       res.status(500).json({ success: false, message: '获取统计数据失败' });
+    }
+  });
+
+  // ============================================
+  // 抖音式短视频系统 API
+  // ============================================
+
+  // 获取短视频流（游标分页，用于无限滚动）
+  app.get('/api/short-videos/feed', optionalUserAuth, async (req: Request, res: Response) => {
+    try {
+      const cursor = req.query.cursor ? parseInt(req.query.cursor as string) : 0;
+      const limit = Math.min(parseInt(req.query.limit as string) || 10, 20);
+      const userId = req.user?.id;
+
+      // 获取公开且已就绪的视频
+      const videos = await db
+        .select({
+          id: shortVideos.id,
+          videoUrl: shortVideos.videoUrl,
+          hlsUrl: shortVideos.hlsUrl,
+          coverImageUrl: shortVideos.coverImageUrl,
+          thumbnailUrl: shortVideos.thumbnailUrl,
+          duration: shortVideos.duration,
+          title: shortVideos.title,
+          description: shortVideos.description,
+          hashtags: shortVideos.hashtags,
+          locationName: shortVideos.locationName,
+          viewCount: shortVideos.viewCount,
+          likeCount: shortVideos.likeCount,
+          commentCount: shortVideos.commentCount,
+          shareCount: shortVideos.shareCount,
+          createdAt: shortVideos.createdAt,
+          creatorUserId: shortVideos.creatorUserId,
+          storeId: shortVideos.storeId,
+          campaignId: shortVideos.campaignId,
+          creatorName: users.displayName,
+          creatorAvatar: users.avatarUrl,
+        })
+        .from(shortVideos)
+        .leftJoin(users, eq(shortVideos.creatorUserId, users.id))
+        .where(and(
+          eq(shortVideos.status, 'ready'),
+          eq(shortVideos.isPublic, true)
+        ))
+        .orderBy(desc(shortVideos.publishedAt))
+        .offset(cursor)
+        .limit(limit + 1);
+
+      const hasMore = videos.length > limit;
+      const items = hasMore ? videos.slice(0, limit) : videos;
+
+      // 如果用户已登录，检查每个视频是否已点赞
+      let likedVideoIds: number[] = [];
+      if (userId && items.length > 0) {
+        const videoIds = items.map(v => v.id);
+        const likes = await db
+          .select({ videoId: shortVideoLikes.videoId })
+          .from(shortVideoLikes)
+          .where(and(
+            inArray(shortVideoLikes.videoId, videoIds),
+            eq(shortVideoLikes.userId, userId)
+          ));
+        likedVideoIds = likes.map(l => l.videoId);
+      }
+
+      res.json({
+        success: true,
+        data: {
+          items: items.map(v => ({
+            ...v,
+            isLiked: likedVideoIds.includes(v.id),
+          })),
+          nextCursor: hasMore ? cursor + limit : null,
+          hasMore,
+        },
+      });
+    } catch (error) {
+      console.error('Get short videos feed error:', error);
+      res.status(500).json({ success: false, message: '获取视频流失败' });
+    }
+  });
+
+  // 获取单个短视频详情
+  app.get('/api/short-videos/:id', optionalUserAuth, async (req: Request, res: Response) => {
+    try {
+      const videoId = parseInt(req.params.id);
+      const userId = req.user?.id;
+
+      const [video] = await db
+        .select({
+          id: shortVideos.id,
+          videoUrl: shortVideos.videoUrl,
+          hlsUrl: shortVideos.hlsUrl,
+          coverImageUrl: shortVideos.coverImageUrl,
+          duration: shortVideos.duration,
+          title: shortVideos.title,
+          description: shortVideos.description,
+          hashtags: shortVideos.hashtags,
+          locationName: shortVideos.locationName,
+          viewCount: shortVideos.viewCount,
+          likeCount: shortVideos.likeCount,
+          commentCount: shortVideos.commentCount,
+          shareCount: shortVideos.shareCount,
+          createdAt: shortVideos.createdAt,
+          creatorUserId: shortVideos.creatorUserId,
+          storeId: shortVideos.storeId,
+          campaignId: shortVideos.campaignId,
+          creatorName: users.displayName,
+          creatorAvatar: users.avatarUrl,
+        })
+        .from(shortVideos)
+        .leftJoin(users, eq(shortVideos.creatorUserId, users.id))
+        .where(eq(shortVideos.id, videoId));
+
+      if (!video) {
+        return res.status(404).json({ success: false, message: '视频不存在' });
+      }
+
+      // 增加观看次数
+      await db
+        .update(shortVideos)
+        .set({ viewCount: sql`${shortVideos.viewCount} + 1` })
+        .where(eq(shortVideos.id, videoId));
+
+      // 检查是否已点赞
+      let isLiked = false;
+      if (userId) {
+        const [like] = await db
+          .select()
+          .from(shortVideoLikes)
+          .where(and(
+            eq(shortVideoLikes.videoId, videoId),
+            eq(shortVideoLikes.userId, userId)
+          ));
+        isLiked = !!like;
+      }
+
+      res.json({
+        success: true,
+        data: { ...video, isLiked },
+      });
+    } catch (error) {
+      console.error('Get short video detail error:', error);
+      res.status(500).json({ success: false, message: '获取视频详情失败' });
+    }
+  });
+
+  // 上传短视频
+  app.post('/api/short-videos', userAuthMiddleware, upload.fields([
+    { name: 'video', maxCount: 1 },
+    { name: 'cover', maxCount: 1 },
+    { name: 'thumbnail', maxCount: 1 },
+  ]), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const files = req.files as { [key: string]: Express.Multer.File[] };
+      
+      if (!files.video || !files.video[0]) {
+        return res.status(400).json({ success: false, message: '请上传视频文件' });
+      }
+
+      const videoFile = files.video[0];
+      const coverFile = files.cover?.[0];
+      const thumbnailFile = files.thumbnail?.[0];
+
+      const timestamp = Date.now();
+      const randomStr = nanoid(8);
+
+      // 上传视频
+      const videoExt = videoFile.originalname.split('.').pop();
+      const videoObjectName = `short-videos/${userId}/${timestamp}-${randomStr}.${videoExt}`;
+      const videoUrl = await getOssService().uploadFile(
+        videoObjectName,
+        videoFile.buffer,
+        videoFile.mimetype
+      );
+
+      // 上传封面图（如果有）
+      let coverImageUrl: string | undefined;
+      if (coverFile) {
+        const coverExt = coverFile.originalname.split('.').pop();
+        const coverObjectName = `short-videos/${userId}/${timestamp}-${randomStr}-cover.${coverExt}`;
+        coverImageUrl = await getOssService().uploadFile(
+          coverObjectName,
+          coverFile.buffer,
+          coverFile.mimetype
+        );
+      }
+
+      // 上传缩略图（如果有）
+      let thumbnailUrl: string | undefined;
+      if (thumbnailFile) {
+        const thumbExt = thumbnailFile.originalname.split('.').pop();
+        const thumbObjectName = `short-videos/${userId}/${timestamp}-${randomStr}-thumb.${thumbExt}`;
+        thumbnailUrl = await getOssService().uploadFile(
+          thumbObjectName,
+          thumbnailFile.buffer,
+          thumbnailFile.mimetype
+        );
+      }
+
+      // 解析请求体
+      const { title, description, hashtags, locationName, storeId, campaignId, isPublic } = req.body;
+
+      // 创建短视频记录
+      const [newVideo] = await db.insert(shortVideos).values({
+        creatorUserId: userId,
+        videoUrl,
+        coverImageUrl,
+        thumbnailUrl,
+        title: title || null,
+        description: description || null,
+        hashtags: hashtags ? JSON.parse(hashtags) : null,
+        locationName: locationName || null,
+        storeId: storeId ? parseInt(storeId) : null,
+        campaignId: campaignId ? parseInt(campaignId) : null,
+        status: 'ready', // 临时直接设为ready，后续接入MPS转码后改为processing
+        isPublic: isPublic !== 'false',
+        publishedAt: new Date(),
+        fileSize: videoFile.size,
+      }).returning();
+
+      res.json({
+        success: true,
+        data: newVideo,
+      });
+    } catch (error) {
+      console.error('Upload short video error:', error);
+      res.status(500).json({ success: false, message: '上传视频失败' });
+    }
+  });
+
+  // 点赞/取消点赞短视频
+  app.post('/api/short-videos/:id/like', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const videoId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      // 检查是否已点赞
+      const [existingLike] = await db
+        .select()
+        .from(shortVideoLikes)
+        .where(and(
+          eq(shortVideoLikes.videoId, videoId),
+          eq(shortVideoLikes.userId, userId)
+        ));
+
+      if (existingLike) {
+        // 取消点赞
+        await db
+          .delete(shortVideoLikes)
+          .where(eq(shortVideoLikes.id, existingLike.id));
+        
+        await db
+          .update(shortVideos)
+          .set({ likeCount: sql`GREATEST(${shortVideos.likeCount} - 1, 0)` })
+          .where(eq(shortVideos.id, videoId));
+
+        res.json({ success: true, liked: false });
+      } else {
+        // 添加点赞
+        await db.insert(shortVideoLikes).values({
+          videoId,
+          userId,
+        });
+
+        await db
+          .update(shortVideos)
+          .set({ likeCount: sql`${shortVideos.likeCount} + 1` })
+          .where(eq(shortVideos.id, videoId));
+
+        res.json({ success: true, liked: true });
+      }
+    } catch (error) {
+      console.error('Like short video error:', error);
+      res.status(500).json({ success: false, message: '操作失败' });
+    }
+  });
+
+  // 获取短视频评论
+  app.get('/api/short-videos/:id/comments', async (req: Request, res: Response) => {
+    try {
+      const videoId = parseInt(req.params.id);
+      const cursor = req.query.cursor ? parseInt(req.query.cursor as string) : 0;
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+
+      const comments = await db
+        .select({
+          id: shortVideoComments.id,
+          content: shortVideoComments.content,
+          likeCount: shortVideoComments.likeCount,
+          createdAt: shortVideoComments.createdAt,
+          parentId: shortVideoComments.parentId,
+          userId: shortVideoComments.userId,
+          userName: users.displayName,
+          userAvatar: users.avatarUrl,
+        })
+        .from(shortVideoComments)
+        .leftJoin(users, eq(shortVideoComments.userId, users.id))
+        .where(eq(shortVideoComments.videoId, videoId))
+        .orderBy(desc(shortVideoComments.createdAt))
+        .offset(cursor)
+        .limit(limit + 1);
+
+      const hasMore = comments.length > limit;
+      const items = hasMore ? comments.slice(0, limit) : comments;
+
+      res.json({
+        success: true,
+        data: {
+          items,
+          nextCursor: hasMore ? cursor + limit : null,
+          hasMore,
+        },
+      });
+    } catch (error) {
+      console.error('Get short video comments error:', error);
+      res.status(500).json({ success: false, message: '获取评论失败' });
+    }
+  });
+
+  // 发表评论
+  app.post('/api/short-videos/:id/comments', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const videoId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      const { content, parentId } = req.body;
+
+      if (!content || content.trim().length === 0) {
+        return res.status(400).json({ success: false, message: '评论内容不能为空' });
+      }
+
+      const [newComment] = await db.insert(shortVideoComments).values({
+        videoId,
+        userId,
+        content: content.trim(),
+        parentId: parentId ? parseInt(parentId) : null,
+      }).returning();
+
+      // 更新评论计数
+      await db
+        .update(shortVideos)
+        .set({ commentCount: sql`${shortVideos.commentCount} + 1` })
+        .where(eq(shortVideos.id, videoId));
+
+      // 获取用户信息
+      const [user] = await db
+        .select({ displayName: users.displayName, avatarUrl: users.avatarUrl })
+        .from(users)
+        .where(eq(users.id, userId));
+
+      res.json({
+        success: true,
+        data: {
+          ...newComment,
+          userName: user?.displayName,
+          userAvatar: user?.avatarUrl,
+        },
+      });
+    } catch (error) {
+      console.error('Post short video comment error:', error);
+      res.status(500).json({ success: false, message: '发表评论失败' });
+    }
+  });
+
+  // 获取创作者的短视频列表
+  app.get('/api/creator/short-videos', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const status = req.query.status as string || undefined;
+
+      let query = db
+        .select()
+        .from(shortVideos)
+        .where(eq(shortVideos.creatorUserId, userId))
+        .orderBy(desc(shortVideos.createdAt));
+
+      if (status) {
+        query = db
+          .select()
+          .from(shortVideos)
+          .where(and(
+            eq(shortVideos.creatorUserId, userId),
+            eq(shortVideos.status, status as any)
+          ))
+          .orderBy(desc(shortVideos.createdAt));
+      }
+
+      const videos = await query;
+
+      res.json({
+        success: true,
+        data: videos,
+      });
+    } catch (error) {
+      console.error('Get creator short videos error:', error);
+      res.status(500).json({ success: false, message: '获取视频列表失败' });
+    }
+  });
+
+  // 删除短视频
+  app.delete('/api/short-videos/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const videoId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      // 验证所有权
+      const [video] = await db
+        .select()
+        .from(shortVideos)
+        .where(and(
+          eq(shortVideos.id, videoId),
+          eq(shortVideos.creatorUserId, userId)
+        ));
+
+      if (!video) {
+        return res.status(404).json({ success: false, message: '视频不存在或无权限删除' });
+      }
+
+      // 软删除：更新状态为deleted
+      await db
+        .update(shortVideos)
+        .set({ status: 'deleted', isPublic: false })
+        .where(eq(shortVideos.id, videoId));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Delete short video error:', error);
+      res.status(500).json({ success: false, message: '删除视频失败' });
     }
   });
 

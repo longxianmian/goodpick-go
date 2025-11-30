@@ -543,3 +543,106 @@ export const insertPromotionEarningSchema = createInsertSchema(promotionEarnings
 });
 export type InsertPromotionEarning = z.infer<typeof insertPromotionEarningSchema>;
 export type PromotionEarning = typeof promotionEarnings.$inferSelect;
+
+// ============================================
+// 抖音式短视频系统
+// ============================================
+
+// 短视频状态枚举
+export const shortVideoStatusEnum = pgEnum('short_video_status', [
+  'processing',   // 视频转码处理中
+  'ready',        // 可播放
+  'failed',       // 处理失败
+  'deleted',      // 已删除
+]);
+
+// 短视频表
+export const shortVideos = pgTable('short_videos', {
+  id: serial('id').primaryKey(),
+  creatorUserId: integer('creator_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  
+  // 视频媒体资源
+  videoUrl: text('video_url').notNull(),         // 原始视频URL（MP4）
+  hlsUrl: text('hls_url'),                        // HLS流URL (m3u8)，由阿里云MPS转码生成
+  coverImageUrl: text('cover_image_url'),         // 封面图（大图）
+  thumbnailUrl: text('thumbnail_url'),            // 缩略图（列表用小图）
+  
+  // 视频元数据
+  duration: integer('duration'),                  // 视频时长（秒）
+  width: integer('width'),                        // 视频宽度
+  height: integer('height'),                      // 视频高度
+  fileSize: integer('file_size'),                 // 文件大小（字节）
+  
+  // 内容信息
+  title: text('title'),                           // 视频标题（可选）
+  description: text('description'),               // 视频描述
+  hashtags: text('hashtags').array(),             // 话题标签
+  locationName: text('location_name'),            // 位置名称
+  locationLat: decimal('location_lat', { precision: 10, scale: 7 }),
+  locationLng: decimal('location_lng', { precision: 10, scale: 7 }),
+  
+  // 关联推广
+  storeId: integer('store_id').references(() => stores.id, { onDelete: 'set null' }),
+  campaignId: integer('campaign_id').references(() => campaigns.id, { onDelete: 'set null' }),
+  
+  // 状态与统计
+  status: shortVideoStatusEnum('status').notNull().default('processing'),
+  isPublic: boolean('is_public').notNull().default(true),
+  viewCount: integer('view_count').notNull().default(0),
+  likeCount: integer('like_count').notNull().default(0),
+  commentCount: integer('comment_count').notNull().default(0),
+  shareCount: integer('share_count').notNull().default(0),
+  
+  // 时间戳
+  publishedAt: timestamp('published_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertShortVideoSchema = createInsertSchema(shortVideos).omit({
+  id: true,
+  viewCount: true,
+  likeCount: true,
+  commentCount: true,
+  shareCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertShortVideo = z.infer<typeof insertShortVideoSchema>;
+export type ShortVideo = typeof shortVideos.$inferSelect;
+
+// 短视频点赞表
+export const shortVideoLikes = pgTable('short_video_likes', {
+  id: serial('id').primaryKey(),
+  videoId: integer('video_id').notNull().references(() => shortVideos.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqVideoUser: unique().on(table.videoId, table.userId),
+}));
+
+export const insertShortVideoLikeSchema = createInsertSchema(shortVideoLikes).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertShortVideoLike = z.infer<typeof insertShortVideoLikeSchema>;
+export type ShortVideoLike = typeof shortVideoLikes.$inferSelect;
+
+// 短视频评论表
+export const shortVideoComments = pgTable('short_video_comments', {
+  id: serial('id').primaryKey(),
+  videoId: integer('video_id').notNull().references(() => shortVideos.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  content: text('content').notNull(),
+  parentId: integer('parent_id').references((): any => shortVideoComments.id, { onDelete: 'cascade' }),
+  likeCount: integer('like_count').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertShortVideoCommentSchema = createInsertSchema(shortVideoComments).omit({
+  id: true,
+  likeCount: true,
+  createdAt: true,
+});
+export type InsertShortVideoComment = z.infer<typeof insertShortVideoCommentSchema>;
+export type ShortVideoComment = typeof shortVideoComments.$inferSelect;
