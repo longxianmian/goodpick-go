@@ -477,6 +477,7 @@ export const creatorContents = pgTable('creator_contents', {
   id: serial('id').primaryKey(),
   creatorUserId: integer('creator_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   contentType: contentTypeEnum('content_type').notNull().default('video'),
+  category: text('category'),  // 视频分类: funny, musicDance, drama, daily, healing, food, beauty, games
   title: text('title').notNull(),
   description: text('description'),
   mediaUrls: text('media_urls').array(),
@@ -576,6 +577,7 @@ export const shortVideos = pgTable('short_videos', {
   // 内容信息
   title: text('title'),                           // 视频标题（可选）
   description: text('description'),               // 视频描述
+  category: text('category'),                     // 视频分类: funny, musicDance, drama, daily, healing, food, beauty, games
   hashtags: text('hashtags').array(),             // 话题标签
   locationName: text('location_name'),            // 位置名称
   locationLat: decimal('location_lat', { precision: 10, scale: 7 }),
