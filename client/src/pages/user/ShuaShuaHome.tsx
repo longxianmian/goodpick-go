@@ -46,7 +46,6 @@ function ContentCard({ campaign, index }: { campaign: CampaignWithStores; index:
   const { language, t } = useLanguage();
   const [liked, setLiked] = useState(false);
   const [likeCount] = useState(() => Math.floor(Math.random() * 2000) + 100);
-  const [commentCount] = useState(() => Math.floor(Math.random() * 500) + 50);
   
   const gradientClass = GRADIENT_COLORS[index % GRADIENT_COLORS.length];
   
@@ -78,13 +77,11 @@ function ContentCard({ campaign, index }: { campaign: CampaignWithStores; index:
   return (
     <Link href={`/campaign/${campaign.id}`}>
       <div 
-        className="bg-card rounded-xl overflow-hidden flex flex-col cursor-pointer shadow-sm hover:shadow-md transition-shadow duration-200"
+        className="bg-card rounded-xl overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-shadow duration-200"
+        style={{ aspectRatio: '1 / 1.618' }}
         data-testid={`card-feed-${campaign.id}`}
       >
-        <div 
-          className="relative w-full overflow-hidden"
-          style={{ aspectRatio: '1 / 1.618' }}
-        >
+        <div className="relative w-full h-[65%] overflow-hidden">
           {campaign.bannerImageUrl ? (
             <>
               <img 
@@ -103,8 +100,8 @@ function ContentCard({ campaign, index }: { campaign: CampaignWithStores; index:
           ) : (
             <div className={`w-full h-full bg-gradient-to-br ${gradientClass} flex items-center justify-center`}>
               <div className="text-center text-white/90">
-                <Sparkles className="w-8 h-8 mx-auto mb-2 opacity-80" />
-                <span className="text-xs font-medium opacity-70">{t('feed.specialOffer')}</span>
+                <Sparkles className="w-6 h-6 mx-auto mb-1 opacity-80" />
+                <span className="text-[10px] font-medium opacity-70">{t('feed.specialOffer')}</span>
               </div>
             </div>
           )}
@@ -112,7 +109,7 @@ function ContentCard({ campaign, index }: { campaign: CampaignWithStores; index:
           {campaign.discountType && (
             <Badge 
               variant="secondary" 
-              className="absolute top-2 left-2 bg-red-500 text-white border-0 text-[10px] px-1.5 py-0.5"
+              className="absolute top-1.5 left-1.5 bg-red-500 text-white border-0 text-[9px] px-1.5 py-0.5"
             >
               {campaign.discountType === 'percentage_off' 
                 ? `-${campaign.couponValue}%` 
@@ -123,41 +120,33 @@ function ContentCard({ campaign, index }: { campaign: CampaignWithStores; index:
           )}
         </div>
 
-        <div className="p-2.5 flex flex-col gap-2">
+        <div className="h-[35%] p-2 flex flex-col justify-between">
           <h3 
-            className="text-xs font-medium text-foreground line-clamp-2 leading-snug min-h-[2.5em]"
+            className="text-[11px] font-medium text-foreground line-clamp-2 leading-tight"
             data-testid={`text-feed-title-${campaign.id}`}
           >
             {getTitle()}
           </h3>
           
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 min-w-0 flex-1">
-              <Avatar className="w-5 h-5 flex-shrink-0 ring-1 ring-border">
+          <div className="flex items-center justify-between mt-auto">
+            <div className="flex items-center gap-1 min-w-0 flex-1">
+              <Avatar className="w-4 h-4 flex-shrink-0">
                 <AvatarImage src={storeAvatar || undefined} />
-                <AvatarFallback className="text-[8px] bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 text-foreground">
+                <AvatarFallback className="text-[7px] bg-muted">
                   {storeName.charAt(0)}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex flex-col leading-none min-w-0">
-                <span className="text-[10px] text-foreground font-medium truncate max-w-[80px]">{storeName}</span>
-                <span className="text-[9px] text-muted-foreground truncate flex items-center gap-0.5">
-                  <MapPin className="w-2.5 h-2.5" />
-                  {cityName}
-                </span>
-              </div>
+              <span className="text-[9px] text-muted-foreground truncate">{storeName}</span>
             </div>
             
-            <div className="flex items-center gap-2 text-[10px] text-muted-foreground flex-shrink-0">
-              <button
-                onClick={handleLike}
-                className="flex items-center gap-0.5 transition-colors"
-                data-testid={`button-like-${campaign.id}`}
-              >
-                <Heart className={`w-3.5 h-3.5 transition-all ${liked ? 'fill-red-500 text-red-500 scale-110' : ''}`} />
-                <span className={liked ? 'text-red-500' : ''}>{formatNumber(likeCount + (liked ? 1 : 0))}</span>
-              </button>
-            </div>
+            <button
+              onClick={handleLike}
+              className="flex items-center gap-0.5 text-[9px] text-muted-foreground"
+              data-testid={`button-like-${campaign.id}`}
+            >
+              <Heart className={`w-3 h-3 ${liked ? 'fill-red-500 text-red-500' : ''}`} />
+              <span className={liked ? 'text-red-500' : ''}>{formatNumber(likeCount + (liked ? 1 : 0))}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -165,21 +154,23 @@ function ContentCard({ campaign, index }: { campaign: CampaignWithStores; index:
   );
 }
 
-function ContentSkeleton({ index }: { index: number }) {
+function ContentSkeleton() {
   return (
-    <div className="bg-card rounded-xl overflow-hidden flex flex-col shadow-sm">
-      <div 
-        className="w-full"
-        style={{ aspectRatio: '1 / 1.618' }}
-      >
+    <div 
+      className="bg-card rounded-xl overflow-hidden shadow-sm"
+      style={{ aspectRatio: '1 / 1.618' }}
+    >
+      <div className="w-full h-[65%]">
         <Skeleton className="w-full h-full" />
       </div>
-      <div className="p-2.5 space-y-2">
-        <Skeleton className="h-3 w-full" />
-        <Skeleton className="h-3 w-2/3" />
-        <div className="flex items-center gap-2 pt-1">
-          <Skeleton className="w-5 h-5 rounded-full" />
-          <Skeleton className="h-2.5 w-16" />
+      <div className="h-[35%] p-2 flex flex-col justify-between">
+        <div className="space-y-1">
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-2/3" />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Skeleton className="w-4 h-4 rounded-full" />
+          <Skeleton className="h-2 w-12" />
         </div>
       </div>
     </div>
@@ -269,13 +260,11 @@ export default function ShuaShuaHome() {
         </div>
       </div>
 
-      <main className="px-2 pt-2 pb-4">
+      <main className="px-2 pt-2 pb-4 max-w-md mx-auto">
         {isLoading ? (
-          <div className="columns-2 gap-2 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
             {[0, 1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="break-inside-avoid mb-2">
-                <ContentSkeleton index={i} />
-              </div>
+              <ContentSkeleton key={i} />
             ))}
           </div>
         ) : campaigns.length === 0 ? (
@@ -287,11 +276,9 @@ export default function ShuaShuaHome() {
             <p className="text-muted-foreground/70 text-xs mt-1">{t('feed.checkBackLater')}</p>
           </div>
         ) : (
-          <div className="columns-2 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {campaigns.map((campaign, index) => (
-              <div key={campaign.id} className="break-inside-avoid mb-2">
-                <ContentCard campaign={campaign} index={index} />
-              </div>
+              <ContentCard key={campaign.id} campaign={campaign} index={index} />
             ))}
           </div>
         )}
