@@ -35,6 +35,7 @@ import IncomeRecords from "@/pages/creator/IncomeRecords";
 import PaymentSettings from "@/pages/creator/PaymentSettings";
 import CreatorNotifications from "@/pages/creator/CreatorNotifications";
 import AccountSecurity from "@/pages/creator/AccountSecurity";
+import DevLogin from "@/pages/dev/DevLogin";
 import LanguageSettings from "@/pages/user/LanguageSettings";
 import SettingsPage from "@/pages/user/SettingsPage";
 import HelpPage from "@/pages/user/HelpPage";
@@ -162,6 +163,8 @@ function Router() {
       <Route path="/" component={ShuaShuaHome} />
       <Route path="/shop" component={ShopHome} />
       <Route path="/me" component={RoleBasedMe} />
+      {/* 开发环境 - 测试登录 */}
+      <Route path="/dev/login" component={DevLogin} />
       {/* 开发预览 - 直接访问各角色个人中心 */}
       <Route path="/dev/me/consumer" component={UserCenter} />
       <Route path="/dev/me/owner" component={MeOwner} />

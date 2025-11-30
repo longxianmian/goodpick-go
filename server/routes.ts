@@ -17,6 +17,7 @@ import { createCampaignBroadcast, runBroadcastTask } from './services/broadcastS
 import { mapLineLangToPreferredLang } from './utils/language';
 import type { Admin, User } from '@shared/schema';
 import { nanoid } from 'nanoid';
+import { TEST_ACCOUNTS, isTestAccount } from '@shared/testAccounts';
 
 // Extend express-session types
 declare module 'express-session' {
@@ -542,6 +543,81 @@ export function registerRoutes(app: Express): Server {
       res.status(500).json({ success: false, message: 'Login failed' });
     }
   });
+
+  // ============ 开发环境测试登录（仅限开发环境 + 测试账号） ============
+  // 安全措施：
+  // 1. 只在非生产环境可用
+  // 2. 只允许预定义的测试账号列表
+  // 3. 所有调用都记录日志
+  if (process.env.NODE_ENV !== 'production') {
+    app.post('/api/auth/dev-login', async (req: Request, res: Response) => {
+      console.warn('[DEV LOGIN] ⚠️ 开发环境测试登录被调用 - 这个端点在生产环境不可用');
+      
+      try {
+        const { lineUserId } = req.body;
+        
+        if (!lineUserId) {
+          return res.status(400).json({ success: false, message: 'lineUserId is required' });
+        }
+
+        // 安全检查：只允许预定义的测试账号
+        if (!isTestAccount(lineUserId)) {
+          console.warn(`[DEV LOGIN] 拒绝非测试账号登录尝试: ${lineUserId}`);
+          return res.status(403).json({ success: false, message: 'Only test accounts allowed' });
+        }
+
+        const testAccount = TEST_ACCOUNTS.find(acc => acc.lineUserId === lineUserId);
+        
+        // 查找或创建测试用户
+        let [existingUser] = await db
+          .select()
+          .from(users)
+          .where(eq(users.lineUserId, lineUserId))
+          .limit(1);
+
+        if (!existingUser) {
+          [existingUser] = await db
+            .insert(users)
+            .values({
+              lineUserId: lineUserId,
+              displayName: testAccount?.displayName || 'Test User',
+              language: 'zh-cn',
+            })
+            .returning();
+          console.log(`[DEV LOGIN] 创建测试用户: ${existingUser.displayName}`);
+        }
+
+        const token = jwt.sign(
+          {
+            id: existingUser.id,
+            lineUserId: existingUser.lineUserId,
+            type: 'user' as const,
+          },
+          JWT_SECRET_VALUE,
+          { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
+        );
+
+        console.log(`[DEV LOGIN] ✅ 测试账号登录成功: ${existingUser.displayName} (${existingUser.lineUserId})`);
+
+        res.json({
+          success: true,
+          token,
+          user: {
+            id: existingUser.id,
+            lineUserId: existingUser.lineUserId,
+            displayName: existingUser.displayName,
+            avatarUrl: existingUser.avatarUrl,
+            language: existingUser.language,
+          },
+        });
+      } catch (error) {
+        console.error('[DEV LOGIN] 登录失败:', error);
+        res.status(500).json({ success: false, message: 'Dev login failed' });
+      }
+    });
+    
+    console.log('📌 开发环境测试登录端点已启用: POST /api/auth/dev-login');
+  }
 
   // LINE OAuth 初始化（H5 用）
 
