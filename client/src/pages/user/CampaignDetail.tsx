@@ -641,11 +641,17 @@ export default function CampaignDetail() {
                     </div>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <Link href={`/merchant`}>
-                      <Button size="sm" className="h-7 text-xs">
+                    {campaign.stores?.[0]?.id ? (
+                      <Link href={`/store/${campaign.stores[0].id}`}>
+                        <Button size="sm" className="h-7 text-xs">
+                          {t('productDetail.enterStore')}
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Button size="sm" className="h-7 text-xs" disabled>
                         {t('productDetail.enterStore')}
                       </Button>
-                    </Link>
+                    )}
                     <Button size="sm" variant="outline" className="h-7 text-xs text-destructive border-destructive">
                       {t('productDetail.getCoupon', { amount: '20' })}
                     </Button>

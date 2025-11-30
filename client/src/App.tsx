@@ -27,6 +27,7 @@ import HelpPage from "@/pages/user/HelpPage";
 import AboutPage from "@/pages/user/AboutPage";
 import MerchantHome from "@/pages/merchant/MerchantHome";
 import MerchantOperations from "@/pages/merchant/MerchantOperations";
+import StoreFront from "@/pages/user/StoreFront";
 import AdminPaymentSettings from "@/pages/admin/AdminPaymentSettings";
 import PaymentPage from "@/pages/user/PaymentPage";
 import PaymentSuccess from "@/pages/user/PaymentSuccess";
@@ -150,6 +151,8 @@ function Router() {
       <Route path="/settings/language" component={LanguageSettings} />
       <Route path="/help" component={HelpPage} />
       <Route path="/about" component={AboutPage} />
+      {/* 店铺首页 - C端用户视角 */}
+      <Route path="/store/:id" component={StoreFront} />
       {/* 商户端 */}
       <Route path="/merchant" component={MerchantHome} />
       <Route path="/merchant/operations" component={MerchantOperations} />

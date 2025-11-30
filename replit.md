@@ -67,6 +67,21 @@ Security features include bcryptjs for password hashing, JWT secrets from enviro
   - **Store Card**: Avatar, name, rating, product quality/logistics/customer service scores.
   - **Bottom Action Bar**: Store/Service/Cart buttons + Add to Cart + Claim/Buy buttons.
   - **i18n**: Added 40+ new translation keys (productDetail.*) for Chinese, English, and Thai, all parameters converted to strings for type safety.
+- **Store Front Page (C-端商户店铺首页) (2025-11-30)**: Created `StoreFront.tsx` for users clicking "进店" from campaign details:
+  - **Meituan-style Design**: Header with store banner, avatar, name, verification badge.
+  - **Store Stats**: Rating (from database), monthly sales, fans, top seller rank, delivery time (deterministic placeholders based on store.id).
+  - **Coupon Section**: Horizontal scrollable coupon badges (placeholder data with TODO for real integration).
+  - **Service Scores**: Product quality, logistics, and service scores display.
+  - **Tab Navigation**: Menu/Deals/Reviews/Info tabs with corresponding content.
+  - **Menu Tab**: Category sidebar (Recommended/Hot/New) with campaign product cards.
+  - **Deals Tab**: New user benefit banner and campaign deal cards.
+  - **Reviews Tab**: User review list with ratings (placeholder data).
+  - **Info Tab**: Business information, address, phone, hours, qualifications.
+  - **Bottom Action Bar**: Store/Service/Cart buttons + Add to Cart + Buy Now.
+  - **Industry Modules**: Prepared for 4 industry types (Food/Retail/Service/Entertainment) with placeholder support.
+  - **API**: Added `GET /api/stores/:id` public endpoint for store details.
+  - **i18n**: Added 50+ storeFront.* translation keys in Chinese, English, and Thai.
+  - **"进店" Button Fix**: Updated CampaignDetail to conditionally render link (disabled when no store associated).
 
 ## External Dependencies
 

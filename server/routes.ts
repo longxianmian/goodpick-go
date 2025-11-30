@@ -3366,6 +3366,31 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Public: Get single store details (for store front page)
+  app.get('/api/stores/:id', async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      
+      if (isNaN(storeId)) {
+        return res.status(400).json({ success: false, message: '无效的店铺ID' });
+      }
+      
+      const [store] = await db
+        .select()
+        .from(stores)
+        .where(eq(stores.id, storeId));
+      
+      if (!store) {
+        return res.status(404).json({ success: false, message: '店铺不存在' });
+      }
+      
+      res.json({ success: true, data: store });
+    } catch (error) {
+      console.error('Get store error:', error);
+      res.status(500).json({ success: false, message: '获取店铺信息失败' });
+    }
+  });
+
   // Generate store payment QR code page URL
   app.get('/api/stores/:id/pay', async (req: Request, res: Response) => {
     try {
