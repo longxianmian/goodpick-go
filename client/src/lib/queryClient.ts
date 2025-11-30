@@ -17,7 +17,18 @@ export async function apiRequest(
   const adminToken = localStorage.getItem('adminToken');
   const userToken = localStorage.getItem('userToken');
   
-  if (adminToken) {
+  // 根据URL路径选择正确的token
+  // /api/creator/* 和 /api/user/* 和 /api/short-videos/* 需要userToken
+  // /api/admin/* 需要adminToken
+  const isUserRoute = url.includes('/api/creator') || url.includes('/api/user') || 
+                      url.includes('/api/short-videos') || url.includes('/api/me');
+  const isAdminRoute = url.includes('/api/admin');
+  
+  if (isAdminRoute && adminToken) {
+    headers['Authorization'] = `Bearer ${adminToken}`;
+  } else if (isUserRoute && userToken) {
+    headers['Authorization'] = `Bearer ${userToken}`;
+  } else if (adminToken) {
     headers['Authorization'] = `Bearer ${adminToken}`;
   } else if (userToken) {
     headers['Authorization'] = `Bearer ${userToken}`;
@@ -49,7 +60,17 @@ export const getQueryFn: <T>(options: {
     const adminToken = localStorage.getItem('adminToken');
     const userToken = localStorage.getItem('userToken');
     
-    if (adminToken) {
+    // 根据URL路径选择正确的token
+    const url = queryKey[0] as string;
+    const isUserRoute = url.includes('/api/creator') || url.includes('/api/user') || 
+                        url.includes('/api/short-videos') || url.includes('/api/me');
+    const isAdminRoute = url.includes('/api/admin');
+    
+    if (isAdminRoute && adminToken) {
+      headers['Authorization'] = `Bearer ${adminToken}`;
+    } else if (isUserRoute && userToken) {
+      headers['Authorization'] = `Bearer ${userToken}`;
+    } else if (adminToken) {
       headers['Authorization'] = `Bearer ${adminToken}`;
     } else if (userToken) {
       headers['Authorization'] = `Bearer ${userToken}`;
