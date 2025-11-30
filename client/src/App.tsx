@@ -161,6 +161,10 @@ function Router() {
       <Route path="/dev/me/verifier" component={MeVerifier} />
       <Route path="/dev/me/sysadmin" component={MeSysAdmin} />
       <Route path="/dev/me/creator" component={MeCreator} />
+      {/* 刷刷号（创作者）专属路由 */}
+      <Route path="/creator/create" component={MeCreator} />
+      <Route path="/creator/earnings" component={MeCreator} />
+      <Route path="/creator" component={MeCreator} />
       <Route path="/settings/language" component={LanguageSettings} />
       <Route path="/help" component={HelpPage} />
       <Route path="/about" component={AboutPage} />
