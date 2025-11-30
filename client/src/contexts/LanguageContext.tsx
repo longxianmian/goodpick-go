@@ -219,7 +219,7 @@ const translations: Record<Language, Record<string, string>> = {
     'creator.editor.coverHint': '封面图将在刷刷首页和视频列表中展示',
     'creator.editor.coverRequired': '请上传视频封面图',
     'creator.editor.coverUploaded': '封面图上传成功',
-    'creator.editor.category': '视频分类',
+    'creator.editor.category': '内容分类',
     'creator.editor.selectCategory': '选择分类',
     'common.warning': '提示',
     
