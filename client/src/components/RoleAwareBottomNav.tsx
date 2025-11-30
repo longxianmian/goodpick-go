@@ -127,16 +127,16 @@ const roleNavConfigs: Record<UserRoleType, { items: NavItem[], activePath: (loca
     }
   },
   creator: {
-    // 刷刷号（自媒体人）使用与消费者相同的底部导航：刷刷 | 发现 | 我的
+    // 刷刷号（自媒体人）专属管理导航：创作中心 | 内容创作 | 收益中心
     items: [
-      { key: 'feed', path: '/', icon: EyeIcon as any, labelKey: 'bottomNav.feed' },
-      { key: 'discover', path: '/shop', icon: StarIcon as any, labelKey: 'bottomNav.discover' },
-      { key: 'me', path: '/me', icon: PersonIcon as any, labelKey: 'bottomNav.me' },
+      { key: 'creatorDashboard', path: '/creator', icon: Home, labelKey: 'roleNav.creatorDashboard' },
+      { key: 'creatorCreate', path: '/creator/create', icon: Upload, labelKey: 'roleNav.creatorCreate' },
+      { key: 'creatorEarnings', path: '/creator/earnings', icon: BarChart3, labelKey: 'roleNav.creatorEarnings' },
     ],
     activePath: (location: string) => {
-      if (location === '/' || location.startsWith('/campaign/')) return '/';
-      if (location === '/shop' || location.startsWith('/shop/')) return '/shop';
-      if (location === '/me' || location.startsWith('/me/') || location.startsWith('/my-')) return '/me';
+      if (location === '/creator' || location === '/me') return '/creator';
+      if (location.startsWith('/creator/create')) return '/creator/create';
+      if (location.startsWith('/creator/earnings')) return '/creator/earnings';
       return location;
     }
   },

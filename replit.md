@@ -29,6 +29,16 @@ ShuaShua (刷刷) is a multi-merchant O2O local life platform that evolved from 
 | `/dev/me/operator` | 运营人员页面 |
 | `/dev/me/sysadmin` | 系统管理员页面 |
 
+## 各角色底部导航设计
+| 角色 | 底部导航按钮 |
+|------|-------------|
+| 消费者 (consumer) | 刷刷 \| 发现 \| 我的 |
+| 刷刷号 (creator) | 创作中心 \| 内容创作 \| 收益中心 |
+| 商户老板 (owner) | 商户首页 \| 运营数据 \| 我的 |
+| 运营人员 (operator) | 商户首页 \| 运营管理 \| 我的 |
+| 核销员 (verifier) | 核销 \| 活动说明 \| 我的 |
+| 系统管理员 (sysadmin) | 刷刷运营 \| 发现运营 \| 我的 |
+
 ## User Preferences
 语言要求: 必须使用中文沟通（用户不懂英文，这是强制要求）
 Preferred communication style: Simple, everyday language in Chinese.

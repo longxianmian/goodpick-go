@@ -285,7 +285,7 @@ export default function MeCreator() {
         </Card>
       </main>
 
-      <RoleAwareBottomNav />
+      <RoleAwareBottomNav forceRole="creator" />
     </div>
   );
 }
