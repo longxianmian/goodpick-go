@@ -39,7 +39,7 @@ interface FeedResponse {
 const FEED_TABS = ['recommend', 'local'] as const;
 type FeedTabType = typeof FEED_TABS[number];
 
-const CATEGORIES = ['all', 'funny', 'musicDance', 'drama', 'daily', 'healing', 'food', 'beauty', 'more'] as const;
+const CATEGORIES = ['all', 'funny', 'musicDance', 'drama', 'daily', 'healing', 'food', 'beauty', 'games'] as const;
 type CategoryType = typeof CATEGORIES[number];
 
 const GRADIENT_COLORS = [
@@ -203,7 +203,19 @@ export default function ShuaShuaHome() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   
   const { data: feedData, isLoading } = useQuery<FeedResponse>({
-    queryKey: ['/api/short-videos/feed'],
+    queryKey: ['/api/short-videos/feed', activeCategory],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (activeCategory !== 'all') {
+        params.set('category', activeCategory);
+      }
+      const url = `/api/short-videos/feed${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await fetch(url, { credentials: 'include' });
+      if (!response.ok) {
+        throw new Error('Failed to fetch feed');
+      }
+      return response.json();
+    },
   });
 
   const videos = feedData?.data?.items || [];
@@ -214,15 +226,15 @@ export default function ShuaShuaHome() {
   };
 
   const categoryLabels: Record<CategoryType, string> = {
-    all: t('feed.catAll'),
-    funny: t('feed.catFunny'),
-    musicDance: t('feed.catMusicDance'),
-    drama: t('feed.catDrama'),
-    daily: t('feed.catDaily'),
-    healing: t('feed.catHealing'),
-    food: t('feed.catFood'),
-    beauty: t('feed.catBeauty'),
-    more: t('feed.catMore'),
+    all: t('categories.all'),
+    funny: t('categories.funny'),
+    musicDance: t('categories.musicDance'),
+    drama: t('categories.drama'),
+    daily: t('categories.daily'),
+    healing: t('categories.healing'),
+    food: t('categories.food'),
+    beauty: t('categories.beauty'),
+    games: t('categories.games'),
   };
 
   return (
