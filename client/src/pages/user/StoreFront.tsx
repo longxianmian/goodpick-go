@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRoute, Link } from 'wouter';
 import { 
   ArrowLeft, Search, Heart, Share2, Star, MapPin, Clock, Phone, 
-  ShoppingCart, MessageCircle, ChevronRight, Ticket, Gift, 
+  ShoppingCart, MessageCircle, ChevronRight, Ticket, Gift, Plus,
   Utensils, ShoppingBag, Scissors, Gamepad2, Store as StoreIcon,
   Users, Award, TrendingUp, Check
 } from 'lucide-react';
@@ -233,8 +233,9 @@ function ServiceScores() {
   );
 }
 
-function MenuTab({ campaigns }: { campaigns: Campaign[] }) {
+function MenuTab({ campaigns, storeId }: { campaigns: Campaign[]; storeId: number }) {
   const { t, language } = useLanguage();
+  const [activeCategory, setActiveCategory] = useState('newShopWelfare');
   
   const getTitle = (campaign: Campaign) => {
     if (language === 'zh-cn') return campaign.titleZh || campaign.titleSource;
@@ -243,82 +244,180 @@ function MenuTab({ campaigns }: { campaigns: Campaign[] }) {
   };
 
   const categories = [
-    { key: 'recommend', icon: Award, label: t('storeFront.catRecommend') },
-    { key: 'hot', icon: TrendingUp, label: t('storeFront.catHot') },
-    { key: 'new', icon: Gift, label: t('storeFront.catNew') },
+    { key: 'newShopWelfare', label: t('storeFront.menu.newShopWelfare') },
+    { key: 'chefSpecial', label: t('storeFront.menu.chefSpecial') },
+    { key: 'chefSignature', label: t('storeFront.menu.chefSignature') },
+    { key: 'seasonal', label: t('storeFront.menu.seasonal') },
+    { key: 'stirFry', label: t('storeFront.menu.stirFry') },
+    { key: 'staples', label: t('storeFront.menu.staples') },
+    { key: 'drinks', label: t('storeFront.menu.drinks') },
+    { key: 'liveSets', label: t('storeFront.menu.liveSets') },
+    { key: 'recommend', label: t('storeFront.menu.recommend') },
   ];
 
+  const generateMenuItems = () => {
+    if (campaigns.length === 0) return [];
+    // Generate more items to ensure all categories have content
+    const items: Array<{
+      id: number;
+      name: string;
+      image: string | null;
+      monthlySales: number;
+      reviewCount: number;
+      reviewText: string;
+      discount: number;
+      price: number;
+      originalPrice: number;
+      tag: string | null;
+      hasSpecs: boolean;
+      categoryKey: string;
+    }> = [];
+    
+    campaigns.forEach((campaign, campaignIndex) => {
+      // Generate multiple items per campaign for different categories
+      categories.forEach((cat, catIndex) => {
+        const index = campaignIndex * categories.length + catIndex;
+        const basePrice = Number(campaign.couponValue) || 10;
+        const monthlySales = 100 + (storeId * 37 + index * 73) % 400;
+        const reviewCount = 5 + (storeId * 13 + index * 17) % 30;
+        const discount = 70 + (index * 7) % 25;
+        const originalPrice = Math.round(Number(basePrice) * 100 / discount);
+        const hasSpecs = index % 3 === 2;
+        
+        items.push({
+          id: campaign.id * 100 + catIndex,
+          name: getTitle(campaign),
+          image: campaign.bannerImageUrl,
+          monthlySales,
+          reviewCount,
+          reviewText: t('storeFront.menu.portionGood'),
+          discount,
+          price: basePrice + catIndex * 2,
+          originalPrice,
+          tag: index % 2 === 1 ? t('storeFront.menu.singleNoDelivery') : null,
+          hasSpecs,
+          categoryKey: cat.key,
+        });
+      });
+    });
+    
+    return items;
+  };
+
+  const menuItems = generateMenuItems();
+  const filteredItems = activeCategory === 'newShopWelfare' 
+    ? menuItems.slice(0, 8) 
+    : menuItems.filter(item => item.categoryKey === activeCategory);
+
   return (
-    <div className="flex gap-4 p-4">
-      <div className="w-20 flex-shrink-0 space-y-2">
-        {categories.map((cat, i) => (
-          <Button
+    <div className="flex h-[calc(100vh-280px)]">
+      <div className="w-20 flex-shrink-0 bg-muted/30 overflow-y-auto">
+        {categories.map((cat) => (
+          <button
             key={cat.key}
-            variant={i === 0 ? "default" : "ghost"}
-            size="sm"
-            className="w-full justify-start text-xs h-8"
+            onClick={() => setActiveCategory(cat.key)}
+            className={`w-full py-3 px-2 text-xs text-left border-l-2 transition-colors ${
+              activeCategory === cat.key
+                ? 'bg-background border-l-orange-500 text-foreground font-medium'
+                : 'border-l-transparent text-muted-foreground hover:bg-background/50'
+            }`}
+            data-testid={`menu-category-${cat.key}`}
           >
-            <cat.icon className="w-3.5 h-3.5 mr-1" />
             {cat.label}
-          </Button>
+          </button>
         ))}
       </div>
 
-      <div className="flex-1 space-y-3">
-        {campaigns.length > 0 ? (
-          campaigns.slice(0, 5).map((campaign) => (
-            <Link key={campaign.id} href={`/campaign/${campaign.id}`}>
-              <Card className="flex gap-3 p-3 hover-elevate active-elevate-2">
-                <div className="w-20 h-20 rounded-md overflow-hidden flex-shrink-0 bg-muted">
-                  {campaign.bannerImageUrl ? (
-                    <img 
-                      src={campaign.bannerImageUrl} 
-                      alt={getTitle(campaign)}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Ticket className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-sm line-clamp-2">{getTitle(campaign)}</h4>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="secondary" className="text-[10px]">
-                      {campaign.discountType === 'percentage_off' 
-                        ? t('storeFront.discountOff', { percent: String(campaign.couponValue) })
-                        : t('storeFront.cashOff', { amount: String(campaign.couponValue) })
-                      }
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-destructive font-bold">
-                      {campaign.discountType === 'percentage_off' 
-                        ? `${campaign.couponValue}% OFF`
-                        : `฿${campaign.couponValue}`
-                      }
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {t('storeFront.sold', { count: String(Math.floor(Math.random() * 500) + 50) })}
-                    </span>
-                  </div>
-                </div>
-              </Card>
-            </Link>
-          ))
-        ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            <Ticket className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>{t('storeFront.noProducts')}</p>
+      <div className="flex-1 overflow-y-auto">
+        {activeCategory === 'newShopWelfare' && (
+          <div className="px-3 py-2 text-xs text-muted-foreground bg-orange-50 dark:bg-orange-950/20">
+            {t('storeFront.menu.warmTip')}
           </div>
         )}
+        
+        <div className="divide-y divide-border">
+          {filteredItems.length > 0 ? (
+            filteredItems.map((item) => (
+              <Link key={item.id} href={`/campaign/${item.id}`}>
+                <div className="flex gap-3 p-3 hover:bg-muted/30 active:bg-muted/50 transition-colors" data-testid={`menu-item-${item.id}`}>
+                  <div className="w-20 h-20 rounded-md overflow-hidden flex-shrink-0 bg-muted">
+                    {item.image ? (
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Ticket className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div>
+                      <h4 className="font-medium text-sm line-clamp-2">{item.name}</h4>
+                      <div className="flex items-center gap-1 mt-1 text-[11px] text-muted-foreground">
+                        <span>{t('storeFront.menu.monthlySales', { count: String(item.monthlySales) })}</span>
+                      </div>
+                      <div className="flex items-center gap-1 mt-0.5 text-[11px] text-orange-500">
+                        <span>{t('storeFront.menu.reviewCount', { count: String(item.reviewCount) })}{item.reviewText}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 flex-wrap mt-1">
+                      <Badge className="text-[10px] px-1 py-0 h-4 bg-orange-100 text-orange-600 border-0 dark:bg-orange-900/30">
+                        {t('storeFront.menu.discount', { percent: String(item.discount / 10) })}
+                      </Badge>
+                      {item.tag && (
+                        <span className="text-[10px] text-muted-foreground">{item.tag}</span>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center justify-between mt-1">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-destructive font-bold text-base">
+                          {t('common.currencySymbol')}{item.price}
+                        </span>
+                        <span className="text-xs text-muted-foreground line-through">
+                          {t('common.currencySymbol')}{item.originalPrice}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex-shrink-0 flex items-end pb-1">
+                    {item.hasSpecs ? (
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-7 text-xs border-orange-500 text-orange-500"
+                        data-testid={`button-menu-specs-${item.id}`}
+                      >
+                        {t('storeFront.menu.selectSpecs')}
+                      </Button>
+                    ) : (
+                      <Button 
+                        size="icon" 
+                        className="h-7 w-7 rounded-full bg-orange-500 hover:bg-orange-600"
+                        data-testid={`button-menu-add-${item.id}`}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            ))
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Ticket className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>{t('storeFront.noProducts')}</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function DealsTab({ campaigns }: { campaigns: Campaign[] }) {
+function DealsTab({ campaigns, storeId }: { campaigns: Campaign[]; storeId: number }) {
   const { t, language } = useLanguage();
   
   const getTitle = (campaign: Campaign) => {
@@ -327,38 +426,147 @@ function DealsTab({ campaigns }: { campaigns: Campaign[] }) {
     return campaign.titleTh || campaign.titleSource;
   };
 
+  const generateDealItems = () => {
+    if (campaigns.length === 0) return [];
+    return campaigns.slice(0, 6).map((campaign, index) => {
+      const basePrice = Number(campaign.couponValue) || 20;
+      const discountPercent = 90 + (index * 2) % 8;
+      const originalPrice = Math.round(Number(basePrice) * 100 / discountPercent);
+      const monthlySales = 50 + (storeId * 23 + index * 47) % 400;
+      const repeatCustomers = 10 + (storeId * 11 + index * 19) % 100;
+      const recentOrders = 50 + (storeId * 7 + index * 31) % 100;
+      const portionReviews = 3 + (storeId * 5 + index * 7) % 10;
+      const tasteReviews = 5 + (storeId * 3 + index * 11) % 15;
+      const newCustomerPrice = Math.round(Number(basePrice) * 0.4);
+      const hasSpecs = index % 2 === 1;
+      const badgeType = index === 0 ? 'new' : index === 1 ? 'signature' : null;
+      
+      return {
+        id: campaign.id,
+        name: getTitle(campaign),
+        image: campaign.bannerImageUrl,
+        badgeType,
+        monthlySales,
+        repeatCustomers,
+        recentOrders,
+        portionReviews,
+        tasteReviews,
+        discountPercent,
+        price: basePrice,
+        originalPrice,
+        newCustomerPrice,
+        hasSpecs,
+      };
+    });
+  };
+
+  const dealItems = generateDealItems();
+
   return (
-    <div className="p-4 space-y-4">
-      <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-lg p-4 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-bold text-lg">{t('storeFront.newUserBenefit')}</h3>
-            <p className="text-sm text-white/80 mt-1">{t('storeFront.newUserDesc')}</p>
-          </div>
-          <Button variant="secondary" size="sm" className="bg-white text-orange-500">
-            {t('storeFront.claimNow')}
-          </Button>
+    <div className="overflow-y-auto h-[calc(100vh-280px)]">
+      <div className="px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold">{t('storeFront.deals.sectionTitle')}</h3>
+          <span className="text-xs text-muted-foreground">{t('storeFront.deals.limitHint')}</span>
         </div>
       </div>
 
-      <div className="space-y-3">
-        {campaigns.slice(0, 3).map((campaign) => (
-          <Link key={campaign.id} href={`/campaign/${campaign.id}`}>
-            <Card className="p-4 hover-elevate active-elevate-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">{getTitle(campaign)}</h4>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {t('storeFront.validUntil', { date: campaign.endAt ? new Date(campaign.endAt).toLocaleDateString() : '-' })}
-                  </p>
+      <div className="divide-y divide-border">
+        {dealItems.length > 0 ? (
+          dealItems.map((item) => (
+            <Link key={item.id} href={`/campaign/${item.id}`}>
+              <div className="p-4 hover:bg-muted/30 active:bg-muted/50 transition-colors" data-testid={`deal-item-${item.id}`}>
+                <div className="flex gap-3">
+                  <div className="relative w-28 h-28 rounded-md overflow-hidden flex-shrink-0 bg-muted">
+                    {item.badgeType && (
+                      <Badge 
+                        className={`absolute top-1 left-1 text-[10px] px-1.5 py-0.5 z-10 ${
+                          item.badgeType === 'new' 
+                            ? 'bg-orange-500 text-white' 
+                            : 'bg-yellow-500 text-white'
+                        }`}
+                      >
+                        {item.badgeType === 'new' ? t('storeFront.deals.badgeNew') : t('storeFront.deals.badgeSignature')}
+                      </Badge>
+                    )}
+                    {item.image ? (
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Ticket className="w-10 h-10 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0 flex flex-col">
+                    <h4 className="font-medium text-sm line-clamp-2">{item.name}</h4>
+                    
+                    <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground flex-wrap">
+                      <span>{t('storeFront.menu.monthlySales', { count: String(item.monthlySales) })}</span>
+                      <span className="text-orange-500">{t('storeFront.deals.repeatCustomers', { count: String(item.repeatCustomers) })}</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mt-1 text-[11px] flex-wrap">
+                      <span className="text-orange-500">{t('storeFront.deals.recentOrders', { count: String(item.recentOrders) })}</span>
+                      <span className="text-muted-foreground">"{t('storeFront.deals.portionGood')}"</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground flex-wrap">
+                      <span>{t('storeFront.deals.reviewPortion', { count: String(item.portionReviews) })}</span>
+                      <span>{t('storeFront.deals.reviewTaste', { count: String(item.tasteReviews) })}</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge className="text-[10px] px-1.5 py-0 h-4 bg-orange-100 text-orange-600 border-0 dark:bg-orange-900/30">
+                        {t('storeFront.deals.discountPercent', { percent: String(item.discountPercent / 10) })}
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex flex-col">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-destructive font-bold text-lg">
+                            {t('common.currencySymbol')}{item.price}
+                          </span>
+                          <span className="text-xs text-muted-foreground line-through">
+                            {t('common.currencySymbol')}{item.originalPrice}
+                          </span>
+                        </div>
+                        <span className="text-xs text-orange-500">
+                          {t('common.currencySymbol')}{item.newCustomerPrice} {t('storeFront.deals.newCustomerPrice')}
+                        </span>
+                      </div>
+                      
+                      {item.hasSpecs ? (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-7 text-xs border-orange-500 text-orange-500"
+                          data-testid={`button-deals-specs-${item.id}`}
+                        >
+                          {t('storeFront.menu.selectSpecs')}
+                        </Button>
+                      ) : (
+                        <Button 
+                          size="icon" 
+                          className="h-8 w-8 rounded-full bg-orange-500 hover:bg-orange-600"
+                          data-testid={`button-deals-add-${item.id}`}
+                        >
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <Button size="sm" variant="outline" className="text-destructive border-destructive">
-                  {t('storeFront.getCoupon')}
-                </Button>
               </div>
-            </Card>
-          </Link>
-        ))}
+            </Link>
+          ))
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            <Ticket className="w-12 h-12 mx-auto mb-2 opacity-50" />
+            <p>{t('storeFront.noProducts')}</p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -551,9 +759,12 @@ export default function StoreFront() {
   const store = storeData?.data;
   const allCampaigns = campaignsData?.data || [];
   
-  const storeCampaigns = allCampaigns.filter((c: any) => 
+  // Filter campaigns by store, or use all campaigns if no store-specific ones exist
+  // TODO: Implement proper campaign-store relationship in backend
+  const storeSpecificCampaigns = allCampaigns.filter((c: any) => 
     c.stores?.some((s: any) => s.id === parseInt(storeId || '0'))
   );
+  const storeCampaigns = storeSpecificCampaigns.length > 0 ? storeSpecificCampaigns : allCampaigns;
 
   if (storeLoading) {
     return <StoreFrontSkeleton />;
@@ -609,10 +820,10 @@ export default function StoreFront() {
         </TabsList>
 
         <TabsContent value="menu" className="mt-0">
-          <MenuTab campaigns={storeCampaigns} />
+          <MenuTab campaigns={storeCampaigns} storeId={store.id} />
         </TabsContent>
         <TabsContent value="deals" className="mt-0">
-          <DealsTab campaigns={storeCampaigns} />
+          <DealsTab campaigns={storeCampaigns} storeId={store.id} />
         </TabsContent>
         <TabsContent value="reviews" className="mt-0">
           <ReviewsTab />
