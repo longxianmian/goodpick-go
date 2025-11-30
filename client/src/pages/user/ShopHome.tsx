@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { Search, Heart, MapPin, ChevronDown, Sparkles } from 'lucide-react';
+import { Search, Heart, MapPin, ChevronDown, Sparkles, Navigation } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -172,12 +172,12 @@ export default function ShopHome() {
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/50">
         <div className="flex items-center justify-between px-3 h-14 gap-2">
           <button 
-            className="flex items-center gap-1 text-sm font-semibold text-foreground flex-shrink-0"
+            className="flex items-center gap-1 text-sm font-semibold text-[#38B03B] flex-shrink-0"
             data-testid="button-city-select"
           >
             <MapPin className="w-4 h-4" />
             <span>{t('discover.defaultCity')}</span>
-            <ChevronDown className="w-3 h-3 text-muted-foreground" />
+            <ChevronDown className="w-3 h-3" />
           </button>
 
           <button 
@@ -189,10 +189,11 @@ export default function ShopHome() {
           </button>
 
           <button 
-            className="px-3 py-1.5 rounded-full text-xs font-medium text-white bg-[#38B03B] flex-shrink-0"
+            className="flex items-center gap-1 text-sm font-semibold text-[#38B03B] flex-shrink-0"
             data-testid="button-nearby"
           >
-            {t('discover.nearby')}
+            <Navigation className="w-4 h-4" />
+            <span>{t('discover.nearby')}</span>
           </button>
         </div>
       </header>
