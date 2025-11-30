@@ -95,3 +95,33 @@ Security measures include bcryptjs for password hashing, environment variable-ba
 - **Vite**: Build tool and development server.
 - **TypeScript**: Type safety.
 - **Drizzle Kit**: Database migrations.
+
+## Recent Updates (2024-11-30)
+
+### Short Video System (抖音式短视频)
+- **Database**: Added `short_videos`, `short_video_likes`, `short_video_comments` tables
+- **API Endpoints**:
+  - `GET /api/short-videos/feed` - 视频流（游标分页）
+  - `GET /api/short-videos/:id` - 视频详情
+  - `POST /api/short-videos` - 上传短视频（含封面/缩略图）
+  - `POST /api/short-videos/:id/like` - 点赞/取消点赞
+  - `GET /api/short-videos/:id/comments` - 获取评论
+  - `POST /api/short-videos/:id/comments` - 发表评论
+  - `GET /api/creator/short-videos` - 创作者视频列表
+  - `DELETE /api/short-videos/:id` - 删除视频
+- **Frontend Components**:
+  - `VideoCard` - 全屏视频播放卡片（自动播放、点赞、评论、分享）
+  - `VerticalSwiper` - 上下滑动切换组件（支持触摸、鼠标滚轮、键盘）
+  - `ShortVideoFeed` - 短视频流页面（/videos路由）
+
+### Rich Text Editor (富文本编辑器)
+- **Component**: `RichTextEditor` - 基于Tiptap
+- **Features**: 加粗、斜体、下划线、删除线、标题(H1-H3)、对齐、列表、引用、链接、撤销/重做
+
+### Development Login
+- **Endpoint**: `POST /api/auth/dev-login` (仅开发环境)
+- **Page**: `/dev/login` - 测试登录页面
+
+### Media Storage
+- **Provider**: 阿里云OSS (prodee-h5-assets.oss-ap-southeast-1.aliyuncs.com)
+- **Paths**: `user/{userId}/...`, `short-videos/{userId}/...`

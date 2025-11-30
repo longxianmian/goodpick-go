@@ -36,6 +36,7 @@ import PaymentSettings from "@/pages/creator/PaymentSettings";
 import CreatorNotifications from "@/pages/creator/CreatorNotifications";
 import AccountSecurity from "@/pages/creator/AccountSecurity";
 import DevLogin from "@/pages/dev/DevLogin";
+import ShortVideoFeed from "@/pages/short-video/ShortVideoFeed";
 import LanguageSettings from "@/pages/user/LanguageSettings";
 import SettingsPage from "@/pages/user/SettingsPage";
 import HelpPage from "@/pages/user/HelpPage";
@@ -161,6 +162,7 @@ function Router() {
     <Switch>
       {/* 刷刷升级 - C端三栏结构 + 角色自适应 */}
       <Route path="/" component={ShuaShuaHome} />
+      <Route path="/videos" component={ShortVideoFeed} />
       <Route path="/shop" component={ShopHome} />
       <Route path="/me" component={RoleBasedMe} />
       {/* 开发环境 - 测试登录 */}
