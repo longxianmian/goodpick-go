@@ -5,7 +5,7 @@ import MeOperator from './MeOperator';
 import MeVerifier from './MeVerifier';
 import MeOwner from './MeOwner';
 import MeSysAdmin from './MeSysAdmin';
-import MeCreator from './MeCreator';
+import CreatorAccount from '@/pages/creator/CreatorAccount';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RoleAwareBottomNav } from '@/components/RoleAwareBottomNav';
 
@@ -64,7 +64,7 @@ export default function RoleBasedMe() {
     case 'sysadmin':
       return <MeSysAdmin />;
     case 'creator':
-      return <MeCreator />;
+      return <CreatorAccount />;
     case 'consumer':
     default:
       return <UserCenter />;

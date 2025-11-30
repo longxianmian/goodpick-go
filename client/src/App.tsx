@@ -27,7 +27,6 @@ import MeOwner from "@/pages/user/MeOwner";
 import MeOperator from "@/pages/user/MeOperator";
 import MeVerifier from "@/pages/user/MeVerifier";
 import MeSysAdmin from "@/pages/user/MeSysAdmin";
-import MeCreator from "@/pages/user/MeCreator";
 import CreatorHome from "@/pages/creator/CreatorHome";
 import CreatorStudio from "@/pages/creator/CreatorStudio";
 import CreatorAccount from "@/pages/creator/CreatorAccount";
@@ -165,7 +164,7 @@ function Router() {
       <Route path="/dev/me/operator" component={MeOperator} />
       <Route path="/dev/me/verifier" component={MeVerifier} />
       <Route path="/dev/me/sysadmin" component={MeSysAdmin} />
-      <Route path="/dev/me/creator" component={MeCreator} />
+      <Route path="/dev/me/creator" component={CreatorAccount} />
       {/* 刷刷号（创作者）专属路由 */}
       <Route path="/creator/edit/:id" component={ContentEditor} />
       <Route path="/creator/create" component={CreatorStudio} />
