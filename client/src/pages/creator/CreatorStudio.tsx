@@ -114,18 +114,26 @@ export default function CreatorStudio() {
           <CardContent className="p-4">
             <Button 
               className="w-full bg-[#38B03B] hover:bg-[#2d8f30]"
-              onClick={() => {}}
+              onClick={() => setLocation('/creator/edit/new')}
               data-testid="button-create-new"
             >
               <Plus className="w-5 h-5 mr-2" />
               {t('creatorStudio.createNew')}
             </Button>
             <div className="grid grid-cols-2 gap-3 mt-3">
-              <Button variant="outline" data-testid="button-upload-video">
+              <Button 
+                variant="outline" 
+                onClick={() => setLocation('/creator/edit/new?type=video')}
+                data-testid="button-upload-video"
+              >
                 <Video className="w-4 h-4 mr-2" />
                 {t('creatorStudio.uploadVideo')}
               </Button>
-              <Button variant="outline" data-testid="button-write-article">
+              <Button 
+                variant="outline" 
+                onClick={() => setLocation('/creator/edit/new?type=article')}
+                data-testid="button-write-article"
+              >
                 <FileText className="w-4 h-4 mr-2" />
                 {t('creatorStudio.writeArticle')}
               </Button>
@@ -183,17 +191,17 @@ export default function CreatorStudio() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setLocation(`/creator/edit/${content.id}`)}>
                           <Edit className="w-4 h-4 mr-2" />
-                          {t('common.edit')}
+                          {t('creatorStudio.edit')}
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setLocation(`/creator/edit/${content.id}?tab=promotion`)}>
                           <TrendingUp className="w-4 h-4 mr-2" />
                           {t('creatorStudio.promote')}
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive">
                           <Trash2 className="w-4 h-4 mr-2" />
-                          {t('common.delete')}
+                          {t('creatorStudio.delete')}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -244,7 +252,12 @@ export default function CreatorStudio() {
                         </div>
                       </div>
                       <div className="flex flex-col gap-1">
-                        <Button variant="ghost" size="icon" data-testid={`edit-draft-${draft.id}`}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => setLocation(`/creator/edit/${draft.id}`)}
+                          data-testid={`edit-draft-${draft.id}`}
+                        >
                           <Edit className="w-4 h-4" />
                         </Button>
                         <Button variant="ghost" size="icon" className="text-destructive" data-testid={`delete-draft-${draft.id}`}>

@@ -31,6 +31,7 @@ import MeCreator from "@/pages/user/MeCreator";
 import CreatorHome from "@/pages/creator/CreatorHome";
 import CreatorStudio from "@/pages/creator/CreatorStudio";
 import CreatorAccount from "@/pages/creator/CreatorAccount";
+import ContentEditor from "@/pages/creator/ContentEditor";
 import LanguageSettings from "@/pages/user/LanguageSettings";
 import HelpPage from "@/pages/user/HelpPage";
 import AboutPage from "@/pages/user/AboutPage";
@@ -165,6 +166,7 @@ function Router() {
       <Route path="/dev/me/sysadmin" component={MeSysAdmin} />
       <Route path="/dev/me/creator" component={MeCreator} />
       {/* 刷刷号（创作者）专属路由 */}
+      <Route path="/creator/edit/:id" component={ContentEditor} />
       <Route path="/creator/create" component={CreatorStudio} />
       <Route path="/creator/me" component={CreatorAccount} />
       <Route path="/creator" component={CreatorHome} />
