@@ -3877,13 +3877,14 @@ export function registerRoutes(app: Express): Server {
   app.post('/api/creator/contents', userAuthMiddleware, async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
-      const { contentType, title, description, mediaUrls, coverImageUrl, status } = req.body;
+      const { contentType, category, title, description, mediaUrls, coverImageUrl, status } = req.body;
       
       const [newContent] = await db
         .insert(creatorContents)
         .values({
           creatorUserId: userId,
           contentType: contentType || 'video',
+          category: category || null,
           title,
           description,
           mediaUrls: mediaUrls || [],
@@ -3903,11 +3904,12 @@ export function registerRoutes(app: Express): Server {
           thumbnailUrl: coverImageUrl || null,
           title: title,
           description: description || null,
+          category: category || null,
           status: 'ready',
           isPublic: true,
           publishedAt: new Date(),
         });
-        console.log(`[SYNC] 已同步创作者内容 #${newContent.id} 到短视频feed`);
+        console.log(`[SYNC] 已同步创作者内容 #${newContent.id} 到短视频feed (分类: ${category || '无'})`);
       }
       
       res.json({ success: true, data: newContent });
@@ -3922,7 +3924,7 @@ export function registerRoutes(app: Express): Server {
     try {
       const userId = req.user!.id;
       const contentId = parseInt(req.params.id);
-      const { contentType, title, description, mediaUrls, coverImageUrl, status } = req.body;
+      const { contentType, category, title, description, mediaUrls, coverImageUrl, status } = req.body;
       
       // 验证内容所有权
       const [existing] = await db
@@ -3943,6 +3945,7 @@ export function registerRoutes(app: Express): Server {
       };
       
       if (contentType) updateData.contentType = contentType;
+      if (category !== undefined) updateData.category = category;
       if (title !== undefined) updateData.title = title;
       if (description !== undefined) updateData.description = description;
       if (mediaUrls !== undefined) updateData.mediaUrls = mediaUrls;
@@ -3968,6 +3971,7 @@ export function registerRoutes(app: Express): Server {
       const finalTitle = title !== undefined ? title : existing.title;
       const finalDescription = description !== undefined ? description : existing.description;
       const finalCoverImageUrl = coverImageUrl !== undefined ? coverImageUrl : existing.coverImageUrl;
+      const finalCategory = category !== undefined ? category : existing.category;
       
       if (isNewlyPublished && finalContentType === 'video' && finalMediaUrls?.length > 0) {
         const videoUrl = finalMediaUrls.find((url: string) => url.match(/\.(mp4|mov|webm|m3u8)$/i)) || finalMediaUrls[0];
@@ -3978,11 +3982,12 @@ export function registerRoutes(app: Express): Server {
           thumbnailUrl: finalCoverImageUrl || null,
           title: finalTitle,
           description: finalDescription || null,
+          category: finalCategory || null,
           status: 'ready',
           isPublic: true,
           publishedAt: new Date(),
         });
-        console.log(`[SYNC] 已同步创作者内容 #${contentId} 到短视频feed`);
+        console.log(`[SYNC] 已同步创作者内容 #${contentId} 到短视频feed (分类: ${finalCategory || '无'})`);
       }
       
       res.json({ success: true, data: updated });
@@ -4259,7 +4264,19 @@ export function registerRoutes(app: Express): Server {
     try {
       const cursor = req.query.cursor ? parseInt(req.query.cursor as string) : 0;
       const limit = Math.min(parseInt(req.query.limit as string) || 10, 20);
+      const category = req.query.category as string | undefined;
       const userId = req.user?.id;
+
+      // 构建筛选条件
+      const conditions = [
+        eq(shortVideos.status, 'ready'),
+        eq(shortVideos.isPublic, true)
+      ];
+      
+      // 如果指定了分类且不是 'all'，则添加分类筛选
+      if (category && category !== 'all') {
+        conditions.push(eq(shortVideos.category, category));
+      }
 
       // 获取公开且已就绪的视频
       const videos = await db
@@ -4272,6 +4289,7 @@ export function registerRoutes(app: Express): Server {
           duration: shortVideos.duration,
           title: shortVideos.title,
           description: shortVideos.description,
+          category: shortVideos.category,
           hashtags: shortVideos.hashtags,
           locationName: shortVideos.locationName,
           viewCount: shortVideos.viewCount,
@@ -4287,10 +4305,7 @@ export function registerRoutes(app: Express): Server {
         })
         .from(shortVideos)
         .leftJoin(users, eq(shortVideos.creatorUserId, users.id))
-        .where(and(
-          eq(shortVideos.status, 'ready'),
-          eq(shortVideos.isPublic, true)
-        ))
+        .where(and(...conditions))
         .orderBy(desc(shortVideos.publishedAt))
         .offset(cursor)
         .limit(limit + 1);
