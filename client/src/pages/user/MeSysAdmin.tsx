@@ -110,46 +110,46 @@ export default function MeSysAdmin() {
             </div>
             
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30">
+              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30" data-testid="stat-total-users">
                 <div className="flex items-center gap-2 mb-1">
                   <Users className="w-4 h-4 text-blue-500" />
                   <span className="text-xs text-muted-foreground">{t('sysadmin.totalUsers')}</span>
                 </div>
-                <div className="text-xl font-bold">{formatNumber(mockOverviewData.totalUsers)}</div>
+                <div className="text-xl font-bold" data-testid="text-total-users">{formatNumber(mockOverviewData.totalUsers)}</div>
                 <div className="flex items-center gap-1 text-xs text-green-600">
                   <TrendingUp className="w-3 h-3" />
                   <span>+{mockOverviewData.todayNewUsers} {t('sysadmin.today')}</span>
                 </div>
               </div>
               
-              <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950/30">
+              <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950/30" data-testid="stat-total-stores">
                 <div className="flex items-center gap-2 mb-1">
                   <Store className="w-4 h-4 text-purple-500" />
                   <span className="text-xs text-muted-foreground">{t('sysadmin.totalStores')}</span>
                 </div>
-                <div className="text-xl font-bold">{mockOverviewData.totalStores}</div>
+                <div className="text-xl font-bold" data-testid="text-total-stores">{mockOverviewData.totalStores}</div>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <span>{t('sysadmin.activeStores')}: 198</span>
                 </div>
               </div>
               
-              <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/30">
+              <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/30" data-testid="stat-total-campaigns">
                 <div className="flex items-center gap-2 mb-1">
                   <FileText className="w-4 h-4 text-green-500" />
                   <span className="text-xs text-muted-foreground">{t('sysadmin.totalCampaigns')}</span>
                 </div>
-                <div className="text-xl font-bold">{formatNumber(mockOverviewData.totalCampaigns)}</div>
+                <div className="text-xl font-bold" data-testid="text-total-campaigns">{formatNumber(mockOverviewData.totalCampaigns)}</div>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <span>{t('sysadmin.activeCampaigns')}: 426</span>
                 </div>
               </div>
               
-              <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-950/30">
+              <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-950/30" data-testid="stat-conversion-rate">
                 <div className="flex items-center gap-2 mb-1">
                   <BarChart3 className="w-4 h-4 text-orange-500" />
                   <span className="text-xs text-muted-foreground">{t('sysadmin.conversionRate')}</span>
                 </div>
-                <div className="text-xl font-bold">{mockOverviewData.conversionRate}%</div>
+                <div className="text-xl font-bold" data-testid="text-conversion-rate">{mockOverviewData.conversionRate}%</div>
                 <div className="flex items-center gap-1 text-xs text-green-600">
                   <TrendingUp className="w-3 h-3" />
                   <span>+2.3%</span>
@@ -167,7 +167,7 @@ export default function MeSysAdmin() {
             </div>
             
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50" data-testid="stat-feed-views">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-[#38B03B]/10 flex items-center justify-center">
                     <Eye className="w-5 h-5 text-[#38B03B]" />
@@ -178,7 +178,7 @@ export default function MeSysAdmin() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg font-bold">{formatNumber(mockPreviewStats.feedViews)}</div>
+                  <div className="text-lg font-bold" data-testid="text-feed-views">{formatNumber(mockPreviewStats.feedViews)}</div>
                   <div className="flex items-center gap-1 text-xs text-green-600">
                     <TrendingUp className="w-3 h-3" />
                     <span>+18.5%</span>
@@ -186,7 +186,7 @@ export default function MeSysAdmin() {
                 </div>
               </div>
               
-              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50" data-testid="stat-discover-views">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
                     <Star className="w-5 h-5 text-amber-500" />
@@ -197,7 +197,7 @@ export default function MeSysAdmin() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg font-bold">{formatNumber(mockPreviewStats.discoverViews)}</div>
+                  <div className="text-lg font-bold" data-testid="text-discover-views">{formatNumber(mockPreviewStats.discoverViews)}</div>
                   <div className="flex items-center gap-1 text-xs text-green-600">
                     <TrendingUp className="w-3 h-3" />
                     <span>+12.3%</span>
@@ -205,7 +205,7 @@ export default function MeSysAdmin() {
                 </div>
               </div>
               
-              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50" data-testid="stat-coupon-claims">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
                     <FileText className="w-5 h-5 text-blue-500" />
@@ -216,7 +216,7 @@ export default function MeSysAdmin() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg font-bold">{formatNumber(mockPreviewStats.couponClaims)}</div>
+                  <div className="text-lg font-bold" data-testid="text-coupon-claims">{formatNumber(mockPreviewStats.couponClaims)}</div>
                   <div className="flex items-center gap-1 text-xs text-red-600">
                     <TrendingDown className="w-3 h-3" />
                     <span>-3.2%</span>

@@ -141,47 +141,47 @@ export default function MeCreator() {
             </div>
             
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/30">
+              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/30" data-testid="stat-total-views">
                 <div className="flex items-center gap-2 mb-1">
                   <Eye className="w-4 h-4 text-red-500" />
                   <span className="text-xs text-muted-foreground">{t('creator.totalViews')}</span>
                 </div>
-                <div className="text-xl font-bold">{formatNumber(mockAccountStats.totalViews)}</div>
+                <div className="text-xl font-bold" data-testid="text-total-views">{formatNumber(mockAccountStats.totalViews)}</div>
                 <div className="flex items-center gap-1 text-xs text-green-600">
                   <TrendingUp className="w-3 h-3" />
                   <span>+15.8%</span>
                 </div>
               </div>
               
-              <div className="p-3 rounded-lg bg-pink-50 dark:bg-pink-950/30">
+              <div className="p-3 rounded-lg bg-pink-50 dark:bg-pink-950/30" data-testid="stat-engagement-rate">
                 <div className="flex items-center gap-2 mb-1">
                   <Heart className="w-4 h-4 text-pink-500" />
                   <span className="text-xs text-muted-foreground">{t('creator.engagementRate')}</span>
                 </div>
-                <div className="text-xl font-bold">{mockContentStats.avgEngagement}%</div>
+                <div className="text-xl font-bold" data-testid="text-engagement-rate">{mockContentStats.avgEngagement}%</div>
                 <div className="flex items-center gap-1 text-xs text-green-600">
                   <TrendingUp className="w-3 h-3" />
                   <span>+2.1%</span>
                 </div>
               </div>
               
-              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30">
+              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30" data-testid="stat-total-content">
                 <div className="flex items-center gap-2 mb-1">
                   <Video className="w-4 h-4 text-blue-500" />
                   <span className="text-xs text-muted-foreground">{t('creator.totalContent')}</span>
                 </div>
-                <div className="text-xl font-bold">{mockContentStats.totalVideos + mockContentStats.totalArticles}</div>
+                <div className="text-xl font-bold" data-testid="text-total-content">{mockContentStats.totalVideos + mockContentStats.totalArticles}</div>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <span>{mockContentStats.totalVideos} {t('creator.videos')} / {mockContentStats.totalArticles} {t('creator.articles')}</span>
                 </div>
               </div>
               
-              <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/30">
+              <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/30" data-testid="stat-monthly-earnings">
                 <div className="flex items-center gap-2 mb-1">
                   <DollarSign className="w-4 h-4 text-green-500" />
                   <span className="text-xs text-muted-foreground">{t('creator.monthlyEarnings')}</span>
                 </div>
-                <div className="text-xl font-bold">{t('common.currencySymbol')}{formatNumber(mockEarnings.thisMonth)}</div>
+                <div className="text-xl font-bold" data-testid="text-monthly-earnings">{t('common.currencySymbol')}{formatNumber(mockEarnings.thisMonth)}</div>
                 <div className="flex items-center gap-1 text-xs text-green-600">
                   <TrendingUp className="w-3 h-3" />
                   <span>+22.6%</span>
@@ -198,7 +198,7 @@ export default function MeCreator() {
                 <FileText className="w-5 h-5 text-[#ff6b6b]" />
                 <span className="text-sm font-semibold">{t('creator.recentContent')}</span>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setLocation('/creator/studio')}>
+              <Button variant="ghost" size="sm" onClick={() => setLocation('/creator/studio')} data-testid="button-view-all-content">
                 {t('creator.viewAll')}
               </Button>
             </div>
@@ -208,6 +208,7 @@ export default function MeCreator() {
                 <div 
                   key={content.id}
                   className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                  data-testid={`content-item-${content.id}`}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
