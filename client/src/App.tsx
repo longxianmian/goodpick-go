@@ -33,6 +33,7 @@ import CreatorStudio from "@/pages/creator/CreatorStudio";
 import CreatorAccount from "@/pages/creator/CreatorAccount";
 import ContentEditor from "@/pages/creator/ContentEditor";
 import LanguageSettings from "@/pages/user/LanguageSettings";
+import SettingsPage from "@/pages/user/SettingsPage";
 import HelpPage from "@/pages/user/HelpPage";
 import AboutPage from "@/pages/user/AboutPage";
 import MerchantHome from "@/pages/merchant/MerchantHome";
@@ -171,6 +172,7 @@ function Router() {
       <Route path="/creator/me" component={CreatorAccount} />
       <Route path="/creator" component={CreatorHome} />
       <Route path="/settings/language" component={LanguageSettings} />
+      <Route path="/settings" component={SettingsPage} />
       <Route path="/help" component={HelpPage} />
       <Route path="/about" component={AboutPage} />
       {/* 店铺首页 - C端用户视角 */}
