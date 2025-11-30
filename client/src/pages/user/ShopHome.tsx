@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { Search, Heart, MapPin, ChevronDown, Sparkles, Navigation } from 'lucide-react';
+import { Search, Heart, MapPin, ChevronDown, Sparkles, Locate } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -192,7 +192,7 @@ export default function ShopHome() {
             className="flex items-center gap-1 text-sm font-semibold text-[#38B03B] flex-shrink-0"
             data-testid="button-nearby"
           >
-            <Navigation className="w-4 h-4" />
+            <Locate className="w-4 h-4" />
             <span>{t('discover.nearby')}</span>
           </button>
         </div>
