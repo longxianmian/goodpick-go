@@ -132,8 +132,15 @@ const translations: Record<Language, Record<string, string>> = {
     'creatorStudio.progress': '完成度',
     'creatorStudio.promote': '推广',
     'creatorStudio.noDrafts': '暂无草稿',
+    'creatorStudio.noPublished': '暂无已发布内容',
     'creatorStudio.edit': '编辑',
     'creatorStudio.delete': '删除',
+    
+    // 时间单位
+    'common.minutesAgo': '分钟前',
+    'common.hoursAgo': '小时前',
+    'common.daysAgo': '天前',
+    'common.weeksAgo': '周前',
     
     // 刷刷号内容编辑器
     'creator.editor.newContent': '新建作品',
@@ -1404,8 +1411,15 @@ const translations: Record<Language, Record<string, string>> = {
     'creatorStudio.progress': 'Progress',
     'creatorStudio.promote': 'Promote',
     'creatorStudio.noDrafts': 'No drafts yet',
+    'creatorStudio.noPublished': 'No published content yet',
     'creatorStudio.edit': 'Edit',
     'creatorStudio.delete': 'Delete',
+    
+    // Time units
+    'common.minutesAgo': ' minutes ago',
+    'common.hoursAgo': ' hours ago',
+    'common.daysAgo': ' days ago',
+    'common.weeksAgo': ' weeks ago',
     
     // Creator Content Editor
     'creator.editor.newContent': 'New Content',

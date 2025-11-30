@@ -100,7 +100,7 @@ export default function ContentEditor() {
     { id: 3, type: 'campaign', title: '周年庆抽奖活动', merchantName: '购物中心', commission: 10, billingMode: 'cpm', price: 8 },
   ];
 
-  const promotionsList: PromotionItem[] = availablePromotions?.data?.length > 0
+  const promotionsList: PromotionItem[] = (availablePromotions?.data && availablePromotions.data.length > 0)
     ? availablePromotions.data.map((p: any) => ({
         id: p.id,
         type: p.type || 'campaign',
