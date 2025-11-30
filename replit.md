@@ -122,8 +122,11 @@ Security measures include bcryptjs for password hashing, environment variable-ba
 - **Frontend Components**:
   - `VideoCard` - 全屏视频播放卡片（自动播放、点赞、评论、分享）
   - `VerticalSwiper` - 上下滑动切换组件（支持触摸、鼠标滚轮、键盘）
-  - `ShortVideoFeed` - 短视频流页面（/videos路由）
+  - `ShortVideoFeed` - 短视频流页面
   - `ShuaShuaHome` - 刷刷首页（显示短视频卡片网格）
+- **Routes**:
+  - `/videos` - 全屏短视频Feed页面
+  - `/videos/:id` - 特定视频播放页面（定位到指定视频ID）
 
 ### Rich Text Editor (富文本编辑器)
 - **Component**: `RichTextEditor` - 基于Tiptap

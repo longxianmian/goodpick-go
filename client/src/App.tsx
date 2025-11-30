@@ -162,6 +162,7 @@ function Router() {
     <Switch>
       {/* 刷刷升级 - C端三栏结构 + 角色自适应 */}
       <Route path="/" component={ShuaShuaHome} />
+      <Route path="/videos/:id" component={ShortVideoFeed} />
       <Route path="/videos" component={ShortVideoFeed} />
       <Route path="/shop" component={ShopHome} />
       <Route path="/me" component={RoleBasedMe} />

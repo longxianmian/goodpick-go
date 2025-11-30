@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { useLocation } from 'wouter';
+import { useLocation, useRoute } from 'wouter';
 import { VerticalSwiper } from '@/components/short-video/VerticalSwiper';
 import { VideoCard, ShortVideoData } from '@/components/short-video/VideoCard';
 import { queryClient, apiRequest } from '@/lib/queryClient';
@@ -20,6 +20,8 @@ interface FeedResponse {
 
 export default function ShortVideoFeed() {
   const [, setLocation] = useLocation();
+  const [, params] = useRoute('/videos/:id');
+  const videoId = params?.id ? parseInt(params.id) : null;
   const { toast } = useToast();
   const { isUserAuthenticated, user } = useAuth();
   
@@ -27,9 +29,10 @@ export default function ShortVideoFeed() {
   const [allVideos, setAllVideos] = useState<ShortVideoData[]>([]);
   const [cursor, setCursor] = useState<number | null>(0);
   const [hasMore, setHasMore] = useState(true);
+  const [initialIndexSet, setInitialIndexSet] = useState(false);
 
   const { data, isLoading, isError, error } = useQuery<FeedResponse>({
-    queryKey: ['/api/short-videos/feed', { cursor: 0 }],
+    queryKey: ['/api/short-videos/feed'],
     staleTime: 1000 * 60 * 5,
   });
 
@@ -38,8 +41,16 @@ export default function ShortVideoFeed() {
       setAllVideos(data.data.items);
       setCursor(data.data.nextCursor);
       setHasMore(data.data.hasMore);
+      
+      if (videoId && !initialIndexSet) {
+        const index = data.data.items.findIndex(v => v.id === videoId);
+        if (index >= 0) {
+          setCurrentIndex(index);
+        }
+        setInitialIndexSet(true);
+      }
     }
-  }, [data]);
+  }, [data, videoId, initialIndexSet]);
 
   const loadMore = useCallback(async () => {
     if (!hasMore || cursor === null) return;
