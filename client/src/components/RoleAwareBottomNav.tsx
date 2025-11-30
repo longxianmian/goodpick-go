@@ -127,15 +127,16 @@ const roleNavConfigs: Record<UserRoleType, { items: NavItem[], activePath: (loca
     }
   },
   creator: {
+    // 刷刷号（自媒体人）使用与消费者相同的底部导航：刷刷 | 发现 | 我的
     items: [
-      { key: 'creatorHome', path: '/creator', icon: Home, labelKey: 'roleNav.creatorHome' },
-      { key: 'creatorStudio', path: '/creator/studio', icon: Upload, labelKey: 'roleNav.creatorStudio' },
+      { key: 'feed', path: '/', icon: EyeIcon as any, labelKey: 'bottomNav.feed' },
+      { key: 'discover', path: '/shop', icon: StarIcon as any, labelKey: 'bottomNav.discover' },
       { key: 'me', path: '/me', icon: PersonIcon as any, labelKey: 'bottomNav.me' },
     ],
     activePath: (location: string) => {
-      if (location === '/creator') return '/creator';
-      if (location.startsWith('/creator/studio')) return '/creator/studio';
-      if (location === '/me' || location.startsWith('/me/')) return '/me';
+      if (location === '/' || location.startsWith('/campaign/')) return '/';
+      if (location === '/shop' || location.startsWith('/shop/')) return '/shop';
+      if (location === '/me' || location.startsWith('/me/') || location.startsWith('/my-')) return '/me';
       return location;
     }
   },
