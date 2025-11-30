@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships } from '@shared/schema';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings } from '@shared/schema';
 import { eq, and, desc, sql, inArray, isNotNull } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
 import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
@@ -3673,6 +3673,417 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Upload file error:', error);
       res.status(500).json({ success: false, message: 'Failed to upload file' });
+    }
+  });
+
+  // ============ J. 刷刷号创作者 API ============
+
+  // 获取创作者内容列表
+  app.get('/api/creator/contents', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const status = req.query.status as string || undefined;
+      
+      let query = db
+        .select()
+        .from(creatorContents)
+        .where(eq(creatorContents.creatorUserId, userId));
+      
+      if (status && (status === 'draft' || status === 'published')) {
+        query = db
+          .select()
+          .from(creatorContents)
+          .where(and(
+            eq(creatorContents.creatorUserId, userId),
+            eq(creatorContents.status, status)
+          ));
+      }
+      
+      const contents = await query.orderBy(desc(creatorContents.updatedAt));
+      
+      res.json({ success: true, data: contents });
+    } catch (error) {
+      console.error('Get creator contents error:', error);
+      res.status(500).json({ success: false, message: '获取内容列表失败' });
+    }
+  });
+
+  // 获取单个内容详情
+  app.get('/api/creator/contents/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const contentId = parseInt(req.params.id);
+      
+      const [content] = await db
+        .select()
+        .from(creatorContents)
+        .where(and(
+          eq(creatorContents.id, contentId),
+          eq(creatorContents.creatorUserId, userId)
+        ))
+        .limit(1);
+      
+      if (!content) {
+        return res.status(404).json({ success: false, message: '内容不存在' });
+      }
+      
+      // 获取绑定的推广信息
+      const bindings = await db
+        .select({
+          binding: promotionBindings,
+          campaign: campaigns,
+          store: stores,
+        })
+        .from(promotionBindings)
+        .leftJoin(campaigns, eq(promotionBindings.campaignId, campaigns.id))
+        .leftJoin(stores, eq(promotionBindings.storeId, stores.id))
+        .where(eq(promotionBindings.contentId, contentId));
+      
+      res.json({ 
+        success: true, 
+        data: { 
+          ...content, 
+          promotionBindings: bindings 
+        } 
+      });
+    } catch (error) {
+      console.error('Get creator content error:', error);
+      res.status(500).json({ success: false, message: '获取内容详情失败' });
+    }
+  });
+
+  // 创建新内容
+  app.post('/api/creator/contents', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { contentType, title, description, mediaUrls, coverImageUrl, status } = req.body;
+      
+      const [newContent] = await db
+        .insert(creatorContents)
+        .values({
+          creatorUserId: userId,
+          contentType: contentType || 'video',
+          title,
+          description,
+          mediaUrls: mediaUrls || [],
+          coverImageUrl,
+          status: status || 'draft',
+          publishedAt: status === 'published' ? new Date() : null,
+        })
+        .returning();
+      
+      res.json({ success: true, data: newContent });
+    } catch (error) {
+      console.error('Create creator content error:', error);
+      res.status(500).json({ success: false, message: '创建内容失败' });
+    }
+  });
+
+  // 更新内容
+  app.put('/api/creator/contents/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const contentId = parseInt(req.params.id);
+      const { contentType, title, description, mediaUrls, coverImageUrl, status } = req.body;
+      
+      // 验证内容所有权
+      const [existing] = await db
+        .select()
+        .from(creatorContents)
+        .where(and(
+          eq(creatorContents.id, contentId),
+          eq(creatorContents.creatorUserId, userId)
+        ))
+        .limit(1);
+      
+      if (!existing) {
+        return res.status(404).json({ success: false, message: '内容不存在' });
+      }
+      
+      const updateData: any = {
+        updatedAt: new Date(),
+      };
+      
+      if (contentType) updateData.contentType = contentType;
+      if (title !== undefined) updateData.title = title;
+      if (description !== undefined) updateData.description = description;
+      if (mediaUrls !== undefined) updateData.mediaUrls = mediaUrls;
+      if (coverImageUrl !== undefined) updateData.coverImageUrl = coverImageUrl;
+      if (status) {
+        updateData.status = status;
+        if (status === 'published' && existing.status !== 'published') {
+          updateData.publishedAt = new Date();
+        }
+      }
+      
+      const [updated] = await db
+        .update(creatorContents)
+        .set(updateData)
+        .where(eq(creatorContents.id, contentId))
+        .returning();
+      
+      res.json({ success: true, data: updated });
+    } catch (error) {
+      console.error('Update creator content error:', error);
+      res.status(500).json({ success: false, message: '更新内容失败' });
+    }
+  });
+
+  // 删除内容
+  app.delete('/api/creator/contents/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const contentId = parseInt(req.params.id);
+      
+      const [deleted] = await db
+        .delete(creatorContents)
+        .where(and(
+          eq(creatorContents.id, contentId),
+          eq(creatorContents.creatorUserId, userId)
+        ))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ success: false, message: '内容不存在' });
+      }
+      
+      res.json({ success: true, message: '删除成功' });
+    } catch (error) {
+      console.error('Delete creator content error:', error);
+      res.status(500).json({ success: false, message: '删除内容失败' });
+    }
+  });
+
+  // 获取可用的推广项目（卡券/活动）
+  app.get('/api/creator/available-promotions', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const now = new Date();
+      
+      // 获取所有活跃的活动
+      const activeCampaigns = await db
+        .select({
+          id: campaigns.id,
+          title: campaigns.titleSource,
+          titleZh: campaigns.titleZh,
+          titleEn: campaigns.titleEn,
+          titleTh: campaigns.titleTh,
+          bannerImageUrl: campaigns.bannerImageUrl,
+          couponValue: campaigns.couponValue,
+          discountType: campaigns.discountType,
+          endAt: campaigns.endAt,
+        })
+        .from(campaigns)
+        .where(
+          and(
+            eq(campaigns.isActive, true),
+            sql`${campaigns.startAt} <= ${now}`,
+            sql`${campaigns.endAt} >= ${now}`
+          )
+        )
+        .orderBy(desc(campaigns.startAt));
+      
+      // 获取活动关联的门店
+      const campaignIds = activeCampaigns.map(c => c.id);
+      const storeLinks = campaignIds.length > 0 
+        ? await db
+            .select({
+              campaignId: campaignStores.campaignId,
+              storeId: campaignStores.storeId,
+              storeName: stores.name,
+            })
+            .from(campaignStores)
+            .innerJoin(stores, eq(campaignStores.storeId, stores.id))
+            .where(inArray(campaignStores.campaignId, campaignIds))
+        : [];
+      
+      // 组合数据，添加默认计费模式
+      const promotions = activeCampaigns.map(campaign => {
+        const storeLink = storeLinks.find(s => s.campaignId === campaign.id);
+        return {
+          id: campaign.id,
+          type: 'campaign' as const,
+          title: campaign.titleZh || campaign.title,
+          merchantName: storeLink?.storeName || '未知商户',
+          storeId: storeLink?.storeId,
+          bannerImageUrl: campaign.bannerImageUrl,
+          couponValue: campaign.couponValue,
+          discountType: campaign.discountType,
+          endAt: campaign.endAt,
+          // 默认计费模式，实际可由商户配置
+          billingMode: 'cpc' as const,
+          price: 0.5, // 默认单价 $0.5/点击
+        };
+      });
+      
+      res.json({ success: true, data: promotions });
+    } catch (error) {
+      console.error('Get available promotions error:', error);
+      res.status(500).json({ success: false, message: '获取推广项目失败' });
+    }
+  });
+
+  // 绑定推广到内容
+  app.post('/api/creator/contents/:id/bind-promotion', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const contentId = parseInt(req.params.id);
+      const { promotionType, campaignId, storeId, billingMode, price } = req.body;
+      
+      // 验证内容所有权
+      const [content] = await db
+        .select()
+        .from(creatorContents)
+        .where(and(
+          eq(creatorContents.id, contentId),
+          eq(creatorContents.creatorUserId, userId)
+        ))
+        .limit(1);
+      
+      if (!content) {
+        return res.status(404).json({ success: false, message: '内容不存在' });
+      }
+      
+      // 创建绑定
+      const [binding] = await db
+        .insert(promotionBindings)
+        .values({
+          contentId,
+          promotionType: promotionType || 'campaign',
+          campaignId,
+          storeId,
+          billingMode: billingMode || 'cpc',
+          price: price || '0.5',
+          platformFeeRate: '0.30',
+        })
+        .returning();
+      
+      res.json({ success: true, data: binding });
+    } catch (error) {
+      console.error('Bind promotion error:', error);
+      res.status(500).json({ success: false, message: '绑定推广失败' });
+    }
+  });
+
+  // 解除推广绑定
+  app.delete('/api/creator/bindings/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const bindingId = parseInt(req.params.id);
+      
+      // 验证绑定属于该创作者的内容
+      const [binding] = await db
+        .select({
+          binding: promotionBindings,
+          content: creatorContents,
+        })
+        .from(promotionBindings)
+        .innerJoin(creatorContents, eq(promotionBindings.contentId, creatorContents.id))
+        .where(and(
+          eq(promotionBindings.id, bindingId),
+          eq(creatorContents.creatorUserId, userId)
+        ))
+        .limit(1);
+      
+      if (!binding) {
+        return res.status(404).json({ success: false, message: '绑定不存在' });
+      }
+      
+      await db
+        .delete(promotionBindings)
+        .where(eq(promotionBindings.id, bindingId));
+      
+      res.json({ success: true, message: '解除绑定成功' });
+    } catch (error) {
+      console.error('Unbind promotion error:', error);
+      res.status(500).json({ success: false, message: '解除绑定失败' });
+    }
+  });
+
+  // 获取创作者收益统计
+  app.get('/api/creator/earnings', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      
+      // 获取总收益
+      const [totalEarnings] = await db
+        .select({
+          totalGross: sql<string>`COALESCE(SUM(${promotionEarnings.grossAmount}), 0)`,
+          totalPlatformFee: sql<string>`COALESCE(SUM(${promotionEarnings.platformFee}), 0)`,
+          totalCreatorEarning: sql<string>`COALESCE(SUM(${promotionEarnings.creatorEarning}), 0)`,
+        })
+        .from(promotionEarnings)
+        .where(eq(promotionEarnings.creatorUserId, userId));
+      
+      // 获取最近的收益记录
+      const recentEarnings = await db
+        .select()
+        .from(promotionEarnings)
+        .where(eq(promotionEarnings.creatorUserId, userId))
+        .orderBy(desc(promotionEarnings.createdAt))
+        .limit(20);
+      
+      res.json({
+        success: true,
+        data: {
+          summary: {
+            totalGross: parseFloat(totalEarnings?.totalGross || '0'),
+            totalPlatformFee: parseFloat(totalEarnings?.totalPlatformFee || '0'),
+            totalCreatorEarning: parseFloat(totalEarnings?.totalCreatorEarning || '0'),
+          },
+          recentEarnings,
+        },
+      });
+    } catch (error) {
+      console.error('Get creator earnings error:', error);
+      res.status(500).json({ success: false, message: '获取收益统计失败' });
+    }
+  });
+
+  // 获取创作者统计数据
+  app.get('/api/creator/stats', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      
+      // 内容统计
+      const [contentStats] = await db
+        .select({
+          totalContents: sql<number>`COUNT(*)`,
+          publishedContents: sql<number>`SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END)`,
+          draftContents: sql<number>`SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END)`,
+          totalViews: sql<number>`COALESCE(SUM(view_count), 0)`,
+          totalLikes: sql<number>`COALESCE(SUM(like_count), 0)`,
+        })
+        .from(creatorContents)
+        .where(eq(creatorContents.creatorUserId, userId));
+      
+      // 收益统计
+      const [earningStats] = await db
+        .select({
+          totalEarning: sql<string>`COALESCE(SUM(${promotionEarnings.creatorEarning}), 0)`,
+        })
+        .from(promotionEarnings)
+        .where(eq(promotionEarnings.creatorUserId, userId));
+      
+      res.json({
+        success: true,
+        data: {
+          contents: {
+            total: Number(contentStats?.totalContents || 0),
+            published: Number(contentStats?.publishedContents || 0),
+            drafts: Number(contentStats?.draftContents || 0),
+          },
+          engagement: {
+            views: Number(contentStats?.totalViews || 0),
+            likes: Number(contentStats?.totalLikes || 0),
+          },
+          earnings: {
+            total: parseFloat(earningStats?.totalEarning || '0'),
+          },
+        },
+      });
+    } catch (error) {
+      console.error('Get creator stats error:', error);
+      res.status(500).json({ success: false, message: '获取统计数据失败' });
     }
   });
 

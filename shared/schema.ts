@@ -455,3 +455,91 @@ export const insertUserStoreMembershipSchema = createInsertSchema(userStoreMembe
 });
 export type InsertUserStoreMembership = z.infer<typeof insertUserStoreMembershipSchema>;
 export type UserStoreMembership = typeof userStoreMemberships.$inferSelect;
+
+// ============================================
+// 刷刷号创作者 - 内容和推广表
+// ============================================
+
+// 内容类型枚举
+export const contentTypeEnum = pgEnum('content_type', ['video', 'article']);
+
+// 内容状态枚举
+export const contentStatusEnum = pgEnum('content_status', ['draft', 'published', 'archived']);
+
+// 计费模式枚举
+export const billingModeEnum = pgEnum('billing_mode', ['cpc', 'cpm', 'cps']);
+
+// 推广项目类型枚举
+export const promotionItemTypeEnum = pgEnum('promotion_item_type', ['coupon', 'campaign']);
+
+// 创作者内容表
+export const creatorContents = pgTable('creator_contents', {
+  id: serial('id').primaryKey(),
+  creatorUserId: integer('creator_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  contentType: contentTypeEnum('content_type').notNull().default('video'),
+  title: text('title').notNull(),
+  description: text('description'),
+  mediaUrls: text('media_urls').array(),
+  coverImageUrl: text('cover_image_url'),
+  status: contentStatusEnum('status').notNull().default('draft'),
+  viewCount: integer('view_count').notNull().default(0),
+  likeCount: integer('like_count').notNull().default(0),
+  shareCount: integer('share_count').notNull().default(0),
+  publishedAt: timestamp('published_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertCreatorContentSchema = createInsertSchema(creatorContents).omit({
+  id: true,
+  viewCount: true,
+  likeCount: true,
+  shareCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertCreatorContent = z.infer<typeof insertCreatorContentSchema>;
+export type CreatorContent = typeof creatorContents.$inferSelect;
+
+// 推广绑定表 (内容绑定商户的卡券/活动)
+export const promotionBindings = pgTable('promotion_bindings', {
+  id: serial('id').primaryKey(),
+  contentId: integer('content_id').notNull().references(() => creatorContents.id, { onDelete: 'cascade' }),
+  promotionType: promotionItemTypeEnum('promotion_type').notNull(),
+  campaignId: integer('campaign_id').references(() => campaigns.id, { onDelete: 'cascade' }),
+  storeId: integer('store_id').references(() => stores.id, { onDelete: 'cascade' }),
+  billingMode: billingModeEnum('billing_mode').notNull().default('cpc'),
+  price: decimal('price', { precision: 10, scale: 2 }).notNull(),
+  platformFeeRate: decimal('platform_fee_rate', { precision: 5, scale: 4 }).notNull().default('0.30'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertPromotionBindingSchema = createInsertSchema(promotionBindings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertPromotionBinding = z.infer<typeof insertPromotionBindingSchema>;
+export type PromotionBinding = typeof promotionBindings.$inferSelect;
+
+// 推广收益表 (记录每次推广产生的收益)
+export const promotionEarnings = pgTable('promotion_earnings', {
+  id: serial('id').primaryKey(),
+  bindingId: integer('binding_id').notNull().references(() => promotionBindings.id, { onDelete: 'cascade' }),
+  creatorUserId: integer('creator_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  eventType: text('event_type').notNull(),
+  grossAmount: decimal('gross_amount', { precision: 10, scale: 2 }).notNull(),
+  platformFee: decimal('platform_fee', { precision: 10, scale: 2 }).notNull(),
+  creatorEarning: decimal('creator_earning', { precision: 10, scale: 2 }).notNull(),
+  referenceId: text('reference_id'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertPromotionEarningSchema = createInsertSchema(promotionEarnings).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertPromotionEarning = z.infer<typeof insertPromotionEarningSchema>;
+export type PromotionEarning = typeof promotionEarnings.$inferSelect;
