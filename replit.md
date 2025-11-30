@@ -108,10 +108,17 @@ Security measures include bcryptjs for password hashing, environment variable-ba
 - **自动同步**：当创作者通过 `/api/creator/contents` 发布视频时，自动同步到 `short_videos` 表
 - **封面图上传**：视频内容必须上传封面图（coverImageUrl），发布时验证必填，封面图同步到 `short_videos` 表用于首页展示
 
+### 视频分类系统
+- **分类枚举**: all, funny, musicDance, drama, daily, healing, food, beauty, games
+- **数据库字段**: `creator_contents.category`, `short_videos.category`
+- **发布同步**: 创作者发布内容时，category自动同步到short_videos表
+- **API筛选**: `/api/short-videos/feed?category=funny` 支持按分类筛选
+- **翻译支持**: 所有6种语言（中、英、泰、印尼、越南、缅甸）
+
 ### Short Video System (抖音式短视频)
 - **Database**: Added `short_videos`, `short_video_likes`, `short_video_comments` tables
 - **API Endpoints**:
-  - `GET /api/short-videos/feed` - 视频流（游标分页）- **刷刷首页使用此API**
+  - `GET /api/short-videos/feed` - 视频流（游标分页，支持category参数筛选）- **刷刷首页使用此API**
   - `GET /api/short-videos/:id` - 视频详情
   - `POST /api/short-videos` - 上传短视频（含封面/缩略图）
   - `POST /api/short-videos/:id/like` - 点赞/取消点赞
