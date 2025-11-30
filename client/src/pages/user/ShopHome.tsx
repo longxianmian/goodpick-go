@@ -15,7 +15,7 @@ interface CampaignWithStores extends Campaign {
   stores: StoreType[];
 }
 
-const CATEGORIES = ['recommend', 'digital', 'fashion', 'home', 'beauty', 'food', 'trendy'] as const;
+const CATEGORIES = ['recommend', 'digital', 'fashion', 'home', 'beauty', 'food', 'trendy', 'baby', 'outdoor'] as const;
 type CategoryType = typeof CATEGORIES[number];
 
 interface QuickEntry {
@@ -148,25 +148,26 @@ export default function ShopHome() {
     beauty: t('shop.catBeauty'),
     food: t('shop.catFood'),
     trendy: t('shop.catTrendy'),
+    baby: t('shop.catBaby'),
+    outdoor: t('shop.catOutdoor'),
   };
 
   return (
     <div className="min-h-screen bg-background pb-20">
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="px-4 py-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="flex gap-2">
             <Input
               type="search"
               placeholder={t('shop.searchPlaceholder')}
-              className="pl-9 pr-16 h-9 bg-muted border-0"
+              className="flex-1 h-9 bg-muted border-0"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               data-testid="input-search"
             />
             <Button 
               size="sm" 
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-7"
+              className="h-9 px-4"
               data-testid="button-search"
             >
               {t('shop.search')}
