@@ -14,8 +14,14 @@ export interface UserStoreRole {
   role: 'owner' | 'operator' | 'verifier';
 }
 
-// 用户角色类型
-export type UserRoleType = 'consumer' | 'owner' | 'operator' | 'verifier';
+// 用户角色类型（6种角色）
+// consumer: 消费者（默认）
+// owner: 商户老板
+// operator: 运营人员
+// verifier: 核销员
+// sysadmin: 系统管理员
+// creator: 刷刷号（自媒体）
+export type UserRoleType = 'consumer' | 'owner' | 'operator' | 'verifier' | 'sysadmin' | 'creator';
 
 interface User {
   id: number;
@@ -29,6 +35,8 @@ interface User {
   hasOwnerRole?: boolean;
   hasOperatorRole?: boolean;
   hasVerifierRole?: boolean;
+  hasSysAdminRole?: boolean;
+  hasCreatorRole?: boolean;
 }
 
 type AuthPhase = 'booting' | 'ready' | 'error';
@@ -274,6 +282,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (role === 'owner') return !!user?.hasOwnerRole;
     if (role === 'operator') return !!user?.hasOperatorRole;
     if (role === 'verifier') return !!user?.hasVerifierRole;
+    if (role === 'sysadmin') return !!user?.hasSysAdminRole;
+    if (role === 'creator') return !!user?.hasCreatorRole;
     return false;
   };
 

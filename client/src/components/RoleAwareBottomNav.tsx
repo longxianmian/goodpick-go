@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'wouter';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth, UserRoleType } from '@/contexts/AuthContext';
-import { ScanLine, Info, User, Home, Settings, BarChart3 } from 'lucide-react';
+import { ScanLine, Info, User, Home, Settings, BarChart3, Shield, Upload, Megaphone } from 'lucide-react';
 
 interface NavItem {
   key: string;
@@ -109,6 +109,32 @@ const roleNavConfigs: Record<UserRoleType, { items: NavItem[], activePath: (loca
     activePath: (location: string) => {
       if (location.startsWith('/staff/redeem')) return '/staff/redeem';
       if (location.startsWith('/staff/campaign')) return '/staff/campaign';
+      if (location === '/me' || location.startsWith('/me/')) return '/me';
+      return location;
+    }
+  },
+  sysadmin: {
+    items: [
+      { key: 'shuashuaOps', path: '/admin/shuashua-ops', icon: EyeIcon as any, labelKey: 'roleNav.shuashuaOps' },
+      { key: 'discoverOps', path: '/admin/discover-ops', icon: StarIcon as any, labelKey: 'roleNav.discoverOps' },
+      { key: 'me', path: '/me', icon: PersonIcon as any, labelKey: 'bottomNav.me' },
+    ],
+    activePath: (location: string) => {
+      if (location.startsWith('/admin/shuashua-ops')) return '/admin/shuashua-ops';
+      if (location.startsWith('/admin/discover-ops')) return '/admin/discover-ops';
+      if (location === '/me' || location.startsWith('/me/')) return '/me';
+      return location;
+    }
+  },
+  creator: {
+    items: [
+      { key: 'creatorHome', path: '/creator', icon: Home, labelKey: 'roleNav.creatorHome' },
+      { key: 'creatorStudio', path: '/creator/studio', icon: Upload, labelKey: 'roleNav.creatorStudio' },
+      { key: 'me', path: '/me', icon: PersonIcon as any, labelKey: 'bottomNav.me' },
+    ],
+    activePath: (location: string) => {
+      if (location === '/creator') return '/creator';
+      if (location.startsWith('/creator/studio')) return '/creator/studio';
       if (location === '/me' || location.startsWith('/me/')) return '/me';
       return location;
     }
