@@ -92,7 +92,7 @@ export function UserBottomNav({ className = '' }: UserBottomNavProps) {
       className={`fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border ${className}`}
       data-testid="nav-user-bottom"
     >
-      <div className="flex items-center justify-around h-12 max-w-lg mx-auto">
+      <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
         {navItems.map((item) => {
           const active = isActive(item.path);
           const Icon = item.Icon;
@@ -101,7 +101,7 @@ export function UserBottomNav({ className = '' }: UserBottomNavProps) {
             <Link
               key={item.key}
               href={item.path}
-              className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors ${
+              className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
                 active
                   ? 'text-[#38B03B]'
                   : 'text-muted-foreground'

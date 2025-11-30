@@ -211,7 +211,7 @@ export default function ShuaShuaHome() {
       <DrawerMenu open={drawerOpen} onOpenChange={setDrawerOpen} />
       
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/50">
-        <div className="flex items-center justify-between px-3 h-12">
+        <div className="flex items-center justify-between px-3 h-14">
           <MenuIcon onClick={() => setDrawerOpen(true)} />
           
           <div className="flex items-center bg-muted rounded-full p-0.5">
@@ -240,7 +240,7 @@ export default function ShuaShuaHome() {
         </div>
       </header>
 
-      <div className="bg-background sticky top-12 z-30 border-b border-border/30">
+      <div className="bg-background sticky top-14 z-30 border-b border-border/30">
         <div className="px-3 py-2.5 overflow-x-auto scrollbar-hide">
           <div className="flex gap-2 min-w-max">
             {CATEGORIES.map((cat) => (
