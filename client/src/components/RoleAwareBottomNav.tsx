@@ -127,16 +127,16 @@ const roleNavConfigs: Record<UserRoleType, { items: NavItem[], activePath: (loca
     }
   },
   creator: {
-    // 刷刷号（自媒体人）专属管理导航：创作中心 | 内容创作 | 收益中心
+    // 刷刷号专属导航：账号首页（预览作品）| 创作中心（内容管理）| 我的（账号/收益/切换）
     items: [
-      { key: 'creatorDashboard', path: '/creator', icon: Home, labelKey: 'roleNav.creatorDashboard' },
-      { key: 'creatorCreate', path: '/creator/create', icon: Upload, labelKey: 'roleNav.creatorCreate' },
-      { key: 'creatorEarnings', path: '/creator/earnings', icon: BarChart3, labelKey: 'roleNav.creatorEarnings' },
+      { key: 'creatorHome', path: '/creator', icon: Home, labelKey: 'roleNav.creatorHome' },
+      { key: 'creatorCenter', path: '/creator/create', icon: Upload, labelKey: 'roleNav.creatorCenter' },
+      { key: 'creatorMe', path: '/creator/me', icon: PersonIcon as any, labelKey: 'bottomNav.me' },
     ],
     activePath: (location: string) => {
-      if (location === '/creator' || location === '/me') return '/creator';
+      if (location === '/creator') return '/creator';
       if (location.startsWith('/creator/create')) return '/creator/create';
-      if (location.startsWith('/creator/earnings')) return '/creator/earnings';
+      if (location.startsWith('/creator/me')) return '/creator/me';
       return location;
     }
   },

@@ -33,7 +33,7 @@ ShuaShua (刷刷) is a multi-merchant O2O local life platform that evolved from 
 | 角色 | 底部导航按钮 |
 |------|-------------|
 | 消费者 (consumer) | 刷刷 \| 发现 \| 我的 |
-| 刷刷号 (creator) | 创作中心 \| 内容创作 \| 收益中心 |
+| 刷刷号 (creator) | 账号首页 \| 创作中心 \| 我的 |
 | 商户老板 (owner) | 商户首页 \| 运营数据 \| 我的 |
 | 运营人员 (operator) | 商户首页 \| 运营管理 \| 我的 |
 | 核销员 (verifier) | 核销 \| 活动说明 \| 我的 |

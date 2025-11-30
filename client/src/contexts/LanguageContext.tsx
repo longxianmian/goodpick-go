@@ -59,10 +59,7 @@ const translations: Record<Language, Record<string, string>> = {
     'roleNav.shuashuaOps': '刷刷运营',
     'roleNav.discoverOps': '发现运营',
     'roleNav.creatorHome': '账号首页',
-    'roleNav.creatorStudio': '账号后台',
-    'roleNav.creatorDashboard': '创作中心',
-    'roleNav.creatorCreate': '内容创作',
-    'roleNav.creatorEarnings': '收益中心',
+    'roleNav.creatorCenter': '创作中心',
     
     // 系统管理员我的页面
     'sysadmin.title': '系统管理',
@@ -1247,10 +1244,7 @@ const translations: Record<Language, Record<string, string>> = {
     'roleNav.shuashuaOps': 'Feed Ops',
     'roleNav.discoverOps': 'Discover Ops',
     'roleNav.creatorHome': 'Home',
-    'roleNav.creatorStudio': 'Studio',
-    'roleNav.creatorDashboard': 'Dashboard',
-    'roleNav.creatorCreate': 'Create',
-    'roleNav.creatorEarnings': 'Earnings',
+    'roleNav.creatorCenter': 'Create',
     
     // System Admin Me Page
     'sysadmin.title': 'Admin Center',
@@ -2435,11 +2429,8 @@ const translations: Record<Language, Record<string, string>> = {
     'roleNav.campaignInfo': 'ข้อมูลแคมเปญ',
     'roleNav.shuashuaOps': 'จัดการฟีด',
     'roleNav.discoverOps': 'จัดการค้นพบ',
-    'roleNav.creatorHome': 'หน้าหลัก',
-    'roleNav.creatorStudio': 'สตูดิโอ',
-    'roleNav.creatorDashboard': 'แดชบอร์ด',
-    'roleNav.creatorCreate': 'สร้าง',
-    'roleNav.creatorEarnings': 'รายได้',
+    'roleNav.creatorHome': 'หน้าแรก',
+    'roleNav.creatorCenter': 'สร้างคอนเทนต์',
     
     // System Admin Me Page
     'sysadmin.title': 'ศูนย์ผู้ดูแล',
@@ -3665,10 +3656,7 @@ const translations: Record<Language, Record<string, string>> = {
     'roleNav.shuashuaOps': 'Kelola Feed',
     'roleNav.discoverOps': 'Kelola Temukan',
     'roleNav.creatorHome': 'Beranda',
-    'roleNav.creatorStudio': 'Studio',
-    'roleNav.creatorDashboard': 'Dasbor',
-    'roleNav.creatorCreate': 'Buat',
-    'roleNav.creatorEarnings': 'Pendapatan',
+    'roleNav.creatorCenter': 'Buat',
     
     // System Admin Me Page
     'sysadmin.title': 'Pusat Admin',
@@ -4127,10 +4115,7 @@ const translations: Record<Language, Record<string, string>> = {
     'roleNav.shuashuaOps': 'Quản lý Feed',
     'roleNav.discoverOps': 'Quản lý Khám phá',
     'roleNav.creatorHome': 'Trang chủ',
-    'roleNav.creatorStudio': 'Studio',
-    'roleNav.creatorDashboard': 'Bảng điều khiển',
-    'roleNav.creatorCreate': 'Tạo',
-    'roleNav.creatorEarnings': 'Thu nhập',
+    'roleNav.creatorCenter': 'Sáng tạo',
     
     // System Admin Me Page
     'sysadmin.title': 'Trung tâm Admin',
@@ -4590,10 +4575,7 @@ const translations: Record<Language, Record<string, string>> = {
     'roleNav.shuashuaOps': 'ဖိဒ်စီမံ',
     'roleNav.discoverOps': 'ရှာဖွေစီမံ',
     'roleNav.creatorHome': 'ပင်မစာမျက်နှာ',
-    'roleNav.creatorStudio': 'စတူဒီယို',
-    'roleNav.creatorDashboard': 'ဒက်ရှ်ဘုတ်',
-    'roleNav.creatorCreate': 'ဖန်တီး',
-    'roleNav.creatorEarnings': 'ဝင်ငွေ',
+    'roleNav.creatorCenter': 'ဖန်တီးရန်',
     
     // System Admin Me Page
     'sysadmin.title': 'စီမံခန့်ခွဲမှုစင်တာ',
