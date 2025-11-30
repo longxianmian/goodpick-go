@@ -103,6 +103,7 @@ function adminAuthMiddleware(req: Request, res: Response, next: express.NextFunc
 function userAuthMiddleware(req: Request, res: Response, next: express.NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log(`[AUTH] 401 - Missing auth header for ${req.method} ${req.path}`);
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
 
@@ -110,11 +111,13 @@ function userAuthMiddleware(req: Request, res: Response, next: express.NextFunct
   try {
     const decoded = jwt.verify(token, JWT_SECRET_VALUE) as { id: number; lineUserId: string; type: 'user' };
     if (decoded.type !== 'user') {
+      console.log(`[AUTH] 403 - Wrong token type: ${decoded.type} for ${req.method} ${req.path}`);
       return res.status(403).json({ success: false, message: 'Forbidden' });
     }
     req.user = decoded as any;
     next();
   } catch (error) {
+    console.log(`[AUTH] 401 - Invalid token for ${req.method} ${req.path}:`, error);
     return res.status(401).json({ success: false, message: 'Invalid token' });
   }
 }
