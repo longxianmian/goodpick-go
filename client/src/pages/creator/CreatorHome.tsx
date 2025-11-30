@@ -18,27 +18,38 @@ import {
   Play
 } from 'lucide-react';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+
+interface CreatorContent {
+  id: number;
+  title: string;
+  contentType: 'video' | 'article' | 'image';
+  mediaUrls: string[];
+  coverImageUrl?: string;
+  viewCount: number;
+  likeCount: number;
+  status: string;
+}
 
 export default function CreatorHome() {
   const [, setLocation] = useLocation();
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { user, token: userToken } = useAuth();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   
-  const mockAccountStats = {
-    followers: 12580,
-    following: 256,
-    totalLikes: 86400,
-  };
+  const { data: contentsResponse, isLoading } = useQuery<{ success: boolean; data: CreatorContent[] }>({
+    queryKey: ['/api/creator/contents'],
+    enabled: !!userToken,
+  });
 
-  const mockContentList = [
-    { id: 1, title: '美食探店vlog', views: 12500, likes: 860, type: 'video', cover: '/api/placeholder/200/260' },
-    { id: 2, title: '周末好去处推荐', views: 8600, likes: 520, type: 'article', cover: '/api/placeholder/200/260' },
-    { id: 3, title: '新店开业优惠', views: 15800, likes: 1200, type: 'video', cover: '/api/placeholder/200/260' },
-    { id: 4, title: '隐藏菜单大公开', views: 9200, likes: 680, type: 'video', cover: '/api/placeholder/200/260' },
-    { id: 5, title: '周末约会指南', views: 7400, likes: 420, type: 'article', cover: '/api/placeholder/200/260' },
-    { id: 6, title: '本周新品推荐', views: 11200, likes: 920, type: 'video', cover: '/api/placeholder/200/260' },
-  ];
+  const { data: statsResponse } = useQuery<{ success: boolean; data: any }>({
+    queryKey: ['/api/creator/stats'],
+    enabled: !!userToken,
+  });
+  
+  const contents = contentsResponse?.data || [];
+  const publishedContents = contents.filter(c => c.status === 'published');
+  const stats = statsResponse?.data || {};
 
   const formatNumber = (num: number) => {
     if (num >= 10000) {
@@ -98,15 +109,15 @@ export default function CreatorHome() {
 
           <div className="flex items-center justify-around mt-6 pt-4 border-t border-white/20">
             <div className="text-center" data-testid="stat-followers">
-              <div className="text-2xl font-bold">{formatNumber(mockAccountStats.followers)}</div>
-              <div className="text-xs text-white/70">{t('creator.followers')}</div>
+              <div className="text-2xl font-bold">{formatNumber(stats.totalViews || 0)}</div>
+              <div className="text-xs text-white/70">{t('creator.totalViews')}</div>
             </div>
             <div className="text-center" data-testid="stat-following">
-              <div className="text-2xl font-bold">{mockAccountStats.following}</div>
-              <div className="text-xs text-white/70">{t('creator.following')}</div>
+              <div className="text-2xl font-bold">{stats.publishedContents || 0}</div>
+              <div className="text-xs text-white/70">{t('creator.publishedWorks')}</div>
             </div>
             <div className="text-center" data-testid="stat-likes">
-              <div className="text-2xl font-bold">{formatNumber(mockAccountStats.totalLikes)}</div>
+              <div className="text-2xl font-bold">{formatNumber(stats.totalLikes || 0)}</div>
               <div className="text-xs text-white/70">{t('creator.totalLikes')}</div>
             </div>
           </div>
@@ -117,7 +128,7 @@ export default function CreatorHome() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold">{t('creatorHome.myWorks')}</span>
-            <Badge variant="secondary" className="text-xs">{mockContentList.length}</Badge>
+            <Badge variant="secondary" className="text-xs">{publishedContents.length}</Badge>
           </div>
           <div className="flex items-center gap-1">
             <Button 
@@ -139,16 +150,40 @@ export default function CreatorHome() {
           </div>
         </div>
 
-        {viewMode === 'grid' ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-muted-foreground">{t('common.loading')}</div>
+          </div>
+        ) : publishedContents.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <Video className="w-12 h-12 mb-2 opacity-50" />
+            <p>{t('creatorHome.noWorks')}</p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={() => setLocation('/creator/create')}
+            >
+              {t('creatorHome.createFirst')}
+            </Button>
+          </div>
+        ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-3 gap-1">
-            {mockContentList.map((content) => (
+            {publishedContents.map((content) => (
               <div 
                 key={content.id}
                 className="aspect-[3/4] bg-muted rounded-md relative overflow-hidden group cursor-pointer"
                 data-testid={`content-grid-${content.id}`}
+                onClick={() => setLocation(`/creator/edit/${content.id}`)}
               >
+                {content.mediaUrls?.[0] && (
+                  <img 
+                    src={content.mediaUrls[0]} 
+                    alt={content.title}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                {content.type === 'video' && (
+                {content.contentType === 'video' && (
                   <div className="absolute top-2 left-2">
                     <Play className="w-4 h-4 text-white" />
                   </div>
@@ -158,7 +193,7 @@ export default function CreatorHome() {
                   <div className="flex items-center gap-2 text-white/80 text-xs mt-1">
                     <span className="flex items-center gap-0.5">
                       <Eye className="w-3 h-3" />
-                      {formatNumber(content.views)}
+                      {formatNumber(content.viewCount || 0)}
                     </span>
                   </div>
                 </div>
@@ -167,14 +202,22 @@ export default function CreatorHome() {
           </div>
         ) : (
           <div className="space-y-3">
-            {mockContentList.map((content) => (
+            {publishedContents.map((content) => (
               <div 
                 key={content.id}
-                className="flex items-center gap-3 p-3 bg-card rounded-lg"
+                className="flex items-center gap-3 p-3 bg-card rounded-lg cursor-pointer"
                 data-testid={`content-list-${content.id}`}
+                onClick={() => setLocation(`/creator/edit/${content.id}`)}
               >
                 <div className="w-24 h-16 bg-muted rounded-md relative overflow-hidden flex-shrink-0">
-                  {content.type === 'video' && (
+                  {content.mediaUrls?.[0] && (
+                    <img 
+                      src={content.mediaUrls[0]} 
+                      alt={content.title}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  )}
+                  {content.contentType === 'video' && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                       <Play className="w-6 h-6 text-white" />
                     </div>
@@ -185,15 +228,15 @@ export default function CreatorHome() {
                   <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                     <span className="flex items-center gap-1">
                       <Eye className="w-3 h-3" />
-                      {formatNumber(content.views)}
+                      {formatNumber(content.viewCount || 0)}
                     </span>
                     <span className="flex items-center gap-1">
                       <Heart className="w-3 h-3" />
-                      {formatNumber(content.likes)}
+                      {formatNumber(content.likeCount || 0)}
                     </span>
                   </div>
                   <Badge variant="outline" className="mt-2 text-xs">
-                    {content.type === 'video' ? (
+                    {content.contentType === 'video' ? (
                       <><Video className="w-3 h-3 mr-1" />{t('creator.videos')}</>
                     ) : (
                       <><FileText className="w-3 h-3 mr-1" />{t('creator.articles')}</>
