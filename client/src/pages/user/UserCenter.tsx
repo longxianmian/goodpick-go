@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
-import { ChevronRight, Ticket, Settings, HelpCircle, Info, User, LogIn, Loader2, ShoppingCart, ClipboardList, Coins, Wallet, LogOut, ChevronDown } from 'lucide-react';
+import { ChevronRight, Ticket, Settings, HelpCircle, Info, User, LogIn, ShoppingCart, ClipboardList, Coins, Wallet, LogOut, ChevronDown } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -360,7 +360,6 @@ export default function UserCenter() {
   const { user, authPhase, userToken, logoutUser } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [loggingIn, setLoggingIn] = useState(false);
   const [identity, setIdentity] = useState<IdentityType>('shua');
   
   const isLoggedIn = !!userToken && !!user;
@@ -372,35 +371,8 @@ export default function UserCenter() {
 
   const roles = rolesData?.data?.roles || [];
 
-  const handleLogin = async () => {
-    try {
-      setLoggingIn(true);
-      console.log('[UserCenter] 发起 LINE OAuth 登录');
-      
-      const res = await fetch('/api/auth/line/init-oauth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-        credentials: 'include',
-      });
-
-      const data = await res.json();
-
-      if (!data.success || !data.redirectUrl) {
-        throw new Error(data.message || 'Failed to initialize OAuth');
-      }
-
-      console.log('[UserCenter] 跳转到 LINE 授权页面');
-      window.location.href = data.redirectUrl;
-    } catch (error: any) {
-      console.error('[UserCenter] LINE 登录失败:', error);
-      setLoggingIn(false);
-      toast({
-        title: t('common.error'),
-        description: error.message || t('login.failed'),
-        variant: 'destructive',
-      });
-    }
+  const handleLogin = () => {
+    navigate('/login');
   };
 
   const handleLogout = async () => {
@@ -488,14 +460,9 @@ export default function UserCenter() {
                     onClick={handleLogin} 
                     className="mb-1" 
                     data-testid="button-login"
-                    disabled={loggingIn}
                   >
-                    {loggingIn ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <LogIn className="w-4 h-4 mr-2" />
-                    )}
-                    {loggingIn ? t('common.loading') : t('userCenter.login')}
+                    <LogIn className="w-4 h-4 mr-2" />
+                    {t('userCenter.login')}
                   </Button>
                   <p className="text-[11px] text-muted-foreground">
                     {t('userCenter.loginHint')}

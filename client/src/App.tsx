@@ -31,6 +31,7 @@ import StoreFront from "@/pages/user/StoreFront";
 import AdminPaymentSettings from "@/pages/admin/AdminPaymentSettings";
 import PaymentPage from "@/pages/user/PaymentPage";
 import PaymentSuccess from "@/pages/user/PaymentSuccess";
+import LoginPage from "@/pages/user/LoginPage";
 import PrivacyPage from "@/pages/PrivacyPage";
 import TermsPage from "@/pages/TermsPage";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
@@ -148,6 +149,7 @@ function Router() {
       <Route path="/" component={ShuaShuaHome} />
       <Route path="/shop" component={ShopHome} />
       <Route path="/me" component={UserCenter} />
+      <Route path="/login" component={LoginPage} />
       <Route path="/settings/language" component={LanguageSettings} />
       <Route path="/help" component={HelpPage} />
       <Route path="/about" component={AboutPage} />

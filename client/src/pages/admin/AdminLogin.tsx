@@ -33,21 +33,21 @@ export default function AdminLogin() {
 
       if (data.success) {
         loginAdmin(data.token, data.admin);
-        toast({ title: t('login.welcome'), description: t('login.loginSuccess') });
+        toast({ title: t('adminLogin.welcome'), description: t('adminLogin.success') });
         setTimeout(() => {
           setLocation('/admin/stores');
         }, 100);
       } else {
         toast({
-          title: t('login.loginFailed'),
-          description: data.message || t('login.invalidCredentials'),
+          title: t('adminLogin.loginFailed'),
+          description: data.message || t('adminLogin.invalidCredentials'),
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
         title: t('common.error'),
-        description: t('login.connectionError'),
+        description: t('adminLogin.connectionError'),
         variant: 'destructive',
       });
     } finally {
@@ -59,30 +59,30 @@ export default function AdminLogin() {
     <div className="flex items-center justify-center min-h-screen bg-background">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">{t('login.title')}</CardTitle>
-          <CardDescription>{t('login.description')}</CardDescription>
+          <CardTitle className="text-2xl">{t('adminLogin.title')}</CardTitle>
+          <CardDescription>{t('adminLogin.description')}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">{t('login.email')}</Label>
+              <Label htmlFor="email">{t('adminLogin.email')}</Label>
               <Input
                 id="email"
                 type="email"
                 data-testid="input-email"
-                placeholder={t('login.emailPlaceholder')}
+                placeholder={t('adminLogin.emailPlaceholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">{t('login.password')}</Label>
+              <Label htmlFor="password">{t('adminLogin.password')}</Label>
               <Input
                 id="password"
                 type="password"
                 data-testid="input-password"
-                placeholder={t('login.passwordPlaceholder')}
+                placeholder={t('adminLogin.passwordPlaceholder')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -97,10 +97,10 @@ export default function AdminLogin() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t('login.signingIn')}
+                  {t('adminLogin.signingIn')}
                 </>
               ) : (
-                t('login.signIn')
+                t('adminLogin.signIn')
               )}
             </Button>
           </form>

@@ -222,6 +222,29 @@ const translations: Record<Language, Record<string, string>> = {
     'drawer.clearCache': '清理缓存',
     'drawer.version': '版本',
     
+    // 登录页面
+    'login.title': '登录',
+    'login.welcome': '欢迎来到刷刷',
+    'login.subtitle': '发现本地优惠，尽享美好生活',
+    'login.recommendedMethod': '推荐登录方式',
+    'login.lineOneClick': 'LINE 一键登录',
+    'login.lineLogin': '使用 LINE 登录',
+    'login.lineHintLiff': '检测到您在 LINE 环境中，点击即可一键登录',
+    'login.lineHintWeb': '使用您的 LINE 账号快速登录',
+    'login.orOtherMethods': '或使用其他方式',
+    'login.googleLogin': '使用 Google 登录',
+    'login.appleLogin': '使用 Apple 登录',
+    'login.phoneLogin': '手机号登录',
+    'login.termsNotice': '登录即表示您同意我们的服务条款和隐私政策',
+    'login.termsLink': '服务条款',
+    'login.privacyLink': '隐私政策',
+    'login.secureLogin': '安全加密登录',
+    'login.failed': '登录失败，请重试',
+    'login.comingSoon': '即将上线',
+    'login.googleComingSoon': 'Google 登录功能即将上线',
+    'login.appleComingSoon': 'Apple 登录功能即将上线',
+    'login.phoneComingSoon': '手机号登录功能即将上线',
+    
     // 刷刷首页
     'shuashua.title': '刷刷',
     'shuashua.nearby': '附近优惠',
@@ -430,13 +453,19 @@ const translations: Record<Language, Record<string, string>> = {
     'storeFront.deals.discountPercent': '{percent}折',
     'storeFront.deals.newCustomerPrice': '新客价',
     
-    // Login
-    'login.title': '管理后台登录',
-    'login.email': '邮箱',
-    'login.password': '密码',
-    'login.submit': '登录',
-    'login.emailPlaceholder': '请输入邮箱',
-    'login.passwordPlaceholder': '请输入密码',
+    // Admin Login
+    'adminLogin.title': '管理后台登录',
+    'adminLogin.description': '请使用管理员账号登录',
+    'adminLogin.email': '邮箱',
+    'adminLogin.password': '密码',
+    'adminLogin.submit': '登录',
+    'adminLogin.signIn': '登录',
+    'adminLogin.signingIn': '登录中...',
+    'adminLogin.emailPlaceholder': '请输入邮箱',
+    'adminLogin.passwordPlaceholder': '请输入密码',
+    'adminLogin.welcome': '欢迎回来',
+    'adminLogin.invalidCredentials': '邮箱或密码错误',
+    'adminLogin.connectionError': '网络连接错误，请稍后重试',
     
     // Stores
     'stores.title': '门店管理',
@@ -766,9 +795,9 @@ const translations: Record<Language, Record<string, string>> = {
     'coupon.usedAt': '使用时间',
     'coupon.scanToRedeem': '向店员出示此二维码以核销',
     
-    // Login
-    'login.success': '登录成功',
-    'login.failed': '登录失败',
+    // Admin Login (additional)
+    'adminLogin.success': '登录成功',
+    'adminLogin.loginFailed': '登录失败',
     
     // Staff OA - Redeem Page
     'staffRedeem.title': '店员核销',
@@ -1194,6 +1223,29 @@ const translations: Record<Language, Record<string, string>> = {
     'drawer.clearCache': 'Clear Cache',
     'drawer.version': 'Version',
     
+    // Login Page
+    'login.title': 'Login',
+    'login.welcome': 'Welcome to ShuaShua',
+    'login.subtitle': 'Discover local deals, enjoy your life',
+    'login.recommendedMethod': 'Recommended',
+    'login.lineOneClick': 'LINE One-Click Login',
+    'login.lineLogin': 'Login with LINE',
+    'login.lineHintLiff': 'Detected LINE environment, tap to login instantly',
+    'login.lineHintWeb': 'Login quickly with your LINE account',
+    'login.orOtherMethods': 'Or use other methods',
+    'login.googleLogin': 'Login with Google',
+    'login.appleLogin': 'Login with Apple',
+    'login.phoneLogin': 'Login with Phone',
+    'login.termsNotice': 'By logging in, you agree to our Terms of Service and Privacy Policy',
+    'login.termsLink': 'Terms of Service',
+    'login.privacyLink': 'Privacy Policy',
+    'login.secureLogin': 'Secure encrypted login',
+    'login.failed': 'Login failed, please try again',
+    'login.comingSoon': 'Coming Soon',
+    'login.googleComingSoon': 'Google login is coming soon',
+    'login.appleComingSoon': 'Apple login is coming soon',
+    'login.phoneComingSoon': 'Phone login is coming soon',
+    
     // ShuaShua Home
     'shuashua.title': 'Discover',
     'shuashua.nearby': 'Nearby Deals',
@@ -1402,13 +1454,19 @@ const translations: Record<Language, Record<string, string>> = {
     'storeFront.deals.discountPercent': '{percent}x off',
     'storeFront.deals.newCustomerPrice': 'New customer',
     
-    // Login
-    'login.title': 'Admin Login',
-    'login.email': 'Email',
-    'login.password': 'Password',
-    'login.submit': 'Login',
-    'login.emailPlaceholder': 'Enter email',
-    'login.passwordPlaceholder': 'Enter password',
+    // Admin Login
+    'adminLogin.title': 'Admin Login',
+    'adminLogin.description': 'Please sign in with your admin account',
+    'adminLogin.email': 'Email',
+    'adminLogin.password': 'Password',
+    'adminLogin.submit': 'Login',
+    'adminLogin.signIn': 'Sign In',
+    'adminLogin.signingIn': 'Signing in...',
+    'adminLogin.emailPlaceholder': 'Enter email',
+    'adminLogin.passwordPlaceholder': 'Enter password',
+    'adminLogin.welcome': 'Welcome back',
+    'adminLogin.invalidCredentials': 'Invalid email or password',
+    'adminLogin.connectionError': 'Connection error, please try again',
     
     // Stores
     'stores.title': 'Stores Management',
@@ -1739,9 +1797,9 @@ const translations: Record<Language, Record<string, string>> = {
     'coupon.usedAt': 'Used At',
     'coupon.scanToRedeem': 'Show this QR code to staff to redeem',
     
-    // Login
-    'login.success': 'Login successful',
-    'login.failed': 'Login failed',
+    // Admin Login (additional)
+    'adminLogin.success': 'Login successful',
+    'adminLogin.loginFailed': 'Login failed',
     
     // Staff OA - Redeem Page
     'staffRedeem.title': 'Staff Redemption',
@@ -2167,6 +2225,29 @@ const translations: Record<Language, Record<string, string>> = {
     'drawer.clearCache': 'ล้างแคช',
     'drawer.version': 'เวอร์ชัน',
     
+    // Login Page
+    'login.title': 'เข้าสู่ระบบ',
+    'login.welcome': 'ยินดีต้อนรับสู่ ShuaShua',
+    'login.subtitle': 'ค้นพบดีลท้องถิ่น เพลิดเพลินกับชีวิต',
+    'login.recommendedMethod': 'แนะนำ',
+    'login.lineOneClick': 'เข้าสู่ระบบ LINE ทันที',
+    'login.lineLogin': 'เข้าสู่ระบบด้วย LINE',
+    'login.lineHintLiff': 'ตรวจพบว่าอยู่ใน LINE แตะเพื่อเข้าสู่ระบบทันที',
+    'login.lineHintWeb': 'เข้าสู่ระบบอย่างรวดเร็วด้วยบัญชี LINE',
+    'login.orOtherMethods': 'หรือใช้วิธีอื่น',
+    'login.googleLogin': 'เข้าสู่ระบบด้วย Google',
+    'login.appleLogin': 'เข้าสู่ระบบด้วย Apple',
+    'login.phoneLogin': 'เข้าสู่ระบบด้วยโทรศัพท์',
+    'login.termsNotice': 'การเข้าสู่ระบบหมายถึงคุณยอมรับข้อกำหนดการใช้งานและนโยบายความเป็นส่วนตัว',
+    'login.termsLink': 'ข้อกำหนดการใช้งาน',
+    'login.privacyLink': 'นโยบายความเป็นส่วนตัว',
+    'login.secureLogin': 'เข้าสู่ระบบอย่างปลอดภัย',
+    'login.failed': 'เข้าสู่ระบบล้มเหลว กรุณาลองใหม่',
+    'login.comingSoon': 'เร็วๆ นี้',
+    'login.googleComingSoon': 'การเข้าสู่ระบบด้วย Google จะมาเร็วๆ นี้',
+    'login.appleComingSoon': 'การเข้าสู่ระบบด้วย Apple จะมาเร็วๆ นี้',
+    'login.phoneComingSoon': 'การเข้าสู่ระบบด้วยโทรศัพท์จะมาเร็วๆ นี้',
+    
     // ShuaShua Home
     'shuashua.title': 'ดีล',
     'shuashua.nearby': 'ดีลใกล้ฉัน',
@@ -2375,13 +2456,19 @@ const translations: Record<Language, Record<string, string>> = {
     'storeFront.deals.discountPercent': 'ลด {percent}x',
     'storeFront.deals.newCustomerPrice': 'ราคาลูกค้าใหม่',
     
-    // Login
-    'login.title': 'เข้าสู่ระบบผู้ดูแล',
-    'login.email': 'อีเมล',
-    'login.password': 'รหัสผ่าน',
-    'login.submit': 'เข้าสู่ระบบ',
-    'login.emailPlaceholder': 'กรุณากรอกอีเมล',
-    'login.passwordPlaceholder': 'กรุณากรอกรหัสผ่าน',
+    // Admin Login
+    'adminLogin.title': 'เข้าสู่ระบบผู้ดูแล',
+    'adminLogin.description': 'กรุณาเข้าสู่ระบบด้วยบัญชีผู้ดูแล',
+    'adminLogin.email': 'อีเมล',
+    'adminLogin.password': 'รหัสผ่าน',
+    'adminLogin.submit': 'เข้าสู่ระบบ',
+    'adminLogin.signIn': 'เข้าสู่ระบบ',
+    'adminLogin.signingIn': 'กำลังเข้าสู่ระบบ...',
+    'adminLogin.emailPlaceholder': 'กรุณากรอกอีเมล',
+    'adminLogin.passwordPlaceholder': 'กรุณากรอกรหัสผ่าน',
+    'adminLogin.welcome': 'ยินดีต้อนรับกลับมา',
+    'adminLogin.invalidCredentials': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+    'adminLogin.connectionError': 'เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่',
     
     // Stores
     'stores.title': 'จัดการร้านค้า',
@@ -2712,9 +2799,9 @@ const translations: Record<Language, Record<string, string>> = {
     'coupon.usedAt': 'วันที่ใช้',
     'coupon.scanToRedeem': 'แสดง QR Code นี้กับพนักงานเพื่อใช้คูปอง',
     
-    // Login
-    'login.success': 'เข้าสู่ระบบสำเร็จ',
-    'login.failed': 'เข้าสู่ระบบไม่สำเร็จ',
+    // Admin Login (additional)
+    'adminLogin.success': 'เข้าสู่ระบบสำเร็จ',
+    'adminLogin.loginFailed': 'เข้าสู่ระบบไม่สำเร็จ',
     
     // Staff OA - Redeem Page
     'staffRedeem.title': 'ยืนยันคูปอง',
