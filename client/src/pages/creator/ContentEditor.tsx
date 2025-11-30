@@ -40,7 +40,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useDropzone } from 'react-dropzone';
 
-type ContentType = 'video' | 'article';
 type BillingMode = 'cpc' | 'cpm' | 'cps';
 
 interface MediaFile {
@@ -72,12 +71,11 @@ export default function ContentEditor() {
   const numericContentId = contentId && contentId !== 'new' ? parseInt(contentId) : null;
 
   const searchParams = new URLSearchParams(searchString);
-  const initialType = searchParams.get('type') as ContentType | null;
   const openPromotionTab = searchParams.get('tab') === 'promotion';
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [contentType, setContentType] = useState<ContentType>('video');
+  const contentType = 'video' as const;
   const [showPromotionDialog, setShowPromotionDialog] = useState(false);
   const [selectedPromotion, setSelectedPromotion] = useState<PromotionItem | null>(null);
   const [enablePromotion, setEnablePromotion] = useState(false);
@@ -205,10 +203,8 @@ export default function ContentEditor() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: handleFilesUpload,
-    accept: contentType === 'video' 
-      ? { 'video/*': ['.mp4', '.mov', '.avi', '.webm'] }
-      : { 'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp'] },
-    multiple: contentType === 'article',
+    accept: { 'video/*': ['.mp4', '.mov', '.avi', '.webm'] },
+    multiple: false,
     disabled: uploading,
   });
 
@@ -291,25 +287,21 @@ export default function ContentEditor() {
     if (existingContent?.data) {
       setTitle(existingContent.data.title || '');
       setContent(existingContent.data.description || '');
-      setContentType(existingContent.data.contentType || 'video');
       setCoverImageUrl(existingContent.data.coverImageUrl || '');
       if (existingContent.data.mediaUrls && Array.isArray(existingContent.data.mediaUrls)) {
         const urls = existingContent.data.mediaUrls;
-        const type = existingContent.data.contentType === 'video' ? 'video' : 'image';
-        setMediaFiles(urls.map((url: string) => ({ type, url })));
+        setMediaFiles(urls.map((url: string) => ({ type: 'video' as const, url })));
       }
       if (existingContent.data.promotionId) {
         setEnablePromotion(true);
       }
-    } else if (initialType) {
-      setContentType(initialType);
     }
     
     if (openPromotionTab) {
       setEnablePromotion(true);
       setShowPromotionDialog(true);
     }
-  }, [existingContent, initialType, openPromotionTab]);
+  }, [existingContent, openPromotionTab]);
 
   const handleSaveDraft = async () => {
     if (!title.trim()) {
@@ -395,17 +387,6 @@ export default function ContentEditor() {
     }
   };
 
-  const handleContentTypeChange = (newType: ContentType) => {
-    if (mediaFiles.length > 0 && newType !== contentType) {
-      toast({
-        title: t('common.warning'),
-        description: t('creator.editor.changeTypeWarning'),
-      });
-      setMediaFiles([]);
-    }
-    setContentType(newType);
-  };
-
   return (
     <div className="min-h-screen bg-muted/30 pb-6">
       <div className="bg-gradient-to-b from-[#ff6b6b] to-[#ee5a5a] text-white">
@@ -432,32 +413,6 @@ export default function ContentEditor() {
             <CardTitle className="text-base">{t('creator.editor.basicInfo')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>{t('creator.editor.contentType')}</Label>
-              <div className="flex gap-2">
-                <Button
-                  variant={contentType === 'video' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => handleContentTypeChange('video')}
-                  className={contentType === 'video' ? 'bg-[#38B03B]' : ''}
-                  data-testid="button-type-video"
-                >
-                  <Video className="w-4 h-4 mr-1" />
-                  {t('creator.videos')}
-                </Button>
-                <Button
-                  variant={contentType === 'article' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => handleContentTypeChange('article')}
-                  className={contentType === 'article' ? 'bg-[#38B03B]' : ''}
-                  data-testid="button-type-article"
-                >
-                  <Image className="w-4 h-4 mr-1" />
-                  {t('creator.articles')}
-                </Button>
-              </div>
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="title">{t('creator.editor.title')}</Label>
               <Input
@@ -539,8 +494,7 @@ export default function ContentEditor() {
                 </div>
               )}
 
-              {(contentType === 'video' && mediaFiles.length < 1) || 
-               (contentType === 'article' && mediaFiles.length < 9) ? (
+              {mediaFiles.length < 1 && (
                 <div
                   {...getRootProps()}
                   className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
@@ -551,21 +505,9 @@ export default function ContentEditor() {
                   data-testid="dropzone"
                 >
                   <input {...getInputProps()} />
-                  {contentType === 'video' ? (
-                    <>
-                      <Video className="w-12 h-12 mx-auto text-muted-foreground/50 mb-2" />
-                      <p className="text-sm text-muted-foreground">{t('creator.editor.uploadVideo')}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{t('creator.editor.dragOrClick')}</p>
-                    </>
-                  ) : (
-                    <>
-                      <Image className="w-12 h-12 mx-auto text-muted-foreground/50 mb-2" />
-                      <p className="text-sm text-muted-foreground">{t('creator.editor.uploadImages')}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {t('creator.editor.maxImages', { count: 9 - mediaFiles.length })}
-                      </p>
-                    </>
-                  )}
+                  <Video className="w-12 h-12 mx-auto text-muted-foreground/50 mb-2" />
+                  <p className="text-sm text-muted-foreground">{t('creator.editor.uploadVideo')}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t('creator.editor.dragOrClick')}</p>
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -577,7 +519,7 @@ export default function ContentEditor() {
                     {t('creator.editor.selectFile')}
                   </Button>
                 </div>
-              ) : null}
+              )}
             </div>
 
             {contentType === 'video' && (
