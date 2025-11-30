@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { Search, ShoppingCart, Ticket, MessageCircle, Footprints, Receipt, Gift, Sparkles, Percent, Heart, Store, Radio } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Search, Ticket, Heart, MapPin, ChevronDown } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserBottomNav } from '@/components/UserBottomNav';
@@ -15,63 +12,37 @@ interface CampaignWithStores extends Campaign {
   stores: StoreType[];
 }
 
-const CATEGORIES = ['recommend', 'digital', 'fashion', 'home', 'beauty', 'food', 'trendy', 'baby', 'outdoor'] as const;
-type CategoryType = typeof CATEGORIES[number];
+const DISCOVER_CATEGORIES = ['food', 'shopping', 'relax', 'family', 'entertainment', 'stay', 'travel', 'featured'] as const;
+type DiscoverCategoryType = typeof DISCOVER_CATEGORIES[number];
 
-interface QuickEntry {
-  icon: typeof Radio;
-  labelKey: string;
-  color: string;
-}
-
-const QUICK_ENTRIES: QuickEntry[] = [
-  { icon: Radio, labelKey: 'shop.entryLive', color: 'bg-pink-100 dark:bg-pink-900/30' },
-  { icon: Store, labelKey: 'shop.entryShowroom', color: 'bg-purple-100 dark:bg-purple-900/30' },
-  { icon: Sparkles, labelKey: 'shop.entryNewArrivals', color: 'bg-blue-100 dark:bg-blue-900/30' },
-  { icon: Percent, labelKey: 'shop.entrySuperSale', color: 'bg-orange-100 dark:bg-orange-900/30' },
-  { icon: Heart, labelKey: 'shop.entryFanList', color: 'bg-red-100 dark:bg-red-900/30' },
-];
-
-interface FunctionEntry {
-  icon: typeof Receipt;
-  labelKey: string;
-  badge?: string;
-}
-
-const FUNCTION_ENTRIES: FunctionEntry[] = [
-  { icon: Receipt, labelKey: 'shop.funcOrders' },
-  { icon: ShoppingCart, labelKey: 'shop.funcCart' },
-  { icon: Ticket, labelKey: 'shop.funcCoupons', badge: 'shop.discountBadge' },
-  { icon: MessageCircle, labelKey: 'shop.funcMessages' },
-  { icon: Footprints, labelKey: 'shop.funcHistory' },
-];
-
-function ProductCard({ campaign }: { campaign: CampaignWithStores }) {
+function DiscoverCard({ campaign }: { campaign: CampaignWithStores }) {
   const { language, t } = useLanguage();
+  const [liked, setLiked] = useState(false);
+  const [likeCount] = useState(() => Math.floor(Math.random() * 20) + 1);
   
   const getTitle = () => {
     if (language === 'zh-cn') return campaign.titleZh || campaign.titleSource;
     if (language === 'en-us') return campaign.titleEn || campaign.titleSource;
     return campaign.titleTh || campaign.titleSource;
   };
-  
-  const formatPrice = () => {
-    if (campaign.discountType === 'percentage_off') {
-      return `${campaign.couponValue}%`;
-    }
-    return `฿${campaign.couponValue}`;
+
+  const handleLike = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLiked(!liked);
   };
 
-  const storeName = campaign.stores?.[0]?.name || t('shop.storeFallback');
-  const soldCount = Math.floor(Math.random() * 500) + 50;
+  const storeName = campaign.stores?.[0]?.name || t('discover.merchantOfficial');
+  const storeAvatar = campaign.stores?.[0]?.imageUrl;
 
   return (
     <Link href={`/campaign/${campaign.id}`}>
       <div 
-        className="rounded-lg overflow-hidden bg-card cursor-pointer hover-elevate active-elevate-2"
-        data-testid={`card-product-${campaign.id}`}
+        className="bg-card rounded-2xl shadow-sm overflow-hidden flex flex-col cursor-pointer hover-elevate active-elevate-2"
+        style={{ aspectRatio: '1 / 1.618' }}
+        data-testid={`card-discover-${campaign.id}`}
       >
-        <div className="relative aspect-square overflow-hidden">
+        <div className="flex-[2] w-full bg-muted flex items-center justify-center relative">
           {campaign.bannerImageUrl ? (
             <img 
               src={campaign.bannerImageUrl} 
@@ -80,35 +51,41 @@ function ProductCard({ campaign }: { campaign: CampaignWithStores }) {
             />
           ) : (
             <div className="w-full h-full bg-muted flex items-center justify-center">
-              <Ticket className="w-10 h-10 text-muted-foreground" />
+              <Ticket className="w-8 h-8 text-muted-foreground" />
             </div>
           )}
         </div>
-        
-        <div className="p-2 space-y-1.5">
-          <div className="flex items-start gap-1">
-            <Badge variant="outline" className="text-[10px] px-1 py-0 flex-shrink-0 border-primary text-primary">
-              {storeName.slice(0, 4)}
-            </Badge>
-            <p className="text-xs text-muted-foreground line-clamp-1">
-              {getTitle()}
-            </p>
-          </div>
-          
-          <h3 
-            className="font-medium text-sm line-clamp-2 leading-tight min-h-[2.5rem]"
-            data-testid={`text-product-title-${campaign.id}`}
+
+        <div className="flex-[1] px-2.5 py-2 flex flex-col justify-between">
+          <div 
+            className="text-[11px] font-medium text-foreground line-clamp-2"
+            data-testid={`text-discover-title-${campaign.id}`}
           >
             {getTitle()}
-          </h3>
-          
-          <div className="flex items-end justify-between">
-            <div className="flex items-baseline gap-1">
-              <span className="text-lg font-bold text-destructive">{formatPrice()}</span>
+          </div>
+
+          <div className="flex items-center justify-between mt-1">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <Avatar className="w-5 h-5 flex-shrink-0">
+                <AvatarImage src={storeAvatar || undefined} />
+                <AvatarFallback className="text-[8px] bg-muted">
+                  {storeName.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col leading-tight min-w-0">
+                <span className="text-[10px] font-medium text-foreground truncate">{storeName}</span>
+                <span className="text-[9px] text-muted-foreground">{t('discover.merchantOfficial')}</span>
+              </div>
             </div>
-            <span className="text-xs text-muted-foreground">
-              {t('shop.sold')}{soldCount}
-            </span>
+            
+            <button
+              onClick={handleLike}
+              className="flex items-center gap-0.5 text-[10px] text-muted-foreground flex-shrink-0"
+              data-testid={`button-like-${campaign.id}`}
+            >
+              <Heart className={`w-3 h-3 ${liked ? 'fill-red-500 text-red-500' : ''}`} />
+              <span>{likeCount >= 1000 ? `${(likeCount / 1000).toFixed(1)}k` : String(likeCount)}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -116,14 +93,22 @@ function ProductCard({ campaign }: { campaign: CampaignWithStores }) {
   );
 }
 
-function ProductSkeleton() {
+function DiscoverSkeleton() {
   return (
-    <div className="rounded-lg overflow-hidden bg-card">
-      <Skeleton className="aspect-square" />
-      <div className="p-2 space-y-2">
+    <div 
+      className="bg-card rounded-2xl shadow-sm overflow-hidden flex flex-col"
+      style={{ aspectRatio: '1 / 1.618' }}
+    >
+      <div className="flex-[2] w-full">
+        <Skeleton className="w-full h-full" />
+      </div>
+      <div className="flex-[1] px-2.5 py-2 space-y-2">
         <Skeleton className="h-3 w-full" />
-        <Skeleton className="h-4 w-3/4" />
-        <Skeleton className="h-5 w-1/2" />
+        <Skeleton className="h-3 w-3/4" />
+        <div className="flex items-center gap-2 mt-auto">
+          <Skeleton className="w-5 h-5 rounded-full" />
+          <Skeleton className="h-2 w-16" />
+        </div>
       </div>
     </div>
   );
@@ -131,8 +116,7 @@ function ProductSkeleton() {
 
 export default function ShopHome() {
   const { t } = useLanguage();
-  const [activeCategory, setActiveCategory] = useState<CategoryType>('recommend');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState<DiscoverCategoryType>('food');
   
   const { data: campaignsData, isLoading } = useQuery<{ success: boolean; data: CampaignWithStores[] }>({
     queryKey: ['/api/campaigns'],
@@ -140,51 +124,58 @@ export default function ShopHome() {
 
   const campaigns = campaignsData?.data || [];
 
-  const categoryLabels: Record<CategoryType, string> = {
-    recommend: t('shop.catRecommend'),
-    digital: t('shop.catDigital'),
-    fashion: t('shop.catFashion'),
-    home: t('shop.catHome'),
-    beauty: t('shop.catBeauty'),
-    food: t('shop.catFood'),
-    trendy: t('shop.catTrendy'),
-    baby: t('shop.catBaby'),
-    outdoor: t('shop.catOutdoor'),
+  const categoryLabels: Record<DiscoverCategoryType, string> = {
+    food: t('discover.catFood'),
+    shopping: t('discover.catShopping'),
+    relax: t('discover.catRelax'),
+    family: t('discover.catFamily'),
+    entertainment: t('discover.catEntertainment'),
+    stay: t('discover.catStay'),
+    travel: t('discover.catTravel'),
+    featured: t('discover.catFeatured'),
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="px-4 py-2">
-          <div className="flex gap-2">
-            <Input
-              type="search"
-              placeholder={t('shop.searchPlaceholder')}
-              className="flex-1 h-9 bg-muted border-0"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              data-testid="input-search"
-            />
-            <Button 
-              size="sm" 
-              className="h-9 px-4"
-              data-testid="button-search"
-            >
-              {t('shop.search')}
-            </Button>
-          </div>
+    <div className="min-h-screen bg-muted/30 pb-20">
+      <header className="sticky top-0 z-40 bg-background border-b border-border">
+        <div className="flex items-center justify-between px-4 pt-3 pb-2 gap-3">
+          <button 
+            className="flex items-center gap-1 text-sm font-medium text-foreground flex-shrink-0"
+            data-testid="button-city-select"
+          >
+            <MapPin className="w-4 h-4" />
+            <span>{t('discover.defaultCity')}</span>
+            <ChevronDown className="w-3 h-3 text-muted-foreground" />
+          </button>
+
+          <button 
+            className="flex-1 flex items-center gap-1 px-3 py-1.5 rounded-full bg-muted text-[12px] text-muted-foreground"
+            data-testid="button-search"
+          >
+            <Search className="w-3.5 h-3.5" />
+            <span>{t('discover.searchPlaceholder')}</span>
+          </button>
+
+          <button 
+            className="px-3 py-1.5 rounded-full text-[12px] font-medium text-foreground bg-background border border-border flex-shrink-0"
+            data-testid="button-nearby"
+          >
+            {t('discover.nearby')}
+          </button>
         </div>
-        
-        <div className="px-4 pb-2 overflow-x-auto scrollbar-hide">
-          <div className="flex gap-4 min-w-max">
-            {CATEGORIES.map((cat) => (
+      </header>
+
+      <div className="bg-background border-b border-border">
+        <div className="px-3 py-3">
+          <div className="grid grid-cols-4 gap-2">
+            {DISCOVER_CATEGORIES.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`text-sm whitespace-nowrap transition-colors pb-1 ${
+                className={`w-full px-2 py-1.5 rounded-full whitespace-nowrap text-[11px] transition-colors ${
                   activeCategory === cat
-                    ? 'text-foreground font-semibold border-b-2 border-primary'
-                    : 'text-muted-foreground'
+                    ? 'bg-primary text-primary-foreground font-medium'
+                    : 'bg-muted text-muted-foreground'
                 }`}
                 data-testid={`category-${cat}`}
               >
@@ -193,75 +184,24 @@ export default function ShopHome() {
             ))}
           </div>
         </div>
-      </header>
+      </div>
 
-      <main className="px-4 py-3 space-y-4">
-        <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
-          <div className="flex gap-4 min-w-max">
-            {QUICK_ENTRIES.map((entry, i) => (
-              <button 
-                key={i} 
-                className="flex flex-col items-center gap-1.5 w-16"
-                data-testid={`quick-entry-${i}`}
-              >
-                <div className={`w-14 h-14 rounded-full ${entry.color} flex items-center justify-center`}>
-                  <Avatar className="w-12 h-12">
-                    <AvatarFallback className="bg-transparent">
-                      <entry.icon className="w-6 h-6 text-foreground" />
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-                <span className="text-xs text-center line-clamp-1">{t(entry.labelKey)}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-5 gap-2 bg-card rounded-lg p-3">
-          {FUNCTION_ENTRIES.map((entry, i) => (
-            <button 
-              key={i} 
-              className="flex flex-col items-center gap-1 relative"
-              data-testid={`func-entry-${i}`}
-            >
-              <div className="relative">
-                <entry.icon className="w-6 h-6 text-primary" />
-                {entry.badge && (
-                  <Badge 
-                    variant="destructive" 
-                    className="absolute -top-2 -right-3 text-[8px] px-1 py-0 h-4"
-                  >
-                    {t(entry.badge)}
-                  </Badge>
-                )}
-              </div>
-              <span className="text-xs text-muted-foreground">{t(entry.labelKey)}</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-2 text-xs text-muted-foreground pb-1">
-          <Badge variant="outline" className="text-xs border-green-500 text-green-600 dark:text-green-400">
-            {t('shop.verified')}
-          </Badge>
-          <span>{t('shop.nearbyDeals')}</span>
-        </div>
-
+      <main className="px-3 pt-3 pb-4">
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
             {[1, 2, 3, 4].map((i) => (
-              <ProductSkeleton key={i} />
+              <DiscoverSkeleton key={i} />
             ))}
           </div>
         ) : campaigns.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
             <Ticket className="w-16 h-16 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">{t('shuashua.noActivities')}</p>
+            <p className="text-muted-foreground text-sm">{t('discover.noContent')}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
             {campaigns.map((campaign) => (
-              <ProductCard key={campaign.id} campaign={campaign} />
+              <DiscoverCard key={campaign.id} campaign={campaign} />
             ))}
           </div>
         )}

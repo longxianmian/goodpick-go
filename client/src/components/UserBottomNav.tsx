@@ -1,9 +1,58 @@
 import { Link, useLocation } from 'wouter';
-import { Sparkles, ShoppingBag, User } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface UserBottomNavProps {
   className?: string;
+}
+
+function EyeIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function StarIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.9 7.2 18.9 8.1 13.5 4.2 9.7l5.4-.8z" />
+    </svg>
+  );
+}
+
+function PersonIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="10" r="3.2" />
+      <path d="M5.5 19.5a6.5 6.5 0 0113 0" />
+    </svg>
+  );
 }
 
 export function UserBottomNav({ className = '' }: UserBottomNavProps) {
@@ -12,21 +61,21 @@ export function UserBottomNav({ className = '' }: UserBottomNavProps) {
   
   const navItems = [
     {
-      key: 'shuashua',
+      key: 'feed',
       path: '/',
-      icon: Sparkles,
-      label: t('bottomNav.shuashua'),
+      Icon: EyeIcon,
+      label: t('bottomNav.feed'),
     },
     {
-      key: 'shop',
+      key: 'discover',
       path: '/shop',
-      icon: ShoppingBag,
-      label: t('bottomNav.shop'),
+      Icon: StarIcon,
+      label: t('bottomNav.discover'),
     },
     {
       key: 'me',
       path: '/me',
-      icon: User,
+      Icon: PersonIcon,
       label: t('bottomNav.me'),
     },
   ];
@@ -43,10 +92,10 @@ export function UserBottomNav({ className = '' }: UserBottomNavProps) {
       className={`fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border ${className}`}
       data-testid="nav-user-bottom"
     >
-      <div className="flex items-center justify-around h-14 max-w-lg mx-auto px-4">
+      <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
         {navItems.map((item) => {
           const active = isActive(item.path);
-          const Icon = item.icon;
+          const Icon = item.Icon;
           
           return (
             <Link
@@ -54,13 +103,13 @@ export function UserBottomNav({ className = '' }: UserBottomNavProps) {
               href={item.path}
               className={`flex flex-col items-center justify-center flex-1 py-2 transition-colors ${
                 active
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground'
               }`}
               data-testid={`nav-${item.key}`}
             >
-              <Icon className={`w-5 h-5 mb-0.5 ${active ? 'stroke-[2.5]' : 'stroke-[1.5]'}`} />
-              <span className={`text-xs ${active ? 'font-medium' : ''}`}>
+              <Icon className={`w-5 h-5 mb-0.5`} />
+              <span className={`text-[11px] ${active ? 'font-medium' : ''}`}>
                 {item.label}
               </span>
             </Link>

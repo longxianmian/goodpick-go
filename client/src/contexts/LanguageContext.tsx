@@ -45,8 +45,8 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.myCoupons': '我的优惠券',
     
     // 刷刷底部导航
-    'bottomNav.shuashua': '刷刷',
-    'bottomNav.shop': '购物',
+    'bottomNav.feed': '刷刷',
+    'bottomNav.discover': '发现',
     'bottomNav.me': '我的',
     
     // 用户中心
@@ -145,6 +145,37 @@ const translations: Record<Language, Record<string, string>> = {
     'shuashua.catFood': '美食',
     'shuashua.catMusic': '音乐舞蹈',
     'shuashua.catPets': '宠物',
+    
+    // 刷刷Feed页
+    'feed.tabRecommend': '推荐',
+    'feed.tabLocal': '本地',
+    'feed.catAll': '全部',
+    'feed.catEntertainment': '娱乐',
+    'feed.catHealing': '疗愈',
+    'feed.catMusic': '音乐',
+    'feed.catFunny': '搞笑',
+    'feed.catDrama': '短剧',
+    'feed.catScenery': '美景',
+    'feed.catThoughts': '感悟',
+    'feed.noContent': '暂无内容',
+    'feed.lifeShare': '生活分享',
+    'feed.anonymousUser': '匿名用户',
+    'feed.defaultCity': '曼谷',
+    
+    // 发现页
+    'discover.defaultCity': '曼谷',
+    'discover.searchPlaceholder': '搜索店名 / 品类 / 商圈',
+    'discover.nearby': '附近',
+    'discover.catFood': '吃喝',
+    'discover.catShopping': '买东西',
+    'discover.catRelax': '放松',
+    'discover.catFamily': '亲子',
+    'discover.catEntertainment': '娱乐',
+    'discover.catStay': '住',
+    'discover.catTravel': '出行',
+    'discover.catFeatured': '精选',
+    'discover.noContent': '暂无内容',
+    'discover.merchantOfficial': '商户官方',
     
     // 购物页
     'shop.title': '购物',
@@ -892,8 +923,8 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.myCoupons': 'My Coupons',
     
     // Bottom Navigation (ShuaShua)
-    'bottomNav.shuashua': 'Discover',
-    'bottomNav.shop': 'Shop',
+    'bottomNav.feed': 'Feed',
+    'bottomNav.discover': 'Discover',
     'bottomNav.me': 'Me',
     
     // User Center
@@ -992,6 +1023,37 @@ const translations: Record<Language, Record<string, string>> = {
     'shuashua.catFood': 'Food',
     'shuashua.catMusic': 'Music',
     'shuashua.catPets': 'Pets',
+    
+    // Feed Page
+    'feed.tabRecommend': 'Recommend',
+    'feed.tabLocal': 'Local',
+    'feed.catAll': 'All',
+    'feed.catEntertainment': 'Entertainment',
+    'feed.catHealing': 'Healing',
+    'feed.catMusic': 'Music',
+    'feed.catFunny': 'Funny',
+    'feed.catDrama': 'Drama',
+    'feed.catScenery': 'Scenery',
+    'feed.catThoughts': 'Thoughts',
+    'feed.noContent': 'No content yet',
+    'feed.lifeShare': 'Life Share',
+    'feed.anonymousUser': 'Anonymous',
+    'feed.defaultCity': 'Bangkok',
+    
+    // Discover Page
+    'discover.defaultCity': 'Bangkok',
+    'discover.searchPlaceholder': 'Search store / category / area',
+    'discover.nearby': 'Nearby',
+    'discover.catFood': 'Food',
+    'discover.catShopping': 'Shopping',
+    'discover.catRelax': 'Relax',
+    'discover.catFamily': 'Family',
+    'discover.catEntertainment': 'Fun',
+    'discover.catStay': 'Stay',
+    'discover.catTravel': 'Travel',
+    'discover.catFeatured': 'Featured',
+    'discover.noContent': 'No content yet',
+    'discover.merchantOfficial': 'Official',
     
     // Shop Page
     'shop.title': 'Shop',
@@ -1740,8 +1802,8 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.myCoupons': 'คูปองของฉัน',
     
     // Bottom Navigation (ShuaShua)
-    'bottomNav.shuashua': 'ดีล',
-    'bottomNav.shop': 'ช้อป',
+    'bottomNav.feed': 'ฟีด',
+    'bottomNav.discover': 'ค้นพบ',
     'bottomNav.me': 'ฉัน',
     
     // User Center
@@ -1840,6 +1902,37 @@ const translations: Record<Language, Record<string, string>> = {
     'shuashua.catFood': 'อาหาร',
     'shuashua.catMusic': 'เพลง',
     'shuashua.catPets': 'สัตว์เลี้ยง',
+    
+    // Feed Page
+    'feed.tabRecommend': 'แนะนำ',
+    'feed.tabLocal': 'ท้องถิ่น',
+    'feed.catAll': 'ทั้งหมด',
+    'feed.catEntertainment': 'บันเทิง',
+    'feed.catHealing': 'ผ่อนคลาย',
+    'feed.catMusic': 'เพลง',
+    'feed.catFunny': 'ตลก',
+    'feed.catDrama': 'ละคร',
+    'feed.catScenery': 'ทิวทัศน์',
+    'feed.catThoughts': 'ความคิด',
+    'feed.noContent': 'ยังไม่มีเนื้อหา',
+    'feed.lifeShare': 'ไลฟ์สไตล์',
+    'feed.anonymousUser': 'ไม่ระบุชื่อ',
+    'feed.defaultCity': 'กรุงเทพ',
+    
+    // Discover Page
+    'discover.defaultCity': 'กรุงเทพ',
+    'discover.searchPlaceholder': 'ค้นหาร้าน / หมวดหมู่ / ย่าน',
+    'discover.nearby': 'ใกล้เคียง',
+    'discover.catFood': 'อาหาร',
+    'discover.catShopping': 'ซื้อของ',
+    'discover.catRelax': 'ผ่อนคลาย',
+    'discover.catFamily': 'ครอบครัว',
+    'discover.catEntertainment': 'บันเทิง',
+    'discover.catStay': 'ที่พัก',
+    'discover.catTravel': 'ท่องเที่ยว',
+    'discover.catFeatured': 'แนะนำ',
+    'discover.noContent': 'ยังไม่มีเนื้อหา',
+    'discover.merchantOfficial': 'ร้านค้า',
     
     // Shop Page
     'shop.title': 'ช้อป',

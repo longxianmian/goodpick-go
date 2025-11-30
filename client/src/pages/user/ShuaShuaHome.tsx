@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { ChevronLeft, Search, Heart, Ticket } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Search, Heart, MessageCircle, Ticket } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserBottomNav } from '@/components/UserBottomNav';
@@ -14,48 +12,55 @@ interface CampaignWithStores extends Campaign {
   stores: Store[];
 }
 
-const TABS = ['follow', 'discover', 'nearby'] as const;
-type TabType = typeof TABS[number];
+const FEED_TABS = ['recommend', 'local'] as const;
+type FeedTabType = typeof FEED_TABS[number];
 
-const CATEGORIES = ['recommend', 'digitalHuman', 'education', 'funny', 'food', 'music', 'pets'] as const;
+const CATEGORIES = ['all', 'entertainment', 'healing', 'music', 'funny', 'drama', 'scenery', 'thoughts'] as const;
 type CategoryType = typeof CATEGORIES[number];
 
+function MenuIcon() {
+  return (
+    <button 
+      className="w-8 h-8 flex flex-col justify-center gap-0.5"
+      data-testid="button-menu"
+    >
+      <span className="h-[2px] w-5 bg-foreground rounded-full" />
+      <span className="h-[2px] w-4 bg-foreground rounded-full" />
+      <span className="h-[2px] w-3 bg-foreground rounded-full" />
+    </button>
+  );
+}
+
 function ContentCard({ campaign, index }: { campaign: CampaignWithStores; index: number }) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 100));
+  const [likeCount] = useState(() => Math.floor(Math.random() * 20) + 1);
+  const [commentCount] = useState(() => Math.floor(Math.random() * 500) + 50);
   
   const getTitle = () => {
     if (language === 'zh-cn') return campaign.titleZh || campaign.titleSource;
     if (language === 'en-us') return campaign.titleEn || campaign.titleSource;
     return campaign.titleTh || campaign.titleSource;
   };
-  
-  const formatPrice = () => {
-    if (campaign.discountType === 'percentage_off') {
-      return `${campaign.couponValue}% OFF`;
-    }
-    return `฿${campaign.couponValue}`;
-  };
 
   const handleLike = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setLiked(!liked);
-    setLikeCount(prev => liked ? prev - 1 : prev + 1);
   };
 
-  const isProduct = index % 2 === 0;
-  const storeName = campaign.stores?.[0]?.name || 'Store';
+  const storeName = campaign.stores?.[0]?.name || t('feed.anonymousUser');
   const storeAvatar = campaign.stores?.[0]?.imageUrl;
+  const cityName = campaign.stores?.[0]?.city || t('feed.defaultCity');
 
   return (
     <Link href={`/campaign/${campaign.id}`}>
       <div 
-        className="rounded-lg overflow-hidden bg-card cursor-pointer hover-elevate active-elevate-2"
-        data-testid={`card-content-${campaign.id}`}
+        className="bg-card rounded-2xl shadow-sm overflow-hidden flex flex-col cursor-pointer hover-elevate active-elevate-2"
+        style={{ aspectRatio: '1 / 1.618' }}
+        data-testid={`card-feed-${campaign.id}`}
       >
-        <div className="relative aspect-[2/3]">
+        <div className="flex-[2] w-full bg-muted flex items-center justify-center relative">
           {campaign.bannerImageUrl ? (
             <img 
               src={campaign.bannerImageUrl} 
@@ -64,59 +69,46 @@ function ContentCard({ campaign, index }: { campaign: CampaignWithStores; index:
             />
           ) : (
             <div className="w-full h-full bg-muted flex items-center justify-center">
-              <Ticket className="w-10 h-10 text-muted-foreground" />
+              <Ticket className="w-8 h-8 text-muted-foreground" />
             </div>
           )}
-          
-          <Badge 
-            variant="secondary" 
-            className="absolute top-2 left-2 text-xs bg-background/80 backdrop-blur-sm"
-          >
-            {isProduct ? '商品' : '图文'}
-          </Badge>
-          
-          {campaign.couponValue && (
-            <div className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-sm rounded px-2 py-0.5">
-              <span className="text-sm font-bold text-primary">{formatPrice()}</span>
-            </div>
-          )}
-
-          <button
-            onClick={handleLike}
-            className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1"
-            data-testid={`button-like-${campaign.id}`}
-          >
-            <Heart 
-              className={`w-4 h-4 ${liked ? 'fill-red-500 text-red-500' : 'text-white'}`} 
-            />
-            <span className="text-xs text-white">{likeCount}</span>
-          </button>
         </div>
-        
-        <div className="p-2">
-          <h3 
-            className="font-medium text-sm line-clamp-2 mb-2 leading-tight min-h-[2.5rem]"
-            data-testid={`text-content-title-${campaign.id}`}
+
+        <div className="flex-[1] px-2.5 pt-2 pb-3 flex flex-col justify-between">
+          <div 
+            className="text-[11px] font-medium text-foreground line-clamp-2"
+            data-testid={`text-feed-title-${campaign.id}`}
           >
             {getTitle()}
-          </h3>
+          </div>
           
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between mt-1">
             <div className="flex items-center gap-1.5 min-w-0 flex-1">
               <Avatar className="w-5 h-5 flex-shrink-0">
                 <AvatarImage src={storeAvatar || undefined} />
-                <AvatarFallback className="text-[10px]">
+                <AvatarFallback className="text-[8px] bg-muted">
                   {storeName.charAt(0)}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-xs text-muted-foreground truncate">
-                {storeName}
-              </span>
+              <div className="flex flex-col leading-tight min-w-0">
+                <span className="text-[10px] text-foreground truncate">{storeName}</span>
+                <span className="text-[9px] text-muted-foreground truncate">{cityName} · {t('feed.lifeShare')}</span>
+              </div>
             </div>
             
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <Heart className="w-3 h-3 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">{likeCount}</span>
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground flex-shrink-0">
+              <button
+                onClick={handleLike}
+                className="flex items-center gap-0.5"
+                data-testid={`button-like-${campaign.id}`}
+              >
+                <Heart className={`w-3 h-3 ${liked ? 'fill-red-500 text-red-500' : ''}`} />
+                <span>{likeCount > 10 ? `${(likeCount / 10).toFixed(1)}k` : likeCount}</span>
+              </button>
+              <span className="flex items-center gap-0.5">
+                <MessageCircle className="w-3 h-3" />
+                <span>{commentCount}</span>
+              </span>
             </div>
           </div>
         </div>
@@ -127,14 +119,19 @@ function ContentCard({ campaign, index }: { campaign: CampaignWithStores; index:
 
 function ContentSkeleton() {
   return (
-    <div className="rounded-lg overflow-hidden bg-card">
-      <Skeleton className="aspect-[2/3]" />
-      <div className="p-2 space-y-2">
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-3/4" />
-        <div className="flex items-center gap-2">
+    <div 
+      className="bg-card rounded-2xl shadow-sm overflow-hidden flex flex-col"
+      style={{ aspectRatio: '1 / 1.618' }}
+    >
+      <div className="flex-[2] w-full">
+        <Skeleton className="w-full h-full" />
+      </div>
+      <div className="flex-[1] px-2.5 pt-2 pb-3 space-y-2">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-3/4" />
+        <div className="flex items-center gap-2 mt-auto">
           <Skeleton className="w-5 h-5 rounded-full" />
-          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-2 w-16" />
         </div>
       </div>
     </div>
@@ -143,8 +140,8 @@ function ContentSkeleton() {
 
 export default function ShuaShuaHome() {
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<TabType>('discover');
-  const [activeCategory, setActiveCategory] = useState<CategoryType>('recommend');
+  const [activeFeedTab, setActiveFeedTab] = useState<FeedTabType>('recommend');
+  const [activeCategory, setActiveCategory] = useState<CategoryType>('all');
   
   const { data: campaignsData, isLoading } = useQuery<{ success: boolean; data: CampaignWithStores[] }>({
     queryKey: ['/api/campaigns'],
@@ -152,62 +149,65 @@ export default function ShuaShuaHome() {
 
   const campaigns = campaignsData?.data || [];
 
-  const tabLabels: Record<TabType, string> = {
-    follow: t('shuashua.tabFollow'),
-    discover: t('shuashua.tabDiscover'),
-    nearby: t('shuashua.tabNearby'),
+  const feedTabLabels: Record<FeedTabType, string> = {
+    recommend: t('feed.tabRecommend'),
+    local: t('feed.tabLocal'),
   };
 
   const categoryLabels: Record<CategoryType, string> = {
-    recommend: t('shuashua.catRecommend'),
-    digitalHuman: t('shuashua.catDigitalHuman'),
-    education: t('shuashua.catEducation'),
-    funny: t('shuashua.catFunny'),
-    food: t('shuashua.catFood'),
-    music: t('shuashua.catMusic'),
-    pets: t('shuashua.catPets'),
+    all: t('feed.catAll'),
+    entertainment: t('feed.catEntertainment'),
+    healing: t('feed.catHealing'),
+    music: t('feed.catMusic'),
+    funny: t('feed.catFunny'),
+    drama: t('feed.catDrama'),
+    scenery: t('feed.catScenery'),
+    thoughts: t('feed.catThoughts'),
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center justify-between h-12 px-4">
-          <Button variant="ghost" size="icon" className="invisible">
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
+    <div className="min-h-screen bg-muted/30 pb-20">
+      <header className="sticky top-0 z-40 bg-background border-b border-border">
+        <div className="flex items-center justify-between px-4 pt-3 pb-2">
+          <MenuIcon />
           
-          <div className="flex items-center gap-4">
-            {TABS.map((tab) => (
+          <div className="flex items-center bg-muted rounded-full p-1 text-[11px]">
+            {FEED_TABS.map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`text-sm font-medium py-1 px-2 rounded-md transition-colors ${
-                  activeTab === tab 
-                    ? 'bg-muted text-foreground' 
+                onClick={() => setActiveFeedTab(tab)}
+                className={`px-3 py-1 rounded-full whitespace-nowrap transition-colors ${
+                  activeFeedTab === tab
+                    ? 'bg-foreground text-background font-medium'
                     : 'text-muted-foreground'
                 }`}
-                data-testid={`tab-${tab}`}
+                data-testid={`tab-feed-${tab}`}
               >
-                {tabLabels[tab]}
+                {feedTabLabels[tab]}
               </button>
             ))}
           </div>
           
-          <Button variant="ghost" size="icon" data-testid="button-search">
-            <Search className="w-5 h-5" />
-          </Button>
+          <button 
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-muted text-muted-foreground"
+            data-testid="button-search"
+          >
+            <Search className="w-4 h-4" />
+          </button>
         </div>
-        
-        <div className="px-4 pb-3 overflow-x-auto scrollbar-hide">
+      </header>
+
+      <div className="bg-background border-b border-border">
+        <div className="px-3 py-3 overflow-x-auto scrollbar-hide">
           <div className="flex gap-2 min-w-max">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
+                className={`px-3 py-1.5 rounded-full whitespace-nowrap text-[11px] transition-colors ${
                   activeCategory === cat
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    ? 'bg-primary text-primary-foreground font-medium'
+                    : 'bg-muted text-muted-foreground'
                 }`}
                 data-testid={`category-${cat}`}
               >
@@ -216,11 +216,11 @@ export default function ShuaShuaHome() {
             ))}
           </div>
         </div>
-      </header>
+      </div>
 
-      <main className="px-2 py-2">
+      <main className="px-3 pt-3 pb-4">
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
             {[1, 2, 3, 4].map((i) => (
               <ContentSkeleton key={i} />
             ))}
@@ -228,10 +228,10 @@ export default function ShuaShuaHome() {
         ) : campaigns.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
             <Ticket className="w-16 h-16 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">{t('shuashua.noActivities')}</p>
+            <p className="text-muted-foreground text-sm">{t('feed.noContent')}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
             {campaigns.map((campaign, index) => (
               <ContentCard key={campaign.id} campaign={campaign} index={index} />
             ))}
