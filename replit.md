@@ -96,7 +96,7 @@ Security measures include bcryptjs for password hashing, environment variable-ba
 - **TypeScript**: Type safety.
 - **Drizzle Kit**: Database migrations.
 
-## Recent Updates (2024-11-30)
+## Recent Updates (2025-11-30)
 
 ### Short Video System (抖音式短视频)
 - **Database**: Added `short_videos`, `short_video_likes`, `short_video_comments` tables
