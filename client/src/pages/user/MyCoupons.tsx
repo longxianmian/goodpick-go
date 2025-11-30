@@ -41,10 +41,11 @@ interface Coupon {
 }
 
 interface MyCouponsProps {
-  hideNavigation?: boolean; // 可选prop：隐藏底部导航
+  hideNavigation?: boolean;
+  [key: string]: any;
 }
 
-export default function MyCoupons({ hideNavigation = false }: MyCouponsProps = {}) {
+export default function MyCoupons({ hideNavigation = false, ...rest }: MyCouponsProps) {
   const { isUserAuthenticated, logoutUser, user, loginUser } = useAuth();
   const { t, language } = useLanguage();
   const [, setLocation] = useLocation();

@@ -21,7 +21,7 @@ import CampaignDetail from "@/pages/user/CampaignDetail";
 import MyCoupons from "@/pages/user/MyCoupons";
 import ShuaShuaHome from "@/pages/user/ShuaShuaHome";
 import ShopHome from "@/pages/user/ShopHome";
-import UserCenter from "@/pages/user/UserCenter";
+import RoleBasedMe from "@/pages/user/RoleBasedMe";
 import LanguageSettings from "@/pages/user/LanguageSettings";
 import HelpPage from "@/pages/user/HelpPage";
 import AboutPage from "@/pages/user/AboutPage";
@@ -144,10 +144,10 @@ function ProtectedAdminRoutes() {
 function Router() {
   return (
     <Switch>
-      {/* 刷刷升级 - C端三栏结构 */}
+      {/* 刷刷升级 - C端三栏结构 + 角色自适应 */}
       <Route path="/" component={ShuaShuaHome} />
       <Route path="/shop" component={ShopHome} />
-      <Route path="/me" component={UserCenter} />
+      <Route path="/me" component={RoleBasedMe} />
       <Route path="/settings/language" component={LanguageSettings} />
       <Route path="/help" component={HelpPage} />
       <Route path="/about" component={AboutPage} />

@@ -545,7 +545,7 @@ export function registerRoutes(app: Express): Server {
 
   // LINE OAuth 初始化（H5 用）
 
-  // 当前登录用户信息（给前端 AuthContext 用）
+  // 当前登录用户信息（给前端 AuthContext 用）- 增强版，包含角色信息
   app.get('/api/me', userAuthMiddleware, async (req: Request, res: Response) => {
     try {
       if (!req.user) {
@@ -554,10 +554,14 @@ export function registerRoutes(app: Express): Server {
 
       const userId = (req.user as any).id;
 
+      // 获取用户基本信息
       const [user] = await db
         .select({
           id: users.id,
           lineUserId: users.lineUserId,
+          displayName: users.displayName,
+          avatarUrl: users.avatarUrl,
+          language: users.language,
         })
         .from(users)
         .where(eq(users.id, userId))
@@ -567,40 +571,35 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ success: false, message: 'User not found' });
       }
 
-      return res.json({
-        success: true,
-        data: {
-          id: user.id,
-          lineUserId: user.lineUserId,
-        },
-      });
-    } catch (error) {
-      console.error('[API /api/me] error', error);
-      return res.status(500).json({ success: false, message: 'Internal Server Error' });
-    }
-  });
-
-
-  // 当前登录用户信息（给前端 AuthContext 用）
-  app.get('/api/me', userAuthMiddleware, async (req: Request, res: Response) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
-      const userId = (req.user as any).id;
-
-      const [user] = await db
+      // 获取用户在各门店的角色
+      const userRoles = await db
         .select({
-          id: users.id,
-          lineUserId: users.lineUserId,
+          storeId: merchantStaffRoles.storeId,
+          storeName: stores.name,
+          storeImageUrl: stores.imageUrl,
+          role: merchantStaffRoles.role,
         })
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
+        .from(merchantStaffRoles)
+        .innerJoin(stores, eq(merchantStaffRoles.storeId, stores.id))
+        .where(
+          and(
+            eq(merchantStaffRoles.userId, userId),
+            eq(merchantStaffRoles.isActive, true),
+            eq(stores.isActive, true)
+          )
+        )
+        .orderBy(desc(merchantStaffRoles.createdAt));
 
-      if (!user) {
-        return res.status(404).json({ success: false, message: 'User not found' });
+      // 判断主要角色类型：优先级 owner > operator > verifier > consumer
+      // 用户默认都是消费者，如果有其他角色则显示最高优先级角色
+      let primaryRole: 'consumer' | 'owner' | 'operator' | 'verifier' = 'consumer';
+      const roleSet = new Set(userRoles.map(r => r.role));
+      if (roleSet.has('owner')) {
+        primaryRole = 'owner';
+      } else if (roleSet.has('operator')) {
+        primaryRole = 'operator';
+      } else if (roleSet.has('verifier')) {
+        primaryRole = 'verifier';
       }
 
       return res.json({
@@ -608,6 +607,22 @@ export function registerRoutes(app: Express): Server {
         data: {
           id: user.id,
           lineUserId: user.lineUserId,
+          displayName: user.displayName,
+          avatarUrl: user.avatarUrl,
+          language: user.language,
+          // 主要角色（用于UI切换）
+          primaryRole,
+          // 所有角色列表（用于角色切换）
+          roles: userRoles.map(r => ({
+            storeId: r.storeId,
+            storeName: r.storeName,
+            storeImageUrl: r.storeImageUrl,
+            role: r.role,
+          })),
+          // 是否有各类角色的快速判断
+          hasOwnerRole: roleSet.has('owner'),
+          hasOperatorRole: roleSet.has('operator'),
+          hasVerifierRole: roleSet.has('verifier'),
         },
       });
     } catch (error) {
