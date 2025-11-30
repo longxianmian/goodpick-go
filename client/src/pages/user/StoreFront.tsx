@@ -5,7 +5,7 @@ import {
   ArrowLeft, Search, Heart, Share2, Star, MapPin, Clock, Phone, 
   ShoppingCart, MessageCircle, ChevronRight, Ticket, Gift, Plus,
   Utensils, ShoppingBag, Scissors, Gamepad2, Store as StoreIcon,
-  Users, Award, TrendingUp, Check
+  Users, Award, TrendingUp, Check, Truck, Package
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -694,27 +694,24 @@ function BottomActionBar() {
     <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-3 z-50">
       <div className="flex items-center gap-3 max-w-lg mx-auto">
         <div className="flex items-center gap-4">
-          <button className="flex flex-col items-center gap-0.5" data-testid="button-store">
-            <StoreIcon className="w-5 h-5 text-muted-foreground" />
-            <span className="text-[10px] text-muted-foreground">{t('storeFront.store')}</span>
-          </button>
-          <button className="flex flex-col items-center gap-0.5" data-testid="button-service">
+          <button className="flex flex-col items-center gap-0.5" data-testid="button-chat">
             <MessageCircle className="w-5 h-5 text-muted-foreground" />
-            <span className="text-[10px] text-muted-foreground">{t('storeFront.service')}</span>
+            <span className="text-[10px] text-muted-foreground">{t('storeFront.chat')}</span>
           </button>
-          <button className="flex flex-col items-center gap-0.5 relative" data-testid="button-cart">
-            <ShoppingCart className="w-5 h-5 text-muted-foreground" />
-            <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center">
-              0
-            </Badge>
-            <span className="text-[10px] text-muted-foreground">{t('storeFront.cart')}</span>
+          <button className="flex flex-col items-center gap-0.5" data-testid="button-delivery">
+            <Truck className="w-5 h-5 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground">{t('storeFront.delivery')}</span>
+          </button>
+          <button className="flex flex-col items-center gap-0.5" data-testid="button-pickup">
+            <Package className="w-5 h-5 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground">{t('storeFront.pickup')}</span>
           </button>
         </div>
         <div className="flex-1 flex gap-2">
-          <Button variant="outline" className="flex-1 border-orange-500 text-orange-500">
+          <Button variant="outline" className="flex-1 border-orange-500 text-orange-500" data-testid="button-add-to-cart">
             {t('storeFront.addToCart')}
           </Button>
-          <Button className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white">
+          <Button className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white" data-testid="button-buy-now">
             {t('storeFront.buyNow')}
           </Button>
         </div>
