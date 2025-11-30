@@ -106,6 +106,7 @@ Security measures include bcryptjs for password hashing, environment variable-ba
 - **创作者工作室**：内容保存在 `creator_contents` 表（支持草稿/已发布状态）
 - **刷刷首页Feed**：从 `short_videos` 表读取已发布的视频内容
 - **自动同步**：当创作者通过 `/api/creator/contents` 发布视频时，自动同步到 `short_videos` 表
+- **封面图上传**：视频内容必须上传封面图（coverImageUrl），发布时验证必填，封面图同步到 `short_videos` 表用于首页展示
 
 ### Short Video System (抖音式短视频)
 - **Database**: Added `short_videos`, `short_video_likes`, `short_video_comments` tables

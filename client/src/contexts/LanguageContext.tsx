@@ -213,6 +213,12 @@ const translations: Record<Language, Record<string, string>> = {
     'creator.editor.maxImages': '最多还可上传 {count} 张',
     'creator.editor.changeTypeWarning': '切换类型将清除已上传的媒体',
     'creator.editor.noAvailablePromotions': '暂无可推广的活动',
+    'creator.editor.coverImage': '视频封面',
+    'creator.editor.cover': '封面',
+    'creator.editor.uploadCover': '上传封面图',
+    'creator.editor.coverHint': '封面图将在刷刷首页和视频列表中展示',
+    'creator.editor.coverRequired': '请上传视频封面图',
+    'creator.editor.coverUploaded': '封面图上传成功',
     'common.warning': '提示',
     
     // 刷刷号计费模式
@@ -1622,6 +1628,12 @@ const translations: Record<Language, Record<string, string>> = {
     'creator.editor.maxImages': 'Up to {count} more images',
     'creator.editor.changeTypeWarning': 'Changing type will clear uploaded media',
     'creator.editor.noAvailablePromotions': 'No promotions available',
+    'creator.editor.coverImage': 'Video Cover',
+    'creator.editor.cover': 'Cover',
+    'creator.editor.uploadCover': 'Upload cover image',
+    'creator.editor.coverHint': 'Cover image will be displayed on ShuaShua home and video list',
+    'creator.editor.coverRequired': 'Please upload a video cover image',
+    'creator.editor.coverUploaded': 'Cover image uploaded successfully',
     'common.warning': 'Notice',
     
     // Creator Billing Modes
@@ -2981,6 +2993,12 @@ const translations: Record<Language, Record<string, string>> = {
     'creator.editor.draftSaved': 'บันทึกฉบับร่างแล้ว',
     'creator.editor.saveFailed': 'บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง',
     'creator.editor.titleRequired': 'กรุณากรอกหัวเรื่อง',
+    'creator.editor.coverImage': 'ปกวิดีโอ',
+    'creator.editor.cover': 'ปก',
+    'creator.editor.uploadCover': 'อัปโหลดภาพปก',
+    'creator.editor.coverHint': 'ภาพปกจะแสดงบนหน้าแรกและรายการวิดีโอ',
+    'creator.editor.coverRequired': 'กรุณาอัปโหลดภาพปกวิดีโอ',
+    'creator.editor.coverUploaded': 'อัปโหลดภาพปกสำเร็จ',
     
     // Creator Billing Modes
     'creator.billing.cpc': 'CPC',
@@ -4271,6 +4289,12 @@ const translations: Record<Language, Record<string, string>> = {
     'creator.editor.draftSaved': 'Draf Disimpan',
     'creator.editor.saveFailed': 'Gagal menyimpan, silakan coba lagi',
     'creator.editor.titleRequired': 'Silakan masukkan judul',
+    'creator.editor.coverImage': 'Cover Video',
+    'creator.editor.cover': 'Cover',
+    'creator.editor.uploadCover': 'Upload gambar cover',
+    'creator.editor.coverHint': 'Gambar cover akan ditampilkan di beranda dan daftar video',
+    'creator.editor.coverRequired': 'Silakan upload gambar cover video',
+    'creator.editor.coverUploaded': 'Gambar cover berhasil diupload',
     
     // Creator Billing Modes
     'creator.billing.cpc': 'CPC',
@@ -4794,6 +4818,12 @@ const translations: Record<Language, Record<string, string>> = {
     'creator.editor.draftSaved': 'Đã lưu nháp',
     'creator.editor.saveFailed': 'Lưu thất bại, vui lòng thử lại',
     'creator.editor.titleRequired': 'Vui lòng nhập tiêu đề',
+    'creator.editor.coverImage': 'Ảnh bìa video',
+    'creator.editor.cover': 'Bìa',
+    'creator.editor.uploadCover': 'Tải ảnh bìa lên',
+    'creator.editor.coverHint': 'Ảnh bìa sẽ hiển thị trên trang chủ và danh sách video',
+    'creator.editor.coverRequired': 'Vui lòng tải ảnh bìa video lên',
+    'creator.editor.coverUploaded': 'Tải ảnh bìa thành công',
     
     // Creator Billing Modes
     'creator.billing.cpc': 'CPC',
@@ -5317,6 +5347,12 @@ const translations: Record<Language, Record<string, string>> = {
     'creator.editor.draftSaved': 'မူကြမ်းသိမ်းပြီး',
     'creator.editor.saveFailed': 'သိမ်းဆည်းမှုမအောင်မြင်ပါ ထပ်ကြိုးစားပါ',
     'creator.editor.titleRequired': 'ခေါင်းစဉ်ထည့်ပါ',
+    'creator.editor.coverImage': 'ဗီဒီယိုမျက်နှာဖုံး',
+    'creator.editor.cover': 'မျက်နှာဖုံး',
+    'creator.editor.uploadCover': 'မျက်နှာဖုံးပုံတင်ပါ',
+    'creator.editor.coverHint': 'မျက်နှာဖုံးပုံကို ပင်မစာမျက်နှာနှင့် ဗီဒီယိုစာရင်းတွင် ပြသပါမည်',
+    'creator.editor.coverRequired': 'ဗီဒီယိုမျက်နှာဖုံးပုံတင်ပါ',
+    'creator.editor.coverUploaded': 'မျက်နှာဖုံးပုံတင်မှုအောင်မြင်',
     
     // Creator Billing Modes
     'creator.billing.cpc': 'CPC',

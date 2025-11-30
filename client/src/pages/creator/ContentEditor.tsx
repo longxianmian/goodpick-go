@@ -82,8 +82,10 @@ export default function ContentEditor() {
   const [selectedPromotion, setSelectedPromotion] = useState<PromotionItem | null>(null);
   const [enablePromotion, setEnablePromotion] = useState(false);
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const [coverImageUrl, setCoverImageUrl] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   const { data: existingContent, isLoading: isLoadingContent } = useQuery<{ success: boolean; data: any }>({
     queryKey: ['/api/creator/contents', numericContentId],
@@ -214,6 +216,36 @@ export default function ContentEditor() {
     setMediaFiles(mediaFiles.filter((_, i) => i !== index));
   };
 
+  const handleCoverUpload = async (files: File[]) => {
+    if (files.length === 0) return;
+    
+    const file = files[0];
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: t('common.error'),
+        description: t('creator.editor.pleaseSelectImage'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setUploadingCover(true);
+    const uploaded = await uploadFile(file);
+    setUploadingCover(false);
+
+    if (uploaded) {
+      setCoverImageUrl(uploaded.url);
+      toast({
+        title: t('common.success'),
+        description: t('creator.editor.coverUploaded'),
+      });
+    }
+  };
+
+  const removeCover = () => {
+    setCoverImageUrl('');
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       const res = await apiRequest('POST', '/api/creator/contents', data);
@@ -260,6 +292,7 @@ export default function ContentEditor() {
       setTitle(existingContent.data.title || '');
       setContent(existingContent.data.description || '');
       setContentType(existingContent.data.contentType || 'video');
+      setCoverImageUrl(existingContent.data.coverImageUrl || '');
       if (existingContent.data.mediaUrls && Array.isArray(existingContent.data.mediaUrls)) {
         const urls = existingContent.data.mediaUrls;
         const type = existingContent.data.contentType === 'video' ? 'video' : 'image';
@@ -290,6 +323,7 @@ export default function ContentEditor() {
       description: content,
       status: 'draft',
       mediaUrls: mediaFiles.map(f => f.url),
+      coverImageUrl: coverImageUrl || null,
       promotionId: selectedPromotion?.id || null,
     };
     
@@ -309,6 +343,10 @@ export default function ContentEditor() {
       toast({ title: t('common.error'), description: t('creator.editor.mediaRequired'), variant: 'destructive' });
       return;
     }
+    if (contentType === 'video' && !coverImageUrl) {
+      toast({ title: t('common.error'), description: t('creator.editor.coverRequired'), variant: 'destructive' });
+      return;
+    }
     
     const data = {
       contentType,
@@ -316,6 +354,7 @@ export default function ContentEditor() {
       description: content,
       status: 'published',
       mediaUrls: mediaFiles.map(f => f.url),
+      coverImageUrl: coverImageUrl || null,
       promotionId: selectedPromotion?.id || null,
     };
     
@@ -540,6 +579,68 @@ export default function ContentEditor() {
                 </div>
               ) : null}
             </div>
+
+            {contentType === 'video' && (
+              <div className="space-y-2 mt-4 pt-4 border-t">
+                <Label className="flex items-center gap-2">
+                  <Image className="w-4 h-4 text-[#38B03B]" />
+                  {t('creator.editor.coverImage')}
+                  <span className="text-xs text-red-500">*</span>
+                </Label>
+                
+                {coverImageUrl ? (
+                  <div className="relative group aspect-video bg-muted rounded-lg overflow-hidden max-w-[200px]">
+                    <img
+                      src={coverImageUrl}
+                      alt="Cover"
+                      className="w-full h-full object-cover"
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="absolute top-2 right-2 h-6 w-6 bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={removeCover}
+                      data-testid="button-remove-cover"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                    <Badge variant="secondary" className="absolute bottom-2 left-2 text-xs">
+                      <Image className="h-3 w-3 mr-1" />
+                      {t('creator.editor.cover')}
+                    </Badge>
+                  </div>
+                ) : (
+                  <div
+                    className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors max-w-[200px] ${
+                      uploadingCover ? 'opacity-50 cursor-not-allowed' : 'border-muted-foreground/30 hover:border-muted-foreground/50'
+                    }`}
+                    onClick={() => {
+                      if (!uploadingCover) {
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = 'image/*';
+                        input.onchange = (e) => {
+                          const files = (e.target as HTMLInputElement).files;
+                          if (files) handleCoverUpload(Array.from(files));
+                        };
+                        input.click();
+                      }
+                    }}
+                    data-testid="dropzone-cover"
+                  >
+                    {uploadingCover ? (
+                      <Loader2 className="w-8 h-8 mx-auto text-muted-foreground/50 animate-spin" />
+                    ) : (
+                      <>
+                        <Image className="w-8 h-8 mx-auto text-muted-foreground/50 mb-1" />
+                        <p className="text-xs text-muted-foreground">{t('creator.editor.uploadCover')}</p>
+                      </>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">{t('creator.editor.coverHint')}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
