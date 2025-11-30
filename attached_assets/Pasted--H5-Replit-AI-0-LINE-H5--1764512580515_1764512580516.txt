@@ -1,0 +1,466 @@
+刷刷 H5 沉浸式短视频流 开发方案（给 Replit AI 执行）》
+0. 背景与目标
+
+场景：手机浏览器 / LINE 内 H5，类似抖音那种上下滑全屏视频流。
+
+目标：
+
+上下滑切换视频，当前视频自动播放，离屏视频自动暂停。
+
+视频使用 HLS（m3u8）流媒体，自适应码率，减少卡顿。
+
+预加载上一条 / 下一条视频，减少切换黑屏时间。
+
+后端接口简单清晰，方便后续接入推荐系统、埋点统计。
+
+后端默认技术栈：Node.js + Express + PostgreSQL + Drizzle
+前端默认技术栈：React + Vite H5（与现有项目保持一致）。
+
+一、后端：视频存储、转码与接口设计
+1.1 存储与转码（概念说明，按现有云厂商实现）
+
+原始视频（创作者上传的 MP4）存储在对象存储（例如 Aliyun OSS / S3）：
+
+路径示例：videos/raw/{videoId}.mp4
+
+使用云转码服务（Aliyun MPS 等）生成 HLS：
+
+输出目录：videos/hls/{videoId}/index.m3u8 + 若干 .ts 或 .m4s 分片。
+
+同时生成一帧截图作为封面图：videos/cover/{videoId}.jpg
+
+所有 HLS 目录和封面走 CDN 域名：
+
+https://cdn.xxx.com/videos/hls/{videoId}/index.m3u8
+
+https://cdn.xxx.com/videos/cover/{videoId}.jpg
+
+任务：在代码里只需要使用已经可访问的 CDN 地址，不实现转码逻辑。
+
+1.2 数据库表设计（Drizzle / SQL）
+
+建立一个 short_videos 表，用来驱动前端视频流：
+
+CREATE TABLE short_videos (
+  id              SERIAL PRIMARY KEY,
+  vid             VARCHAR(64) UNIQUE NOT NULL, -- 对前端暴露的业务ID
+  title           TEXT,
+  description     TEXT,
+  cover_url       TEXT NOT NULL,               -- 封面图
+  hls_url         TEXT NOT NULL,               -- m3u8 地址
+  duration_sec    INTEGER,
+  width           INTEGER,
+  height          INTEGER,
+  like_count      INTEGER DEFAULT 0,
+  play_count      INTEGER DEFAULT 0,
+  comment_count   INTEGER DEFAULT 0,
+  is_active       BOOLEAN DEFAULT TRUE,
+  created_at      TIMESTAMP DEFAULT NOW()
+);
+
+
+Drizzle schema 大致：
+
+// db/schema/shortVideos.ts
+export const shortVideos = pgTable('short_videos', {
+  id: serial('id').primaryKey(),
+  vid: varchar('vid', { length: 64 }).notNull().unique(),
+  title: text('title'),
+  description: text('description'),
+  coverUrl: text('cover_url').notNull(),
+  hlsUrl: text('hls_url').notNull(),
+  durationSec: integer('duration_sec'),
+  width: integer('width'),
+  height: integer('height'),
+  likeCount: integer('like_count').default(0),
+  playCount: integer('play_count').default(0),
+  commentCount: integer('comment_count').default(0),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+1.3 短视频列表接口（核心）
+
+接口尽量简单，方便 H5 无感下拉加载。
+
+GET /api/short-videos/feed
+
+Query 参数：
+
+cursor：可选，翻页游标（比如上一页最后一个 created_at 或 id）。
+
+limit：可选，默认 10。
+
+返回 JSON：
+
+{
+  "items": [
+    {
+      "vid": "sv_202511300001",
+      "title": "示例视频",
+      "description": "一个好玩的案例",
+      "coverUrl": "https://cdn.xxx.com/videos/cover/sv_202511300001.jpg",
+      "hlsUrl": "https://cdn.xxx.com/videos/hls/sv_202511300001/index.m3u8",
+      "durationSec": 18,
+      "width": 1080,
+      "height": 1920,
+      "likeCount": 1203,
+      "playCount": 5493,
+      "commentCount": 83
+    }
+  ],
+  "nextCursor": "sv_202511300010"
+}
+
+
+实现关键点（伪代码）：
+
+// server/routes/shortVideos.ts
+app.get('/api/short-videos/feed', async (req, res) => {
+  const limit = Number(req.query.limit ?? 10);
+  const cursor = req.query.cursor as string | undefined;
+
+  let rows;
+  if (cursor) {
+    // 假设 cursor 是最后一条的 id 或 created_at
+    rows = await db
+      .select()
+      .from(shortVideos)
+      .where(and(
+        eq(shortVideos.isActive, true),
+        lt(shortVideos.id, Number(cursor)),
+      ))
+      .orderBy(desc(shortVideos.id))
+      .limit(limit);
+  } else {
+    rows = await db
+      .select()
+      .from(shortVideos)
+      .where(eq(shortVideos.isActive, true))
+      .orderBy(desc(shortVideos.id))
+      .limit(limit);
+  }
+
+  const nextCursor = rows.length === limit ? rows[rows.length - 1].id.toString() : null;
+
+  res.json({
+    items: rows.map((r) => ({
+      vid: r.vid,
+      title: r.title,
+      description: r.description,
+      coverUrl: r.coverUrl,
+      hlsUrl: r.hlsUrl,
+      durationSec: r.durationSec,
+      width: r.width,
+      height: r.height,
+      likeCount: r.likeCount,
+      playCount: r.playCount,
+      commentCount: r.commentCount,
+    })),
+    nextCursor,
+  });
+});
+
+1.4 埋点接口（简版，用于统计）
+
+后续可扩展为队列，这里先给最简单版本：
+
+POST /api/short-videos/:vid/play
+
+POST /api/short-videos/:vid/like（或 /unlike）
+
+这部分只要在表里做 +1 即可，细节可由 Replit AI 自行实现。
+
+二、前端 H5：上下滑沉浸式播放实现
+2.1 组件结构设计
+
+页面：/shua 或类似路径。
+
+核心组件：
+
+ShortVideoFeedPage：整体页面，负责拉取 feed、维护列表 & 当前索引。
+
+VerticalSwiper：监听上下滑动作，决定当前播放索引。
+
+VideoCard：单个全屏视频卡片，内部负责 video 播放。
+
+文件结构建议：
+
+client/src/pages/shua/ShortVideoFeedPage.tsx
+client/src/components/shua/VerticalSwiper.tsx
+client/src/components/shua/VideoCard.tsx
+
+2.2 Video 播放技术选型
+
+优先使用 HLS（m3u8）。
+
+技术实现：
+
+iOS Safari 原生支持 HLS，可以直接把 src 设为 hlsUrl。
+
+对不支持 HLS 的浏览器（部分 Android WebView）：使用 hls.js。
+
+示例组件（简化版）：
+
+// VideoCard.tsx
+import { useEffect, useRef } from "react";
+import Hls from "hls.js";
+
+interface VideoCardProps {
+  video: {
+    vid: string;
+    hlsUrl: string;
+    coverUrl: string;
+    title?: string;
+  };
+  isActive: boolean;   // 是否是当前播放的视频
+  onPlay?: () => void;
+}
+
+export function VideoCard({ video, isActive, onPlay }: VideoCardProps) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
+
+  useEffect(() => {
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+
+    if (Hls.isSupported()) {
+      const hls = new Hls();
+      hlsRef.current = hls;
+      hls.loadSource(video.hlsUrl);
+      hls.attachMedia(videoEl);
+    } else if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
+      // iOS Safari
+      videoEl.src = video.hlsUrl;
+    }
+
+    return () => {
+      hlsRef.current?.destroy();
+    };
+  }, [video.hlsUrl]);
+
+  useEffect(() => {
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+
+    if (isActive) {
+      videoEl
+        .play()
+        .then(() => onPlay && onPlay())
+        .catch(() => {
+          // 静音+自动播放策略
+          videoEl.muted = true;
+          videoEl.play().catch(() => {});
+        });
+    } else {
+      videoEl.pause();
+      videoEl.currentTime = 0;
+    }
+  }, [isActive, onPlay]);
+
+  return (
+    <div className="w-full h-full relative bg-black">
+      <video
+        ref={videoRef}
+        className="w-full h-full object-cover"
+        playsInline
+        webkit-playsinline="true"
+        preload="metadata"
+        poster={video.coverUrl}
+      />
+      {/* 可添加标题 / 按钮等 overlay */}
+      <div className="absolute bottom-4 left-4 right-4 text-white">
+        <div className="text-base font-semibold line-clamp-2">
+          {video.title}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+2.3 上下滑逻辑 & 预加载策略
+
+使用一个容器，内部放 N 个 VideoCard，每个占满视口高度；
+通过 onWheel / touch 事件 or IntersectionObserver 来切换索引。
+
+示例（核心逻辑简化）：
+
+// VerticalSwiper.tsx
+import { useEffect, useRef } from "react";
+
+interface VerticalSwiperProps {
+  items: any[];
+  currentIndex: number;
+  onIndexChange: (nextIndex: number) => void;
+  renderItem: (item: any, index: number, isActive: boolean) => React.ReactNode;
+}
+
+export function VerticalSwiper({
+  items,
+  currentIndex,
+  onIndexChange,
+  renderItem,
+}: VerticalSwiperProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // 简易版：通过监听 wheel / touch 事件切换上下
+  // 实战中可以用 better-scroll / 自己做滑动阈值判断
+
+  // 这里留给 Replit AI 自行实现细节：
+  // - touchstart / touchmove / touchend 计算 deltaY
+  // - 超过一定阈值触发 index +/- 1
+  // - 添加节流，避免连跳
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full h-full overflow-hidden bg-black relative"
+    >
+      <div
+        className="w-full h-full transition-transform duration-300 ease-out"
+        style={{
+          transform: `translateY(-${currentIndex * 100}vh)`,
+        }}
+      >
+        {items.map((item, idx) => (
+          <div key={item.vid ?? idx} className="w-full h-screen">
+            {renderItem(item, idx, idx === currentIndex)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+2.4 Feed 页面整合（拉接口 + 预加载）
+// ShortVideoFeedPage.tsx
+import { useEffect, useState } from "react";
+import { VerticalSwiper } from "@/components/shua/VerticalSwiper";
+import { VideoCard } from "@/components/shua/VideoCard";
+
+interface ShortVideo {
+  vid: string;
+  title?: string;
+  description?: string;
+  coverUrl: string;
+  hlsUrl: string;
+}
+
+export default function ShortVideoFeedPage() {
+  const [videos, setVideos] = useState<ShortVideo[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  useEffect(() => {
+    loadMore();
+  }, []);
+
+  async function loadMore() {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    const params = cursor ? `?cursor=${cursor}` : "";
+    const res = await fetch(`/api/short-videos/feed${params}`);
+    const data = await res.json();
+    setVideos((prev) => [...prev, ...data.items]);
+    setCursor(data.nextCursor);
+    setLoadingMore(false);
+  }
+
+  function handleIndexChange(nextIndex: number) {
+    if (nextIndex < 0 || nextIndex >= videos.length) return;
+    setCurrentIndex(nextIndex);
+
+    // 预加载：当滚到倒数第 3 个时，触发下一页
+    if (nextIndex >= videos.length - 3 && cursor && !loadingMore) {
+      loadMore();
+    }
+  }
+
+  return (
+    <div className="w-full h-screen bg-black">
+      {videos.length === 0 ? (
+        <div className="w-full h-full flex items-center justify-center text-white">
+          Loading...
+        </div>
+      ) : (
+        <VerticalSwiper
+          items={videos}
+          currentIndex={currentIndex}
+          onIndexChange={handleIndexChange}
+          renderItem={(item, idx, isActive) => (
+            <VideoCard
+              video={item}
+              isActive={isActive}
+              onPlay={() => {
+                // 可以在这里调用 play 埋点接口
+                // fetch(`/api/short-videos/${item.vid}/play`, { method: "POST" });
+              }}
+            />
+          )}
+        />
+      )}
+    </div>
+  );
+}
+
+三、性能与「不卡顿」关键点（给 Replit AI 的注意事项）
+
+必须使用 HLS（m3u8）+ CDN，不要直接塞 1080p MP4 到 <video>。
+
+使用 preload="metadata"，依赖 HLS 分片和预加载策略，而不是一次性拉满。
+
+只允许当前一条视频在播放，其它全部 pause：
+
+离屏视频不播放，避免 CPU / 网络占用过大。
+
+预加载策略：
+
+在当前索引 i 时，确保 i+1 至少已经开始拉取 m3u8；
+
+页尾提前 2–3 个触发下一页接口。
+
+处理自动播放失败：
+
+默认 muted = true + playsInline；
+
+出错后给一个明显的「点击播放」按钮。
+
+避免频繁卸载 / 重建 Hls 实例：
+
+可以由 Replit AI 优化，将 Hls 实例池复用。
+
+四、开发任务清单（可以直接给 Replit AI）
+
+后端：
+
+新增 short_videos 数据表（使用 Drizzle migration）。
+
+新增 /api/short-videos/feed 接口（支持 cursor/limit）。
+
+简单实现 /api/short-videos/:vid/play、/like 等埋点接口（可选）。
+
+在管理后台（如果已有）预留一个「上传短视频」功能，录入 coverUrl、hlsUrl 等字段（转码流程由人工/脚本完成即可）。
+
+前端：
+
+新增 ShortVideoFeedPage 页面与路由 /shua（或给定路径）。
+
+实现 VerticalSwiper 组件，用于上下滑切换索引。
+
+实现 VideoCard 组件：
+
+使用 hls.js + <video> 播放 HLS。
+
+根据 isActive 控制播放 / 暂停。
+
+实现 feed 拉取与滚动预加载逻辑。
+
+适配 H5 + LINE 内置浏览器：
+
+playsInline / webkit-playsinline / muted。
+
+后续可以再迭代：
+
+点赞按钮、评论入口、分享、关注、广告插入等。
