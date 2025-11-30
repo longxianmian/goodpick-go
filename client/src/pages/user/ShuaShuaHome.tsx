@@ -83,7 +83,7 @@ function ContentCard({ campaign, index }: { campaign: CampaignWithStores; index:
       >
         <div 
           className="relative w-full overflow-hidden"
-          style={{ aspectRatio: '3 / 4' }}
+          style={{ aspectRatio: '1 / 1.618' }}
         >
           {campaign.bannerImageUrl ? (
             <>
@@ -166,12 +166,11 @@ function ContentCard({ campaign, index }: { campaign: CampaignWithStores; index:
 }
 
 function ContentSkeleton({ index }: { index: number }) {
-  const isLong = index % 3 === 0;
   return (
     <div className="bg-card rounded-xl overflow-hidden flex flex-col shadow-sm">
       <div 
         className="w-full"
-        style={{ aspectRatio: isLong ? '3 / 5' : '3 / 4' }}
+        style={{ aspectRatio: '1 / 1.618' }}
       >
         <Skeleton className="w-full h-full" />
       </div>
