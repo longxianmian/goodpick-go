@@ -3102,13 +3102,28 @@ const translations: Record<Language, Record<string, string>> = {
     // 发现页
     'discover.title': 'Temukan',
     'discover.searchPlaceholder': 'Cari toko atau penawaran...',
+    'discover.defaultCity': 'Bangkok',
     'discover.nearby': 'Terdekat',
+    'discover.catFood': 'Makanan',
+    'discover.catShopping': 'Belanja',
+    'discover.catRelax': 'Relaksasi',
+    'discover.catFamily': 'Keluarga',
+    'discover.catEntertainment': 'Hiburan',
+    'discover.catStay': 'Penginapan',
+    'discover.catTravel': 'Wisata',
+    'discover.catFeatured': 'Unggulan',
     'discover.promoCoupon': 'Kupon',
     'discover.promoGroupBuy': 'Beli Grup',
     'discover.promoPresale': 'Presale',
     'discover.promoDiscount': 'Diskon',
+    'discover.noContent': 'Belum ada konten',
     'discover.noCampaigns': 'Tidak ada kampanye',
     'discover.checkBackLater': 'Coba lagi nanti',
+
+    // 底部导航
+    'bottomNav.feed': 'Feed',
+    'bottomNav.discover': 'Temukan',
+    'bottomNav.me': 'Saya',
 
     // Shop页
     'shop.sold': 'Terjual',
@@ -3327,13 +3342,28 @@ const translations: Record<Language, Record<string, string>> = {
     // 发现页
     'discover.title': 'Khám phá',
     'discover.searchPlaceholder': 'Tìm cửa hàng hoặc ưu đãi...',
+    'discover.defaultCity': 'Bangkok',
     'discover.nearby': 'Gần đây',
+    'discover.catFood': 'Ẩm thực',
+    'discover.catShopping': 'Mua sắm',
+    'discover.catRelax': 'Thư giãn',
+    'discover.catFamily': 'Gia đình',
+    'discover.catEntertainment': 'Giải trí',
+    'discover.catStay': 'Lưu trú',
+    'discover.catTravel': 'Du lịch',
+    'discover.catFeatured': 'Nổi bật',
     'discover.promoCoupon': 'Mã giảm giá',
     'discover.promoGroupBuy': 'Mua nhóm',
     'discover.promoPresale': 'Đặt trước',
     'discover.promoDiscount': 'Giảm giá',
+    'discover.noContent': 'Chưa có nội dung',
     'discover.noCampaigns': 'Không có chiến dịch',
     'discover.checkBackLater': 'Quay lại sau',
+
+    // 底部导航
+    'bottomNav.feed': 'Feed',
+    'bottomNav.discover': 'Khám phá',
+    'bottomNav.me': 'Tôi',
 
     // Shop页
     'shop.sold': 'Đã bán',
@@ -3552,13 +3582,28 @@ const translations: Record<Language, Record<string, string>> = {
     // 发现页
     'discover.title': 'ရှာဖွေ',
     'discover.searchPlaceholder': 'ဆိုင်ရှာ...',
+    'discover.defaultCity': 'ဘန်ကောက်',
     'discover.nearby': 'အနီးအနား',
+    'discover.catFood': 'စားသောက်',
+    'discover.catShopping': 'စျေးဝယ်',
+    'discover.catRelax': 'အနားယူ',
+    'discover.catFamily': 'မိသားစု',
+    'discover.catEntertainment': 'ဖျော်ဖြေရေး',
+    'discover.catStay': 'တည်းခို',
+    'discover.catTravel': 'ခရီးသွား',
+    'discover.catFeatured': 'ထူးခြား',
     'discover.promoCoupon': 'ကူပွန်',
     'discover.promoGroupBuy': 'အဖွဲ့ဝယ်',
     'discover.promoPresale': 'ကြိုရောင်း',
     'discover.promoDiscount': 'လျှော့စျေး',
+    'discover.noContent': 'အကြောင်းအရာမရှိသေး',
     'discover.noCampaigns': 'ကမ်ပိန်းမရှိပါ',
     'discover.checkBackLater': 'နောက်မှပြန်လာပါ',
+
+    // 底部导航
+    'bottomNav.feed': 'ဖိဒ်',
+    'bottomNav.discover': 'ရှာဖွေ',
+    'bottomNav.me': 'ကျွန်ုပ်',
 
     // Shop页
     'shop.sold': 'ရောင်းပြီး',
