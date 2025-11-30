@@ -36,9 +36,9 @@ function MenuIcon({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       data-testid="button-menu"
     >
-      <span className="h-[2px] w-5 bg-foreground rounded-full" />
-      <span className="h-[2px] w-5 bg-foreground rounded-full" />
-      <span className="h-[2px] w-5 bg-foreground rounded-full" />
+      <span className="h-[1.5px] w-4 bg-foreground rounded-full" />
+      <span className="h-[1.5px] w-4 bg-foreground rounded-full" />
+      <span className="h-[1.5px] w-4 bg-foreground rounded-full" />
     </button>
   );
 }
@@ -211,7 +211,7 @@ export default function ShuaShuaHome() {
       <DrawerMenu open={drawerOpen} onOpenChange={setDrawerOpen} />
       
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/50">
-        <div className="flex items-center justify-between px-3 py-2.5">
+        <div className="flex items-center justify-between px-3 h-12">
           <MenuIcon onClick={() => setDrawerOpen(true)} />
           
           <div className="flex items-center bg-muted rounded-full p-0.5">
@@ -219,7 +219,7 @@ export default function ShuaShuaHome() {
               <button
                 key={tab}
                 onClick={() => setActiveFeedTab(tab)}
-                className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 ${
                   activeFeedTab === tab
                     ? 'bg-[#38B03B] text-white shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -240,7 +240,7 @@ export default function ShuaShuaHome() {
         </div>
       </header>
 
-      <div className="bg-background sticky top-[52px] z-30 border-b border-border/30">
+      <div className="bg-background sticky top-12 z-30 border-b border-border/30">
         <div className="px-3 py-2.5 overflow-x-auto scrollbar-hide">
           <div className="flex gap-2 min-w-max">
             {CATEGORIES.map((cat) => (
