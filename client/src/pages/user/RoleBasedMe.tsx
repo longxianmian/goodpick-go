@@ -3,6 +3,8 @@ import UserCenter from './UserCenter';
 import MeOperator from './MeOperator';
 import MeVerifier from './MeVerifier';
 import MeOwner from './MeOwner';
+import MeSysAdmin from './MeSysAdmin';
+import MeCreator from './MeCreator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RoleAwareBottomNav } from '@/components/RoleAwareBottomNav';
 
@@ -42,6 +44,10 @@ export default function RoleBasedMe() {
       return <MeVerifier />;
     case 'owner':
       return <MeOwner />;
+    case 'sysadmin':
+      return <MeSysAdmin />;
+    case 'creator':
+      return <MeCreator />;
     case 'consumer':
     default:
       return <UserCenter />;
