@@ -17,7 +17,7 @@ interface CampaignWithStores extends Campaign {
 const FEED_TABS = ['recommend', 'local'] as const;
 type FeedTabType = typeof FEED_TABS[number];
 
-const CATEGORIES = ['all', 'entertainment', 'healing', 'music', 'funny', 'drama', 'scenery', 'thoughts'] as const;
+const CATEGORIES = ['all', 'funny', 'musicDance', 'drama', 'daily', 'healing', 'food', 'beauty', 'more'] as const;
 type CategoryType = typeof CATEGORIES[number];
 
 const GRADIENT_COLORS = [
@@ -197,13 +197,14 @@ export default function ShuaShuaHome() {
 
   const categoryLabels: Record<CategoryType, string> = {
     all: t('feed.catAll'),
-    entertainment: t('feed.catEntertainment'),
-    healing: t('feed.catHealing'),
-    music: t('feed.catMusic'),
     funny: t('feed.catFunny'),
+    musicDance: t('feed.catMusicDance'),
     drama: t('feed.catDrama'),
-    scenery: t('feed.catScenery'),
-    thoughts: t('feed.catThoughts'),
+    daily: t('feed.catDaily'),
+    healing: t('feed.catHealing'),
+    food: t('feed.catFood'),
+    beauty: t('feed.catBeauty'),
+    more: t('feed.catMore'),
   };
 
   return (
