@@ -22,6 +22,12 @@ import MyCoupons from "@/pages/user/MyCoupons";
 import ShuaShuaHome from "@/pages/user/ShuaShuaHome";
 import ShopHome from "@/pages/user/ShopHome";
 import RoleBasedMe from "@/pages/user/RoleBasedMe";
+import UserCenter from "@/pages/user/UserCenter";
+import MeOwner from "@/pages/user/MeOwner";
+import MeOperator from "@/pages/user/MeOperator";
+import MeVerifier from "@/pages/user/MeVerifier";
+import MeSysAdmin from "@/pages/user/MeSysAdmin";
+import MeCreator from "@/pages/user/MeCreator";
 import LanguageSettings from "@/pages/user/LanguageSettings";
 import HelpPage from "@/pages/user/HelpPage";
 import AboutPage from "@/pages/user/AboutPage";
@@ -148,6 +154,13 @@ function Router() {
       <Route path="/" component={ShuaShuaHome} />
       <Route path="/shop" component={ShopHome} />
       <Route path="/me" component={RoleBasedMe} />
+      {/* 开发预览 - 直接访问各角色个人中心 */}
+      <Route path="/dev/me/consumer" component={UserCenter} />
+      <Route path="/dev/me/owner" component={MeOwner} />
+      <Route path="/dev/me/operator" component={MeOperator} />
+      <Route path="/dev/me/verifier" component={MeVerifier} />
+      <Route path="/dev/me/sysadmin" component={MeSysAdmin} />
+      <Route path="/dev/me/creator" component={MeCreator} />
       <Route path="/settings/language" component={LanguageSettings} />
       <Route path="/help" component={HelpPage} />
       <Route path="/about" component={AboutPage} />

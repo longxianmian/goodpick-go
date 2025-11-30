@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { useMemo } from 'react';
 import UserCenter from './UserCenter';
 import MeOperator from './MeOperator';
 import MeVerifier from './MeVerifier';
@@ -8,8 +9,24 @@ import MeCreator from './MeCreator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RoleAwareBottomNav } from '@/components/RoleAwareBottomNav';
 
+type RoleType = 'consumer' | 'owner' | 'operator' | 'verifier' | 'sysadmin' | 'creator';
+
+const VALID_ROLES: RoleType[] = ['consumer', 'owner', 'operator', 'verifier', 'sysadmin', 'creator'];
+
 export default function RoleBasedMe() {
   const { activeRole, authPhase } = useAuth();
+  
+  const devRole = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    const role = params.get('dev');
+    if (role && VALID_ROLES.includes(role as RoleType)) {
+      return role as RoleType;
+    }
+    return null;
+  }, []);
+  
+  const effectiveRole = devRole || activeRole;
   
   if (authPhase === 'booting') {
     return (
@@ -37,7 +54,7 @@ export default function RoleBasedMe() {
     );
   }
   
-  switch (activeRole) {
+  switch (effectiveRole) {
     case 'operator':
       return <MeOperator />;
     case 'verifier':
