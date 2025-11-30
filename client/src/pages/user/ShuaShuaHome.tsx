@@ -5,6 +5,7 @@ import { Search, Heart, MessageCircle, Ticket } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserBottomNav } from '@/components/UserBottomNav';
+import { DrawerMenu } from '@/components/DrawerMenu';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { Campaign, Store } from '@shared/schema';
 
@@ -18,10 +19,11 @@ type FeedTabType = typeof FEED_TABS[number];
 const CATEGORIES = ['all', 'entertainment', 'healing', 'music', 'funny', 'drama', 'scenery', 'thoughts'] as const;
 type CategoryType = typeof CATEGORIES[number];
 
-function MenuIcon() {
+function MenuIcon({ onClick }: { onClick: () => void }) {
   return (
     <button 
       className="w-8 h-8 flex flex-col justify-center gap-0.5"
+      onClick={onClick}
       data-testid="button-menu"
     >
       <span className="h-[2px] w-5 bg-foreground rounded-full" />
@@ -142,6 +144,7 @@ export default function ShuaShuaHome() {
   const { t } = useLanguage();
   const [activeFeedTab, setActiveFeedTab] = useState<FeedTabType>('recommend');
   const [activeCategory, setActiveCategory] = useState<CategoryType>('all');
+  const [drawerOpen, setDrawerOpen] = useState(false);
   
   const { data: campaignsData, isLoading } = useQuery<{ success: boolean; data: CampaignWithStores[] }>({
     queryKey: ['/api/campaigns'],
@@ -167,9 +170,11 @@ export default function ShuaShuaHome() {
 
   return (
     <div className="min-h-screen bg-muted/30 pb-20">
+      <DrawerMenu open={drawerOpen} onOpenChange={setDrawerOpen} />
+      
       <header className="sticky top-0 z-40 bg-background border-b border-border">
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
-          <MenuIcon />
+          <MenuIcon onClick={() => setDrawerOpen(true)} />
           
           <div className="flex items-center bg-muted rounded-full p-1 text-[11px]">
             {FEED_TABS.map((tab) => (
