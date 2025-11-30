@@ -36,6 +36,7 @@ const translations: Record<Language, Record<string, string>> = {
     'common.next': '下一页',
     'common.comingSoon': '即将上线',
     'common.featureInDevelopment': '该功能正在开发中，敬请期待',
+    'common.more': '更多 >',
     
     // Navigation
     'nav.stores': '门店管理',
@@ -66,6 +67,70 @@ const translations: Record<Language, Record<string, string>> = {
     'userCenter.roleOwner': '店长',
     'userCenter.roleOperator': '运营',
     'userCenter.roleVerifier': '核销员',
+    
+    // 个人中心详情
+    'profile.shuaId': '刷刷号',
+    'profile.discoverId': '发现号',
+    'profile.boundLine': '已绑定 LINE · 已实名',
+    'profile.logout': '退出登录',
+    'profile.logoutSuccess': '已退出登录',
+    'profile.logoutSuccessDesc': '您已成功退出登录',
+    
+    // 会员卡区
+    'profile.membership.title': '我的会员卡',
+    'profile.membership.platinum': '白金会员',
+    'profile.membership.recommend': '今日下班小聚首选',
+    
+    // 购物信息区
+    'profile.shopping.cart': '购物车',
+    'profile.shopping.orders': '订单',
+    'profile.shopping.pointsCoupons': '积分/卡券',
+    'profile.shopping.wallet': '钱包',
+    
+    // 购物车
+    'profile.cart.groupByStore': '按商户分组展示待结算商品：',
+    'profile.cart.storeName': '和牛烧肉屋 Sukhumvit {num}',
+    'profile.cart.visitStore': '进店逛逛',
+    'profile.cart.itemName': '人气套餐 {num}',
+    'profile.cart.itemSpec': '双人 · 晚市',
+    
+    // 订单
+    'profile.orders.all': '全部',
+    'profile.orders.pending': '待付款',
+    'profile.orders.toUse': '待使用',
+    'profile.orders.completed': '已完成',
+    'profile.orders.refund': '退款售后',
+    'profile.orders.statusCompleted': '已完成',
+    'profile.orders.packageName': '下班小聚人气套餐',
+    'profile.orders.itemCount': '共 {count} 件商品',
+    'profile.orders.paid': '实付',
+    'profile.orders.rebuy': '再次购买',
+    'profile.orders.viewDetail': '查看详情',
+    
+    // 积分/卡券
+    'profile.points.platformPoints': '平台积分',
+    'profile.points.exchangeZone': '积分兑换专区',
+    'profile.points.storePoints': '各商户积分',
+    'profile.points.memberLevel': '白金会员 · 双倍积分',
+    'profile.points.points': '积分',
+    'profile.points.viewDetail': '查看明细 >',
+    'profile.points.myCoupons': '我的卡券',
+    'profile.points.available': '可使用',
+    'profile.points.used': '已使用',
+    'profile.points.expired': '已过期',
+    'profile.points.couponName': '和牛烧肉屋 下班小聚代金券',
+    'profile.points.couponDiscount': '满 800 减 200',
+    'profile.points.couponStore': '适用门店：Sukhumvit {num}',
+    'profile.points.remaining': '剩余 {count} 张',
+    'profile.points.validUntil': '有效期至 2025-12-31',
+    
+    // 钱包
+    'profile.wallet.balance': '可用余额',
+    'profile.wallet.vouchers': '红包 / 代金券：{count} 张',
+    'profile.wallet.viewDetail': '查看详情 >',
+    'profile.wallet.transactions': '收支明细',
+    'profile.wallet.last30Days': '最近 30 天',
+    'profile.wallet.cashback': '和牛烧肉屋消费返现',
     
     // 帮助页
     'help.faq': '常见问题',
@@ -914,6 +979,7 @@ const translations: Record<Language, Record<string, string>> = {
     'common.next': 'Next',
     'common.comingSoon': 'Coming Soon',
     'common.featureInDevelopment': 'This feature is under development',
+    'common.more': 'More >',
     
     // Navigation
     'nav.stores': 'Stores',
@@ -944,6 +1010,70 @@ const translations: Record<Language, Record<string, string>> = {
     'userCenter.roleOwner': 'Owner',
     'userCenter.roleOperator': 'Operator',
     'userCenter.roleVerifier': 'Verifier',
+    
+    // Profile Details
+    'profile.shuaId': 'ShuaShua ID',
+    'profile.discoverId': 'Discover ID',
+    'profile.boundLine': 'LINE linked · Verified',
+    'profile.logout': 'Log Out',
+    'profile.logoutSuccess': 'Logged Out',
+    'profile.logoutSuccessDesc': 'You have been logged out successfully',
+    
+    // Membership Cards
+    'profile.membership.title': 'My Membership Cards',
+    'profile.membership.platinum': 'Platinum Member',
+    'profile.membership.recommend': 'Top pick for after work',
+    
+    // Shopping Section
+    'profile.shopping.cart': 'Cart',
+    'profile.shopping.orders': 'Orders',
+    'profile.shopping.pointsCoupons': 'Points/Coupons',
+    'profile.shopping.wallet': 'Wallet',
+    
+    // Cart
+    'profile.cart.groupByStore': 'Items grouped by store:',
+    'profile.cart.storeName': 'Wagyu BBQ Sukhumvit {num}',
+    'profile.cart.visitStore': 'Visit Store',
+    'profile.cart.itemName': 'Popular Set {num}',
+    'profile.cart.itemSpec': 'For 2 · Dinner',
+    
+    // Orders
+    'profile.orders.all': 'All',
+    'profile.orders.pending': 'To Pay',
+    'profile.orders.toUse': 'To Use',
+    'profile.orders.completed': 'Completed',
+    'profile.orders.refund': 'Refunds',
+    'profile.orders.statusCompleted': 'Completed',
+    'profile.orders.packageName': 'After Work Party Set',
+    'profile.orders.itemCount': '{count} items',
+    'profile.orders.paid': 'Paid',
+    'profile.orders.rebuy': 'Buy Again',
+    'profile.orders.viewDetail': 'View Details',
+    
+    // Points/Coupons
+    'profile.points.platformPoints': 'Platform Points',
+    'profile.points.exchangeZone': 'Points Exchange',
+    'profile.points.storePoints': 'Store Points',
+    'profile.points.memberLevel': 'Platinum · 2x Points',
+    'profile.points.points': 'Points',
+    'profile.points.viewDetail': 'View Details >',
+    'profile.points.myCoupons': 'My Coupons',
+    'profile.points.available': 'Available',
+    'profile.points.used': 'Used',
+    'profile.points.expired': 'Expired',
+    'profile.points.couponName': 'Wagyu BBQ After Work Voucher',
+    'profile.points.couponDiscount': '฿200 off on ฿800+',
+    'profile.points.couponStore': 'Valid at: Sukhumvit {num}',
+    'profile.points.remaining': '{count} remaining',
+    'profile.points.validUntil': 'Valid until 2025-12-31',
+    
+    // Wallet
+    'profile.wallet.balance': 'Available Balance',
+    'profile.wallet.vouchers': 'Red packets / Vouchers: {count}',
+    'profile.wallet.viewDetail': 'View Details >',
+    'profile.wallet.transactions': 'Transactions',
+    'profile.wallet.last30Days': 'Last 30 days',
+    'profile.wallet.cashback': 'Wagyu BBQ Cashback',
     
     // Help Page
     'help.faq': 'FAQ',
@@ -1793,6 +1923,7 @@ const translations: Record<Language, Record<string, string>> = {
     'common.next': 'ถัดไป',
     'common.comingSoon': 'เร็วๆ นี้',
     'common.featureInDevelopment': 'ฟีเจอร์นี้อยู่ระหว่างการพัฒนา',
+    'common.more': 'เพิ่มเติม >',
     
     // Navigation
     'nav.stores': 'จัดการร้านค้า',
@@ -1823,6 +1954,70 @@ const translations: Record<Language, Record<string, string>> = {
     'userCenter.roleOwner': 'เจ้าของร้าน',
     'userCenter.roleOperator': 'ผู้ดำเนินการ',
     'userCenter.roleVerifier': 'พนักงาน',
+    
+    // Profile Details
+    'profile.shuaId': 'รหัส ShuaShua',
+    'profile.discoverId': 'รหัส Discover',
+    'profile.boundLine': 'เชื่อมต่อ LINE · ยืนยันตัวตน',
+    'profile.logout': 'ออกจากระบบ',
+    'profile.logoutSuccess': 'ออกจากระบบแล้ว',
+    'profile.logoutSuccessDesc': 'คุณออกจากระบบเรียบร้อยแล้ว',
+    
+    // Membership Cards
+    'profile.membership.title': 'บัตรสมาชิกของฉัน',
+    'profile.membership.platinum': 'สมาชิกแพลตตินัม',
+    'profile.membership.recommend': 'แนะนำหลังเลิกงาน',
+    
+    // Shopping Section
+    'profile.shopping.cart': 'ตะกร้า',
+    'profile.shopping.orders': 'คำสั่งซื้อ',
+    'profile.shopping.pointsCoupons': 'พอยท์/คูปอง',
+    'profile.shopping.wallet': 'กระเป๋าเงิน',
+    
+    // Cart
+    'profile.cart.groupByStore': 'สินค้าจัดกลุ่มตามร้าน:',
+    'profile.cart.storeName': 'Wagyu BBQ Sukhumvit {num}',
+    'profile.cart.visitStore': 'เข้าร้าน',
+    'profile.cart.itemName': 'เซ็ตยอดนิยม {num}',
+    'profile.cart.itemSpec': 'สำหรับ 2 คน · มื้อเย็น',
+    
+    // Orders
+    'profile.orders.all': 'ทั้งหมด',
+    'profile.orders.pending': 'รอชำระเงิน',
+    'profile.orders.toUse': 'รอใช้',
+    'profile.orders.completed': 'เสร็จสิ้น',
+    'profile.orders.refund': 'คืนเงิน',
+    'profile.orders.statusCompleted': 'เสร็จสิ้น',
+    'profile.orders.packageName': 'เซ็ตปาร์ตี้หลังเลิกงาน',
+    'profile.orders.itemCount': '{count} รายการ',
+    'profile.orders.paid': 'ชำระแล้ว',
+    'profile.orders.rebuy': 'ซื้ออีกครั้ง',
+    'profile.orders.viewDetail': 'ดูรายละเอียด',
+    
+    // Points/Coupons
+    'profile.points.platformPoints': 'พอยท์แพลตฟอร์ม',
+    'profile.points.exchangeZone': 'แลกพอยท์',
+    'profile.points.storePoints': 'พอยท์ร้านค้า',
+    'profile.points.memberLevel': 'แพลตตินัม · พอยท์ 2 เท่า',
+    'profile.points.points': 'พอยท์',
+    'profile.points.viewDetail': 'ดูรายละเอียด >',
+    'profile.points.myCoupons': 'คูปองของฉัน',
+    'profile.points.available': 'ใช้ได้',
+    'profile.points.used': 'ใช้แล้ว',
+    'profile.points.expired': 'หมดอายุ',
+    'profile.points.couponName': 'บัตรกำนัล Wagyu BBQ หลังเลิกงาน',
+    'profile.points.couponDiscount': 'ลด ฿200 เมื่อซื้อ ฿800+',
+    'profile.points.couponStore': 'ใช้ได้ที่: Sukhumvit {num}',
+    'profile.points.remaining': 'เหลือ {count} ใบ',
+    'profile.points.validUntil': 'ใช้ได้ถึง 2025-12-31',
+    
+    // Wallet
+    'profile.wallet.balance': 'ยอดคงเหลือ',
+    'profile.wallet.vouchers': 'ซองอั่งเปา / บัตรกำนัล: {count}',
+    'profile.wallet.viewDetail': 'ดูรายละเอียด >',
+    'profile.wallet.transactions': 'รายการธุรกรรม',
+    'profile.wallet.last30Days': '30 วันล่าสุด',
+    'profile.wallet.cashback': 'เงินคืน Wagyu BBQ',
     
     // Help Page
     'help.faq': 'คำถามที่พบบ่อย',
