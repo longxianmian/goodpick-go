@@ -197,14 +197,14 @@ export default function UserCenter() {
 
       <main className="px-6 py-4 max-w-md mx-auto">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center mb-4 shadow-lg">
-            <span className="text-white text-3xl font-bold">刷</span>
+          <div className="w-20 h-20 rounded-2xl bg-[#38B03B] flex items-center justify-center mb-4 shadow-lg">
+            <span className="text-white text-2xl font-bold tracking-tight">shua</span>
           </div>
           <h2 className="text-xl font-bold mb-1" data-testid="text-welcome">
             {t('login.welcome')}
           </h2>
           <p className="text-sm text-muted-foreground text-center">
-            {t('login.subtitle')}
+            {t('login.slogan')}
           </p>
         </div>
 
