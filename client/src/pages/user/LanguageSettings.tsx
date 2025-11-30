@@ -9,6 +9,9 @@ const languages = [
   { code: 'zh-cn' as const, label: '中文简体', nativeLabel: '中文' },
   { code: 'en-us' as const, label: 'English', nativeLabel: 'English' },
   { code: 'th-th' as const, label: 'ภาษาไทย', nativeLabel: 'ไทย' },
+  { code: 'id-id' as const, label: 'Bahasa Indonesia', nativeLabel: 'Indonesia' },
+  { code: 'vi-vn' as const, label: 'Tiếng Việt', nativeLabel: 'Việt Nam' },
+  { code: 'my-mm' as const, label: 'မြန်မာဘာသာ', nativeLabel: 'မြန်မာ' },
 ];
 
 export default function LanguageSettings() {
