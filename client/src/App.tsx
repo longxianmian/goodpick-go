@@ -31,6 +31,10 @@ import CreatorHome from "@/pages/creator/CreatorHome";
 import CreatorStudio from "@/pages/creator/CreatorStudio";
 import CreatorAccount from "@/pages/creator/CreatorAccount";
 import ContentEditor from "@/pages/creator/ContentEditor";
+import IncomeRecords from "@/pages/creator/IncomeRecords";
+import PaymentSettings from "@/pages/creator/PaymentSettings";
+import CreatorNotifications from "@/pages/creator/CreatorNotifications";
+import AccountSecurity from "@/pages/creator/AccountSecurity";
 import LanguageSettings from "@/pages/user/LanguageSettings";
 import SettingsPage from "@/pages/user/SettingsPage";
 import HelpPage from "@/pages/user/HelpPage";
@@ -169,6 +173,10 @@ function Router() {
       <Route path="/creator/edit/:id" component={ContentEditor} />
       <Route path="/creator/create" component={CreatorStudio} />
       <Route path="/creator/me" component={CreatorAccount} />
+      <Route path="/creator/income-records" component={IncomeRecords} />
+      <Route path="/creator/payment" component={PaymentSettings} />
+      <Route path="/creator/notifications" component={CreatorNotifications} />
+      <Route path="/creator/security" component={AccountSecurity} />
       <Route path="/creator" component={CreatorHome} />
       <Route path="/settings/language" component={LanguageSettings} />
       <Route path="/settings" component={SettingsPage} />

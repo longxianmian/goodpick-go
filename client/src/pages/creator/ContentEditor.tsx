@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Progress } from '@/components/ui/progress';
 import {
   Dialog,
   DialogContent,
@@ -18,13 +19,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { 
   ChevronLeft, 
   Save,
@@ -34,21 +28,25 @@ import {
   Link2,
   Tag,
   DollarSign,
-  Eye,
-  MousePointer,
-  ShoppingBag,
   Ticket,
   Calendar,
   Plus,
   X,
-  Check,
   AlertCircle,
-  Loader2
+  Loader2,
+  Upload,
+  GripVertical
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useDropzone } from 'react-dropzone';
 
 type ContentType = 'video' | 'article';
 type BillingMode = 'cpc' | 'cpm' | 'cps';
+
+interface MediaFile {
+  type: 'image' | 'video';
+  url: string;
+}
 
 interface PromotionItem {
   id: number;
@@ -83,6 +81,9 @@ export default function ContentEditor() {
   const [showPromotionDialog, setShowPromotionDialog] = useState(false);
   const [selectedPromotion, setSelectedPromotion] = useState<PromotionItem | null>(null);
   const [enablePromotion, setEnablePromotion] = useState(false);
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const { data: existingContent, isLoading: isLoadingContent } = useQuery<{ success: boolean; data: any }>({
     queryKey: ['/api/creator/contents', numericContentId],
@@ -111,6 +112,107 @@ export default function ContentEditor() {
         price: p.price || 0.5,
       }))
     : mockPromotions;
+
+  const uploadFile = async (file: File): Promise<MediaFile | null> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/user/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${userToken}`,
+        },
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        return {
+          type: result.fileType as 'image' | 'video',
+          url: result.fileUrl,
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Upload failed:', error);
+      return null;
+    }
+  };
+
+  const handleFilesUpload = async (files: File[]) => {
+    if (files.length === 0) return;
+
+    const currentMode = contentType === 'video' ? 'video' : 'image';
+    const maxFiles = currentMode === 'video' ? 1 : 9;
+    
+    if (mediaFiles.length + files.length > maxFiles) {
+      toast({
+        title: t('common.error'),
+        description: currentMode === 'video' 
+          ? t('creator.editor.maxOneVideo') 
+          : t('creator.editor.maxNineImages'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    const uploadedFiles: MediaFile[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const isVideo = file.type.startsWith('video/');
+      
+      if (currentMode === 'video' && !isVideo) {
+        toast({
+          title: t('common.error'),
+          description: t('creator.editor.pleaseSelectVideo'),
+          variant: 'destructive',
+        });
+        continue;
+      }
+      if (currentMode === 'image' && isVideo) {
+        toast({
+          title: t('common.error'),
+          description: t('creator.editor.pleaseSelectImage'),
+          variant: 'destructive',
+        });
+        continue;
+      }
+
+      const uploaded = await uploadFile(file);
+      if (uploaded) {
+        uploadedFiles.push(uploaded);
+      }
+      setUploadProgress(Math.round(((i + 1) / files.length) * 100));
+    }
+
+    setMediaFiles([...mediaFiles, ...uploadedFiles]);
+    setUploading(false);
+    setUploadProgress(0);
+
+    if (uploadedFiles.length > 0) {
+      toast({
+        title: t('common.success'),
+        description: t('creator.editor.uploadSuccess'),
+      });
+    }
+  };
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: handleFilesUpload,
+    accept: contentType === 'video' 
+      ? { 'video/*': ['.mp4', '.mov', '.avi', '.webm'] }
+      : { 'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp'] },
+    multiple: contentType === 'article',
+    disabled: uploading,
+  });
+
+  const removeMedia = (index: number) => {
+    setMediaFiles(mediaFiles.filter((_, i) => i !== index));
+  };
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -148,6 +250,14 @@ export default function ContentEditor() {
       setTitle(existingContent.data.title || '');
       setContent(existingContent.data.description || '');
       setContentType(existingContent.data.contentType || 'video');
+      if (existingContent.data.mediaUrls && Array.isArray(existingContent.data.mediaUrls)) {
+        const urls = existingContent.data.mediaUrls;
+        const type = existingContent.data.contentType === 'video' ? 'video' : 'image';
+        setMediaFiles(urls.map((url: string) => ({ type, url })));
+      }
+      if (existingContent.data.promotionId) {
+        setEnablePromotion(true);
+      }
     } else if (initialType) {
       setContentType(initialType);
     }
@@ -169,6 +279,8 @@ export default function ContentEditor() {
       title: title.trim(),
       description: content,
       status: 'draft',
+      mediaUrls: mediaFiles.map(f => f.url),
+      promotionId: selectedPromotion?.id || null,
     };
     
     if (numericContentId) {
@@ -183,12 +295,18 @@ export default function ContentEditor() {
       toast({ title: t('common.error'), description: t('creator.editor.titleRequired'), variant: 'destructive' });
       return;
     }
+    if (mediaFiles.length === 0) {
+      toast({ title: t('common.error'), description: t('creator.editor.mediaRequired'), variant: 'destructive' });
+      return;
+    }
     
     const data = {
       contentType,
       title: title.trim(),
       description: content,
       status: 'published',
+      mediaUrls: mediaFiles.map(f => f.url),
+      promotionId: selectedPromotion?.id || null,
     };
     
     if (numericContentId) {
@@ -228,6 +346,17 @@ export default function ContentEditor() {
     }
   };
 
+  const handleContentTypeChange = (newType: ContentType) => {
+    if (mediaFiles.length > 0 && newType !== contentType) {
+      toast({
+        title: t('common.warning'),
+        description: t('creator.editor.changeTypeWarning'),
+      });
+      setMediaFiles([]);
+    }
+    setContentType(newType);
+  };
+
   return (
     <div className="min-h-screen bg-muted/30 pb-6">
       <div className="bg-gradient-to-b from-[#ff6b6b] to-[#ee5a5a] text-white">
@@ -260,7 +389,7 @@ export default function ContentEditor() {
                 <Button
                   variant={contentType === 'video' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setContentType('video')}
+                  onClick={() => handleContentTypeChange('video')}
                   className={contentType === 'video' ? 'bg-[#38B03B]' : ''}
                   data-testid="button-type-video"
                 >
@@ -270,7 +399,7 @@ export default function ContentEditor() {
                 <Button
                   variant={contentType === 'article' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setContentType('article')}
+                  onClick={() => handleContentTypeChange('article')}
                   className={contentType === 'article' ? 'bg-[#38B03B]' : ''}
                   data-testid="button-type-article"
                 >
@@ -303,33 +432,110 @@ export default function ContentEditor() {
               />
             </div>
 
-            {contentType === 'video' && (
-              <div className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 text-center">
-                <Video className="w-12 h-12 mx-auto text-muted-foreground/50 mb-2" />
-                <p className="text-sm text-muted-foreground">{t('creator.editor.uploadVideo')}</p>
-                <Button variant="outline" size="sm" className="mt-2" data-testid="button-upload-video">
-                  <Plus className="w-4 h-4 mr-1" />
-                  {t('creator.editor.selectFile')}
-                </Button>
-              </div>
-            )}
+            <div className="space-y-3">
+              {mediaFiles.length > 0 && (
+                <div className={`grid gap-2 ${contentType === 'video' ? '' : 'grid-cols-3'}`}>
+                  {mediaFiles.map((file, index) => (
+                    <div 
+                      key={file.url} 
+                      className="relative group aspect-video bg-muted rounded-lg overflow-hidden"
+                      data-testid={`media-item-${index}`}
+                    >
+                      {file.type === 'video' ? (
+                        <video
+                          src={file.url}
+                          className="w-full h-full object-cover"
+                          preload="metadata"
+                          muted
+                          playsInline
+                          controls
+                        />
+                      ) : (
+                        <img
+                          src={file.url}
+                          alt={`Upload ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="absolute top-2 right-2 h-6 w-6 bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removeMedia(index)}
+                        data-testid={`button-remove-media-${index}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                      <div className="absolute bottom-2 left-2">
+                        <Badge variant="secondary" className="text-xs">
+                          {file.type === 'video' ? (
+                            <><Video className="h-3 w-3 mr-1" />{t('creator.videos')}</>
+                          ) : (
+                            <><Image className="h-3 w-3 mr-1" />{t('creator.articles')}</>
+                          )}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-            {contentType === 'article' && (
-              <div className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 text-center">
-                <Image className="w-12 h-12 mx-auto text-muted-foreground/50 mb-2" />
-                <p className="text-sm text-muted-foreground">{t('creator.editor.uploadImages')}</p>
-                <Button variant="outline" size="sm" className="mt-2" data-testid="button-upload-images">
-                  <Plus className="w-4 h-4 mr-1" />
-                  {t('creator.editor.selectImages')}
-                </Button>
-              </div>
-            )}
+              {uploading && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {t('creator.editor.uploading')}
+                  </div>
+                  <Progress value={uploadProgress} className="h-2" />
+                </div>
+              )}
+
+              {(contentType === 'video' && mediaFiles.length < 1) || 
+               (contentType === 'article' && mediaFiles.length < 9) ? (
+                <div
+                  {...getRootProps()}
+                  className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                    isDragActive 
+                      ? 'border-[#38B03B] bg-green-50 dark:bg-green-950/20' 
+                      : 'border-muted-foreground/30 hover:border-muted-foreground/50'
+                  } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  data-testid="dropzone"
+                >
+                  <input {...getInputProps()} />
+                  {contentType === 'video' ? (
+                    <>
+                      <Video className="w-12 h-12 mx-auto text-muted-foreground/50 mb-2" />
+                      <p className="text-sm text-muted-foreground">{t('creator.editor.uploadVideo')}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{t('creator.editor.dragOrClick')}</p>
+                    </>
+                  ) : (
+                    <>
+                      <Image className="w-12 h-12 mx-auto text-muted-foreground/50 mb-2" />
+                      <p className="text-sm text-muted-foreground">{t('creator.editor.uploadImages')}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t('creator.editor.maxImages', { count: 9 - mediaFiles.length })}
+                      </p>
+                    </>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2" 
+                    disabled={uploading}
+                    data-testid="button-upload"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    {t('creator.editor.selectFile')}
+                  </Button>
+                </div>
+              ) : null}
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-base flex items-center gap-2">
                 <Tag className="w-4 h-4 text-[#38B03B]" />
                 {t('creator.editor.promotion')}
@@ -350,9 +556,9 @@ export default function ContentEditor() {
             {enablePromotion ? (
               selectedPromotion ? (
                 <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-3">
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
                         selectedPromotion.type === 'coupon' 
                           ? 'bg-orange-100 dark:bg-orange-900/30' 
                           : 'bg-blue-100 dark:bg-blue-900/30'
@@ -366,7 +572,7 @@ export default function ContentEditor() {
                       <div>
                         <div className="font-medium text-sm">{selectedPromotion.title}</div>
                         <div className="text-xs text-muted-foreground">{selectedPromotion.merchantName}</div>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center flex-wrap gap-2 mt-1">
                           <Badge variant="secondary" className="text-xs">
                             {getBillingModeLabel(selectedPromotion.billingMode)}
                           </Badge>
@@ -422,40 +628,50 @@ export default function ContentEditor() {
                       <DialogTitle>{t('creator.editor.availablePromotions')}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                      {promotionsList.map((promo) => (
-                        <div
-                          key={promo.id}
-                          className="border rounded-lg p-3 cursor-pointer hover-elevate"
-                          onClick={() => handleSelectPromotion(promo)}
-                          data-testid={`promotion-item-${promo.id}`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                              promo.type === 'coupon' 
-                                ? 'bg-orange-100 dark:bg-orange-900/30' 
-                                : 'bg-blue-100 dark:bg-blue-900/30'
-                            }`}>
-                              {promo.type === 'coupon' ? (
-                                <Ticket className="w-5 h-5 text-orange-500" />
-                              ) : (
-                                <Calendar className="w-5 h-5 text-blue-500" />
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <div className="font-medium text-sm">{promo.title}</div>
-                              <div className="text-xs text-muted-foreground">{promo.merchantName}</div>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="secondary" className="text-xs">
-                                  {getBillingModeLabel(promo.billingMode)}
-                                </Badge>
-                                <span className="text-xs text-green-600">
-                                  {getBillingModeDesc(promo.billingMode, promo.price)}
-                                </span>
+                      {isLoadingPromotions ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : promotionsList.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          {t('creator.editor.noAvailablePromotions')}
+                        </div>
+                      ) : (
+                        promotionsList.map((promo) => (
+                          <div
+                            key={promo.id}
+                            className="border rounded-lg p-3 cursor-pointer hover-elevate"
+                            onClick={() => handleSelectPromotion(promo)}
+                            data-testid={`promotion-item-${promo.id}`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                                promo.type === 'coupon' 
+                                  ? 'bg-orange-100 dark:bg-orange-900/30' 
+                                  : 'bg-blue-100 dark:bg-blue-900/30'
+                              }`}>
+                                {promo.type === 'coupon' ? (
+                                  <Ticket className="w-5 h-5 text-orange-500" />
+                                ) : (
+                                  <Calendar className="w-5 h-5 text-blue-500" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-medium text-sm">{promo.title}</div>
+                                <div className="text-xs text-muted-foreground">{promo.merchantName}</div>
+                                <div className="flex items-center flex-wrap gap-2 mt-1">
+                                  <Badge variant="secondary" className="text-xs">
+                                    {getBillingModeLabel(promo.billingMode)}
+                                  </Badge>
+                                  <span className="text-xs text-green-600">
+                                    {getBillingModeDesc(promo.billingMode, promo.price)}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -473,13 +689,13 @@ export default function ContentEditor() {
         <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
           <CardContent className="pt-4">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
               <div className="text-sm">
                 <div className="font-medium text-amber-800 dark:text-amber-200">{t('creator.editor.billingInfo')}</div>
                 <ul className="text-xs text-amber-700 dark:text-amber-300 mt-1 space-y-1">
-                  <li>• CPC: {t('creator.editor.cpcDesc')}</li>
-                  <li>• CPM: {t('creator.editor.cpmDesc')}</li>
-                  <li>• CPS: {t('creator.editor.cpsDesc')}</li>
+                  <li>CPC: {t('creator.editor.cpcDesc')}</li>
+                  <li>CPM: {t('creator.editor.cpmDesc')}</li>
+                  <li>CPS: {t('creator.editor.cpsDesc')}</li>
                 </ul>
                 <div className="mt-2 text-xs text-amber-600 dark:text-amber-400">
                   {t('creator.editor.platformFeeNote')}
@@ -494,11 +710,11 @@ export default function ContentEditor() {
             variant="outline"
             className="flex-1"
             onClick={handleSaveDraft}
-            disabled={isSaving || isPublishing}
+            disabled={isSaving || isPublishing || uploading}
             data-testid="button-save-draft"
           >
             {isSaving ? (
-              <>{t('common.saving')}</>
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('common.saving')}</>
             ) : (
               <>
                 <Save className="w-4 h-4 mr-2" />
@@ -509,11 +725,11 @@ export default function ContentEditor() {
           <Button
             className="flex-1 bg-[#38B03B]"
             onClick={handlePublish}
-            disabled={isSaving || isPublishing || !title.trim()}
+            disabled={isSaving || isPublishing || uploading || !title.trim()}
             data-testid="button-publish"
           >
             {isPublishing ? (
-              <>{t('common.loading')}</>
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('common.loading')}</>
             ) : (
               <>
                 <Send className="w-4 h-4 mr-2" />

@@ -3676,6 +3676,48 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // 用户媒体上传 API
+  app.post('/api/user/upload', userAuthMiddleware, upload.single('file'), async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No file uploaded' });
+      }
+
+      const userId = req.user!.id;
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(2, 8);
+      const ext = req.file.originalname.split('.').pop();
+      const objectName = `user/${userId}/${timestamp}-${randomStr}.${ext}`;
+
+      const fileUrl = await getOssService().uploadFile(
+        objectName,
+        req.file.buffer,
+        req.file.mimetype
+      );
+
+      const fileType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
+
+      await db.insert(mediaFiles).values({
+        fileName: req.file.originalname,
+        fileUrl,
+        fileType,
+        fileSize: req.file.size,
+        uploadedBy: userId,
+        isPublic: true,
+      });
+
+      res.json({
+        success: true,
+        fileUrl,
+        fileType,
+        fileSize: req.file.size,
+      });
+    } catch (error) {
+      console.error('User upload file error:', error);
+      res.status(500).json({ success: false, message: 'Failed to upload file' });
+    }
+  });
+
   // ============ J. 刷刷号创作者 API ============
 
   // 获取创作者内容列表
