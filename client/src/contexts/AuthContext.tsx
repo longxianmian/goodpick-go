@@ -37,6 +37,9 @@ interface User {
   hasVerifierRole?: boolean;
   hasSysAdminRole?: boolean;
   hasCreatorRole?: boolean;
+  hasMemberRole?: boolean;
+  // 🔥 刷刷平台 - 测试账号标记
+  isTestAccount?: boolean;
 }
 
 type AuthPhase = 'booting' | 'ready' | 'error';
@@ -190,10 +193,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const savedRole = localStorage.getItem('activeRole') as UserRoleType | null;
           const primaryRole = me.primaryRole || 'consumer';
           // 如果保存的角色是用户拥有的角色，则使用保存的角色；否则使用主要角色
-          if (savedRole && (savedRole === 'consumer' || 
+          // 🔥 测试账号可以访问所有角色
+          const isTestUser = me.isTestAccount;
+          if (savedRole && (
+              savedRole === 'consumer' || 
+              isTestUser ||
               (savedRole === 'owner' && me.hasOwnerRole) ||
               (savedRole === 'operator' && me.hasOperatorRole) ||
-              (savedRole === 'verifier' && me.hasVerifierRole))) {
+              (savedRole === 'verifier' && me.hasVerifierRole) ||
+              (savedRole === 'sysadmin' && me.hasSysAdminRole) ||
+              (savedRole === 'creator' && me.hasCreatorRole))) {
             setActiveRoleState(savedRole);
           } else {
             setActiveRoleState(primaryRole);
@@ -277,7 +286,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const userRoles: UserStoreRole[] = user?.roles || [];
 
   // 检查用户是否拥有某个角色
+  // 🔥 测试账号拥有所有角色权限
   const hasRole = (role: UserRoleType): boolean => {
+    if (user?.isTestAccount) return true; // 测试账号拥有所有角色
     if (role === 'consumer') return true; // 所有用户都是消费者
     if (role === 'owner') return !!user?.hasOwnerRole;
     if (role === 'operator') return !!user?.hasOperatorRole;

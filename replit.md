@@ -1,7 +1,33 @@
 # ShuaShua (刷刷) O2O Platform
 
 ## Overview
-ShuaShua (刷刷) is a multi-merchant O2O local life platform that evolved from GoodPick Go. Its primary purpose is to connect consumers with local businesses, offering deal discovery and coupon redemption through platforms like LINE. The platform caters to three main user terminals: Consumer (C-端), Merchant Portal (商户端), and Staff Workstation (员工端). Key capabilities include multi-role authorization (owner, operator, verifier), multi-platform login (LINE, Google, Apple, Phone), payment-as-membership features, and readiness for AI agent integration.
+ShuaShua (刷刷) is a multi-merchant O2O local life platform that evolved from GoodPick Go. Its primary purpose is to connect consumers with local businesses, offering deal discovery and coupon redemption through platforms like LINE. The platform caters to three main user terminals: Consumer (C-端), Merchant Portal (商户端), and Staff Workstation (员工端). Key capabilities include multi-role authorization (7种账号类型), multi-platform login (LINE, Google, Apple, Phone), payment-as-membership features, and readiness for AI agent integration.
+
+## 账号类型 (7种)
+| 序号 | 账号类型 | 代码名称 | 说明 |
+|------|----------|----------|------|
+| 1 | 个人号 | consumer | 普通消费者，所有用户默认角色 |
+| 2 | 刷刷号 | creator | 内容创作者/自媒体 |
+| 3 | 发现号（商户号）| owner | 商户老板 |
+| 4 | 核销号 | verifier | 核销员 |
+| 5 | 运营号 | operator | 运营人员 |
+| 6 | 商户会员号 | member | 商户会员 |
+| 7 | 系统运营管理账号 | sysadmin | 系统管理员 |
+
+## 测试账号
+- **配置文件**: `shared/testAccounts.ts`
+- **宝宝龙**: LINE User ID `U36ca390160a7674f51442fa6df2290f0`
+- **权限**: 测试账号拥有所有7种账号类型的访问权限
+
+## 开发预览路由
+| 路径 | 角色页面 |
+|------|----------|
+| `/dev/me/consumer` | 消费者个人中心 |
+| `/dev/me/creator` | 刷刷号创作者中心 |
+| `/dev/me/owner` | 商户老板管理页 |
+| `/dev/me/verifier` | 核销员页面 |
+| `/dev/me/operator` | 运营人员页面 |
+| `/dev/me/sysadmin` | 系统管理员页面 |
 
 ## User Preferences
 语言要求: 必须使用中文沟通（用户不懂英文，这是强制要求）

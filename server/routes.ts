@@ -590,11 +590,24 @@ export function registerRoutes(app: Express): Server {
         )
         .orderBy(desc(merchantStaffRoles.createdAt));
 
+      // 🔥 刷刷平台 - 测试账号检测
+      // 测试账号拥有所有7种账号类型的权限
+      const { isTestAccount } = await import('../shared/testAccounts');
+      const isTestUser = isTestAccount(user.lineUserId);
+      
+      if (isTestUser) {
+        console.log(`[TEST ACCOUNT] 检测到测试账号: ${user.displayName} (${user.lineUserId})`);
+      }
+
       // 判断主要角色类型：优先级 owner > operator > verifier > consumer
       // 用户默认都是消费者，如果有其他角色则显示最高优先级角色
-      let primaryRole: 'consumer' | 'owner' | 'operator' | 'verifier' = 'consumer';
+      let primaryRole: 'consumer' | 'owner' | 'operator' | 'verifier' | 'sysadmin' | 'creator' = 'consumer';
       const roleSet = new Set(userRoles.map(r => r.role));
-      if (roleSet.has('owner')) {
+      
+      // 测试账号默认显示sysadmin角色
+      if (isTestUser) {
+        primaryRole = 'sysadmin';
+      } else if (roleSet.has('owner')) {
         primaryRole = 'owner';
       } else if (roleSet.has('operator')) {
         primaryRole = 'operator';
@@ -620,9 +633,15 @@ export function registerRoutes(app: Express): Server {
             role: r.role,
           })),
           // 是否有各类角色的快速判断
-          hasOwnerRole: roleSet.has('owner'),
-          hasOperatorRole: roleSet.has('operator'),
-          hasVerifierRole: roleSet.has('verifier'),
+          // 🔥 测试账号拥有所有角色权限
+          hasOwnerRole: isTestUser || roleSet.has('owner'),
+          hasOperatorRole: isTestUser || roleSet.has('operator'),
+          hasVerifierRole: isTestUser || roleSet.has('verifier'),
+          hasSysAdminRole: isTestUser,
+          hasCreatorRole: isTestUser,
+          hasMemberRole: isTestUser,
+          // 标记是否是测试账号
+          isTestAccount: isTestUser,
         },
       });
     } catch (error) {
