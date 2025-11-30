@@ -98,10 +98,19 @@ Security measures include bcryptjs for password hashing, environment variable-ba
 
 ## Recent Updates (2025-11-30)
 
+### 平台架构（重要）
+- **刷刷** = 内容平台（创作者发布的短视频），首页从 `short_videos` 表获取数据
+- **发现** = 本土商户平台（商家活动campaigns），从 `campaigns` 表获取数据
+
+### 内容发布同步机制
+- **创作者工作室**：内容保存在 `creator_contents` 表（支持草稿/已发布状态）
+- **刷刷首页Feed**：从 `short_videos` 表读取已发布的视频内容
+- **自动同步**：当创作者通过 `/api/creator/contents` 发布视频时，自动同步到 `short_videos` 表
+
 ### Short Video System (抖音式短视频)
 - **Database**: Added `short_videos`, `short_video_likes`, `short_video_comments` tables
 - **API Endpoints**:
-  - `GET /api/short-videos/feed` - 视频流（游标分页）
+  - `GET /api/short-videos/feed` - 视频流（游标分页）- **刷刷首页使用此API**
   - `GET /api/short-videos/:id` - 视频详情
   - `POST /api/short-videos` - 上传短视频（含封面/缩略图）
   - `POST /api/short-videos/:id/like` - 点赞/取消点赞
@@ -113,6 +122,7 @@ Security measures include bcryptjs for password hashing, environment variable-ba
   - `VideoCard` - 全屏视频播放卡片（自动播放、点赞、评论、分享）
   - `VerticalSwiper` - 上下滑动切换组件（支持触摸、鼠标滚轮、键盘）
   - `ShortVideoFeed` - 短视频流页面（/videos路由）
+  - `ShuaShuaHome` - 刷刷首页（显示短视频卡片网格）
 
 ### Rich Text Editor (富文本编辑器)
 - **Component**: `RichTextEditor` - 基于Tiptap

@@ -1,17 +1,39 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { Search, Heart, MessageCircle, Ticket, Sparkles, MapPin, Play } from 'lucide-react';
+import { Search, Heart, Play, Video, Eye } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { UserBottomNav } from '@/components/UserBottomNav';
 import { DrawerMenu } from '@/components/DrawerMenu';
 import { useLanguage } from '@/contexts/LanguageContext';
-import type { Campaign, Store } from '@shared/schema';
 
-interface CampaignWithStores extends Campaign {
-  stores: Store[];
+interface ShortVideoItem {
+  id: number;
+  videoUrl: string;
+  hlsUrl?: string;
+  coverImageUrl?: string;
+  thumbnailUrl?: string;
+  title?: string;
+  description?: string;
+  duration?: number;
+  viewCount: number;
+  likeCount: number;
+  commentCount: number;
+  shareCount: number;
+  creatorName?: string;
+  creatorAvatar?: string;
+  creatorUserId: number;
+  isLiked?: boolean;
+}
+
+interface FeedResponse {
+  success: boolean;
+  data: {
+    items: ShortVideoItem[];
+    nextCursor: number | null;
+    hasMore: boolean;
+  };
 }
 
 const FEED_TABS = ['recommend', 'local'] as const;
@@ -43,18 +65,11 @@ function MenuIcon({ onClick }: { onClick: () => void }) {
   );
 }
 
-function ContentCard({ campaign, index }: { campaign: CampaignWithStores; index: number }) {
-  const { language, t } = useLanguage();
-  const [liked, setLiked] = useState(false);
-  const [likeCount] = useState(() => Math.floor(Math.random() * 2000) + 100);
+function VideoCard({ video, index }: { video: ShortVideoItem; index: number }) {
+  const { t } = useLanguage();
+  const [liked, setLiked] = useState(video.isLiked || false);
   
   const gradientClass = GRADIENT_COLORS[index % GRADIENT_COLORS.length];
-  
-  const getTitle = () => {
-    if (language === 'zh-cn') return campaign.titleZh || campaign.titleSource;
-    if (language === 'en-us') return campaign.titleEn || campaign.titleSource;
-    return campaign.titleTh || campaign.titleSource;
-  };
 
   const handleLike = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -62,92 +77,95 @@ function ContentCard({ campaign, index }: { campaign: CampaignWithStores; index:
     setLiked(!liked);
   };
 
-  const storeName = campaign.stores?.[0]?.name || t('feed.anonymousUser');
-  const storeAvatar = campaign.stores?.[0]?.imageUrl;
-  const cityName = campaign.stores?.[0]?.city || t('feed.defaultCity');
-
   const formatNumber = (num: number) => {
+    if (num >= 10000) {
+      return (num / 10000).toFixed(1) + 'w';
+    }
     if (num >= 1000) {
       return (num / 1000).toFixed(1) + 'k';
     }
     return num.toString();
   };
 
-  const isVideo = campaign.bannerImageUrl?.includes('.mp4') || campaign.bannerImageUrl?.includes('video');
+  const formatDuration = (seconds?: number) => {
+    if (!seconds) return '';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   return (
-    <Link href={`/campaign/${campaign.id}`}>
+    <Link href={`/videos/${video.id}`}>
       <div 
         className="bg-card rounded-xl overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-shadow duration-200"
         style={{ aspectRatio: '1 / 1.618' }}
-        data-testid={`card-feed-${campaign.id}`}
+        data-testid={`card-video-${video.id}`}
       >
         <div className="relative w-full h-[65%] overflow-hidden">
-          {campaign.bannerImageUrl ? (
+          {video.coverImageUrl || video.thumbnailUrl ? (
             <>
               <img 
-                src={campaign.bannerImageUrl} 
-                alt={getTitle()} 
+                src={video.coverImageUrl || video.thumbnailUrl} 
+                alt={video.title || t('feed.video')} 
                 className="w-full h-full object-cover"
               />
-              {isVideo && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                  <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center">
-                    <Play className="w-5 h-5 text-foreground ml-0.5" fill="currentColor" />
-                  </div>
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center">
+                  <Play className="w-5 h-5 text-foreground ml-0.5" fill="currentColor" />
                 </div>
-              )}
+              </div>
             </>
           ) : (
             <div className={`w-full h-full bg-gradient-to-br ${gradientClass} flex items-center justify-center`}>
               <div className="text-center text-white/90">
-                <Sparkles className="w-6 h-6 mx-auto mb-1 opacity-80" />
-                <span className="text-[10px] font-medium opacity-70">{t('feed.specialOffer')}</span>
+                <Video className="w-6 h-6 mx-auto mb-1 opacity-80" />
+                <span className="text-[10px] font-medium opacity-70">{t('feed.video')}</span>
               </div>
             </div>
           )}
           
-          {campaign.discountType && (
-            <Badge 
-              variant="secondary" 
-              className="absolute top-1.5 left-1.5 bg-red-500 text-white border-0 text-[9px] px-1.5 py-0.5"
-            >
-              {campaign.discountType === 'percentage_off' 
-                ? `-${campaign.couponValue}%` 
-                : campaign.discountType === 'cash_voucher' 
-                  ? `฿${campaign.couponValue}` 
-                  : `฿${campaign.couponValue}`}
-            </Badge>
+          {video.duration && (
+            <div className="absolute bottom-1.5 right-1.5 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded">
+              {formatDuration(video.duration)}
+            </div>
           )}
         </div>
 
         <div className="h-[35%] p-2 flex flex-col justify-between">
           <h3 
-            className="text-[11px] font-medium text-foreground line-clamp-2 leading-tight"
-            data-testid={`text-feed-title-${campaign.id}`}
+            className="text-xs font-medium line-clamp-2 leading-tight"
+            data-testid={`text-title-${video.id}`}
           >
-            {getTitle()}
+            {video.title || t('feed.untitled')}
           </h3>
-          
-          <div className="flex items-center justify-between mt-auto">
-            <div className="flex items-center gap-1 min-w-0 flex-1">
+
+          <div className="flex items-center justify-between gap-1">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
               <Avatar className="w-4 h-4 flex-shrink-0">
-                <AvatarImage src={storeAvatar || undefined} />
-                <AvatarFallback className="text-[7px] bg-muted">
-                  {storeName.charAt(0)}
+                <AvatarImage src={video.creatorAvatar} />
+                <AvatarFallback className="text-[8px] bg-muted">
+                  {(video.creatorName || 'U').charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-[9px] text-muted-foreground truncate">{storeName}</span>
+              <span className="text-[10px] text-muted-foreground truncate">
+                {video.creatorName || t('feed.anonymousUser')}
+              </span>
             </div>
-            
-            <button
-              onClick={handleLike}
-              className="flex items-center gap-0.5 text-[9px] text-muted-foreground"
-              data-testid={`button-like-${campaign.id}`}
-            >
-              <Heart className={`w-3 h-3 ${liked ? 'fill-red-500 text-red-500' : ''}`} />
-              <span className={liked ? 'text-red-500' : ''}>{formatNumber(likeCount + (liked ? 1 : 0))}</span>
-            </button>
+
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground">
+                <Eye className="w-3 h-3" />
+                {formatNumber(video.viewCount)}
+              </span>
+              <button
+                onClick={handleLike}
+                className="flex items-center gap-0.5 text-[9px] text-muted-foreground"
+                data-testid={`button-like-${video.id}`}
+              >
+                <Heart className={`w-3 h-3 ${liked ? 'fill-red-500 text-red-500' : ''}`} />
+                <span className={liked ? 'text-red-500' : ''}>{formatNumber(video.likeCount + (liked ? 1 : 0))}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -184,11 +202,11 @@ export default function ShuaShuaHome() {
   const [activeCategory, setActiveCategory] = useState<CategoryType>('all');
   const [drawerOpen, setDrawerOpen] = useState(false);
   
-  const { data: campaignsData, isLoading } = useQuery<{ success: boolean; data: CampaignWithStores[] }>({
-    queryKey: ['/api/campaigns'],
+  const { data: feedData, isLoading } = useQuery<FeedResponse>({
+    queryKey: ['/api/short-videos/feed'],
   });
 
-  const campaigns = campaignsData?.data || [];
+  const videos = feedData?.data?.items || [];
 
   const feedTabLabels: Record<FeedTabType, string> = {
     recommend: t('feed.tabRecommend'),
@@ -269,18 +287,18 @@ export default function ShuaShuaHome() {
               <ContentSkeleton key={i} />
             ))}
           </div>
-        ) : campaigns.length === 0 ? (
+        ) : videos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center mb-4">
-              <Ticket className="w-10 h-10 text-primary/60" />
+              <Video className="w-10 h-10 text-primary/60" />
             </div>
             <p className="text-muted-foreground text-sm font-medium">{t('feed.noContent')}</p>
             <p className="text-muted-foreground/70 text-xs mt-1">{t('feed.checkBackLater')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
-            {campaigns.map((campaign, index) => (
-              <ContentCard key={campaign.id} campaign={campaign} index={index} />
+            {videos.map((video, index) => (
+              <VideoCard key={video.id} video={video} index={index} />
             ))}
           </div>
         )}

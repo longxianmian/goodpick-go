@@ -3893,6 +3893,23 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
       
+      // 如果是视频内容并且直接发布，同步到short_videos表供刷刷首页feed显示
+      if ((contentType === 'video' || !contentType) && status === 'published' && mediaUrls?.length > 0) {
+        const videoUrl = mediaUrls.find((url: string) => url.match(/\.(mp4|mov|webm|m3u8)$/i)) || mediaUrls[0];
+        await db.insert(shortVideos).values({
+          creatorUserId: userId,
+          videoUrl: videoUrl,
+          coverImageUrl: coverImageUrl || null,
+          thumbnailUrl: coverImageUrl || null,
+          title: title,
+          description: description || null,
+          status: 'ready',
+          isPublic: true,
+          publishedAt: new Date(),
+        });
+        console.log(`[SYNC] 已同步创作者内容 #${newContent.id} 到短视频feed`);
+      }
+      
       res.json({ success: true, data: newContent });
     } catch (error) {
       console.error('Create creator content error:', error);
@@ -3930,9 +3947,11 @@ export function registerRoutes(app: Express): Server {
       if (description !== undefined) updateData.description = description;
       if (mediaUrls !== undefined) updateData.mediaUrls = mediaUrls;
       if (coverImageUrl !== undefined) updateData.coverImageUrl = coverImageUrl;
+      
+      const isNewlyPublished = status === 'published' && existing.status !== 'published';
       if (status) {
         updateData.status = status;
-        if (status === 'published' && existing.status !== 'published') {
+        if (isNewlyPublished) {
           updateData.publishedAt = new Date();
         }
       }
@@ -3942,6 +3961,29 @@ export function registerRoutes(app: Express): Server {
         .set(updateData)
         .where(eq(creatorContents.id, contentId))
         .returning();
+      
+      // 如果是视频内容且刚刚发布，同步到short_videos表供刷刷首页feed显示
+      const finalMediaUrls = mediaUrls !== undefined ? mediaUrls : existing.mediaUrls;
+      const finalContentType = contentType || existing.contentType;
+      const finalTitle = title !== undefined ? title : existing.title;
+      const finalDescription = description !== undefined ? description : existing.description;
+      const finalCoverImageUrl = coverImageUrl !== undefined ? coverImageUrl : existing.coverImageUrl;
+      
+      if (isNewlyPublished && finalContentType === 'video' && finalMediaUrls?.length > 0) {
+        const videoUrl = finalMediaUrls.find((url: string) => url.match(/\.(mp4|mov|webm|m3u8)$/i)) || finalMediaUrls[0];
+        await db.insert(shortVideos).values({
+          creatorUserId: userId,
+          videoUrl: videoUrl,
+          coverImageUrl: finalCoverImageUrl || null,
+          thumbnailUrl: finalCoverImageUrl || null,
+          title: finalTitle,
+          description: finalDescription || null,
+          status: 'ready',
+          isPublic: true,
+          publishedAt: new Date(),
+        });
+        console.log(`[SYNC] 已同步创作者内容 #${contentId} 到短视频feed`);
+      }
       
       res.json({ success: true, data: updated });
     } catch (error) {
