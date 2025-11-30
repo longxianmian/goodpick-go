@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useRoute, useSearch } from 'wouter';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiRequest } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,8 +42,10 @@ import {
   Plus,
   X,
   Check,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 type ContentType = 'video' | 'article';
 type BillingMode = 'cpc' | 'cpm' | 'cps';
@@ -61,38 +65,89 @@ export default function ContentEditor() {
   const [, params] = useRoute('/creator/edit/:id');
   const searchString = useSearch();
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { user, userToken } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const isNewContent = !params?.id || params.id === 'new';
   const contentId = params?.id;
+  const numericContentId = contentId && contentId !== 'new' ? parseInt(contentId) : null;
 
   const searchParams = new URLSearchParams(searchString);
   const initialType = searchParams.get('type') as ContentType | null;
   const openPromotionTab = searchParams.get('tab') === 'promotion';
 
-  const mockDrafts: Record<string, { title: string; content: string; type: ContentType }> = {
-    'd1': { title: '下周新店探访计划', content: '这是一篇关于新店探访的内容草稿...', type: 'video' },
-    'd2': { title: '美食攻略草稿', content: '周末必去的美食打卡点...', type: 'article' },
-    'p1': { title: '美食探店vlog', content: '今天带大家探访一家超棒的餐厅...', type: 'video' },
-    'p2': { title: '周末好去处推荐', content: '周末不知道去哪里？看这里...', type: 'article' },
-  };
-
-  const existingDraft = contentId && mockDrafts[contentId];
-
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [contentType, setContentType] = useState<ContentType>('video');
-  const [isSaving, setIsSaving] = useState(false);
-  const [isPublishing, setIsPublishing] = useState(false);
   const [showPromotionDialog, setShowPromotionDialog] = useState(false);
   const [selectedPromotion, setSelectedPromotion] = useState<PromotionItem | null>(null);
   const [enablePromotion, setEnablePromotion] = useState(false);
 
+  const { data: existingContent, isLoading: isLoadingContent } = useQuery<{ success: boolean; data: any }>({
+    queryKey: ['/api/creator/contents', numericContentId],
+    enabled: !!numericContentId && !!userToken,
+  });
+
+  const { data: availablePromotions, isLoading: isLoadingPromotions } = useQuery<{ success: boolean; data: any[] }>({
+    queryKey: ['/api/creator/available-promotions'],
+    enabled: !!userToken,
+  });
+
+  const mockPromotions: PromotionItem[] = [
+    { id: 1, type: 'coupon', title: '新店开业8折优惠券', merchantName: '美味餐厅', commission: 15, billingMode: 'cpc', price: 0.5 },
+    { id: 2, type: 'coupon', title: '满100减30优惠券', merchantName: '火锅世家', commission: 20, billingMode: 'cps', price: 5 },
+    { id: 3, type: 'campaign', title: '周年庆抽奖活动', merchantName: '购物中心', commission: 10, billingMode: 'cpm', price: 8 },
+  ];
+
+  const promotionsList: PromotionItem[] = availablePromotions?.data?.length > 0
+    ? availablePromotions.data.map((p: any) => ({
+        id: p.id,
+        type: p.type || 'campaign',
+        title: p.title,
+        merchantName: p.merchantName,
+        commission: 15,
+        billingMode: p.billingMode || 'cpc',
+        price: p.price || 0.5,
+      }))
+    : mockPromotions;
+
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest('POST', '/api/creator/contents', data);
+      return res.json();
+    },
+    onSuccess: (result: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/creator/contents'] });
+      toast({ title: t('creator.editor.saveSuccess'), description: t('creator.editor.draftSaved') });
+      if (result?.data?.id) {
+        setLocation(`/creator/edit/${result.data.id}`);
+      }
+    },
+    onError: () => {
+      toast({ title: t('common.error'), description: t('creator.editor.saveFailed'), variant: 'destructive' });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest('PUT', `/api/creator/contents/${numericContentId}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/creator/contents'] });
+      toast({ title: t('creator.editor.saveSuccess'), description: t('creator.editor.draftSaved') });
+    },
+    onError: () => {
+      toast({ title: t('common.error'), description: t('creator.editor.saveFailed'), variant: 'destructive' });
+    },
+  });
+
   useEffect(() => {
-    if (existingDraft) {
-      setTitle(existingDraft.title);
-      setContent(existingDraft.content);
-      setContentType(existingDraft.type);
+    if (existingContent?.data) {
+      setTitle(existingContent.data.title || '');
+      setContent(existingContent.data.description || '');
+      setContentType(existingContent.data.contentType || 'video');
     } else if (initialType) {
       setContentType(initialType);
     }
@@ -101,60 +156,50 @@ export default function ContentEditor() {
       setEnablePromotion(true);
       setShowPromotionDialog(true);
     }
-  }, [contentId]);
-
-  const mockAvailablePromotions: PromotionItem[] = [
-    { 
-      id: 1, 
-      type: 'coupon', 
-      title: '新店开业8折优惠券', 
-      merchantName: '美味餐厅',
-      commission: 15,
-      billingMode: 'cpc',
-      price: 0.5
-    },
-    { 
-      id: 2, 
-      type: 'coupon', 
-      title: '满100减30优惠券', 
-      merchantName: '火锅世家',
-      commission: 20,
-      billingMode: 'cps',
-      price: 5
-    },
-    { 
-      id: 3, 
-      type: 'campaign', 
-      title: '周年庆抽奖活动', 
-      merchantName: '购物中心',
-      commission: 10,
-      billingMode: 'cpm',
-      price: 8
-    },
-    { 
-      id: 4, 
-      type: 'campaign', 
-      title: '新品试吃体验', 
-      merchantName: '甜品屋',
-      commission: 25,
-      billingMode: 'cpc',
-      price: 1.0
-    },
-  ];
+  }, [existingContent, initialType, openPromotionTab]);
 
   const handleSaveDraft = async () => {
-    setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    setLocation('/creator/create');
+    if (!title.trim()) {
+      toast({ title: t('common.error'), description: t('creator.editor.titleRequired'), variant: 'destructive' });
+      return;
+    }
+    
+    const data = {
+      contentType,
+      title: title.trim(),
+      description: content,
+      status: 'draft',
+    };
+    
+    if (numericContentId) {
+      updateMutation.mutate(data);
+    } else {
+      createMutation.mutate(data);
+    }
   };
 
   const handlePublish = async () => {
-    setIsPublishing(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsPublishing(false);
-    setLocation('/creator/create');
+    if (!title.trim()) {
+      toast({ title: t('common.error'), description: t('creator.editor.titleRequired'), variant: 'destructive' });
+      return;
+    }
+    
+    const data = {
+      contentType,
+      title: title.trim(),
+      description: content,
+      status: 'published',
+    };
+    
+    if (numericContentId) {
+      updateMutation.mutate(data);
+    } else {
+      createMutation.mutate(data);
+    }
   };
+  
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isPublishing = createMutation.isPending || updateMutation.isPending;
 
   const handleSelectPromotion = (promotion: PromotionItem) => {
     setSelectedPromotion(promotion);
@@ -377,7 +422,7 @@ export default function ContentEditor() {
                       <DialogTitle>{t('creator.editor.availablePromotions')}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                      {mockAvailablePromotions.map((promo) => (
+                      {promotionsList.map((promo) => (
                         <div
                           key={promo.id}
                           className="border rounded-lg p-3 cursor-pointer hover-elevate"
