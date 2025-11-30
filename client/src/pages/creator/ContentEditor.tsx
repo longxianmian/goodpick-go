@@ -217,11 +217,16 @@ export default function ContentEditor() {
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       const res = await apiRequest('POST', '/api/creator/contents', data);
-      return res.json();
+      const result = await res.json();
+      return { ...result, requestedStatus: data.status };
     },
     onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/creator/contents'] });
-      toast({ title: t('creator.editor.saveSuccess'), description: t('creator.editor.draftSaved') });
+      const isPublished = result.requestedStatus === 'published';
+      toast({ 
+        title: isPublished ? t('creator.editor.publishSuccess') : t('creator.editor.saveSuccess'), 
+        description: isPublished ? t('creator.editor.contentPublished') : t('creator.editor.draftSaved') 
+      });
       if (result?.data?.id) {
         setLocation(`/creator/edit/${result.data.id}`);
       }
@@ -234,11 +239,16 @@ export default function ContentEditor() {
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
       const res = await apiRequest('PUT', `/api/creator/contents/${numericContentId}`, data);
-      return res.json();
+      const result = await res.json();
+      return { ...result, requestedStatus: data.status };
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/creator/contents'] });
-      toast({ title: t('creator.editor.saveSuccess'), description: t('creator.editor.draftSaved') });
+      const isPublished = result.requestedStatus === 'published';
+      toast({ 
+        title: isPublished ? t('creator.editor.publishSuccess') : t('creator.editor.saveSuccess'), 
+        description: isPublished ? t('creator.editor.contentPublished') : t('creator.editor.draftSaved') 
+      });
     },
     onError: () => {
       toast({ title: t('common.error'), description: t('creator.editor.saveFailed'), variant: 'destructive' });
