@@ -103,7 +103,7 @@ export function UserBottomNav({ className = '' }: UserBottomNavProps) {
               href={item.path}
               className={`flex flex-col items-center justify-center flex-1 py-2 transition-colors ${
                 active
-                  ? 'text-foreground'
+                  ? 'text-[#38B03B]'
                   : 'text-muted-foreground'
               }`}
               data-testid={`nav-${item.key}`}

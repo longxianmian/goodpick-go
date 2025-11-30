@@ -32,12 +32,13 @@ const GRADIENT_COLORS = [
 function MenuIcon({ onClick }: { onClick: () => void }) {
   return (
     <button 
-      className="w-9 h-9 flex flex-col justify-center items-center gap-1 rounded-full hover-elevate active-elevate-2"
+      className="w-9 h-9 flex flex-col justify-center items-center gap-[3px] rounded-full hover-elevate active-elevate-2"
       onClick={onClick}
       data-testid="button-menu"
     >
       <span className="h-[2px] w-5 bg-foreground rounded-full" />
-      <span className="h-[2px] w-4 bg-foreground rounded-full ml-1" />
+      <span className="h-[2px] w-5 bg-foreground rounded-full" />
+      <span className="h-[2px] w-5 bg-foreground rounded-full" />
     </button>
   );
 }
@@ -220,7 +221,7 @@ export default function ShuaShuaHome() {
                 onClick={() => setActiveFeedTab(tab)}
                 className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
                   activeFeedTab === tab
-                    ? 'bg-foreground text-background shadow-sm'
+                    ? 'bg-[#38B03B] text-white shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
                 data-testid={`tab-feed-${tab}`}
@@ -248,7 +249,7 @@ export default function ShuaShuaHome() {
                 onClick={() => setActiveCategory(cat)}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
                   activeCategory === cat
-                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    ? 'bg-[#38B03B] text-white shadow-sm'
                     : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`}
                 data-testid={`category-${cat}`}
