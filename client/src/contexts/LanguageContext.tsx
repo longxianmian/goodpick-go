@@ -52,7 +52,7 @@ const translations: Record<Language, Record<string, string>> = {
     
     // 用户中心
     'userCenter.title': '个人中心',
-    'userCenter.myCoupons': '我的优惠券',
+    'userCenter.myCoupons': '优惠券',
     'userCenter.workstation': '我的工作台',
     'userCenter.merchantHome': '商户首页',
     'userCenter.operateCenter': '运营中心',
@@ -67,6 +67,15 @@ const translations: Record<Language, Record<string, string>> = {
     'userCenter.roleOwner': '店长',
     'userCenter.roleOperator': '运营',
     'userCenter.roleVerifier': '核销员',
+    'userCenter.favorites': '收藏',
+    'userCenter.following': '关注',
+    'userCenter.history': '浏览',
+    'userCenter.reviews': '评价',
+    'userCenter.staffWorkstation': '员工工作台',
+    'userCenter.staffWorkstationDesc': '扫码核销、查看数据',
+    'userCenter.myServices': '我的服务',
+    'userCenter.coupons': '优惠券',
+    'userCenter.creatorCenter': '创作者中心',
     
     // 个人中心详情
     'profile.shuaId': '刷刷号',
@@ -1064,7 +1073,7 @@ const translations: Record<Language, Record<string, string>> = {
     
     // User Center
     'userCenter.title': 'My Profile',
-    'userCenter.myCoupons': 'My Coupons',
+    'userCenter.myCoupons': 'Coupons',
     'userCenter.workstation': 'Workstation',
     'userCenter.merchantHome': 'Merchant Home',
     'userCenter.operateCenter': 'Operations',
@@ -1079,6 +1088,15 @@ const translations: Record<Language, Record<string, string>> = {
     'userCenter.roleOwner': 'Owner',
     'userCenter.roleOperator': 'Operator',
     'userCenter.roleVerifier': 'Verifier',
+    'userCenter.favorites': 'Favorites',
+    'userCenter.following': 'Following',
+    'userCenter.history': 'History',
+    'userCenter.reviews': 'Reviews',
+    'userCenter.staffWorkstation': 'Staff Workstation',
+    'userCenter.staffWorkstationDesc': 'Scan codes, view data',
+    'userCenter.myServices': 'My Services',
+    'userCenter.coupons': 'Coupons',
+    'userCenter.creatorCenter': 'Creator Center',
     
     // Profile Details
     'profile.shuaId': 'ShuaShua ID',
@@ -2077,7 +2095,7 @@ const translations: Record<Language, Record<string, string>> = {
     
     // User Center
     'userCenter.title': 'โปรไฟล์',
-    'userCenter.myCoupons': 'คูปองของฉัน',
+    'userCenter.myCoupons': 'คูปอง',
     'userCenter.workstation': 'พื้นที่ทำงาน',
     'userCenter.merchantHome': 'หน้าร้านค้า',
     'userCenter.operateCenter': 'ศูนย์ดำเนินการ',
@@ -2092,6 +2110,15 @@ const translations: Record<Language, Record<string, string>> = {
     'userCenter.roleOwner': 'เจ้าของร้าน',
     'userCenter.roleOperator': 'ผู้ดำเนินการ',
     'userCenter.roleVerifier': 'พนักงาน',
+    'userCenter.favorites': 'รายการโปรด',
+    'userCenter.following': 'ติดตาม',
+    'userCenter.history': 'ประวัติ',
+    'userCenter.reviews': 'รีวิว',
+    'userCenter.staffWorkstation': 'สถานีพนักงาน',
+    'userCenter.staffWorkstationDesc': 'สแกนโค้ด ดูข้อมูล',
+    'userCenter.myServices': 'บริการของฉัน',
+    'userCenter.coupons': 'คูปอง',
+    'userCenter.creatorCenter': 'ศูนย์ครีเอเตอร์',
     
     // Profile Details
     'profile.shuaId': 'รหัส ShuaShua',
@@ -3137,7 +3164,7 @@ const translations: Record<Language, Record<string, string>> = {
     'userCenter.title': 'Pusat Saya',
     'userCenter.login': 'Masuk',
     'userCenter.loginHint': 'Masuk untuk melihat hadiah Anda',
-    'userCenter.myCoupons': 'Kupon Saya',
+    'userCenter.myCoupons': 'Kupon',
     'userCenter.myOrders': 'Pesanan Saya',
     'userCenter.favorites': 'Favorit',
     'userCenter.settings': 'Pengaturan',
@@ -3150,6 +3177,14 @@ const translations: Record<Language, Record<string, string>> = {
     'userCenter.merchant': 'Portal Merchant',
     'userCenter.merchantDesc': 'Kelola toko Anda',
     'userCenter.notifications': 'Notifikasi',
+    'userCenter.following': 'Mengikuti',
+    'userCenter.history': 'Riwayat',
+    'userCenter.reviews': 'Ulasan',
+    'userCenter.staffWorkstation': 'Workstation Staf',
+    'userCenter.staffWorkstationDesc': 'Scan kode, lihat data',
+    'userCenter.myServices': 'Layanan Saya',
+    'userCenter.coupons': 'Kupon',
+    'userCenter.creatorCenter': 'Pusat Kreator',
 
     // 个人资料
     'profile.logout': 'Keluar',
@@ -3438,6 +3473,14 @@ const translations: Record<Language, Record<string, string>> = {
     'userCenter.merchant': 'Cổng thương gia',
     'userCenter.merchantDesc': 'Quản lý cửa hàng',
     'userCenter.notifications': 'Thông báo',
+    'userCenter.following': 'Đang theo dõi',
+    'userCenter.history': 'Lịch sử',
+    'userCenter.reviews': 'Đánh giá',
+    'userCenter.staffWorkstation': 'Trạm nhân viên',
+    'userCenter.staffWorkstationDesc': 'Quét mã, xem dữ liệu',
+    'userCenter.myServices': 'Dịch vụ của tôi',
+    'userCenter.coupons': 'Mã giảm giá',
+    'userCenter.creatorCenter': 'Trung tâm sáng tạo',
 
     // 个人资料
     'profile.logout': 'Đăng xuất',
@@ -3726,6 +3769,14 @@ const translations: Record<Language, Record<string, string>> = {
     'userCenter.merchant': 'ကုန်သည်ပေါ်တယ်',
     'userCenter.merchantDesc': 'ဆိုင်စီမံ',
     'userCenter.notifications': 'အသိပေးချက်',
+    'userCenter.following': 'စောင့်ကြည့်',
+    'userCenter.history': 'မှတ်တမ်း',
+    'userCenter.reviews': 'သုံးသပ်ချက်',
+    'userCenter.staffWorkstation': 'ဝန်ထမ်းစခန်း',
+    'userCenter.staffWorkstationDesc': 'ကုဒ်စကန်၊ ဒေတာကြည့်',
+    'userCenter.myServices': 'ငါ့ဝန်ဆောင်မှု',
+    'userCenter.coupons': 'ကူပွန်များ',
+    'userCenter.creatorCenter': 'ဖန်တီးသူစင်တာ',
 
     // 个人资料
     'profile.logout': 'ထွက်',
