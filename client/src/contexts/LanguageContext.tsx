@@ -37,6 +37,8 @@ const translations: Record<Language, Record<string, string>> = {
     'common.comingSoon': '即将上线',
     'common.featureInDevelopment': '该功能正在开发中，敬请期待',
     'common.more': '更多 >',
+    'common.switchRole': '切换账号',
+    'common.current': '当前',
     
     // Navigation
     'nav.stores': '门店管理',
@@ -1265,6 +1267,8 @@ const translations: Record<Language, Record<string, string>> = {
     'common.comingSoon': 'Coming Soon',
     'common.featureInDevelopment': 'This feature is under development',
     'common.more': 'More >',
+    'common.switchRole': 'Switch Account',
+    'common.current': 'Current',
     
     // Navigation
     'nav.stores': 'Stores',
