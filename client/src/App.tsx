@@ -28,6 +28,7 @@ import AboutPage from "@/pages/user/AboutPage";
 import MerchantHome from "@/pages/merchant/MerchantHome";
 import MerchantOperations from "@/pages/merchant/MerchantOperations";
 import StoreFront from "@/pages/user/StoreFront";
+import ConsumerMePreview from "@/pages/user/ConsumerMePreview";
 import AdminPaymentSettings from "@/pages/admin/AdminPaymentSettings";
 import PaymentPage from "@/pages/user/PaymentPage";
 import PaymentSuccess from "@/pages/user/PaymentSuccess";
@@ -148,6 +149,7 @@ function Router() {
       <Route path="/" component={ShuaShuaHome} />
       <Route path="/shop" component={ShopHome} />
       <Route path="/me" component={RoleBasedMe} />
+      <Route path="/me/preview" component={ConsumerMePreview} />
       <Route path="/settings/language" component={LanguageSettings} />
       <Route path="/help" component={HelpPage} />
       <Route path="/about" component={AboutPage} />
