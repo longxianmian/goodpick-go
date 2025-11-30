@@ -219,7 +219,20 @@ const translations: Record<Language, Record<string, string>> = {
     'creator.editor.coverHint': '封面图将在刷刷首页和视频列表中展示',
     'creator.editor.coverRequired': '请上传视频封面图',
     'creator.editor.coverUploaded': '封面图上传成功',
+    'creator.editor.category': '视频分类',
+    'creator.editor.selectCategory': '选择分类',
     'common.warning': '提示',
+    
+    // 视频分类
+    'categories.all': '全部',
+    'categories.funny': '搞笑',
+    'categories.musicDance': '音乐舞蹈',
+    'categories.drama': '短剧',
+    'categories.daily': '日常',
+    'categories.healing': '疗愈',
+    'categories.food': '美食',
+    'categories.beauty': '美妆时尚',
+    'categories.games': '游戏',
     
     // 刷刷号计费模式
     'creator.billing.cpc': 'CPC',
@@ -1634,7 +1647,20 @@ const translations: Record<Language, Record<string, string>> = {
     'creator.editor.coverHint': 'Cover image will be displayed on ShuaShua home and video list',
     'creator.editor.coverRequired': 'Please upload a video cover image',
     'creator.editor.coverUploaded': 'Cover image uploaded successfully',
+    'creator.editor.category': 'Category',
+    'creator.editor.selectCategory': 'Select category',
     'common.warning': 'Notice',
+    
+    // Video Categories
+    'categories.all': 'All',
+    'categories.funny': 'Funny',
+    'categories.musicDance': 'Music & Dance',
+    'categories.drama': 'Drama',
+    'categories.daily': 'Daily',
+    'categories.healing': 'Healing',
+    'categories.food': 'Food',
+    'categories.beauty': 'Beauty & Fashion',
+    'categories.games': 'Games',
     
     // Creator Billing Modes
     'creator.billing.cpc': 'CPC',
@@ -2999,6 +3025,19 @@ const translations: Record<Language, Record<string, string>> = {
     'creator.editor.coverHint': 'ภาพปกจะแสดงบนหน้าแรกและรายการวิดีโอ',
     'creator.editor.coverRequired': 'กรุณาอัปโหลดภาพปกวิดีโอ',
     'creator.editor.coverUploaded': 'อัปโหลดภาพปกสำเร็จ',
+    'creator.editor.category': 'หมวดหมู่',
+    'creator.editor.selectCategory': 'เลือกหมวดหมู่',
+    
+    // Video Categories
+    'categories.all': 'ทั้งหมด',
+    'categories.funny': 'ตลก',
+    'categories.musicDance': 'เพลงและเต้น',
+    'categories.drama': 'ละคร',
+    'categories.daily': 'ชีวิตประจำวัน',
+    'categories.healing': 'ผ่อนคลาย',
+    'categories.food': 'อาหาร',
+    'categories.beauty': 'ความงามและแฟชั่น',
+    'categories.games': 'เกม',
     
     // Creator Billing Modes
     'creator.billing.cpc': 'CPC',
@@ -4295,6 +4334,19 @@ const translations: Record<Language, Record<string, string>> = {
     'creator.editor.coverHint': 'Gambar cover akan ditampilkan di beranda dan daftar video',
     'creator.editor.coverRequired': 'Silakan upload gambar cover video',
     'creator.editor.coverUploaded': 'Gambar cover berhasil diupload',
+    'creator.editor.category': 'Kategori',
+    'creator.editor.selectCategory': 'Pilih kategori',
+    
+    // Video Categories
+    'categories.all': 'Semua',
+    'categories.funny': 'Lucu',
+    'categories.musicDance': 'Musik & Tari',
+    'categories.drama': 'Drama',
+    'categories.daily': 'Harian',
+    'categories.healing': 'Relaksasi',
+    'categories.food': 'Makanan',
+    'categories.beauty': 'Kecantikan & Fashion',
+    'categories.games': 'Game',
     
     // Creator Billing Modes
     'creator.billing.cpc': 'CPC',
@@ -4824,6 +4876,19 @@ const translations: Record<Language, Record<string, string>> = {
     'creator.editor.coverHint': 'Ảnh bìa sẽ hiển thị trên trang chủ và danh sách video',
     'creator.editor.coverRequired': 'Vui lòng tải ảnh bìa video lên',
     'creator.editor.coverUploaded': 'Tải ảnh bìa thành công',
+    'creator.editor.category': 'Danh mục',
+    'creator.editor.selectCategory': 'Chọn danh mục',
+    
+    // Video Categories
+    'categories.all': 'Tất cả',
+    'categories.funny': 'Hài hước',
+    'categories.musicDance': 'Nhạc & Nhảy',
+    'categories.drama': 'Phim ngắn',
+    'categories.daily': 'Hàng ngày',
+    'categories.healing': 'Thư giãn',
+    'categories.food': 'Ẩm thực',
+    'categories.beauty': 'Làm đẹp & Thời trang',
+    'categories.games': 'Trò chơi',
     
     // Creator Billing Modes
     'creator.billing.cpc': 'CPC',
@@ -5353,6 +5418,19 @@ const translations: Record<Language, Record<string, string>> = {
     'creator.editor.coverHint': 'မျက်နှာဖုံးပုံကို ပင်မစာမျက်နှာနှင့် ဗီဒီယိုစာရင်းတွင် ပြသပါမည်',
     'creator.editor.coverRequired': 'ဗီဒီယိုမျက်နှာဖုံးပုံတင်ပါ',
     'creator.editor.coverUploaded': 'မျက်နှာဖုံးပုံတင်မှုအောင်မြင်',
+    'creator.editor.category': 'အမျိုးအစား',
+    'creator.editor.selectCategory': 'အမျိုးအစားရွေးပါ',
+    
+    // Video Categories
+    'categories.all': 'အားလုံး',
+    'categories.funny': 'ဟာသ',
+    'categories.musicDance': 'ဂီတနှင့်အက',
+    'categories.drama': 'ဇာတ်လမ်းတို',
+    'categories.daily': 'နေ့စဉ်',
+    'categories.healing': 'အနားယူ',
+    'categories.food': 'အစားအစာ',
+    'categories.beauty': 'အလှနှင့်ဖက်ရှင်',
+    'categories.games': 'ဂိမ်း',
     
     // Creator Billing Modes
     'creator.billing.cpc': 'CPC',

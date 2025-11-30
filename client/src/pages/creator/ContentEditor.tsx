@@ -19,6 +19,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   ChevronLeft, 
   Save,
@@ -35,7 +42,8 @@ import {
   AlertCircle,
   Loader2,
   Upload,
-  GripVertical
+  GripVertical,
+  Layers
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useDropzone } from 'react-dropzone';
@@ -75,8 +83,21 @@ export default function ContentEditor() {
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [category, setCategory] = useState<string>('');
   const contentType = 'video' as const;
   const [showPromotionDialog, setShowPromotionDialog] = useState(false);
+  
+  // 视频分类选项
+  const categoryOptions = [
+    { value: 'funny', label: t('categories.funny') },
+    { value: 'musicDance', label: t('categories.musicDance') },
+    { value: 'drama', label: t('categories.drama') },
+    { value: 'daily', label: t('categories.daily') },
+    { value: 'healing', label: t('categories.healing') },
+    { value: 'food', label: t('categories.food') },
+    { value: 'beauty', label: t('categories.beauty') },
+    { value: 'games', label: t('categories.games') },
+  ];
   const [selectedPromotion, setSelectedPromotion] = useState<PromotionItem | null>(null);
   const [enablePromotion, setEnablePromotion] = useState(false);
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
@@ -287,6 +308,7 @@ export default function ContentEditor() {
     if (existingContent?.data) {
       setTitle(existingContent.data.title || '');
       setContent(existingContent.data.description || '');
+      setCategory(existingContent.data.category || '');
       setCoverImageUrl(existingContent.data.coverImageUrl || '');
       if (existingContent.data.mediaUrls && Array.isArray(existingContent.data.mediaUrls)) {
         const urls = existingContent.data.mediaUrls;
@@ -311,6 +333,7 @@ export default function ContentEditor() {
     
     const data = {
       contentType,
+      category: category || null,
       title: title.trim(),
       description: content,
       status: 'draft',
@@ -342,6 +365,7 @@ export default function ContentEditor() {
     
     const data = {
       contentType,
+      category: category || null,
       title: title.trim(),
       description: content,
       status: 'published',
@@ -422,6 +446,25 @@ export default function ContentEditor() {
                 placeholder={t('creator.editor.titlePlaceholder')}
                 data-testid="input-title"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-[#38B03B]" />
+                {t('creator.editor.category')}
+              </Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger data-testid="select-category">
+                  <SelectValue placeholder={t('creator.editor.selectCategory')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {categoryOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value} data-testid={`category-option-${opt.value}`}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
