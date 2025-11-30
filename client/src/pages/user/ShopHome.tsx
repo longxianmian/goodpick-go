@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { Search, Heart, MapPin, ChevronDown, Sparkles, Locate } from 'lucide-react';
+import { Search, Heart, MapPin, ChevronDown, Sparkles, Locate, Ticket, Users, Clock, Percent } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,9 @@ interface CampaignWithStores extends Campaign {
 
 const DISCOVER_CATEGORIES = ['food', 'shopping', 'relax', 'family', 'entertainment', 'stay', 'travel', 'featured'] as const;
 type DiscoverCategoryType = typeof DISCOVER_CATEGORIES[number];
+
+const PROMO_TYPES = ['coupon', 'groupBuy', 'presale', 'discount'] as const;
+type PromoType = typeof PROMO_TYPES[number];
 
 const GRADIENT_COLORS = [
   'from-rose-400 to-pink-500',
@@ -149,6 +152,7 @@ function DiscoverSkeleton() {
 export default function ShopHome() {
   const { t } = useLanguage();
   const [activeCategory, setActiveCategory] = useState<DiscoverCategoryType>('food');
+  const [activePromo, setActivePromo] = useState<PromoType | null>(null);
   
   const { data: campaignsData, isLoading } = useQuery<{ success: boolean; data: CampaignWithStores[] }>({
     queryKey: ['/api/campaigns'],
@@ -165,6 +169,13 @@ export default function ShopHome() {
     stay: t('discover.catStay'),
     travel: t('discover.catTravel'),
     featured: t('discover.catFeatured'),
+  };
+
+  const promoLabels: Record<PromoType, { label: string; icon: typeof Ticket }> = {
+    coupon: { label: t('discover.promoCoupon'), icon: Ticket },
+    groupBuy: { label: t('discover.promoGroupBuy'), icon: Users },
+    presale: { label: t('discover.promoPresale'), icon: Clock },
+    discount: { label: t('discover.promoDiscount'), icon: Percent },
   };
 
   return (
@@ -199,7 +210,7 @@ export default function ShopHome() {
       </header>
 
       <div className="bg-background sticky top-14 z-30 border-b border-border/30">
-        <div className="px-3 py-2.5 overflow-x-auto scrollbar-hide">
+        <div className="px-3 py-2.5 space-y-2">
           <div className="grid grid-cols-4 gap-2">
             {DISCOVER_CATEGORIES.map((cat) => (
               <button
@@ -215,6 +226,26 @@ export default function ShopHome() {
                 {categoryLabels[cat]}
               </button>
             ))}
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {PROMO_TYPES.map((promo) => {
+              const PromoIcon = promoLabels[promo].icon;
+              return (
+                <button
+                  key={promo}
+                  onClick={() => setActivePromo(activePromo === promo ? null : promo)}
+                  className={`w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-full whitespace-nowrap text-xs font-medium transition-all duration-200 ${
+                    activePromo === promo
+                      ? 'bg-[#38B03B] text-white shadow-sm'
+                      : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                  data-testid={`promo-${promo}`}
+                >
+                  <PromoIcon className="w-3 h-3" />
+                  <span>{promoLabels[promo].label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
