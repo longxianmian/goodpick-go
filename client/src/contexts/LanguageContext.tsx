@@ -221,6 +221,7 @@ const translations: Record<Language, Record<string, string>> = {
     'drawer.privacy': '隐私与安全',
     'drawer.clearCache': '清理缓存',
     'drawer.version': '版本',
+    'drawer.notifications': '通知',
     
     // 登录页面
     'login.title': '登录',
@@ -1232,6 +1233,7 @@ const translations: Record<Language, Record<string, string>> = {
     'drawer.privacy': 'Privacy & Security',
     'drawer.clearCache': 'Clear Cache',
     'drawer.version': 'Version',
+    'drawer.notifications': 'Notifications',
     
     // Login Page
     'login.title': 'Login',
@@ -2244,6 +2246,7 @@ const translations: Record<Language, Record<string, string>> = {
     'drawer.privacy': 'ความเป็นส่วนตัวและความปลอดภัย',
     'drawer.clearCache': 'ล้างแคช',
     'drawer.version': 'เวอร์ชัน',
+    'drawer.notifications': 'การแจ้งเตือน',
     
     // Login Page
     'login.title': 'เข้าสู่ระบบ',
@@ -3146,6 +3149,12 @@ const translations: Record<Language, Record<string, string>> = {
     'userCenter.staffDesc': 'Verifikasi kupon, lihat data',
     'userCenter.merchant': 'Portal Merchant',
     'userCenter.merchantDesc': 'Kelola toko Anda',
+    'userCenter.notifications': 'Notifikasi',
+
+    // 个人资料
+    'profile.logout': 'Keluar',
+    'profile.logoutSuccess': 'Berhasil Keluar',
+    'profile.logoutSuccessDesc': 'Anda telah berhasil keluar',
 
     // 登录页面
     'login.title': 'Masuk',
@@ -3173,6 +3182,36 @@ const translations: Record<Language, Record<string, string>> = {
     'language.id-id': 'Indonesia',
     'language.vi-vn': 'Tiếng Việt',
     'language.my-mm': 'မြန်မာ',
+
+    // 抽屉菜单
+    'drawer.title': 'Menu',
+    'drawer.section.account': 'Akun & Identitas',
+    'drawer.section.create': 'Buat & Operasikan',
+    'drawer.section.settings': 'Pengaturan & Bantuan',
+    'drawer.myProfile': 'Profil Saya',
+    'drawer.profileDesc': 'Nama / Avatar / Bio / Status',
+    'drawer.loginRequired': 'Silakan masuk',
+    'drawer.guest': 'Tamu',
+    'drawer.identityNormal': 'Pengguna Biasa',
+    'drawer.identityDiscover': 'Discover ID aktif',
+    'drawer.identityShua': 'ShuaShua ID aktif',
+    'drawer.identityBoth': 'Kedua ID aktif',
+    'drawer.lineBound': 'LINE terhubung',
+    'drawer.phoneBound': 'Telepon terhubung',
+    'drawer.discoverOpened': 'Discover ID',
+    'drawer.shuaOpened': 'ShuaShua ID',
+    'drawer.applyDiscover': 'Daftar Discover ID',
+    'drawer.applyDiscoverDesc': 'Untuk toko / merek',
+    'drawer.applyShua': 'Daftar ShuaShua ID',
+    'drawer.applyShuaDesc': 'Untuk kreator / KOL',
+    'drawer.opened': 'Aktif',
+    'drawer.alreadyHasDiscover': 'Discover ID aktif',
+    'drawer.alreadyHasShua': 'ShuaShua ID aktif',
+    'drawer.switchInMe': 'Ganti di [Saya] - Akun',
+    'drawer.privacy': 'Privasi & Keamanan',
+    'drawer.clearCache': 'Hapus Cache',
+    'drawer.version': 'Versi',
+    'drawer.notifications': 'Notifikasi',
 
     // 商户端
     'merchant.home': 'Beranda Merchant',
@@ -3386,6 +3425,12 @@ const translations: Record<Language, Record<string, string>> = {
     'userCenter.staffDesc': 'Xác nhận mã, xem dữ liệu',
     'userCenter.merchant': 'Cổng thương gia',
     'userCenter.merchantDesc': 'Quản lý cửa hàng',
+    'userCenter.notifications': 'Thông báo',
+
+    // 个人资料
+    'profile.logout': 'Đăng xuất',
+    'profile.logoutSuccess': 'Đã đăng xuất',
+    'profile.logoutSuccessDesc': 'Bạn đã đăng xuất thành công',
 
     // 登录页面
     'login.title': 'Đăng nhập',
@@ -3413,6 +3458,36 @@ const translations: Record<Language, Record<string, string>> = {
     'language.id-id': 'Indonesia',
     'language.vi-vn': 'Tiếng Việt',
     'language.my-mm': 'မြန်မာ',
+
+    // 抽屉菜单
+    'drawer.title': 'Menu',
+    'drawer.section.account': 'Tài khoản & Danh tính',
+    'drawer.section.create': 'Tạo & Vận hành',
+    'drawer.section.settings': 'Cài đặt & Trợ giúp',
+    'drawer.myProfile': 'Hồ sơ của tôi',
+    'drawer.profileDesc': 'Tên / Ảnh / Tiểu sử / Trạng thái',
+    'drawer.loginRequired': 'Vui lòng đăng nhập',
+    'drawer.guest': 'Khách',
+    'drawer.identityNormal': 'Người dùng thường',
+    'drawer.identityDiscover': 'Đã kích hoạt Discover ID',
+    'drawer.identityShua': 'Đã kích hoạt ShuaShua ID',
+    'drawer.identityBoth': 'Đã kích hoạt cả hai ID',
+    'drawer.lineBound': 'Đã liên kết LINE',
+    'drawer.phoneBound': 'Đã liên kết điện thoại',
+    'drawer.discoverOpened': 'Discover ID',
+    'drawer.shuaOpened': 'ShuaShua ID',
+    'drawer.applyDiscover': 'Đăng ký Discover ID',
+    'drawer.applyDiscoverDesc': 'Cho cửa hàng / thương hiệu',
+    'drawer.applyShua': 'Đăng ký ShuaShua ID',
+    'drawer.applyShuaDesc': 'Cho nhà sáng tạo / KOL',
+    'drawer.opened': 'Đã kích hoạt',
+    'drawer.alreadyHasDiscover': 'Đã kích hoạt Discover ID',
+    'drawer.alreadyHasShua': 'Đã kích hoạt ShuaShua ID',
+    'drawer.switchInMe': 'Chuyển trong [Tôi] - Tài khoản',
+    'drawer.privacy': 'Riêng tư & Bảo mật',
+    'drawer.clearCache': 'Xóa bộ nhớ đệm',
+    'drawer.version': 'Phiên bản',
+    'drawer.notifications': 'Thông báo',
 
     // 商户端
     'merchant.home': 'Trang chủ thương gia',
@@ -3626,6 +3701,12 @@ const translations: Record<Language, Record<string, string>> = {
     'userCenter.staffDesc': 'ကူပွန်စစ်ဆေး',
     'userCenter.merchant': 'ကုန်သည်ပေါ်တယ်',
     'userCenter.merchantDesc': 'ဆိုင်စီမံ',
+    'userCenter.notifications': 'အသိပေးချက်',
+
+    // 个人资料
+    'profile.logout': 'ထွက်',
+    'profile.logoutSuccess': 'ထွက်ပြီး',
+    'profile.logoutSuccessDesc': 'သင်အောင်မြင်စွာ ထွက်ပြီးပါပြီ',
 
     // 登录页面
     'login.title': 'ဝင်ရောက်',
@@ -3653,6 +3734,36 @@ const translations: Record<Language, Record<string, string>> = {
     'language.id-id': 'Indonesia',
     'language.vi-vn': 'Tiếng Việt',
     'language.my-mm': 'မြန်မာ',
+
+    // 抽屉菜单
+    'drawer.title': 'မီနူး',
+    'drawer.section.account': 'အကောင့် & အထောက်အထား',
+    'drawer.section.create': 'ဖန်တီး & လုပ်ငန်း',
+    'drawer.section.settings': 'ဆက်တင် & အကူအညီ',
+    'drawer.myProfile': 'ကျွန်ုပ်ပရိုဖိုင်',
+    'drawer.profileDesc': 'နာမည် / ပုံ / အကြောင်း / အခြေအနေ',
+    'drawer.loginRequired': 'ကျေးဇူးပြု၍ ဝင်ပါ',
+    'drawer.guest': 'ဧည့်သည်',
+    'drawer.identityNormal': 'ပုံမှန်အသုံးပြုသူ',
+    'drawer.identityDiscover': 'Discover ID ဖွင့်ပြီး',
+    'drawer.identityShua': 'ShuaShua ID ဖွင့်ပြီး',
+    'drawer.identityBoth': 'ID နှစ်ခုလုံးဖွင့်ပြီး',
+    'drawer.lineBound': 'LINE ချိတ်ဆက်ပြီး',
+    'drawer.phoneBound': 'ဖုန်းချိတ်ဆက်ပြီး',
+    'drawer.discoverOpened': 'Discover ID',
+    'drawer.shuaOpened': 'ShuaShua ID',
+    'drawer.applyDiscover': 'Discover ID လျှောက်ထား',
+    'drawer.applyDiscoverDesc': 'ဆိုင် / ဘရန်းအတွက်',
+    'drawer.applyShua': 'ShuaShua ID လျှောက်ထား',
+    'drawer.applyShuaDesc': 'ဖန်တီးသူ / KOL အတွက်',
+    'drawer.opened': 'ဖွင့်ပြီး',
+    'drawer.alreadyHasDiscover': 'Discover ID ဖွင့်ပြီး',
+    'drawer.alreadyHasShua': 'ShuaShua ID ဖွင့်ပြီး',
+    'drawer.switchInMe': '[ကျွန်ုပ်] - အကောင့်တွင်ပြောင်းပါ',
+    'drawer.privacy': 'ကိုယ်ရေးလုံခြုံမှု',
+    'drawer.clearCache': 'ကက်ရှ်ရှင်း',
+    'drawer.version': 'ဗားရှင်း',
+    'drawer.notifications': 'အသိပေးချက်',
 
     // 商户端
     'merchant.home': 'ကုန်သည်မူလ',
