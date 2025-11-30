@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLocation, useRoute, useSearch } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -65,6 +65,60 @@ interface PromotionItem {
   price: number;
 }
 
+interface MediaDropzoneProps {
+  contentType: 'video' | 'article';
+  onFilesUpload: (files: File[]) => void;
+  uploading: boolean;
+  t: (key: string) => string;
+}
+
+function MediaDropzone({ contentType, onFilesUpload, uploading, t }: MediaDropzoneProps) {
+  const dropzoneAccept = contentType === 'video' 
+    ? { 'video/*': ['.mp4', '.mov', '.avi', '.webm'] }
+    : { 'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp'] };
+  
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: onFilesUpload,
+    accept: dropzoneAccept,
+    multiple: contentType === 'article',
+    maxFiles: contentType === 'article' ? 9 : 1,
+    disabled: uploading,
+  });
+
+  return (
+    <div
+      {...getRootProps()}
+      className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+        isDragActive 
+          ? 'border-[#38B03B] bg-green-50 dark:bg-green-950/20' 
+          : 'border-muted-foreground/30 hover:border-muted-foreground/50'
+      } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+      data-testid="dropzone"
+    >
+      <input {...getInputProps()} />
+      {contentType === 'video' ? (
+        <Video className="w-12 h-12 mx-auto text-muted-foreground/50 mb-2" />
+      ) : (
+        <Image className="w-12 h-12 mx-auto text-muted-foreground/50 mb-2" />
+      )}
+      <p className="text-sm text-muted-foreground">
+        {contentType === 'video' ? t('creator.editor.uploadVideo') : t('creator.editor.uploadImages')}
+      </p>
+      <p className="text-xs text-muted-foreground mt-1">{t('creator.editor.dragOrClick')}</p>
+      <Button 
+        variant="outline" 
+        size="sm" 
+        className="mt-2" 
+        disabled={uploading}
+        data-testid="button-upload"
+      >
+        <Plus className="w-4 h-4 mr-1" />
+        {contentType === 'video' ? t('creator.editor.selectFile') : t('creator.editor.selectImages')}
+      </Button>
+    </div>
+  );
+}
+
 export default function ContentEditor() {
   const [, setLocation] = useLocation();
   const [, params] = useRoute('/creator/edit/:id');
@@ -80,12 +134,24 @@ export default function ContentEditor() {
 
   const searchParams = new URLSearchParams(searchString);
   const openPromotionTab = searchParams.get('tab') === 'promotion';
+  const urlType = searchParams.get('type') as 'video' | 'article' | null;
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState<string>('');
-  const contentType = 'video' as const;
+  const [existingContentType, setExistingContentType] = useState<'video' | 'article' | null>(null);
   const [showPromotionDialog, setShowPromotionDialog] = useState(false);
+  
+  // 计算内容类型：优先使用编辑时的现有类型，其次使用URL参数，最后默认为视频
+  const contentType = useMemo(() => {
+    if (existingContentType) {
+      return existingContentType;
+    }
+    if (urlType) {
+      return urlType;
+    }
+    return 'video';
+  }, [existingContentType, urlType]);
   
   // 视频分类选项
   const categoryOptions = [
@@ -222,13 +288,6 @@ export default function ContentEditor() {
     }
   };
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop: handleFilesUpload,
-    accept: { 'video/*': ['.mp4', '.mov', '.avi', '.webm'] },
-    multiple: false,
-    disabled: uploading,
-  });
-
   const removeMedia = (index: number) => {
     setMediaFiles(mediaFiles.filter((_, i) => i !== index));
   };
@@ -306,13 +365,18 @@ export default function ContentEditor() {
 
   useEffect(() => {
     if (existingContent?.data) {
+      const existingType = existingContent.data.contentType as 'video' | 'article';
+      if (existingType) {
+        setExistingContentType(existingType);
+      }
       setTitle(existingContent.data.title || '');
       setContent(existingContent.data.description || '');
       setCategory(existingContent.data.category || '');
       setCoverImageUrl(existingContent.data.coverImageUrl || '');
       if (existingContent.data.mediaUrls && Array.isArray(existingContent.data.mediaUrls)) {
         const urls = existingContent.data.mediaUrls;
-        setMediaFiles(urls.map((url: string) => ({ type: 'video' as const, url })));
+        const mediaType = existingType === 'article' ? 'image' : 'video';
+        setMediaFiles(urls.map((url: string) => ({ type: mediaType as 'image' | 'video', url })));
       }
       if (existingContent.data.promotionId) {
         setEnablePromotion(true);
@@ -537,31 +601,14 @@ export default function ContentEditor() {
                 </div>
               )}
 
-              {mediaFiles.length < 1 && (
-                <div
-                  {...getRootProps()}
-                  className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                    isDragActive 
-                      ? 'border-[#38B03B] bg-green-50 dark:bg-green-950/20' 
-                      : 'border-muted-foreground/30 hover:border-muted-foreground/50'
-                  } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  data-testid="dropzone"
-                >
-                  <input {...getInputProps()} />
-                  <Video className="w-12 h-12 mx-auto text-muted-foreground/50 mb-2" />
-                  <p className="text-sm text-muted-foreground">{t('creator.editor.uploadVideo')}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{t('creator.editor.dragOrClick')}</p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-2" 
-                    disabled={uploading}
-                    data-testid="button-upload"
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    {t('creator.editor.selectFile')}
-                  </Button>
-                </div>
+              {(contentType === 'video' ? mediaFiles.length < 1 : mediaFiles.length < 9) && (
+                <MediaDropzone 
+                  key={contentType}
+                  contentType={contentType} 
+                  onFilesUpload={handleFilesUpload} 
+                  uploading={uploading}
+                  t={t}
+                />
               )}
             </div>
 
