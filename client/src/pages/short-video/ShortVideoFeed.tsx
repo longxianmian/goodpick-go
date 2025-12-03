@@ -3,16 +3,22 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLocation, useRoute } from 'wouter';
 import { VerticalSwiper } from '@/components/short-video/VerticalSwiper';
 import { VideoCard, ShortVideoData } from '@/components/short-video/VideoCard';
+import { ArticleCard, ArticleCardData } from '@/components/short-video/ArticleCard';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { Loader2, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
+interface FeedItem extends ShortVideoData {
+  contentType?: 'video' | 'article';
+  mediaUrls?: string[] | null;
+}
+
 interface FeedResponse {
   success: boolean;
   data: {
-    items: ShortVideoData[];
+    items: FeedItem[];
     nextCursor: number | null;
     hasMore: boolean;
   };
@@ -26,7 +32,7 @@ export default function ShortVideoFeed() {
   const { isUserAuthenticated, user } = useAuth();
   
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [allVideos, setAllVideos] = useState<ShortVideoData[]>([]);
+  const [allVideos, setAllVideos] = useState<FeedItem[]>([]);
   const [cursor, setCursor] = useState<number | null>(0);
   const [hasMore, setHasMore] = useState(true);
   const [initialIndexSet, setInitialIndexSet] = useState(false);
@@ -205,17 +211,30 @@ export default function ShortVideoFeed() {
         onIndexChange={setCurrentIndex}
         onReachEnd={handleReachEnd}
       >
-        {allVideos.map((video, index) => (
-          <VideoCard
-            key={video.id}
-            video={video}
-            isActive={index === currentIndex}
-            onLike={handleLike}
-            onComment={handleComment}
-            onShare={handleShare}
-            onUserClick={handleUserClick}
-          />
-        ))}
+        {allVideos.map((item, index) => {
+          if (item.contentType === 'article') {
+            return (
+              <ArticleCard
+                key={item.id}
+                article={item as unknown as ArticleCardData}
+                isActive={index === currentIndex}
+                onLike={handleLike}
+                onUserClick={handleUserClick}
+              />
+            );
+          }
+          return (
+            <VideoCard
+              key={item.id}
+              video={item}
+              isActive={index === currentIndex}
+              onLike={handleLike}
+              onComment={handleComment}
+              onShare={handleShare}
+              onUserClick={handleUserClick}
+            />
+          );
+        })}
       </VerticalSwiper>
 
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50">
