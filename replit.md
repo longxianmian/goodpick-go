@@ -178,6 +178,14 @@ Security measures include bcryptjs for password hashing, environment variable-ba
 
 ## Recent Updates (2025-12-03)
 
+### 媒体URL安全修复
+- **问题**: 视频和图片URL使用HTTP协议，在HTTPS网站上无法播放（混合内容安全策略）
+- **修复**: 在API层添加 `convertHttpToHttps()` 和 `convertUrlArrayToHttps()` 辅助函数
+- **影响的API**:
+  - `GET /api/short-videos/feed` - 返回的所有URL自动转换为HTTPS
+  - `GET /api/short-videos/:id` - 返回的所有URL自动转换为HTTPS
+- **转换的字段**: videoUrl, hlsUrl, coverImageUrl, thumbnailUrl, mediaUrls, creatorAvatar
+
 ### 商户门店管理系统
 - **门店编辑页面** (MerchantStoreEdit.tsx): 
   - 三Tab设计：基本信息 | 营业时间 | 店铺图片

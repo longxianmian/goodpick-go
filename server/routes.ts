@@ -42,6 +42,21 @@ function getOssService(): AliOssService {
   return ossService;
 }
 
+// 将HTTP URL转换为HTTPS（解决混合内容安全问题）
+function convertHttpToHttps(url: string | null | undefined): string | null | undefined {
+  if (!url) return url;
+  if (url.startsWith('http://')) {
+    return url.replace('http://', 'https://');
+  }
+  return url;
+}
+
+// 将URL数组中的HTTP转换为HTTPS
+function convertUrlArrayToHttps(urls: string[] | null | undefined): string[] | null | undefined {
+  if (!urls) return urls;
+  return urls.map(url => convertHttpToHttps(url) as string);
+}
+
 // JWT_SECRET must be set in production for security
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
@@ -4569,6 +4584,12 @@ export function registerRoutes(app: Express): Server {
         data: {
           items: items.map(v => ({
             ...v,
+            videoUrl: convertHttpToHttps(v.videoUrl),
+            hlsUrl: convertHttpToHttps(v.hlsUrl),
+            coverImageUrl: convertHttpToHttps(v.coverImageUrl),
+            thumbnailUrl: convertHttpToHttps(v.thumbnailUrl),
+            mediaUrls: convertUrlArrayToHttps(v.mediaUrls),
+            creatorAvatar: convertHttpToHttps(v.creatorAvatar),
             isLiked: likedVideoIds.includes(v.id),
           })),
           nextCursor: hasMore ? cursor + limit : null,
@@ -4640,7 +4661,15 @@ export function registerRoutes(app: Express): Server {
 
       res.json({
         success: true,
-        data: { ...video, isLiked },
+        data: { 
+          ...video, 
+          videoUrl: convertHttpToHttps(video.videoUrl),
+          hlsUrl: convertHttpToHttps(video.hlsUrl),
+          coverImageUrl: convertHttpToHttps(video.coverImageUrl),
+          mediaUrls: convertUrlArrayToHttps(video.mediaUrls),
+          creatorAvatar: convertHttpToHttps(video.creatorAvatar),
+          isLiked 
+        },
       });
     } catch (error) {
       console.error('Get short video detail error:', error);
