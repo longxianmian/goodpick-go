@@ -38,6 +38,20 @@ export const paymentStatusEnum = pgEnum('payment_status', [
   'refunded',   // 已退款
 ]);
 
+// 门店相关枚举
+export const industryTypeEnum = pgEnum('industry_type', [
+  'food',          // 餐饮美食
+  'retail',        // 百货零售
+  'service',       // 生活服务
+  'entertainment', // 休闲娱乐
+]);
+
+export const businessStatusEnum = pgEnum('business_status', [
+  'open',          // 营业中
+  'closed',        // 休息中
+  'temporarily_closed', // 暂停营业
+]);
+
 // Admin table
 export const admins = pgTable('admins', {
   id: serial('id').primaryKey(),
@@ -73,6 +87,40 @@ export const stores = pgTable('stores', {
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  
+  // 新增字段 - 门店首页展示相关
+  industryType: industryTypeEnum('industry_type').default('food'),
+  businessStatus: businessStatusEnum('business_status').default('open'),
+  
+  // 门店描述（多语言）
+  descriptionZh: text('description_zh'),
+  descriptionEn: text('description_en'),
+  descriptionTh: text('description_th'),
+  
+  // 封面图轮播（图片URL数组）
+  coverImages: text('cover_images').array(),
+  
+  // 营业时间（JSON格式: {"mon": "09:00-22:00", "tue": "09:00-22:00", ...}）
+  businessHours: text('business_hours'),
+  
+  // 统计数据
+  monthlySales: integer('monthly_sales').default(0),
+  fansCount: integer('fans_count').default(0),
+  topRank: integer('top_rank'),
+  
+  // 配送信息
+  deliveryTime: integer('delivery_time'), // 分钟
+  pickupTime: integer('pickup_time'),     // 自取等待时间（分钟）
+  
+  // 服务评分（JSON格式: {"product": 4.8, "logistics": 4.5, "service": 4.7}）
+  serviceScores: text('service_scores'),
+  
+  // 商家资质
+  businessLicenseUrl: text('business_license_url'),  // 营业执照
+  foodLicenseUrl: text('food_license_url'),          // 食品经营许可证
+  
+  // 关联商户老板用户ID
+  ownerId: integer('owner_id'),
 });
 
 export const insertStoreSchema = createInsertSchema(stores).omit({

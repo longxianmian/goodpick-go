@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRoute, Link } from 'wouter';
 import { 
   ArrowLeft, Search, Heart, Share2, Star, MapPin, Clock, Phone, 
   ShoppingCart, MessageCircle, ChevronRight, Ticket, Gift, Plus,
   Utensils, ShoppingBag, Scissors, Gamepad2, Store as StoreIcon,
-  Users, Award, TrendingUp, Check, Truck, Package
+  Users, Award, TrendingUp, Check, Truck, Package, ChevronLeft,
+  FileCheck, Building2, CircleDot
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -53,16 +54,90 @@ const INDUSTRY_CONFIG: Record<IndustryType, {
 function StoreHeader({ store, onBack }: { store: Store; onBack: () => void }) {
   const { t } = useLanguage();
   const [isFavorite, setIsFavorite] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  
+  // 获取轮播图列表（优先使用 coverImages，否则使用 imageUrl）
+  const images = store.coverImages && store.coverImages.length > 0 
+    ? store.coverImages 
+    : store.imageUrl 
+      ? [store.imageUrl] 
+      : [];
+  
+  // 自动轮播
+  useEffect(() => {
+    if (images.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % images.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [images.length]);
+
+  const goToSlide = (index: number) => {
+    setCurrentSlide(index);
+  };
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % images.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  // 营业状态显示
+  const getBusinessStatusBadge = () => {
+    const status = store.businessStatus || 'open';
+    if (status === 'open') {
+      return <Badge className="text-[10px] bg-green-500 text-white border-0">{t('storeFront.statusOpen')}</Badge>;
+    } else if (status === 'closed') {
+      return <Badge className="text-[10px] bg-gray-500 text-white border-0">{t('storeFront.statusClosed')}</Badge>;
+    } else {
+      return <Badge className="text-[10px] bg-red-500 text-white border-0">{t('storeFront.statusTemporarilyClosed')}</Badge>;
+    }
+  };
 
   return (
     <div className="relative">
-      <div className="h-48 bg-gradient-to-b from-orange-400 to-orange-500 relative overflow-hidden">
-        {store.imageUrl ? (
-          <img 
-            src={store.imageUrl} 
-            alt={store.name}
-            className="w-full h-full object-cover"
-          />
+      <div className="h-52 bg-gradient-to-b from-orange-400 to-orange-500 relative overflow-hidden">
+        {images.length > 0 ? (
+          <>
+            <div className="relative w-full h-full">
+              {images.map((img, index) => (
+                <img 
+                  key={index}
+                  src={img} 
+                  alt={`${store.name} - ${index + 1}`}
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
+                    index === currentSlide ? 'opacity-100' : 'opacity-0'
+                  }`}
+                />
+              ))}
+            </div>
+            
+            {/* 轮播指示器 */}
+            {images.length > 1 && (
+              <>
+                <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-10">
+                  {images.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => goToSlide(index)}
+                      className={`w-1.5 h-1.5 rounded-full transition-all ${
+                        index === currentSlide 
+                          ? 'bg-white w-4' 
+                          : 'bg-white/50'
+                      }`}
+                    />
+                  ))}
+                </div>
+                
+                {/* 相册入口 */}
+                <div className="absolute bottom-20 right-3 bg-black/40 backdrop-blur-sm rounded-md px-2 py-1 text-white text-xs z-10">
+                  {t('storeFront.album')} {currentSlide + 1}/{images.length}
+                </div>
+              </>
+            )}
+          </>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
             <StoreIcon className="w-20 h-20 text-white/30" />
@@ -108,13 +183,14 @@ function StoreHeader({ store, onBack }: { store: Store; onBack: () => void }) {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 text-white pb-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-lg font-bold">{store.name}</h1>
                 {store.brand && (
                   <Badge variant="secondary" className="text-[10px] bg-white/20 text-white border-0">
                     {t('storeFront.verified')}
                   </Badge>
                 )}
+                {getBusinessStatusBadge()}
               </div>
               <p className="text-xs text-white/80 mt-0.5">{store.city}</p>
             </div>
@@ -128,17 +204,18 @@ function StoreHeader({ store, onBack }: { store: Store; onBack: () => void }) {
 function StoreStats({ store }: { store: Store }) {
   const { t } = useLanguage();
   const rating = store.rating ? parseFloat(String(store.rating)) : 4.5;
-  // TODO: Replace with real store statistics from backend when available
-  // Using deterministic values based on store.id for consistent display
-  const monthlySales = 1000 + (store.id * 137) % 4000;
-  const fansCount = 5000 + (store.id * 293) % 10000;
-  const topRank = 1 + (store.id % 5);
-  const deliveryTime = 25 + (store.id % 15);
+  
+  // 使用数据库中的真实数据，如果没有则使用默认值
+  const monthlySales = store.monthlySales || (1000 + (store.id * 137) % 4000);
+  const fansCount = store.fansCount || (5000 + (store.id * 293) % 10000);
+  const topRank = store.topRank || (1 + (store.id % 5));
+  const deliveryTime = store.deliveryTime || (25 + (store.id % 15));
+  const pickupTime = store.pickupTime || 10;
 
   return (
     <div className="bg-card p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-1">
             <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
             <span className="font-semibold">{rating.toFixed(1)}</span>
@@ -150,16 +227,31 @@ function StoreStats({ store }: { store: Store }) {
             <span className="font-medium text-foreground">{fansCount}</span> {t('storeFront.fans')}
           </div>
         </div>
-        <Badge variant="outline" className="text-orange-500 border-orange-500">
-          {t('storeFront.topSeller', { rank: String(topRank) })}
-        </Badge>
+        {topRank && topRank <= 10 && (
+          <Badge variant="outline" className="text-orange-500 border-orange-500 flex-shrink-0">
+            {t('storeFront.topSeller', { rank: String(topRank) })}
+          </Badge>
+        )}
       </div>
 
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Clock className="w-3.5 h-3.5" />
+      {/* 配送/自取切换 */}
+      <div className="flex items-center gap-2 mb-3">
+        <Button variant="outline" size="sm" className="flex-1 h-8 border-orange-500 text-orange-500">
+          <Truck className="w-3.5 h-3.5 mr-1" />
+          {t('storeFront.delivery')}
+        </Button>
+        <Button variant="ghost" size="sm" className="flex-1 h-8 text-muted-foreground">
+          <Package className="w-3.5 h-3.5 mr-1" />
+          {t('storeFront.pickup')}
+          <span className="text-orange-500 ml-1 text-xs">{t('storeFront.pickupTime', { time: String(pickupTime) })}</span>
+        </Button>
+      </div>
+
+      <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+        <Clock className="w-3.5 h-3.5 flex-shrink-0" />
         <span>{t('storeFront.deliveryTime', { time: String(deliveryTime) })}</span>
         <span className="mx-1">|</span>
-        <MapPin className="w-3.5 h-3.5" />
+        <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
         <span className="line-clamp-1 flex-1">{store.address}</span>
       </div>
 
@@ -211,12 +303,32 @@ function CouponSection() {
   );
 }
 
-function ServiceScores() {
+function ServiceScores({ store }: { store: Store }) {
   const { t } = useLanguage();
+  
+  // 从数据库解析服务评分，如果没有则使用默认值
+  const parseServiceScores = () => {
+    try {
+      if (store.serviceScores) {
+        const parsed = JSON.parse(store.serviceScores);
+        return {
+          product: parsed.product || 4.8,
+          logistics: parsed.logistics || 4.5,
+          service: parsed.service || 4.7,
+        };
+      }
+    } catch (e) {
+      // 解析失败使用默认值
+    }
+    return { product: 4.8, logistics: 4.5, service: 4.7 };
+  };
+  
+  const serviceScores = parseServiceScores();
+  
   const scores = [
-    { label: t('storeFront.scoreProduct'), value: 4.8 },
-    { label: t('storeFront.scoreLogistics'), value: 4.5 },
-    { label: t('storeFront.scoreService'), value: 4.7 },
+    { label: t('storeFront.scoreProduct'), value: serviceScores.product },
+    { label: t('storeFront.scoreLogistics'), value: serviceScores.logistics },
+    { label: t('storeFront.scoreService'), value: serviceScores.service },
   ];
 
   return (
@@ -615,10 +727,62 @@ function ReviewsTab() {
 }
 
 function InfoTab({ store }: { store: Store }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  
+  // 解析营业时间
+  const parseBusinessHours = () => {
+    try {
+      if (store.businessHours) {
+        return JSON.parse(store.businessHours);
+      }
+    } catch (e) {
+      // 解析失败
+    }
+    // 默认营业时间
+    return {
+      mon: '09:00-22:00',
+      tue: '09:00-22:00',
+      wed: '09:00-22:00',
+      thu: '09:00-22:00',
+      fri: '09:00-22:00',
+      sat: '10:00-22:00',
+      sun: '10:00-22:00',
+    };
+  };
+  
+  const businessHours = parseBusinessHours();
+  
+  // 获取门店描述（多语言）
+  const getDescription = () => {
+    if (language === 'zh-cn') return store.descriptionZh;
+    if (language === 'en-us') return store.descriptionEn;
+    return store.descriptionTh;
+  };
+  
+  const description = getDescription();
+  
+  // 星期翻译映射
+  const dayLabels: Record<string, string> = {
+    mon: t('storeFront.dayMon'),
+    tue: t('storeFront.dayTue'),
+    wed: t('storeFront.dayWed'),
+    thu: t('storeFront.dayThu'),
+    fri: t('storeFront.dayFri'),
+    sat: t('storeFront.daySat'),
+    sun: t('storeFront.daySun'),
+  };
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4 pb-20">
+      {/* 门店描述 */}
+      {description && (
+        <Card className="p-4">
+          <h3 className="font-semibold mb-3">{t('storeFront.aboutStore')}</h3>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </Card>
+      )}
+      
+      {/* 商家信息 */}
       <Card className="p-4">
         <h3 className="font-semibold mb-3">{t('storeFront.businessInfo')}</h3>
         <div className="space-y-3 text-sm">
@@ -639,27 +803,56 @@ function InfoTab({ store }: { store: Store }) {
               </div>
             </div>
           )}
-          <div className="flex items-center gap-3">
-            <Clock className="w-4 h-4 text-muted-foreground" />
-            <div>
-              <p className="text-muted-foreground">{t('storeFront.hours')}</p>
-              <p>09:00 - 22:00</p>
+        </div>
+      </Card>
+      
+      {/* 营业时间 */}
+      <Card className="p-4">
+        <h3 className="font-semibold mb-3">{t('storeFront.hours')}</h3>
+        <div className="space-y-2 text-sm">
+          {Object.entries(businessHours).map(([day, hours]) => (
+            <div key={day} className="flex justify-between">
+              <span className="text-muted-foreground">{dayLabels[day] || day}</span>
+              <span>{hours as string}</span>
             </div>
-          </div>
+          ))}
         </div>
       </Card>
 
+      {/* 商家资质 */}
       <Card className="p-4">
         <h3 className="font-semibold mb-3">{t('storeFront.qualifications')}</h3>
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm">
-            <Check className="w-4 h-4 text-green-500" />
-            <span>{t('storeFront.licenseFood')}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Check className="w-4 h-4 text-green-500" />
-            <span>{t('storeFront.licenseBusiness')}</span>
-          </div>
+        <div className="space-y-3">
+          {store.businessLicenseUrl && (
+            <div className="flex items-center gap-2 text-sm">
+              <FileCheck className="w-4 h-4 text-green-500" />
+              <span>{t('storeFront.licenseBusiness')}</span>
+              <Button variant="ghost" size="sm" className="ml-auto text-xs text-primary h-6">
+                {t('storeFront.viewLicense')}
+              </Button>
+            </div>
+          )}
+          {store.foodLicenseUrl && (
+            <div className="flex items-center gap-2 text-sm">
+              <FileCheck className="w-4 h-4 text-green-500" />
+              <span>{t('storeFront.licenseFood')}</span>
+              <Button variant="ghost" size="sm" className="ml-auto text-xs text-primary h-6">
+                {t('storeFront.viewLicense')}
+              </Button>
+            </div>
+          )}
+          {!store.businessLicenseUrl && !store.foodLicenseUrl && (
+            <>
+              <div className="flex items-center gap-2 text-sm">
+                <Check className="w-4 h-4 text-green-500" />
+                <span>{t('storeFront.licenseFood')}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Check className="w-4 h-4 text-green-500" />
+                <span>{t('storeFront.licenseBusiness')}</span>
+              </div>
+            </>
+          )}
         </div>
       </Card>
     </div>
@@ -786,7 +979,7 @@ export default function StoreFront() {
       <StoreHeader store={store} onBack={() => window.history.back()} />
       <StoreStats store={store} />
       <CouponSection />
-      <ServiceScores />
+      <ServiceScores store={store} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-2">
         <TabsList className="w-full justify-start bg-card rounded-none border-b border-border h-12 p-0">

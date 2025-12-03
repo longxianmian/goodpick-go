@@ -3504,6 +3504,85 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Merchant: Update store details
+  app.patch('/api/stores/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      if (isNaN(storeId)) {
+        return res.status(400).json({ success: false, message: '无效的店铺ID' });
+      }
+
+      if (!userId) {
+        return res.status(401).json({ success: false, message: '未登录' });
+      }
+
+      // Check if user is owner of this store
+      const [userStaffRole] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          eq(merchantStaffRoles.storeId, storeId),
+          eq(merchantStaffRoles.role, 'owner')
+        ));
+
+      if (!userStaffRole) {
+        return res.status(403).json({ success: false, message: '您没有权限编辑此门店' });
+      }
+
+      const {
+        name,
+        brand,
+        city,
+        address,
+        phone,
+        descriptionZh,
+        descriptionEn,
+        descriptionTh,
+        industryType,
+        businessStatus,
+        businessHours,
+        coverImages,
+        deliveryTime,
+        pickupTime,
+      } = req.body;
+
+      const updateData: any = { updatedAt: new Date() };
+      
+      if (name !== undefined) updateData.name = name;
+      if (brand !== undefined) updateData.brand = brand;
+      if (city !== undefined) updateData.city = city;
+      if (address !== undefined) updateData.address = address;
+      if (phone !== undefined) updateData.phone = phone;
+      if (descriptionZh !== undefined) updateData.descriptionZh = descriptionZh;
+      if (descriptionEn !== undefined) updateData.descriptionEn = descriptionEn;
+      if (descriptionTh !== undefined) updateData.descriptionTh = descriptionTh;
+      if (industryType !== undefined) updateData.industryType = industryType;
+      if (businessStatus !== undefined) updateData.businessStatus = businessStatus;
+      if (businessHours !== undefined) updateData.businessHours = businessHours;
+      if (coverImages !== undefined) updateData.coverImages = coverImages;
+      if (deliveryTime !== undefined) updateData.deliveryTime = deliveryTime;
+      if (pickupTime !== undefined) updateData.pickupTime = pickupTime;
+
+      const [updatedStore] = await db
+        .update(stores)
+        .set(updateData)
+        .where(eq(stores.id, storeId))
+        .returning();
+
+      if (!updatedStore) {
+        return res.status(404).json({ success: false, message: '门店不存在' });
+      }
+
+      res.json({ success: true, message: '门店信息已更新', data: updatedStore });
+    } catch (error) {
+      console.error('Update store error:', error);
+      res.status(500).json({ success: false, message: '更新门店信息失败' });
+    }
+  });
+
   // Generate store payment QR code page URL
   app.get('/api/stores/:id/pay', async (req: Request, res: Response) => {
     try {

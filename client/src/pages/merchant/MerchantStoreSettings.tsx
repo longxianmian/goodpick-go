@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -10,7 +10,8 @@ import {
   Building2,
   Plus,
   Settings,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,11 +37,13 @@ export default function MerchantStoreSettings() {
   const { t } = useLanguage();
   const { user, userRoles } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   
   const [isChainMode, setIsChainMode] = useState(false);
   
   const ownerRoles = userRoles.filter(r => r.role === 'owner');
   const hasStore = ownerRoles.length > 0;
+  const currentStoreId = ownerRoles[0]?.storeId || 1;
   
   const mockStore: StoreInfo = hasStore ? {
     id: ownerRoles[0].storeId || 1,
@@ -152,7 +155,7 @@ export default function MerchantStoreSettings() {
               <CardContent className="space-y-3">
                 <div 
                   className="p-3 rounded-lg border hover-elevate cursor-pointer"
-                  onClick={handleComingSoon}
+                  onClick={() => navigate(`/merchant/store-edit/${currentStoreId}`)}
                   data-testid="card-store-info"
                 >
                   <div className="flex items-start justify-between mb-3">
@@ -201,7 +204,7 @@ export default function MerchantStoreSettings() {
                 <div className="divide-y divide-border">
                   <div 
                     className="flex items-center justify-between py-4 px-4 hover-elevate cursor-pointer"
-                    onClick={handleComingSoon}
+                    onClick={() => navigate(`/merchant/store-edit/${currentStoreId}`)}
                     data-testid="menu-basic-info"
                   >
                     <div className="flex items-center gap-3">
@@ -213,7 +216,7 @@ export default function MerchantStoreSettings() {
                   
                   <div 
                     className="flex items-center justify-between py-4 px-4 hover-elevate cursor-pointer"
-                    onClick={handleComingSoon}
+                    onClick={() => navigate(`/merchant/store-edit/${currentStoreId}`)}
                     data-testid="menu-business-hours"
                   >
                     <div className="flex items-center gap-3">
@@ -225,7 +228,7 @@ export default function MerchantStoreSettings() {
                   
                   <div 
                     className="flex items-center justify-between py-4 px-4 hover-elevate cursor-pointer"
-                    onClick={handleComingSoon}
+                    onClick={() => navigate(`/merchant/store-edit/${currentStoreId}`)}
                     data-testid="menu-store-images"
                   >
                     <div className="flex items-center gap-3">
@@ -237,12 +240,24 @@ export default function MerchantStoreSettings() {
                   
                   <div 
                     className="flex items-center justify-between py-4 px-4 hover-elevate cursor-pointer"
-                    onClick={handleComingSoon}
+                    onClick={() => navigate(`/merchant/store-edit/${currentStoreId}`)}
                     data-testid="menu-location"
                   >
                     <div className="flex items-center gap-3">
                       <MapPin className="w-5 h-5 text-muted-foreground" />
                       <span className="text-sm font-medium">{t('merchant.storeLocation')}</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  
+                  <div 
+                    className="flex items-center justify-between py-4 px-4 hover-elevate cursor-pointer"
+                    onClick={() => window.open(`/store/${currentStoreId}`, '_blank')}
+                    data-testid="menu-preview"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Eye className="w-5 h-5 text-muted-foreground" />
+                      <span className="text-sm font-medium">{t('merchant.preview')}</span>
                     </div>
                     <ChevronRight className="w-4 h-4 text-muted-foreground" />
                   </div>
