@@ -372,11 +372,11 @@ export default function ArticleDetail() {
                   key={idx} 
                   className="flex-shrink-0 w-full snap-center"
                 >
-                  <div className="aspect-[3/4] flex items-center justify-center bg-black">
+                  <div className="min-h-[300px] max-h-[70vh] flex items-center justify-center bg-black">
                     <img
                       src={url}
                       alt={`${t('feed.article')} ${idx + 1}`}
-                      className="max-w-full max-h-full object-contain"
+                      className="w-full h-auto max-h-[70vh] object-contain"
                       loading={idx === 0 ? 'eager' : 'lazy'}
                     />
                   </div>
@@ -385,18 +385,23 @@ export default function ArticleDetail() {
             </div>
             
             {imageCount > 1 && (
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
-                {images.map((_, idx) => (
-                  <div
-                    key={idx}
-                    className={`h-1.5 rounded-full transition-all ${
-                      idx === currentImageIndex 
-                        ? 'bg-white w-4' 
-                        : 'bg-white/40 w-1.5'
-                    }`}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="absolute top-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+                  {currentImageIndex + 1} / {imageCount}
+                </div>
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+                  {images.map((_, idx) => (
+                    <div
+                      key={idx}
+                      className={`h-1.5 rounded-full transition-all ${
+                        idx === currentImageIndex 
+                          ? 'bg-white w-4' 
+                          : 'bg-white/40 w-1.5'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </div>
         )}
