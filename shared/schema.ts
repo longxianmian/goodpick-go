@@ -131,6 +131,109 @@ export const insertStoreSchema = createInsertSchema(stores).omit({
 export type InsertStore = z.infer<typeof insertStoreSchema>;
 export type Store = typeof stores.$inferSelect;
 
+// 商品状态枚举
+export const productStatusEnum = pgEnum('product_status', [
+  'draft',      // 草稿
+  'active',     // 上架
+  'inactive',   // 下架
+  'soldout',    // 售罄
+]);
+
+// 商品分类表
+export const productCategories = pgTable('product_categories', {
+  id: serial('id').primaryKey(),
+  storeId: integer('store_id').notNull(),
+  
+  // 分类名称（多语言）
+  nameSource: text('name_source').notNull(),
+  nameZh: text('name_zh'),
+  nameEn: text('name_en'),
+  nameTh: text('name_th'),
+  
+  // 排序
+  sortOrder: integer('sort_order').default(0),
+  isActive: boolean('is_active').default(true),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertProductCategorySchema = createInsertSchema(productCategories).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertProductCategory = z.infer<typeof insertProductCategorySchema>;
+export type ProductCategory = typeof productCategories.$inferSelect;
+
+// 商品表
+export const products = pgTable('products', {
+  id: serial('id').primaryKey(),
+  storeId: integer('store_id').notNull(),
+  categoryId: integer('category_id'),
+  
+  // 商品基本信息
+  name: text('name').notNull(),
+  sku: text('sku'),
+  
+  // 商品描述（多语言，自动翻译）
+  descriptionSource: text('description_source'),
+  descriptionZh: text('description_zh'),
+  descriptionEn: text('description_en'),
+  descriptionTh: text('description_th'),
+  
+  // 价格信息
+  price: decimal('price', { precision: 10, scale: 2 }).notNull(),
+  originalPrice: decimal('original_price', { precision: 10, scale: 2 }),
+  unit: text('unit').default('份'),
+  
+  // 库存管理
+  inventory: integer('inventory').default(0),
+  lowStockThreshold: integer('low_stock_threshold').default(10),
+  
+  // 商品图片
+  coverImage: text('cover_image'),
+  gallery: text('gallery').array(),
+  
+  // 商品状态
+  status: productStatusEnum('status').default('draft'),
+  
+  // 商品标签
+  isRecommend: boolean('is_recommend').default(false),
+  isNew: boolean('is_new').default(false),
+  isHot: boolean('is_hot').default(false),
+  
+  // 销售限制
+  minPurchaseQty: integer('min_purchase_qty').default(1),
+  maxPurchaseQty: integer('max_purchase_qty'),
+  dailyLimit: integer('daily_limit'),
+  
+  // 配送选项
+  isAvailableForDelivery: boolean('is_available_for_delivery').default(true),
+  isAvailableForPickup: boolean('is_available_for_pickup').default(true),
+  prepTimeMinutes: integer('prep_time_minutes').default(15),
+  
+  // 排序
+  sortOrder: integer('sort_order').default(0),
+  
+  // 统计
+  salesCount: integer('sales_count').default(0),
+  viewCount: integer('view_count').default(0),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertProductSchema = createInsertSchema(products).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  salesCount: true,
+  viewCount: true,
+});
+export type InsertProduct = z.infer<typeof insertProductSchema>;
+export type Product = typeof products.$inferSelect;
+
 // Campaigns table - multi-language with OpenAI translation
 export const campaigns = pgTable('campaigns', {
   id: serial('id').primaryKey(),

@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments } from '@shared/schema';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, products, productCategories } from '@shared/schema';
 import { eq, and, desc, sql, inArray, isNotNull } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
 import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
@@ -4930,6 +4930,538 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Delete short video error:', error);
       res.status(500).json({ success: false, message: '删除视频失败' });
+    }
+  });
+
+  // ========== 商品管理 API ==========
+
+  // 获取门店商品分类列表
+  app.get('/api/stores/:storeId/product-categories', async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      
+      const categories = await db
+        .select()
+        .from(productCategories)
+        .where(and(
+          eq(productCategories.storeId, storeId),
+          eq(productCategories.isActive, true)
+        ))
+        .orderBy(productCategories.sortOrder);
+
+      res.json({ success: true, data: categories });
+    } catch (error) {
+      console.error('Get product categories error:', error);
+      res.status(500).json({ success: false, message: '获取商品分类失败' });
+    }
+  });
+
+  // 创建商品分类
+  app.post('/api/stores/:storeId/product-categories', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const userId = req.user?.id;
+      
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      const { nameSource, sortOrder } = req.body;
+
+      const [category] = await db
+        .insert(productCategories)
+        .values({
+          storeId,
+          nameSource,
+          nameZh: nameSource,
+          sortOrder: sortOrder || 0,
+        })
+        .returning();
+
+      // 异步翻译
+      translateText(nameSource, 'zh-cn', 'en-us').then(enText => {
+        db.update(productCategories).set({ nameEn: enText }).where(eq(productCategories.id, category.id)).execute();
+      }).catch(err => console.error('Translate category EN failed:', err));
+      translateText(nameSource, 'zh-cn', 'th-th').then(thText => {
+        db.update(productCategories).set({ nameTh: thText }).where(eq(productCategories.id, category.id)).execute();
+      }).catch(err => console.error('Translate category TH failed:', err));
+
+      res.json({ success: true, data: category });
+    } catch (error) {
+      console.error('Create product category error:', error);
+      res.status(500).json({ success: false, message: '创建分类失败' });
+    }
+  });
+
+  // 更新商品分类
+  app.patch('/api/stores/:storeId/product-categories/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const categoryId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      const { nameSource, sortOrder, isActive } = req.body;
+      const updateData: any = { updatedAt: new Date() };
+      
+      if (nameSource !== undefined) {
+        updateData.nameSource = nameSource;
+        updateData.nameZh = nameSource;
+        // 异步翻译
+        translateText(nameSource, 'zh-cn', 'en-us').then(enText => {
+          db.update(productCategories).set({ nameEn: enText }).where(eq(productCategories.id, categoryId)).execute();
+        }).catch(err => console.error('Translate category EN failed:', err));
+        translateText(nameSource, 'zh-cn', 'th-th').then(thText => {
+          db.update(productCategories).set({ nameTh: thText }).where(eq(productCategories.id, categoryId)).execute();
+        }).catch(err => console.error('Translate category TH failed:', err));
+      }
+      if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
+      if (isActive !== undefined) updateData.isActive = isActive;
+
+      const [category] = await db
+        .update(productCategories)
+        .set(updateData)
+        .where(and(
+          eq(productCategories.id, categoryId),
+          eq(productCategories.storeId, storeId)
+        ))
+        .returning();
+
+      res.json({ success: true, data: category });
+    } catch (error) {
+      console.error('Update product category error:', error);
+      res.status(500).json({ success: false, message: '更新分类失败' });
+    }
+  });
+
+  // 删除商品分类
+  app.delete('/api/stores/:storeId/product-categories/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const categoryId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      // 软删除
+      await db
+        .update(productCategories)
+        .set({ isActive: false })
+        .where(and(
+          eq(productCategories.id, categoryId),
+          eq(productCategories.storeId, storeId)
+        ));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Delete product category error:', error);
+      res.status(500).json({ success: false, message: '删除分类失败' });
+    }
+  });
+
+  // 获取门店商品列表
+  app.get('/api/stores/:storeId/products', async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const { status, categoryId, search } = req.query;
+      
+      let query = db
+        .select()
+        .from(products)
+        .where(eq(products.storeId, storeId))
+        .orderBy(products.sortOrder, desc(products.createdAt));
+
+      const productList = await query;
+      
+      // 过滤
+      let filtered = productList;
+      if (status) {
+        filtered = filtered.filter(p => p.status === status);
+      }
+      if (categoryId) {
+        filtered = filtered.filter(p => p.categoryId === parseInt(categoryId as string));
+      }
+      if (search) {
+        const searchLower = (search as string).toLowerCase();
+        filtered = filtered.filter(p => 
+          p.name.toLowerCase().includes(searchLower) ||
+          p.sku?.toLowerCase().includes(searchLower)
+        );
+      }
+
+      res.json({ success: true, data: filtered });
+    } catch (error) {
+      console.error('Get products error:', error);
+      res.status(500).json({ success: false, message: '获取商品列表失败' });
+    }
+  });
+
+  // 获取单个商品详情
+  app.get('/api/stores/:storeId/products/:id', async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const productId = parseInt(req.params.id);
+      
+      const [product] = await db
+        .select()
+        .from(products)
+        .where(and(
+          eq(products.id, productId),
+          eq(products.storeId, storeId)
+        ));
+
+      if (!product) {
+        return res.status(404).json({ success: false, message: '商品不存在' });
+      }
+
+      res.json({ success: true, data: product });
+    } catch (error) {
+      console.error('Get product error:', error);
+      res.status(500).json({ success: false, message: '获取商品详情失败' });
+    }
+  });
+
+  // 创建商品
+  app.post('/api/stores/:storeId/products', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const userId = req.user?.id;
+      
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      const {
+        name,
+        categoryId,
+        sku,
+        description,
+        price,
+        originalPrice,
+        unit,
+        inventory,
+        coverImage,
+        gallery,
+        status,
+        isRecommend,
+        isNew,
+        isHot,
+        minPurchaseQty,
+        maxPurchaseQty,
+        dailyLimit,
+        isAvailableForDelivery,
+        isAvailableForPickup,
+        prepTimeMinutes,
+        sortOrder,
+      } = req.body;
+
+      const [product] = await db
+        .insert(products)
+        .values({
+          storeId,
+          name,
+          categoryId: categoryId || null,
+          sku: sku || null,
+          descriptionSource: description || null,
+          descriptionZh: description || null,
+          price,
+          originalPrice: originalPrice || null,
+          unit: unit || '份',
+          inventory: inventory || 0,
+          coverImage: coverImage || null,
+          gallery: gallery || null,
+          status: status || 'draft',
+          isRecommend: isRecommend || false,
+          isNew: isNew || false,
+          isHot: isHot || false,
+          minPurchaseQty: minPurchaseQty || 1,
+          maxPurchaseQty: maxPurchaseQty || null,
+          dailyLimit: dailyLimit || null,
+          isAvailableForDelivery: isAvailableForDelivery !== false,
+          isAvailableForPickup: isAvailableForPickup !== false,
+          prepTimeMinutes: prepTimeMinutes || 15,
+          sortOrder: sortOrder || 0,
+        })
+        .returning();
+
+      // 异步翻译描述
+      if (description) {
+        translateText(description, 'zh-cn', 'en-us').then(enText => {
+          db.update(products).set({ descriptionEn: enText }).where(eq(products.id, product.id)).execute();
+        }).catch(err => console.error('Translate product EN failed:', err));
+        translateText(description, 'zh-cn', 'th-th').then(thText => {
+          db.update(products).set({ descriptionTh: thText }).where(eq(products.id, product.id)).execute();
+        }).catch(err => console.error('Translate product TH failed:', err));
+      }
+
+      res.json({ success: true, data: product, message: '商品创建成功' });
+    } catch (error) {
+      console.error('Create product error:', error);
+      res.status(500).json({ success: false, message: '创建商品失败' });
+    }
+  });
+
+  // 更新商品
+  app.patch('/api/stores/:storeId/products/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const productId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      const {
+        name,
+        categoryId,
+        sku,
+        description,
+        price,
+        originalPrice,
+        unit,
+        inventory,
+        coverImage,
+        gallery,
+        status,
+        isRecommend,
+        isNew,
+        isHot,
+        minPurchaseQty,
+        maxPurchaseQty,
+        dailyLimit,
+        isAvailableForDelivery,
+        isAvailableForPickup,
+        prepTimeMinutes,
+        sortOrder,
+      } = req.body;
+
+      const updateData: any = { updatedAt: new Date() };
+      
+      if (name !== undefined) updateData.name = name;
+      if (categoryId !== undefined) updateData.categoryId = categoryId;
+      if (sku !== undefined) updateData.sku = sku;
+      if (description !== undefined) {
+        updateData.descriptionSource = description;
+        updateData.descriptionZh = description;
+        // 异步翻译
+        translateText(description, 'zh-cn', 'en-us').then(enText => {
+          db.update(products).set({ descriptionEn: enText }).where(eq(products.id, productId)).execute();
+        }).catch(err => console.error('Translate product EN failed:', err));
+        translateText(description, 'zh-cn', 'th-th').then(thText => {
+          db.update(products).set({ descriptionTh: thText }).where(eq(products.id, productId)).execute();
+        }).catch(err => console.error('Translate product TH failed:', err));
+      }
+      if (price !== undefined) updateData.price = price;
+      if (originalPrice !== undefined) updateData.originalPrice = originalPrice;
+      if (unit !== undefined) updateData.unit = unit;
+      if (inventory !== undefined) updateData.inventory = inventory;
+      if (coverImage !== undefined) updateData.coverImage = coverImage;
+      if (gallery !== undefined) updateData.gallery = gallery;
+      if (status !== undefined) updateData.status = status;
+      if (isRecommend !== undefined) updateData.isRecommend = isRecommend;
+      if (isNew !== undefined) updateData.isNew = isNew;
+      if (isHot !== undefined) updateData.isHot = isHot;
+      if (minPurchaseQty !== undefined) updateData.minPurchaseQty = minPurchaseQty;
+      if (maxPurchaseQty !== undefined) updateData.maxPurchaseQty = maxPurchaseQty;
+      if (dailyLimit !== undefined) updateData.dailyLimit = dailyLimit;
+      if (isAvailableForDelivery !== undefined) updateData.isAvailableForDelivery = isAvailableForDelivery;
+      if (isAvailableForPickup !== undefined) updateData.isAvailableForPickup = isAvailableForPickup;
+      if (prepTimeMinutes !== undefined) updateData.prepTimeMinutes = prepTimeMinutes;
+      if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
+
+      const [product] = await db
+        .update(products)
+        .set(updateData)
+        .where(and(
+          eq(products.id, productId),
+          eq(products.storeId, storeId)
+        ))
+        .returning();
+
+      if (!product) {
+        return res.status(404).json({ success: false, message: '商品不存在' });
+      }
+
+      res.json({ success: true, data: product, message: '商品更新成功' });
+    } catch (error) {
+      console.error('Update product error:', error);
+      res.status(500).json({ success: false, message: '更新商品失败' });
+    }
+  });
+
+  // 批量更新商品状态（上架/下架）
+  app.post('/api/stores/:storeId/products/batch-status', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const userId = req.user?.id;
+      
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      const { productIds, status } = req.body;
+      
+      if (!productIds?.length || !status) {
+        return res.status(400).json({ success: false, message: '参数错误' });
+      }
+
+      await db
+        .update(products)
+        .set({ status, updatedAt: new Date() })
+        .where(and(
+          inArray(products.id, productIds),
+          eq(products.storeId, storeId)
+        ));
+
+      res.json({ success: true, message: '批量更新成功' });
+    } catch (error) {
+      console.error('Batch update products status error:', error);
+      res.status(500).json({ success: false, message: '批量更新失败' });
+    }
+  });
+
+  // 更新商品库存
+  app.patch('/api/stores/:storeId/products/:id/inventory', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const productId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      const { inventory } = req.body;
+      
+      const [product] = await db
+        .update(products)
+        .set({ inventory, updatedAt: new Date() })
+        .where(and(
+          eq(products.id, productId),
+          eq(products.storeId, storeId)
+        ))
+        .returning();
+
+      if (!product) {
+        return res.status(404).json({ success: false, message: '商品不存在' });
+      }
+
+      res.json({ success: true, data: product });
+    } catch (error) {
+      console.error('Update product inventory error:', error);
+      res.status(500).json({ success: false, message: '更新库存失败' });
+    }
+  });
+
+  // 删除商品（软删除 - 设为inactive）
+  app.delete('/api/stores/:storeId/products/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const productId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      await db
+        .update(products)
+        .set({ status: 'inactive' })
+        .where(and(
+          eq(products.id, productId),
+          eq(products.storeId, storeId)
+        ));
+
+      res.json({ success: true, message: '商品已删除' });
+    } catch (error) {
+      console.error('Delete product error:', error);
+      res.status(500).json({ success: false, message: '删除商品失败' });
     }
   });
 
