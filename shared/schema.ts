@@ -546,7 +546,7 @@ export type InsertPromotionEarning = z.infer<typeof insertPromotionEarningSchema
 export type PromotionEarning = typeof promotionEarnings.$inferSelect;
 
 // ============================================
-// 抖音式短视频系统
+// 抖音式短视频系统（支持视频和图文）
 // ============================================
 
 // 短视频状态枚举
@@ -557,16 +557,29 @@ export const shortVideoStatusEnum = pgEnum('short_video_status', [
   'deleted',      // 已删除
 ]);
 
-// 短视频表
+// Feed内容类型枚举
+export const feedContentTypeEnum = pgEnum('feed_content_type', [
+  'video',        // 视频内容
+  'article',      // 图文日记
+]);
+
+// 短视频表（现已支持图文日记）
 export const shortVideos = pgTable('short_videos', {
   id: serial('id').primaryKey(),
   creatorUserId: integer('creator_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   
-  // 视频媒体资源
-  videoUrl: text('video_url').notNull(),         // 原始视频URL（MP4）
+  // 内容类型
+  contentType: feedContentTypeEnum('content_type').notNull().default('video'),
+  sourceContentId: integer('source_content_id'),  // 关联creator_contents表的ID
+  
+  // 视频媒体资源（视频类型必填）
+  videoUrl: text('video_url'),                    // 原始视频URL（MP4）
   hlsUrl: text('hls_url'),                        // HLS流URL (m3u8)，由阿里云MPS转码生成
   coverImageUrl: text('cover_image_url'),         // 封面图（大图）
   thumbnailUrl: text('thumbnail_url'),            // 缩略图（列表用小图）
+  
+  // 图文媒体资源（图文类型使用）
+  mediaUrls: text('media_urls').array(),          // 图文的多张图片URL数组
   
   // 视频元数据
   duration: integer('duration'),                  // 视频时长（秒）
@@ -575,9 +588,9 @@ export const shortVideos = pgTable('short_videos', {
   fileSize: integer('file_size'),                 // 文件大小（字节）
   
   // 内容信息
-  title: text('title'),                           // 视频标题（可选）
-  description: text('description'),               // 视频描述
-  category: text('category'),                     // 视频分类: funny, musicDance, drama, daily, healing, food, beauty, games
+  title: text('title'),                           // 标题（可选）
+  description: text('description'),               // 描述
+  category: text('category'),                     // 分类: funny, musicDance, drama, daily, healing, food, beauty, games
   hashtags: text('hashtags').array(),             // 话题标签
   locationName: text('location_name'),            // 位置名称
   locationLat: decimal('location_lat', { precision: 10, scale: 7 }),
