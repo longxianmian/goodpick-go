@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ChevronLeft, Plus, Search, MoreVertical, Package, AlertTriangle, Filter } from 'lucide-react';
+import { ChevronLeft, Plus, Search, MoreVertical, Package, AlertTriangle, Filter, Store } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -245,9 +245,15 @@ export default function MerchantProducts() {
         </header>
         <div className="p-4">
           <Card>
-            <CardContent className="py-8 text-center">
-              <Package className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-              <p className="text-muted-foreground">{t('merchant.noStore')}</p>
+            <CardContent className="py-8 text-center space-y-4">
+              <Store className="w-12 h-12 mx-auto text-muted-foreground" />
+              <div>
+                <h3 className="font-medium">{t('merchant.noStore')}</h3>
+                <p className="text-sm text-muted-foreground mt-1">{t('merchant.createStoreFirst')}</p>
+              </div>
+              <Button asChild>
+                <Link href="/merchant/store-create">{t('merchant.createStore')}</Link>
+              </Button>
             </CardContent>
           </Card>
         </div>
