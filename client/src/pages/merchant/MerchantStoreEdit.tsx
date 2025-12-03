@@ -6,13 +6,9 @@ import {
   Store, 
   MapPin, 
   Clock, 
-  Phone,
   Image as ImageIcon,
   Save,
   Eye,
-  Upload,
-  X,
-  Plus,
   FileCheck,
   Loader2
 } from 'lucide-react';
@@ -27,6 +23,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { StoreImageUploader, LicenseUploader } from '@/components/StoreImageUploader';
 import type { Store as StoreType } from '@shared/schema';
 
 interface BusinessHours {
@@ -54,6 +51,8 @@ interface StoreFormData {
   coverImages: string[];
   deliveryTime: number;
   pickupTime: number;
+  businessLicenseUrl: string | null;
+  foodLicenseUrl: string | null;
 }
 
 const defaultBusinessHours: BusinessHours = {
@@ -90,6 +89,8 @@ export default function MerchantStoreEdit() {
     coverImages: [],
     deliveryTime: 30,
     pickupTime: 10,
+    businessLicenseUrl: null,
+    foodLicenseUrl: null,
   });
 
   const { data: storeData, isLoading } = useQuery<{ success: boolean; data: StoreType }>({
@@ -124,6 +125,8 @@ export default function MerchantStoreEdit() {
         coverImages: store.coverImages || [],
         deliveryTime: store.deliveryTime || 30,
         pickupTime: store.pickupTime || 10,
+        businessLicenseUrl: store.businessLicenseUrl || null,
+        foodLicenseUrl: store.foodLicenseUrl || null,
       });
     }
   }, [storeData]);
@@ -134,10 +137,7 @@ export default function MerchantStoreEdit() {
         ...data,
         businessHours: JSON.stringify(data.businessHours),
       };
-      return apiRequest(`/api/stores/${storeId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      });
+      return apiRequest('PATCH', `/api/stores/${storeId}`, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/stores', storeId] });
@@ -176,11 +176,12 @@ export default function MerchantStoreEdit() {
     }));
   };
 
-  const handleRemoveCoverImage = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      coverImages: prev.coverImages.filter((_, i) => i !== index)
-    }));
+  const handleCoverImagesChange = (images: string[]) => {
+    setFormData(prev => ({ ...prev, coverImages: images }));
+  };
+
+  const handleLicenseChange = (field: 'businessLicenseUrl' | 'foodLicenseUrl', url: string | null) => {
+    setFormData(prev => ({ ...prev, [field]: url }));
   };
 
   const dayLabels: Record<keyof BusinessHours, string> = {
@@ -478,34 +479,12 @@ export default function MerchantStoreEdit() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  {formData.coverImages.map((img, index) => (
-                    <div key={index} className="relative aspect-video rounded-md overflow-hidden bg-muted">
-                      <img src={img} alt="" className="w-full h-full object-cover" />
-                      <button
-                        onClick={() => handleRemoveCoverImage(index)}
-                        className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center text-white"
-                        data-testid={`button-remove-image-${index}`}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                  <button 
-                    className="aspect-video rounded-md border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-1 hover:border-primary/50 transition-colors"
-                    onClick={() => {
-                      toast({
-                        title: t('common.comingSoon'),
-                        description: t('merchant.imageUploadComingSoon'),
-                      });
-                    }}
-                    data-testid="button-add-image"
-                  >
-                    <Upload className="w-5 h-5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">{t('merchant.uploadImage')}</span>
-                  </button>
-                </div>
-                <p className="text-xs text-muted-foreground">{t('merchant.coverImagesHint')}</p>
+                <StoreImageUploader
+                  images={formData.coverImages}
+                  onChange={handleCoverImagesChange}
+                  maxImages={5}
+                  hint={t('merchant.coverImagesHint')}
+                />
               </CardContent>
             </Card>
 
@@ -517,38 +496,16 @@ export default function MerchantStoreEdit() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div 
-                  className="flex items-center justify-between p-3 border rounded-md cursor-pointer hover-elevate"
-                  onClick={() => {
-                    toast({
-                      title: t('common.comingSoon'),
-                      description: t('merchant.licenseUploadComingSoon'),
-                    });
-                  }}
-                  data-testid="card-business-license"
-                >
-                  <span className="text-sm">{t('storeFront.licenseBusiness')}</span>
-                  <Button variant="ghost" size="sm">
-                    <Upload className="w-4 h-4 mr-1" />
-                    {t('merchant.upload')}
-                  </Button>
-                </div>
-                <div 
-                  className="flex items-center justify-between p-3 border rounded-md cursor-pointer hover-elevate"
-                  onClick={() => {
-                    toast({
-                      title: t('common.comingSoon'),
-                      description: t('merchant.licenseUploadComingSoon'),
-                    });
-                  }}
-                  data-testid="card-food-license"
-                >
-                  <span className="text-sm">{t('storeFront.licenseFood')}</span>
-                  <Button variant="ghost" size="sm">
-                    <Upload className="w-4 h-4 mr-1" />
-                    {t('merchant.upload')}
-                  </Button>
-                </div>
+                <LicenseUploader
+                  label={t('storeFront.licenseBusiness')}
+                  imageUrl={formData.businessLicenseUrl}
+                  onChange={(url) => handleLicenseChange('businessLicenseUrl', url)}
+                />
+                <LicenseUploader
+                  label={t('storeFront.licenseFood')}
+                  imageUrl={formData.foodLicenseUrl}
+                  onChange={(url) => handleLicenseChange('foodLicenseUrl', url)}
+                />
               </CardContent>
             </Card>
           </TabsContent>
