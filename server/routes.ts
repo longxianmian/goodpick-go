@@ -3915,22 +3915,47 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
       
-      // 如果是视频内容并且直接发布，同步到short_videos表供刷刷首页feed显示
-      if ((contentType === 'video' || !contentType) && status === 'published' && mediaUrls?.length > 0) {
-        const videoUrl = mediaUrls.find((url: string) => url.match(/\.(mp4|mov|webm|m3u8)$/i)) || mediaUrls[0];
-        await db.insert(shortVideos).values({
-          creatorUserId: userId,
-          videoUrl: videoUrl,
-          coverImageUrl: coverImageUrl || null,
-          thumbnailUrl: coverImageUrl || null,
-          title: title,
-          description: description || null,
-          category: category || null,
-          status: 'ready',
-          isPublic: true,
-          publishedAt: new Date(),
-        });
-        console.log(`[SYNC] 已同步创作者内容 #${newContent.id} 到短视频feed (分类: ${category || '无'})`);
+      // 如果直接发布，同步到short_videos表供刷刷首页feed显示
+      if (status === 'published' && mediaUrls?.length > 0) {
+        const finalContentType = contentType || 'video';
+        
+        if (finalContentType === 'video') {
+          // 视频类型
+          const videoUrl = mediaUrls.find((url: string) => url.match(/\.(mp4|mov|webm|m3u8)$/i)) || mediaUrls[0];
+          await db.insert(shortVideos).values({
+            creatorUserId: userId,
+            contentType: 'video',
+            sourceContentId: newContent.id,
+            videoUrl: videoUrl,
+            coverImageUrl: coverImageUrl || null,
+            thumbnailUrl: coverImageUrl || null,
+            title: title,
+            description: description || null,
+            category: category || null,
+            status: 'ready',
+            isPublic: true,
+            publishedAt: new Date(),
+          });
+          console.log(`[SYNC] 已同步创作者视频 #${newContent.id} 到Feed (分类: ${category || '无'})`);
+        } else if (finalContentType === 'article') {
+          // 图文日记类型
+          await db.insert(shortVideos).values({
+            creatorUserId: userId,
+            contentType: 'article',
+            sourceContentId: newContent.id,
+            videoUrl: null,
+            coverImageUrl: coverImageUrl || mediaUrls[0] || null,  // 优先使用封面图，否则用第一张图
+            thumbnailUrl: coverImageUrl || mediaUrls[0] || null,
+            mediaUrls: mediaUrls,
+            title: title,
+            description: description || null,
+            category: category || null,
+            status: 'ready',
+            isPublic: true,
+            publishedAt: new Date(),
+          });
+          console.log(`[SYNC] 已同步创作者图文 #${newContent.id} 到Feed (分类: ${category || '无'})`);
+        }
       }
       
       res.json({ success: true, data: newContent });
@@ -3986,7 +4011,7 @@ export function registerRoutes(app: Express): Server {
         .where(eq(creatorContents.id, contentId))
         .returning();
       
-      // 如果是视频内容且刚刚发布，同步到short_videos表供刷刷首页feed显示
+      // 如果刚刚发布，同步到short_videos表供刷刷首页feed显示
       const finalMediaUrls = mediaUrls !== undefined ? mediaUrls : existing.mediaUrls;
       const finalContentType = contentType || existing.contentType;
       const finalTitle = title !== undefined ? title : existing.title;
@@ -3994,21 +4019,44 @@ export function registerRoutes(app: Express): Server {
       const finalCoverImageUrl = coverImageUrl !== undefined ? coverImageUrl : existing.coverImageUrl;
       const finalCategory = category !== undefined ? category : existing.category;
       
-      if (isNewlyPublished && finalContentType === 'video' && finalMediaUrls?.length > 0) {
-        const videoUrl = finalMediaUrls.find((url: string) => url.match(/\.(mp4|mov|webm|m3u8)$/i)) || finalMediaUrls[0];
-        await db.insert(shortVideos).values({
-          creatorUserId: userId,
-          videoUrl: videoUrl,
-          coverImageUrl: finalCoverImageUrl || null,
-          thumbnailUrl: finalCoverImageUrl || null,
-          title: finalTitle,
-          description: finalDescription || null,
-          category: finalCategory || null,
-          status: 'ready',
-          isPublic: true,
-          publishedAt: new Date(),
-        });
-        console.log(`[SYNC] 已同步创作者内容 #${contentId} 到短视频feed (分类: ${finalCategory || '无'})`);
+      if (isNewlyPublished && finalMediaUrls?.length > 0) {
+        if (finalContentType === 'video') {
+          // 视频类型
+          const videoUrl = finalMediaUrls.find((url: string) => url.match(/\.(mp4|mov|webm|m3u8)$/i)) || finalMediaUrls[0];
+          await db.insert(shortVideos).values({
+            creatorUserId: userId,
+            contentType: 'video',
+            sourceContentId: contentId,
+            videoUrl: videoUrl,
+            coverImageUrl: finalCoverImageUrl || null,
+            thumbnailUrl: finalCoverImageUrl || null,
+            title: finalTitle,
+            description: finalDescription || null,
+            category: finalCategory || null,
+            status: 'ready',
+            isPublic: true,
+            publishedAt: new Date(),
+          });
+          console.log(`[SYNC] 已同步创作者视频 #${contentId} 到Feed (分类: ${finalCategory || '无'})`);
+        } else if (finalContentType === 'article') {
+          // 图文日记类型
+          await db.insert(shortVideos).values({
+            creatorUserId: userId,
+            contentType: 'article',
+            sourceContentId: contentId,
+            videoUrl: null,
+            coverImageUrl: finalCoverImageUrl || finalMediaUrls[0] || null,  // 优先使用封面图，否则用第一张图
+            thumbnailUrl: finalCoverImageUrl || finalMediaUrls[0] || null,
+            mediaUrls: finalMediaUrls,
+            title: finalTitle,
+            description: finalDescription || null,
+            category: finalCategory || null,
+            status: 'ready',
+            isPublic: true,
+            publishedAt: new Date(),
+          });
+          console.log(`[SYNC] 已同步创作者图文 #${contentId} 到Feed (分类: ${finalCategory || '无'})`);
+        }
       }
       
       res.json({ success: true, data: updated });
@@ -4299,14 +4347,17 @@ export function registerRoutes(app: Express): Server {
         conditions.push(eq(shortVideos.category, category));
       }
 
-      // 获取公开且已就绪的视频
+      // 获取公开且已就绪的内容（视频和图文）
       const videos = await db
         .select({
           id: shortVideos.id,
+          contentType: shortVideos.contentType,  // 内容类型：video或article
+          sourceContentId: shortVideos.sourceContentId,
           videoUrl: shortVideos.videoUrl,
           hlsUrl: shortVideos.hlsUrl,
           coverImageUrl: shortVideos.coverImageUrl,
           thumbnailUrl: shortVideos.thumbnailUrl,
+          mediaUrls: shortVideos.mediaUrls,  // 图文的多张图片
           duration: shortVideos.duration,
           title: shortVideos.title,
           description: shortVideos.description,
