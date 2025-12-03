@@ -3799,6 +3799,27 @@ export function registerRoutes(app: Express): Server {
 
   // ============ J. 刷刷号创作者 API ============
 
+  // 将creator content转换为驼峰格式
+  function formatCreatorContent(content: any) {
+    return {
+      id: content.id,
+      creatorUserId: content.creatorUserId,
+      title: content.title,
+      description: content.description,
+      contentType: content.contentType,
+      mediaUrls: content.mediaUrls,
+      coverImageUrl: content.coverImageUrl,
+      status: content.status,
+      category: content.category,
+      viewCount: content.viewCount,
+      likeCount: content.likeCount,
+      commentCount: content.commentCount,
+      shareCount: content.shareCount,
+      createdAt: content.createdAt,
+      updatedAt: content.updatedAt,
+    };
+  }
+
   // 获取创作者内容列表
   app.get('/api/creator/contents', userAuthMiddleware, async (req: Request, res: Response) => {
     try {
@@ -3822,7 +3843,7 @@ export function registerRoutes(app: Express): Server {
       
       const contents = await query.orderBy(desc(creatorContents.updatedAt));
       
-      res.json({ success: true, data: contents });
+      res.json({ success: true, data: contents.map(formatCreatorContent) });
     } catch (error) {
       console.error('Get creator contents error:', error);
       res.status(500).json({ success: false, message: '获取内容列表失败' });
@@ -3863,7 +3884,7 @@ export function registerRoutes(app: Express): Server {
       res.json({ 
         success: true, 
         data: { 
-          ...content, 
+          ...formatCreatorContent(content), 
           promotionBindings: bindings 
         } 
       });
