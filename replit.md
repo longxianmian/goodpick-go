@@ -44,8 +44,10 @@ ShuaShua (刷刷) is a multi-merchant O2O local life platform that evolved from 
 |------|------|------|
 | `/merchant` | MerchantHome | 商户首页 |
 | `/merchant/operations` | MerchantOperations | 运营中心 |
-| `/merchant/store-settings` | MerchantStoreSettings | 门店设置 |
+| `/merchant/store-settings` | MerchantStoreSettings | 门店设置入口 |
+| `/merchant/store-edit/:id` | MerchantStoreEdit | 门店信息编辑（基本信息/营业时间/图片）|
 | `/merchant/me` | MeOwner | 商户老板个人中心 |
+| `/store/:id` | StoreFront | C端店铺首页（消费者视角）|
 
 ## 商户门店管理系统规划
 **Phase 1 - 单店模式**: 商户 = 1个门店（简化版）
@@ -173,3 +175,29 @@ Security measures include bcryptjs for password hashing, environment variable-ba
 ### Media Storage
 - **Provider**: 阿里云OSS (prodee-h5-assets.oss-ap-southeast-1.aliyuncs.com)
 - **Paths**: `user/{userId}/...`, `short-videos/{userId}/...`
+
+## Recent Updates (2025-12-03)
+
+### 商户门店管理系统
+- **门店编辑页面** (MerchantStoreEdit.tsx): 
+  - 三Tab设计：基本信息 | 营业时间 | 店铺图片
+  - 支持店名、品牌、城市、地址、电话、行业类型、多语言描述编辑
+  - 营业时间支持7天自定义（开始/结束时间、休息日设置）
+  - 图片上传支持最多5张封面图
+  - 配送时间、自取时间配置
+- **C端店铺首页** (StoreFront.tsx):
+  - 美团/饿了么风格设计
+  - 店铺图片轮播（Embla Carousel）
+  - 营业状态实时显示（营业中/休息中/暂停营业）
+  - 服务评分显示（口味、服务、环境）
+  - 配送/自取时间显示
+- **API**: 
+  - `PATCH /api/stores/:id` - 商户更新门店信息（需owner权限验证）
+- **数据模型扩展** (stores表):
+  - industryType: 行业类型 (food/retail/service/entertainment)
+  - businessStatus: 营业状态 (open/closed/temporarily_closed)
+  - businessHours: JSON格式营业时间
+  - coverImages: 封面图片数组
+  - descriptionZh/En/Th: 多语言描述
+  - deliveryTime/pickupTime: 配送/自取时间
+  - serviceScores: JSON格式服务评分（taste/service/environment）
