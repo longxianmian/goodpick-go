@@ -349,7 +349,7 @@ export default function ArticleDetail() {
               className="h-7 px-4 text-xs font-medium bg-[#38B03B] hover:bg-[#2d8f2f]"
               data-testid="button-follow"
             >
-              {t('user.follow') || '关注'}
+              {t('article.follow')}
             </Button>
             <Button variant="ghost" size="icon" data-testid="button-more">
               <MoreHorizontal className="w-5 h-5" />
@@ -372,14 +372,13 @@ export default function ArticleDetail() {
                   key={idx} 
                   className="flex-shrink-0 w-full snap-center"
                 >
-                  <div className="min-h-[300px] max-h-[70vh] flex items-center justify-center bg-black">
-                    <img
-                      src={url}
-                      alt={`${t('feed.article')} ${idx + 1}`}
-                      className="w-full h-auto max-h-[70vh] object-contain"
-                      loading={idx === 0 ? 'eager' : 'lazy'}
-                    />
-                  </div>
+                  <img
+                    src={url}
+                    alt={`${t('feed.article')} ${idx + 1}`}
+                    className="w-full h-auto"
+                    style={{ maxHeight: '70vh', objectFit: 'contain' }}
+                    loading={idx === 0 ? 'eager' : 'lazy'}
+                  />
                 </div>
               ))}
             </div>

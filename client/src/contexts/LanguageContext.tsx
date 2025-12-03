@@ -716,6 +716,8 @@ const translations: Record<Language, Record<string, string>> = {
     'article.comment': '评论',
     'article.bookmarked': '已收藏',
     'article.unbookmarked': '已取消收藏',
+    'article.follow': '关注',
+    'article.share': '分享',
     
     // 时间
     'time.justNow': '刚刚',
@@ -2165,6 +2167,8 @@ const translations: Record<Language, Record<string, string>> = {
     'article.comment': 'Comment',
     'article.bookmarked': 'Saved',
     'article.unbookmarked': 'Removed from saved',
+    'article.follow': 'Follow',
+    'article.share': 'Share',
     
     // Time
     'time.justNow': 'just now',
@@ -3452,6 +3456,8 @@ const translations: Record<Language, Record<string, string>> = {
     'article.comment': 'ความคิดเห็น',
     'article.bookmarked': 'บันทึกแล้ว',
     'article.unbookmarked': 'ยกเลิกการบันทึก',
+    'article.follow': 'ติดตาม',
+    'article.share': 'แชร์',
     
     // Time
     'time.justNow': 'เมื่อกี้',
@@ -4285,6 +4291,8 @@ const translations: Record<Language, Record<string, string>> = {
     'article.comment': 'Komentar',
     'article.bookmarked': 'Tersimpan',
     'article.unbookmarked': 'Dihapus dari simpanan',
+    'article.follow': 'Ikuti',
+    'article.share': 'Bagikan',
     
     // Time
     'time.justNow': 'baru saja',
@@ -4845,6 +4853,8 @@ const translations: Record<Language, Record<string, string>> = {
     'article.comment': 'Bình luận',
     'article.bookmarked': 'Đã lưu',
     'article.unbookmarked': 'Đã bỏ lưu',
+    'article.follow': 'Theo dõi',
+    'article.share': 'Chia sẻ',
     
     // Time
     'time.justNow': 'vừa xong',
@@ -5405,6 +5415,8 @@ const translations: Record<Language, Record<string, string>> = {
     'article.comment': 'မှတ်ချက်',
     'article.bookmarked': 'သိမ်းပြီးပါပြီ',
     'article.unbookmarked': 'သိမ်းဆည်းမှုဖြုတ်ပြီး',
+    'article.follow': 'စောင့်ကြည့်',
+    'article.share': 'မျှဝေ',
     
     // Time
     'time.justNow': 'ယခုလေးတင်',
