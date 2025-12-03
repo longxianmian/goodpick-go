@@ -195,6 +195,7 @@ function Router() {
       {/* 商户端 */}
       <Route path="/merchant" component={MerchantHome} />
       <Route path="/merchant/operations" component={MerchantOperations} />
+      <Route path="/merchant/me" component={MeOwner} />
       {/* 支付页面 */}
       <Route path="/pay/:id/success" component={PaymentSuccess} />
       <Route path="/pay/:id" component={PaymentPage} />

@@ -563,6 +563,8 @@ const translations: Record<Language, Record<string, string>> = {
     // 商户端
     'merchant.home': '商户首页',
     'merchant.operations': '运营中心',
+    'merchant.operationsCenter': '运营中心',
+    'merchant.me': '我的',
     'merchant.loginRequired': '请先登录',
     'merchant.loginRequiredDesc': '登录后查看您的商户信息',
     'merchant.noStores': '暂无门店',
@@ -2014,6 +2016,8 @@ const translations: Record<Language, Record<string, string>> = {
     // Merchant
     'merchant.home': 'Merchant Home',
     'merchant.operations': 'Operations',
+    'merchant.operationsCenter': 'Operations Center',
+    'merchant.me': 'Me',
     'merchant.loginRequired': 'Login Required',
     'merchant.loginRequiredDesc': 'Log in to view your merchant info',
     'merchant.noStores': 'No Stores',
@@ -3306,6 +3310,8 @@ const translations: Record<Language, Record<string, string>> = {
     // Merchant
     'merchant.home': 'หน้าร้านค้า',
     'merchant.operations': 'ศูนย์ดำเนินการ',
+    'merchant.operationsCenter': 'ศูนย์ดำเนินการ',
+    'merchant.me': 'ของฉัน',
     'merchant.loginRequired': 'กรุณาเข้าสู่ระบบ',
     'merchant.loginRequiredDesc': 'เข้าสู่ระบบเพื่อดูข้อมูลร้านค้า',
     'merchant.noStores': 'ไม่มีร้านค้า',
@@ -4656,6 +4662,8 @@ const translations: Record<Language, Record<string, string>> = {
     // 商户端
     'merchant.home': 'Beranda Merchant',
     'merchant.operations': 'Pusat Operasi',
+    'merchant.operationsCenter': 'Pusat Operasi',
+    'merchant.me': 'Saya',
     'merchant.myStores': 'Toko Saya',
     'merchant.noStores': 'Belum ada toko',
     'merchant.createStore': 'Buat Toko',
@@ -5218,6 +5226,8 @@ const translations: Record<Language, Record<string, string>> = {
     // 商户端
     'merchant.home': 'Trang chủ thương gia',
     'merchant.operations': 'Trung tâm vận hành',
+    'merchant.operationsCenter': 'Trung tâm vận hành',
+    'merchant.me': 'Của tôi',
     'merchant.myStores': 'Cửa hàng của tôi',
     'merchant.noStores': 'Chưa có cửa hàng',
     'merchant.createStore': 'Tạo cửa hàng',
@@ -5780,6 +5790,8 @@ const translations: Record<Language, Record<string, string>> = {
     // 商户端
     'merchant.home': 'ကုန်သည်မူလ',
     'merchant.operations': 'လုပ်ငန်းစင်တာ',
+    'merchant.operationsCenter': 'လုပ်ငန်းစင်တာ',
+    'merchant.me': 'ကျွန်ုပ်',
     'merchant.myStores': 'ကျွန်ုပ်ဆိုင်များ',
     'merchant.noStores': 'ဆိုင်မရှိသေး',
     'merchant.createStore': 'ဆိုင်ဖန်တီး',

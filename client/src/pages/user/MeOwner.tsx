@@ -15,7 +15,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RoleAwareBottomNav } from '@/components/RoleAwareBottomNav';
+import { MerchantBottomNav } from '@/components/MerchantBottomNav';
 import { DrawerMenu } from '@/components/DrawerMenu';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -232,7 +232,7 @@ export default function MeOwner() {
         </Card>
       </main>
 
-      <RoleAwareBottomNav forceRole="owner" />
+      <MerchantBottomNav />
       <DrawerMenu open={drawerOpen} onOpenChange={setDrawerOpen} />
     </div>
   );

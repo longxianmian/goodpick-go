@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { Home, Settings } from 'lucide-react';
+import { Home, Settings, User } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export function MerchantBottomNav() {
@@ -8,7 +8,8 @@ export function MerchantBottomNav() {
 
   const navItems = [
     { href: '/merchant', icon: Home, label: t('merchant.home') },
-    { href: '/merchant/operations', icon: Settings, label: t('merchant.operations') },
+    { href: '/merchant/operations', icon: Settings, label: t('merchant.operationsCenter') },
+    { href: '/merchant/me', icon: User, label: t('merchant.me') },
   ];
 
   return (
