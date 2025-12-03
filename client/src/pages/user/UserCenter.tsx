@@ -8,7 +8,14 @@ import {
   Receipt,
   Coins,
   Wallet,
-  Menu
+  Menu,
+  User,
+  Zap,
+  Store,
+  BadgeCheck,
+  Cog,
+  Crown,
+  Shield
 } from 'lucide-react';
 import { SiLine, SiGoogle, SiApple } from 'react-icons/si';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,21 +28,47 @@ import { DrawerMenu } from '@/components/DrawerMenu';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
 
 type TabType = "cart" | "orders" | "points" | "wallet";
 type IdentityType = "shua" | "discover";
 
 export default function UserCenter() {
   const { t } = useLanguage();
-  const { user, authPhase, userToken, logoutUser } = useAuth();
+  const { user, authPhase, userToken, logoutUser, setActiveRole, activeRole } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [tab, setTab] = useState<TabType>("cart");
   const [identity, setIdentity] = useState<IdentityType>("shua");
+  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   
   const isLoggedIn = !!userToken && !!user;
+  const isTestAccount = user?.isTestAccount === true;
+  
+  const allRoleOptions = [
+    { role: 'consumer', label: t('roles.consumer'), icon: User, path: '/me', color: 'text-blue-500' },
+    { role: 'creator', label: t('roles.creator'), icon: Zap, path: '/creator/me', color: 'text-pink-500' },
+    { role: 'owner', label: t('roles.owner'), icon: Store, path: '/merchant', color: 'text-orange-500' },
+    { role: 'operator', label: t('roles.operator'), icon: Cog, path: '/merchant', color: 'text-purple-500' },
+    { role: 'verifier', label: t('roles.verifier'), icon: BadgeCheck, path: '/verifier', color: 'text-green-500' },
+    { role: 'member', label: t('roles.member'), icon: Crown, path: '/me', color: 'text-yellow-500' },
+    { role: 'sysadmin', label: t('roles.sysadmin'), icon: Shield, path: '/sysadmin', color: 'text-red-500' },
+  ];
+
+  const handleSwitchRole = (role: string, path: string) => {
+    setActiveRole(role as any);
+    setRoleMenuOpen(false);
+    navigate(path);
+  };
 
   const handleLineLogin = async () => {
     setIsLoggingIn(true);
@@ -351,16 +384,55 @@ export default function UserCenter() {
                     <div className="text-sm font-medium cursor-pointer" data-testid="text-user-name">
                       {user?.displayName || 'User'}
                     </div>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="h-6 px-2 text-[11px] gap-1"
-                      onClick={() => setIdentity((prev) => (prev === "shua" ? "discover" : "shua"))}
-                      data-testid="button-switch-identity"
-                    >
-                      <span>{identity === "shua" ? t('consumer.shuaId') : t('consumer.discoverId')}</span>
-                      <ChevronDown className="w-3 h-3" />
-                    </Button>
+                    {isTestAccount ? (
+                      <DropdownMenu open={roleMenuOpen} onOpenChange={setRoleMenuOpen}>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="h-6 px-2 text-[11px] gap-1"
+                            data-testid="button-switch-role"
+                          >
+                            <span>{allRoleOptions.find(r => r.role === activeRole)?.label || t('roles.consumer')}</span>
+                            <ChevronDown className="w-3 h-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-48">
+                          <DropdownMenuLabel className="text-xs text-muted-foreground">
+                            {t('common.switchRole')}
+                          </DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {allRoleOptions.map((option) => {
+                            const IconComponent = option.icon;
+                            return (
+                              <DropdownMenuItem
+                                key={option.role}
+                                onClick={() => handleSwitchRole(option.role, option.path)}
+                                className={`gap-2 cursor-pointer ${activeRole === option.role ? 'bg-accent' : ''}`}
+                                data-testid={`menu-role-${option.role}`}
+                              >
+                                <IconComponent className={`w-4 h-4 ${option.color}`} />
+                                <span>{option.label}</span>
+                                {activeRole === option.role && (
+                                  <Badge variant="outline" className="ml-auto text-[10px]">{t('common.current')}</Badge>
+                                )}
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="h-6 px-2 text-[11px] gap-1"
+                        onClick={() => setIdentity((prev) => (prev === "shua" ? "discover" : "shua"))}
+                        data-testid="button-switch-identity"
+                      >
+                        <span>{identity === "shua" ? t('consumer.shuaId') : t('consumer.discoverId')}</span>
+                        <ChevronDown className="w-3 h-3" />
+                      </Button>
+                    )}
                   </div>
                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                     <Badge variant="outline" className="text-[10px] gap-1">
@@ -368,6 +440,12 @@ export default function UserCenter() {
                       {t('drawer.lineBound')}
                     </Badge>
                     <Badge variant="outline" className="text-[10px]">{t('consumer.verified')}</Badge>
+                    {isTestAccount && (
+                      <Badge variant="secondary" className="text-[10px] gap-1 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                        <Shield className="w-3 h-3" />
+                        {t('roles.testAccount')}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>

@@ -37,6 +37,7 @@ const translations: Record<Language, Record<string, string>> = {
     'roles.verifier': '核销号',
     'roles.member': '会员号',
     'roles.sysadmin': '管理员',
+    'roles.testAccount': '测试账号',
     
     // 设置页面
     'settings.title': '设置',
@@ -1623,6 +1624,7 @@ const translations: Record<Language, Record<string, string>> = {
     'roles.verifier': 'Verifier',
     'roles.member': 'Member',
     'roles.sysadmin': 'Admin',
+    'roles.testAccount': 'Test Account',
     
     // Settings page
     'settings.title': 'Settings',
@@ -3208,6 +3210,7 @@ const translations: Record<Language, Record<string, string>> = {
     'roles.verifier': 'ผู้ตรวจสอบ',
     'roles.member': 'สมาชิก',
     'roles.sysadmin': 'แอดมิน',
+    'roles.testAccount': 'บัญชีทดสอบ',
     
     // หน้าตั้งค่า
     'settings.title': 'ตั้งค่า',
@@ -4579,6 +4582,7 @@ const translations: Record<Language, Record<string, string>> = {
     'roles.verifier': 'Verifikator',
     'roles.member': 'Anggota',
     'roles.sysadmin': 'Admin',
+    'roles.testAccount': 'Akun Uji Coba',
     
     // Halaman pengaturan
     'settings.title': 'Pengaturan',
@@ -5167,6 +5171,7 @@ const translations: Record<Language, Record<string, string>> = {
     'roles.verifier': 'Xác minh',
     'roles.member': 'Thành viên',
     'roles.sysadmin': 'Quản trị',
+    'roles.testAccount': 'Tài khoản thử nghiệm',
     
     // Trang cài đặt
     'settings.title': 'Cài đặt',
@@ -5755,6 +5760,7 @@ const translations: Record<Language, Record<string, string>> = {
     'roles.verifier': 'အတည်ပြုသူ',
     'roles.member': 'အဖွဲ့ဝင်',
     'roles.sysadmin': 'စီမံခန့်ခွဲသူ',
+    'roles.testAccount': 'စမ်းသပ်အကောင့်',
     
     // ဆက်တင်စာမျက်နှာ
     'settings.title': 'ဆက်တင်',
