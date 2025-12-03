@@ -129,7 +129,7 @@ export default function MerchantStoreSettings() {
               <Store className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="font-medium mb-2">{t('merchant.noStore')}</h3>
               <p className="text-sm text-muted-foreground mb-4">{t('merchant.noStoreDesc')}</p>
-              <Button onClick={handleComingSoon} data-testid="button-create-store">
+              <Button onClick={() => navigate('/merchant/store-create')} data-testid="button-create-store">
                 <Plus className="w-4 h-4 mr-2" />
                 {t('merchant.createStore')}
               </Button>

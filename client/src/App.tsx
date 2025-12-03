@@ -46,6 +46,7 @@ import MerchantHome from "@/pages/merchant/MerchantHome";
 import MerchantOperations from "@/pages/merchant/MerchantOperations";
 import MerchantStoreSettings from "@/pages/merchant/MerchantStoreSettings";
 import MerchantStoreEdit from "@/pages/merchant/MerchantStoreEdit";
+import MerchantStoreCreate from "@/pages/merchant/MerchantStoreCreate";
 import StoreFront from "@/pages/user/StoreFront";
 import AdminPaymentSettings from "@/pages/admin/AdminPaymentSettings";
 import PaymentPage from "@/pages/user/PaymentPage";
@@ -198,6 +199,7 @@ function Router() {
       <Route path="/merchant" component={MerchantHome} />
       <Route path="/merchant/operations" component={MerchantOperations} />
       <Route path="/merchant/store-settings" component={MerchantStoreSettings} />
+      <Route path="/merchant/store-create" component={MerchantStoreCreate} />
       <Route path="/merchant/store-edit/:id" component={MerchantStoreEdit} />
       <Route path="/merchant/me" component={MeOwner} />
       {/* 支付页面 */}

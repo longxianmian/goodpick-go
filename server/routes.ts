@@ -3504,6 +3504,80 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Merchant: Create new store
+  app.post('/api/stores', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ success: false, message: '未登录' });
+      }
+
+      const {
+        name,
+        brand,
+        city,
+        address,
+        phone,
+        descriptionZh,
+        descriptionEn,
+        descriptionTh,
+        industryType,
+        businessHours,
+        coverImages,
+        deliveryTime,
+        pickupTime,
+      } = req.body;
+
+      // Validate required fields
+      if (!name || !city || !address) {
+        return res.status(400).json({ 
+          success: false, 
+          message: '店铺名称、城市和地址是必填项' 
+        });
+      }
+
+      // Create store
+      const [newStore] = await db
+        .insert(stores)
+        .values({
+          name,
+          brand: brand || null,
+          city,
+          address,
+          phone: phone || null,
+          descriptionZh: descriptionZh || null,
+          descriptionEn: descriptionEn || null,
+          descriptionTh: descriptionTh || null,
+          industryType: industryType || 'food',
+          businessStatus: 'open',
+          businessHours: businessHours || null,
+          coverImages: coverImages || null,
+          deliveryTime: deliveryTime || null,
+          pickupTime: pickupTime || null,
+          isActive: true,
+        })
+        .returning();
+
+      // Create owner role for this user
+      await db.insert(merchantStaffRoles).values({
+        userId,
+        storeId: newStore.id,
+        role: 'owner',
+        isActive: true,
+      });
+
+      res.json({ 
+        success: true, 
+        data: newStore,
+        message: '门店创建成功'
+      });
+    } catch (error) {
+      console.error('Create store error:', error);
+      res.status(500).json({ success: false, message: '创建门店失败' });
+    }
+  });
+
   // Merchant: Update store details
   app.patch('/api/stores/:id', userAuthMiddleware, async (req: Request, res: Response) => {
     try {
