@@ -18,14 +18,12 @@ export function VerticalSwiper({
   const containerRef = useRef<HTMLDivElement>(null);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchMove, setTouchMove] = useState<number | null>(null);
-  const [translateY, setTranslateY] = useState(0);
+  const [dragOffset, setDragOffset] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
 
   const threshold = 80;
-
-  useEffect(() => {
-    setTranslateY(-currentIndex * 100);
-  }, [currentIndex]);
+  const baseTranslateY = -currentIndex * (100 / children.length);
+  const translateY = baseTranslateY + dragOffset;
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (isAnimating) return;
@@ -44,18 +42,19 @@ export function VerticalSwiper({
     if (!container) return;
 
     const containerHeight = container.clientHeight;
-    const movePercent = (diff / containerHeight) * 100;
+    const movePercent = (diff / containerHeight) * (100 / children.length);
     
     const dampingFactor = 0.3;
     const dampedMove = movePercent * dampingFactor;
     
-    setTranslateY(-currentIndex * 100 + dampedMove);
-  }, [touchStart, currentIndex, isAnimating]);
+    setDragOffset(dampedMove);
+  }, [touchStart, isAnimating, children.length]);
 
   const handleTouchEnd = useCallback(() => {
     if (touchStart === null || touchMove === null || isAnimating) {
       setTouchStart(null);
       setTouchMove(null);
+      setDragOffset(0);
       return;
     }
 
@@ -65,11 +64,12 @@ export function VerticalSwiper({
     if (!container) {
       setTouchStart(null);
       setTouchMove(null);
-      setTranslateY(-currentIndex * 100);
+      setDragOffset(0);
       return;
     }
 
     setIsAnimating(true);
+    setDragOffset(0);
 
     if (Math.abs(diff) > threshold) {
       if (diff < 0 && currentIndex < children.length - 1) {
@@ -79,11 +79,7 @@ export function VerticalSwiper({
         }
       } else if (diff > 0 && currentIndex > 0) {
         onIndexChange(currentIndex - 1);
-      } else {
-        setTranslateY(-currentIndex * 100);
       }
-    } else {
-      setTranslateY(-currentIndex * 100);
     }
 
     setTimeout(() => {
@@ -163,16 +159,17 @@ export function VerticalSwiper({
       data-testid="vertical-swiper"
     >
       <div
-        className="h-full w-full transition-transform duration-300 ease-out"
+        className="h-full w-full"
         style={{
           transform: `translateY(${translateY}%)`,
           height: `${children.length * 100}%`,
+          transition: isAnimating ? 'transform 300ms ease-out' : 'none',
         }}
       >
         {children.map((child, index) => (
           <div
             key={index}
-            className="w-full"
+            className="w-full h-full"
             style={{ height: `${100 / children.length}%` }}
             data-testid={`swiper-slide-${index}`}
           >

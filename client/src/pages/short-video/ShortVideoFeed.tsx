@@ -30,12 +30,12 @@ export default function ShortVideoFeed() {
   const videoId = params?.id ? parseInt(params.id) : null;
   const { toast } = useToast();
   const { isUserAuthenticated, user } = useAuth();
-  
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [allVideos, setAllVideos] = useState<FeedItem[]>([]);
   const [cursor, setCursor] = useState<number | null>(0);
   const [hasMore, setHasMore] = useState(true);
-  const [initialIndexSet, setInitialIndexSet] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   const { data, isLoading, isError, error } = useQuery<FeedResponse>({
     queryKey: ['/api/short-videos/feed'],
@@ -43,20 +43,21 @@ export default function ShortVideoFeed() {
   });
 
   useEffect(() => {
-    if (data?.success && data.data.items.length > 0) {
-      setAllVideos(data.data.items);
+    if (data?.success && data.data.items.length > 0 && !isReady) {
+      const items = data.data.items;
+      setAllVideos(items);
       setCursor(data.data.nextCursor);
       setHasMore(data.data.hasMore);
       
-      if (videoId && !initialIndexSet) {
-        const index = data.data.items.findIndex(v => v.id === videoId);
+      if (videoId) {
+        const index = items.findIndex(v => v.id === videoId);
         if (index >= 0) {
           setCurrentIndex(index);
         }
-        setInitialIndexSet(true);
       }
+      setIsReady(true);
     }
-  }, [data, videoId, initialIndexSet]);
+  }, [data, videoId, isReady]);
 
   const loadMore = useCallback(async () => {
     if (!hasMore || cursor === null) return;
@@ -138,7 +139,7 @@ export default function ShortVideoFeed() {
     loadMore();
   }, [loadMore]);
 
-  if (isLoading) {
+  if (isLoading || !isReady) {
     return (
       <div className="h-screen w-full bg-black flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-white animate-spin" />

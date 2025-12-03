@@ -50,9 +50,11 @@ export function VideoCard({
   const [isMuted, setIsMuted] = useState(true);
   const [progress, setProgress] = useState(0);
   const [showPlayButton, setShowPlayButton] = useState(true);
+  const [videoLoaded, setVideoLoaded] = useState(false);
+  const [videoError, setVideoError] = useState(false);
   const [liked, setLiked] = useState(video.isLiked ?? false);
   const [likeCount, setLikeCount] = useState(video.likeCount);
-
+  
   useEffect(() => {
     const videoEl = videoRef.current;
     if (!videoEl) return;
@@ -72,6 +74,16 @@ export function VideoCard({
       setProgress(0);
     }
   }, [isActive]);
+
+  const handleVideoLoaded = useCallback(() => {
+    setVideoLoaded(true);
+    setVideoError(false);
+  }, []);
+
+  const handleVideoError = useCallback(() => {
+    setVideoError(true);
+    setShowPlayButton(true);
+  }, []);
 
   const togglePlay = useCallback(() => {
     const videoEl = videoRef.current;
@@ -123,21 +135,35 @@ export function VideoCard({
 
   return (
     <div className="relative h-full w-full bg-black" onClick={togglePlay}>
+      {video.coverImageUrl && (
+        <img
+          src={video.coverImageUrl}
+          alt={video.title || 'Video cover'}
+          className={`absolute inset-0 h-full w-full object-contain z-0 transition-opacity duration-300 ${
+            videoLoaded && isPlaying ? 'opacity-0' : 'opacity-100'
+          }`}
+        />
+      )}
+      
       <video
         ref={videoRef}
         src={video.videoUrl}
         poster={video.coverImageUrl || undefined}
-        className="h-full w-full object-contain"
+        className={`absolute inset-0 h-full w-full object-contain z-10 ${
+          videoLoaded ? 'opacity-100' : 'opacity-0'
+        }`}
         loop
         muted={isMuted}
         playsInline
         preload="auto"
         onTimeUpdate={handleTimeUpdate}
+        onLoadedData={handleVideoLoaded}
+        onError={handleVideoError}
         data-testid={`video-player-${video.id}`}
       />
 
-      {showPlayButton && !isPlaying && (
-        <div className="absolute inset-0 flex items-center justify-center">
+      {(showPlayButton && !isPlaying) && (
+        <div className="absolute inset-0 flex items-center justify-center z-20">
           <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
             <Play className="w-8 h-8 text-white fill-white" />
           </div>
@@ -145,7 +171,7 @@ export function VideoCard({
       )}
 
       {isPlaying && (
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-30">
           <div 
             className="h-full bg-white transition-all duration-100"
             style={{ width: `${progress}%` }}
@@ -153,7 +179,7 @@ export function VideoCard({
         </div>
       )}
 
-      <div className="absolute bottom-20 left-4 right-16 text-white">
+      <div className="absolute bottom-20 left-4 right-16 text-white z-30">
         <div 
           className="flex items-center gap-3 mb-3"
           onClick={(e) => {
@@ -200,7 +226,7 @@ export function VideoCard({
         )}
       </div>
 
-      <div className="absolute right-3 bottom-24 flex flex-col items-center gap-5">
+      <div className="absolute right-3 bottom-24 flex flex-col items-center gap-5 z-30">
         <button
           className="flex flex-col items-center gap-1"
           onClick={handleLike}
