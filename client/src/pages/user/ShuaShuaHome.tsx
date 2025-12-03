@@ -1,19 +1,21 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { Search, Heart, Play, Video, Eye } from 'lucide-react';
+import { Search, Heart, Play, Video, Eye, Image } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserBottomNav } from '@/components/UserBottomNav';
 import { DrawerMenu } from '@/components/DrawerMenu';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-interface ShortVideoItem {
+interface FeedItem {
   id: number;
-  videoUrl: string;
+  contentType: 'video' | 'article';  // 内容类型
+  videoUrl?: string | null;
   hlsUrl?: string;
   coverImageUrl?: string;
   thumbnailUrl?: string;
+  mediaUrls?: string[] | null;  // 图文的多张图片
   title?: string;
   description?: string;
   duration?: number;
@@ -30,7 +32,7 @@ interface ShortVideoItem {
 interface FeedResponse {
   success: boolean;
   data: {
-    items: ShortVideoItem[];
+    items: FeedItem[];
     nextCursor: number | null;
     hasMore: boolean;
   };
@@ -65,11 +67,13 @@ function MenuIcon({ onClick }: { onClick: () => void }) {
   );
 }
 
-function VideoCard({ video, index }: { video: ShortVideoItem; index: number }) {
+function FeedItemCard({ item, index }: { item: FeedItem; index: number }) {
   const { t } = useLanguage();
-  const [liked, setLiked] = useState(video.isLiked || false);
+  const [liked, setLiked] = useState(item.isLiked || false);
   
   const gradientClass = GRADIENT_COLORS[index % GRADIENT_COLORS.length];
+  const isArticle = item.contentType === 'article';
+  const imageCount = item.mediaUrls?.length || 0;
 
   const handleLike = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -94,39 +98,57 @@ function VideoCard({ video, index }: { video: ShortVideoItem; index: number }) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const coverImage = item.coverImageUrl || item.thumbnailUrl || (item.mediaUrls?.[0]);
+
   return (
-    <Link href={`/videos/${video.id}`}>
+    <Link href={isArticle ? `/articles/${item.id}` : `/videos/${item.id}`}>
       <div 
         className="bg-card rounded-xl overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-shadow duration-200"
         style={{ aspectRatio: '1 / 1.618' }}
-        data-testid={`card-video-${video.id}`}
+        data-testid={`card-${isArticle ? 'article' : 'video'}-${item.id}`}
       >
         <div className="relative w-full h-[65%] overflow-hidden">
-          {video.coverImageUrl || video.thumbnailUrl ? (
+          {coverImage ? (
             <>
               <img 
-                src={video.coverImageUrl || video.thumbnailUrl} 
-                alt={video.title || t('feed.video')} 
+                src={coverImage} 
+                alt={item.title || (isArticle ? t('feed.article') : t('feed.video'))} 
                 className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center">
-                  <Play className="w-5 h-5 text-foreground ml-0.5" fill="currentColor" />
+              {isArticle ? (
+                <div className="absolute top-1.5 right-1.5 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                  <Image className="w-2.5 h-2.5" />
+                  <span>{imageCount}</span>
                 </div>
-              </div>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                  <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center">
+                    <Play className="w-5 h-5 text-foreground ml-0.5" fill="currentColor" />
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className={`w-full h-full bg-gradient-to-br ${gradientClass} flex items-center justify-center`}>
               <div className="text-center text-white/90">
-                <Video className="w-6 h-6 mx-auto mb-1 opacity-80" />
-                <span className="text-[10px] font-medium opacity-70">{t('feed.video')}</span>
+                {isArticle ? (
+                  <>
+                    <Image className="w-6 h-6 mx-auto mb-1 opacity-80" />
+                    <span className="text-[10px] font-medium opacity-70">{t('feed.article')}</span>
+                  </>
+                ) : (
+                  <>
+                    <Video className="w-6 h-6 mx-auto mb-1 opacity-80" />
+                    <span className="text-[10px] font-medium opacity-70">{t('feed.video')}</span>
+                  </>
+                )}
               </div>
             </div>
           )}
           
-          {video.duration && (
+          {!isArticle && item.duration && (
             <div className="absolute bottom-1.5 right-1.5 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded">
-              {formatDuration(video.duration)}
+              {formatDuration(item.duration)}
             </div>
           )}
         </div>
@@ -134,36 +156,36 @@ function VideoCard({ video, index }: { video: ShortVideoItem; index: number }) {
         <div className="h-[35%] p-2 flex flex-col justify-between">
           <h3 
             className="text-xs font-medium line-clamp-2 leading-tight"
-            data-testid={`text-title-${video.id}`}
+            data-testid={`text-title-${item.id}`}
           >
-            {video.title || t('feed.untitled')}
+            {item.title || t('feed.untitled')}
           </h3>
 
           <div className="flex items-center justify-between gap-1">
             <div className="flex items-center gap-1.5 min-w-0 flex-1">
               <Avatar className="w-4 h-4 flex-shrink-0">
-                <AvatarImage src={video.creatorAvatar} />
+                <AvatarImage src={item.creatorAvatar} />
                 <AvatarFallback className="text-[8px] bg-muted">
-                  {(video.creatorName || 'U').charAt(0).toUpperCase()}
+                  {(item.creatorName || 'U').charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <span className="text-[10px] text-muted-foreground truncate">
-                {video.creatorName || t('feed.anonymousUser')}
+                {item.creatorName || t('feed.anonymousUser')}
               </span>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground">
                 <Eye className="w-3 h-3" />
-                {formatNumber(video.viewCount)}
+                {formatNumber(item.viewCount)}
               </span>
               <button
                 onClick={handleLike}
                 className="flex items-center gap-0.5 text-[9px] text-muted-foreground"
-                data-testid={`button-like-${video.id}`}
+                data-testid={`button-like-${item.id}`}
               >
                 <Heart className={`w-3 h-3 ${liked ? 'fill-red-500 text-red-500' : ''}`} />
-                <span className={liked ? 'text-red-500' : ''}>{formatNumber(video.likeCount + (liked ? 1 : 0))}</span>
+                <span className={liked ? 'text-red-500' : ''}>{formatNumber(item.likeCount + (liked ? 1 : 0))}</span>
               </button>
             </div>
           </div>
@@ -218,7 +240,7 @@ export default function ShuaShuaHome() {
     },
   });
 
-  const videos = feedData?.data?.items || [];
+  const feedItems = feedData?.data?.items || [];
 
   const feedTabLabels: Record<FeedTabType, string> = {
     recommend: t('feed.tabRecommend'),
@@ -299,7 +321,7 @@ export default function ShuaShuaHome() {
               <ContentSkeleton key={i} />
             ))}
           </div>
-        ) : videos.length === 0 ? (
+        ) : feedItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center mb-4">
               <Video className="w-10 h-10 text-primary/60" />
@@ -309,8 +331,8 @@ export default function ShuaShuaHome() {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
-            {videos.map((video, index) => (
-              <VideoCard key={video.id} video={video} index={index} />
+            {feedItems.map((item, index) => (
+              <FeedItemCard key={item.id} item={item} index={index} />
             ))}
           </div>
         )}
