@@ -3612,15 +3612,15 @@ export function registerRoutes(app: Express): Server {
         city,
         address,
         phone,
-        descriptionZh,
-        descriptionEn,
-        descriptionTh,
+        description,
         industryType,
         businessStatus,
         businessHours,
         coverImages,
         deliveryTime,
         pickupTime,
+        businessLicenseUrl,
+        foodLicenseUrl,
       } = req.body;
 
       const updateData: any = { updatedAt: new Date() };
@@ -3630,15 +3630,27 @@ export function registerRoutes(app: Express): Server {
       if (city !== undefined) updateData.city = city;
       if (address !== undefined) updateData.address = address;
       if (phone !== undefined) updateData.phone = phone;
-      if (descriptionZh !== undefined) updateData.descriptionZh = descriptionZh;
-      if (descriptionEn !== undefined) updateData.descriptionEn = descriptionEn;
-      if (descriptionTh !== undefined) updateData.descriptionTh = descriptionTh;
+      
+      // 自动翻译描述到多语言
+      if (description !== undefined && description.trim()) {
+        updateData.descriptionZh = description;
+        // 异步翻译其他语言（不阻塞主流程）
+        translateText(description, 'zh-cn', 'en-us').then(enText => {
+          db.update(stores).set({ descriptionEn: enText }).where(eq(stores.id, storeId)).execute();
+        }).catch(err => console.error('Auto-translate EN failed:', err));
+        translateText(description, 'zh-cn', 'th-th').then(thText => {
+          db.update(stores).set({ descriptionTh: thText }).where(eq(stores.id, storeId)).execute();
+        }).catch(err => console.error('Auto-translate TH failed:', err));
+      }
+      
       if (industryType !== undefined) updateData.industryType = industryType;
       if (businessStatus !== undefined) updateData.businessStatus = businessStatus;
       if (businessHours !== undefined) updateData.businessHours = businessHours;
       if (coverImages !== undefined) updateData.coverImages = coverImages;
       if (deliveryTime !== undefined) updateData.deliveryTime = deliveryTime;
       if (pickupTime !== undefined) updateData.pickupTime = pickupTime;
+      if (businessLicenseUrl !== undefined) updateData.businessLicenseUrl = businessLicenseUrl;
+      if (foodLicenseUrl !== undefined) updateData.foodLicenseUrl = foodLicenseUrl;
 
       const [updatedStore] = await db
         .update(stores)

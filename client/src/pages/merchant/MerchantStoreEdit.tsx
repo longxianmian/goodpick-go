@@ -42,9 +42,7 @@ interface StoreFormData {
   city: string;
   address: string;
   phone: string;
-  descriptionZh: string;
-  descriptionEn: string;
-  descriptionTh: string;
+  description: string;
   industryType: 'food' | 'retail' | 'service' | 'entertainment';
   businessStatus: 'open' | 'closed' | 'temporarily_closed';
   businessHours: BusinessHours;
@@ -80,9 +78,7 @@ export default function MerchantStoreEdit() {
     city: '',
     address: '',
     phone: '',
-    descriptionZh: '',
-    descriptionEn: '',
-    descriptionTh: '',
+    description: '',
     industryType: 'food',
     businessStatus: 'open',
     businessHours: defaultBusinessHours,
@@ -116,9 +112,7 @@ export default function MerchantStoreEdit() {
         city: store.city || '',
         address: store.address || '',
         phone: store.phone || '',
-        descriptionZh: store.descriptionZh || '',
-        descriptionEn: store.descriptionEn || '',
-        descriptionTh: store.descriptionTh || '',
+        description: store.descriptionZh || store.descriptionEn || '',
         industryType: (store.industryType as StoreFormData['industryType']) || 'food',
         businessStatus: (store.businessStatus as StoreFormData['businessStatus']) || 'open',
         businessHours: parsedBusinessHours,
@@ -407,39 +401,17 @@ export default function MerchantStoreEdit() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="descriptionZh">{t('merchant.descriptionZh')}</Label>
                   <Textarea 
-                    id="descriptionZh"
-                    value={formData.descriptionZh}
-                    onChange={(e) => handleInputChange('descriptionZh', e.target.value)}
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => handleInputChange('description', e.target.value)}
                     placeholder={t('merchant.descriptionPlaceholder')}
-                    rows={3}
-                    data-testid="input-description-zh"
+                    rows={4}
+                    data-testid="input-description"
                   />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="descriptionEn">{t('merchant.descriptionEn')}</Label>
-                  <Textarea 
-                    id="descriptionEn"
-                    value={formData.descriptionEn}
-                    onChange={(e) => handleInputChange('descriptionEn', e.target.value)}
-                    placeholder={t('merchant.descriptionPlaceholder')}
-                    rows={3}
-                    data-testid="input-description-en"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="descriptionTh">{t('merchant.descriptionTh')}</Label>
-                  <Textarea 
-                    id="descriptionTh"
-                    value={formData.descriptionTh}
-                    onChange={(e) => handleInputChange('descriptionTh', e.target.value)}
-                    placeholder={t('merchant.descriptionPlaceholder')}
-                    rows={3}
-                    data-testid="input-description-th"
-                  />
+                  <p className="text-xs text-muted-foreground">
+                    {t('merchant.autoTranslateHint')}
+                  </p>
                 </div>
               </CardContent>
             </Card>
