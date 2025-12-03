@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { ChevronLeft, ChevronRight, Users, Ticket, BarChart3, Settings, Bell, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Users, Ticket, BarChart3, Settings, Bell, FileText, Package, Tags } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { MerchantBottomNav } from '@/components/MerchantBottomNav';
@@ -77,6 +77,21 @@ export default function MerchantOperations() {
     },
   ];
 
+  const productItems: MenuItem[] = [
+    {
+      icon: Package,
+      label: t('merchant.productManage'),
+      description: t('merchant.productManageDesc'),
+      href: '/merchant/products',
+    },
+    {
+      icon: Tags,
+      label: t('merchant.categoryManage'),
+      description: t('merchant.categoryManageDesc'),
+      href: '/merchant/categories',
+    },
+  ];
+
   const staffItems: MenuItem[] = [
     {
       icon: Users,
@@ -121,6 +136,7 @@ export default function MerchantOperations() {
       </header>
 
       <main className="px-4 py-4 max-w-lg mx-auto">
+        <MenuSection title={t('merchant.productSection')} items={productItems} onItemClick={handleMenuClick} />
         <MenuSection title={t('merchant.campaignSection')} items={campaignItems} onItemClick={handleMenuClick} />
         <MenuSection title={t('merchant.staffSection')} items={staffItems} onItemClick={handleMenuClick} />
         <MenuSection title={t('merchant.settingsSection')} items={settingsItems} onItemClick={handleMenuClick} />
