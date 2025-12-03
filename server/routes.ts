@@ -4425,9 +4425,11 @@ export function registerRoutes(app: Express): Server {
       const [video] = await db
         .select({
           id: shortVideos.id,
+          contentType: shortVideos.contentType,
           videoUrl: shortVideos.videoUrl,
           hlsUrl: shortVideos.hlsUrl,
           coverImageUrl: shortVideos.coverImageUrl,
+          mediaUrls: shortVideos.mediaUrls,
           duration: shortVideos.duration,
           title: shortVideos.title,
           description: shortVideos.description,

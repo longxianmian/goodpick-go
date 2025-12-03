@@ -26,6 +26,8 @@ const translations: Record<Language, Record<string, string>> = {
     'common.success': '成功',
     'common.error': '错误',
     'common.confirm': '确认',
+    'common.back': '返回',
+    'common.share': '分享',
     
     // 角色名称
     'roles.consumer': '个人账号',
@@ -702,6 +704,24 @@ const translations: Record<Language, Record<string, string>> = {
     'feed.lifeShare': '生活分享',
     'feed.anonymousUser': '匿名用户',
     'feed.defaultCity': '曼谷',
+    
+    // 图文详情页
+    'article.views': '阅读',
+    'article.comments': '评论',
+    'article.noComments': '还没有评论，快来抢沙发吧',
+    'article.writeComment': '写评论...',
+    'article.commentSuccess': '评论成功',
+    'article.reply': '回复',
+    'article.collect': '收藏',
+    'article.comment': '评论',
+    'article.bookmarked': '已收藏',
+    'article.unbookmarked': '已取消收藏',
+    
+    // 时间
+    'time.justNow': '刚刚',
+    'time.minutesAgo': '分钟前',
+    'time.hoursAgo': '小时前',
+    'time.daysAgo': '天前',
     
     // 发现页
     'discover.defaultCity': '曼谷',
@@ -1455,6 +1475,8 @@ const translations: Record<Language, Record<string, string>> = {
     'common.success': 'Success',
     'common.error': 'Error',
     'common.confirm': 'Confirm',
+    'common.back': 'Back',
+    'common.share': 'Share',
     
     // Role names
     'roles.consumer': 'Personal',
@@ -2131,6 +2153,24 @@ const translations: Record<Language, Record<string, string>> = {
     'feed.lifeShare': 'Life Share',
     'feed.anonymousUser': 'Anonymous',
     'feed.defaultCity': 'Bangkok',
+    
+    // Article Detail
+    'article.views': 'views',
+    'article.comments': 'Comments',
+    'article.noComments': 'No comments yet, be the first!',
+    'article.writeComment': 'Write a comment...',
+    'article.commentSuccess': 'Comment posted',
+    'article.reply': 'Reply',
+    'article.collect': 'Save',
+    'article.comment': 'Comment',
+    'article.bookmarked': 'Saved',
+    'article.unbookmarked': 'Removed from saved',
+    
+    // Time
+    'time.justNow': 'just now',
+    'time.minutesAgo': ' min ago',
+    'time.hoursAgo': ' hours ago',
+    'time.daysAgo': ' days ago',
     
     // Discover Page
     'discover.defaultCity': 'Bangkok',
@@ -3401,6 +3441,24 @@ const translations: Record<Language, Record<string, string>> = {
     'feed.anonymousUser': 'ไม่ระบุชื่อ',
     'feed.defaultCity': 'กรุงเทพ',
     
+    // Article Detail
+    'article.views': 'อ่าน',
+    'article.comments': 'ความคิดเห็น',
+    'article.noComments': 'ยังไม่มีความคิดเห็น มาเป็นคนแรกสิ!',
+    'article.writeComment': 'เขียนความคิดเห็น...',
+    'article.commentSuccess': 'โพสต์ความคิดเห็นแล้ว',
+    'article.reply': 'ตอบกลับ',
+    'article.collect': 'บันทึก',
+    'article.comment': 'ความคิดเห็น',
+    'article.bookmarked': 'บันทึกแล้ว',
+    'article.unbookmarked': 'ยกเลิกการบันทึก',
+    
+    // Time
+    'time.justNow': 'เมื่อกี้',
+    'time.minutesAgo': ' นาทีที่แล้ว',
+    'time.hoursAgo': ' ชั่วโมงที่แล้ว',
+    'time.daysAgo': ' วันที่แล้ว',
+    
     // Discover Page
     'discover.defaultCity': 'กรุงเทพ',
     'discover.searchPlaceholder': 'ค้นหาร้าน / หมวดหมู่ / ย่าน',
@@ -4215,6 +4273,24 @@ const translations: Record<Language, Record<string, string>> = {
     'feed.freeGift': 'Hadiah Gratis',
     'feed.anonymousUser': 'Anonim',
     'feed.defaultCity': 'Bangkok',
+    
+    // Article Detail
+    'article.views': 'baca',
+    'article.comments': 'Komentar',
+    'article.noComments': 'Belum ada komentar, jadilah yang pertama!',
+    'article.writeComment': 'Tulis komentar...',
+    'article.commentSuccess': 'Komentar berhasil dikirim',
+    'article.reply': 'Balas',
+    'article.collect': 'Simpan',
+    'article.comment': 'Komentar',
+    'article.bookmarked': 'Tersimpan',
+    'article.unbookmarked': 'Dihapus dari simpanan',
+    
+    // Time
+    'time.justNow': 'baru saja',
+    'time.minutesAgo': ' menit lalu',
+    'time.hoursAgo': ' jam lalu',
+    'time.daysAgo': ' hari lalu',
 
     // 发现页
     'discover.title': 'Temukan',
@@ -4757,6 +4833,24 @@ const translations: Record<Language, Record<string, string>> = {
     'feed.freeGift': 'Quà tặng miễn phí',
     'feed.anonymousUser': 'Ẩn danh',
     'feed.defaultCity': 'Bangkok',
+    
+    // Article Detail
+    'article.views': 'lượt đọc',
+    'article.comments': 'Bình luận',
+    'article.noComments': 'Chưa có bình luận, hãy là người đầu tiên!',
+    'article.writeComment': 'Viết bình luận...',
+    'article.commentSuccess': 'Đã đăng bình luận',
+    'article.reply': 'Trả lời',
+    'article.collect': 'Lưu',
+    'article.comment': 'Bình luận',
+    'article.bookmarked': 'Đã lưu',
+    'article.unbookmarked': 'Đã bỏ lưu',
+    
+    // Time
+    'time.justNow': 'vừa xong',
+    'time.minutesAgo': ' phút trước',
+    'time.hoursAgo': ' giờ trước',
+    'time.daysAgo': ' ngày trước',
 
     // 发现页
     'discover.title': 'Khám phá',
@@ -5299,6 +5393,24 @@ const translations: Record<Language, Record<string, string>> = {
     'feed.freeGift': 'အခမဲ့လက်ဆောင်',
     'feed.anonymousUser': 'အမည်မသိ',
     'feed.defaultCity': 'ဘန်ကောက်',
+    
+    // Article Detail
+    'article.views': 'ဖတ်ရှု',
+    'article.comments': 'မှတ်ချက်များ',
+    'article.noComments': 'မှတ်ချက်မရှိသေးပါ၊ ပထမဆုံးဖြစ်ပါ!',
+    'article.writeComment': 'မှတ်ချက်ရေးပါ...',
+    'article.commentSuccess': 'မှတ်ချက်တင်ပြီးပါပြီ',
+    'article.reply': 'ပြန်ဖြေ',
+    'article.collect': 'သိမ်း',
+    'article.comment': 'မှတ်ချက်',
+    'article.bookmarked': 'သိမ်းပြီးပါပြီ',
+    'article.unbookmarked': 'သိမ်းဆည်းမှုဖြုတ်ပြီး',
+    
+    // Time
+    'time.justNow': 'ယခုလေးတင်',
+    'time.minutesAgo': ' မိနစ်အရင်က',
+    'time.hoursAgo': ' နာရီအရင်က',
+    'time.daysAgo': ' ရက်အရင်က',
 
     // 发现页
     'discover.title': 'ရှာဖွေ',
