@@ -67,12 +67,13 @@ export default function MerchantOperations() {
       icon: Ticket,
       label: t('merchant.campaignManage'),
       description: t('merchant.campaignManageDesc'),
-      href: '/admin/campaigns',
+      // TODO: 创建商户活动管理页面 /merchant/campaigns
     },
     {
       icon: BarChart3,
       label: t('merchant.campaignStats'),
       description: t('merchant.campaignStatsDesc'),
+      // TODO: 创建商户活动统计页面 /merchant/campaign-stats
     },
   ];
 
@@ -81,7 +82,7 @@ export default function MerchantOperations() {
       icon: Users,
       label: t('merchant.staffManage'),
       description: t('merchant.staffManageDesc'),
-      href: '/admin/staff-presets',
+      // TODO: 创建商户员工管理页面 /merchant/staff
     },
   ];
 
@@ -90,17 +91,19 @@ export default function MerchantOperations() {
       icon: Bell,
       label: t('merchant.notifications'),
       description: t('merchant.notificationsDesc'),
+      // TODO: 创建商户通知设置页面 /merchant/notifications
     },
     {
       icon: Settings,
       label: t('merchant.storeSettings'),
       description: t('merchant.storeSettingsDesc'),
-      href: '/admin/stores',
+      href: '/merchant/store-settings',  // 新的商户门店设置页面
     },
     {
       icon: FileText,
       label: t('merchant.reports'),
       description: t('merchant.reportsDesc'),
+      // TODO: 创建商户报表页面 /merchant/reports
     },
   ];
 

@@ -34,10 +34,37 @@ ShuaShua (刷刷) is a multi-merchant O2O local life platform that evolved from 
 |------|-------------|
 | 消费者 (consumer) | 刷刷 \| 发现 \| 我的 |
 | 刷刷号 (creator) | 账号首页 \| 创作中心 \| 我的 |
-| 商户老板 (owner) | 商户首页 \| 运营数据 \| 我的 |
+| 商户老板 (owner) | 商户首页 \| 运营中心 \| 我的 |
 | 运营人员 (operator) | 商户首页 \| 运营管理 \| 我的 |
 | 核销员 (verifier) | 核销 \| 活动说明 \| 我的 |
 | 系统管理员 (sysadmin) | 刷刷运营 \| 发现运营 \| 我的 |
+
+## 商户端路由架构
+| 路径 | 页面 | 说明 |
+|------|------|------|
+| `/merchant` | MerchantHome | 商户首页 |
+| `/merchant/operations` | MerchantOperations | 运营中心 |
+| `/merchant/store-settings` | MerchantStoreSettings | 门店设置 |
+| `/merchant/me` | MeOwner | 商户老板个人中心 |
+
+## 商户门店管理系统规划
+**Phase 1 - 单店模式**: 商户 = 1个门店（简化版）
+**Phase 2 - 连锁模式**: 商户 = 多个门店（高级版）
+
+### 核心数据模型
+```
+商户主体 (Merchant)
+├── merchant_id: 唯一标识
+├── business_type: 'single_store' | 'chain'  ← 单店/连锁选择
+├── license_info: 营业执照信息
+│
+└── 门店 (Store)  [1:N 关系]
+    ├── store_id
+    ├── store_name
+    ├── address / location
+    ├── business_hours
+    └── status: 营业中/休息中
+```
 
 ## User Preferences
 语言要求: 必须使用中文沟通（用户不懂英文，这是强制要求）

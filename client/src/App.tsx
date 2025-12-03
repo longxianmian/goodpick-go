@@ -44,6 +44,7 @@ import HelpPage from "@/pages/user/HelpPage";
 import AboutPage from "@/pages/user/AboutPage";
 import MerchantHome from "@/pages/merchant/MerchantHome";
 import MerchantOperations from "@/pages/merchant/MerchantOperations";
+import MerchantStoreSettings from "@/pages/merchant/MerchantStoreSettings";
 import StoreFront from "@/pages/user/StoreFront";
 import AdminPaymentSettings from "@/pages/admin/AdminPaymentSettings";
 import PaymentPage from "@/pages/user/PaymentPage";
@@ -195,6 +196,7 @@ function Router() {
       {/* 商户端 */}
       <Route path="/merchant" component={MerchantHome} />
       <Route path="/merchant/operations" component={MerchantOperations} />
+      <Route path="/merchant/store-settings" component={MerchantStoreSettings} />
       <Route path="/merchant/me" component={MeOwner} />
       {/* 支付页面 */}
       <Route path="/pay/:id/success" component={PaymentSuccess} />
