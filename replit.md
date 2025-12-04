@@ -176,32 +176,44 @@ POST /api/ai/agents/:id/activate  # 激活数字人
 ### 功能概述
 商户收款二维码功能，支持顾客扫码支付自动成为会员。刷刷/DeeCard 只提供「收款页面 + 会员积分」服务，不直接提供支付服务，资金由持牌 PSP 直接结算给商户。
 
+### 多 PSP 架构（2024-12 重构）
+基于接口的可插拔 PSP 提供商架构 (`server/services/paymentProvider.ts`)：
+- **PaymentProvider 接口**: 定义 createCharge, verifyPaymentWebhookSignature, parsePaymentWebhook 方法
+- **OpnProvider**: Opn Payments (主力 PSP)，支持 Mock 模式和真实 API
+- **TwoC2PProvider**: 2C2P (备用 PSP)，支持 Mock 模式
+- **Mock 模式**: 当密钥未配置或为测试占位值时自动启用，返回模拟支付链接
+
+### 商户入驻两种模式
+- **manual_id**: 商户已有 PSP 账户，手动录入 Merchant ID
+- **connect**: 通过 PSP Onboarding API 在线注册（未来支持）
+
 ### PSP 集成方案
 - **主力PSP**: Opn Payments (Omise) - 开发者友好、费率低 (1.6-3.65%)
 - **备用PSP**: 2C2P - 企业级稳定性
 
 ### 支持的支付方式
-- PromptPay（泰国银行二维码）
-- TrueMoney Wallet、Rabbit LINE Pay
-- 信用卡/借记卡（Visa、Mastercard）
-- Alipay、WeChat Pay（中国游客）
+- PromptPay（泰国银行二维码）- V1 支持
+- TrueMoney Wallet、Rabbit LINE Pay（规划中）
+- 信用卡/借记卡（Visa、Mastercard）（规划中）
+- Alipay、WeChat Pay（中国游客）（规划中）
 
 ### 数据库表结构
 - `psp_providers`: PSP 服务商配置表
-- `merchant_psp_accounts`: 商户 PSP 收款账户
+- `merchant_psp_accounts`: 商户 PSP 收款账户（含 psp_code, onboarding_mode, onboarding_status 字段）
 - `store_qr_codes`: 门店收款二维码
-- `qr_payments`: 二维码支付订单
+- `qr_payments`: 二维码支付订单（含 payment_method 字段）
 - `payment_points`: 支付积分记录
 
 ### API 接口
 - `GET /api/psp-providers`: 获取可用 PSP 列表
 - `GET/POST /api/merchant/psp-accounts`: 商户 PSP 账户管理
 - `POST /api/merchant/qr-codes`: 生成门店收款二维码
-- `GET /api/payments/qrcode/meta`: 获取二维码元数据
+- `GET /api/payments/qrcode/meta`: 获取二维码元数据（含 pspDisplayName）
 - `POST /api/payments/qrcode/create`: 创建支付订单
 - `GET /api/payments/:id`: 查询支付状态
 - `POST /api/payments/webhook/opn`: Opn 支付回调
-- `POST /api/payments/webhook/2c2p`: 2C2P 支付回调
+- `POST /api/payments/webhook/two_c2p`: 2C2P 支付回调
+- `POST /api/payments/mock-complete`: Mock 支付完成（仅开发环境）
 - `POST /api/points/claim`: 积分认领
 
 ### H5 页面

@@ -6598,6 +6598,90 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Mock Webhook - 仅开发环境，用于测试支付成功流程
+  app.post('/api/payments/mock-complete', async (req: Request, res: Response) => {
+    // 仅开发环境可用
+    if (process.env.NODE_ENV !== 'development') {
+      return res.status(403).json({ success: false, message: 'Not available in production' });
+    }
+
+    try {
+      const { payment_id } = req.body;
+
+      if (!payment_id) {
+        return res.status(400).json({ success: false, message: 'Missing payment_id' });
+      }
+
+      // 查找支付记录
+      const [payment] = await db
+        .select()
+        .from(qrPayments)
+        .where(eq(qrPayments.pspPaymentId, payment_id));
+
+      if (!payment) {
+        return res.status(404).json({ success: false, message: 'Payment not found' });
+      }
+
+      if (payment.status === 'paid') {
+        return res.json({ success: true, message: 'Already completed', data: { paymentId: payment.id } });
+      }
+
+      // 更新状态为已支付
+      await db
+        .update(qrPayments)
+        .set({
+          status: 'paid',
+          paidAt: new Date(),
+          rawPayload: JSON.stringify({ mock: true, completedAt: new Date().toISOString() }),
+          updatedAt: new Date(),
+        })
+        .where(eq(qrPayments.id, payment.id));
+
+      // 检查是否已有积分记录（幂等性）
+      const [existingPoints] = await db
+        .select()
+        .from(paymentPoints)
+        .where(eq(paymentPoints.paymentId, payment.id));
+
+      let pointsAmount = Math.floor(payment.amount);
+      
+      if (!existingPoints) {
+        // 创建积分记录
+        await db
+          .insert(paymentPoints)
+          .values({
+            paymentId: payment.id,
+            points: pointsAmount,
+            status: 'unclaimed',
+          });
+
+        console.log('[Mock Webhook] Payment completed & points created:', { 
+          paymentId: payment.id, 
+          pspPaymentId: payment_id,
+          points: pointsAmount 
+        });
+      } else {
+        pointsAmount = existingPoints.points;
+        console.log('[Mock Webhook] Payment completed, points already exist:', { 
+          paymentId: payment.id, 
+          existingPoints: pointsAmount 
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Payment mock-completed', 
+        data: { 
+          paymentId: payment.id,
+          points: pointsAmount,
+        } 
+      });
+    } catch (error) {
+      console.error('Mock complete error:', error);
+      res.status(500).json({ success: false, message: 'Mock complete failed' });
+    }
+  });
+
   // 积分认领 API
   app.post('/api/points/claim', async (req: Request, res: Response) => {
     try {

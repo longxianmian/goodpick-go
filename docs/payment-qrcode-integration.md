@@ -841,5 +841,81 @@ PAYMENT_MAX_AMOUNT=100000  # 最大交易额
 
 ---
 
-*文档版本: 1.0*
+## 13. 当前实现状态（2024-12 更新）
+
+### 13.1 多 PSP 架构
+已实现基于接口的多 PSP 提供商架构：
+
+```typescript
+// server/services/paymentProvider.ts
+interface PaymentProvider {
+  code: string;              // 例如: 'opn', 'two_c2p'
+  displayName: string;       // 例如: 'Opn Payments (Thailand)'
+  
+  createCharge(params: CreateChargeParams): Promise<CreateChargeResult>;
+  verifyPaymentWebhookSignature(rawBody: string, headers: Record<string, string>): boolean;
+  parsePaymentWebhook(rawBody: string): PaymentWebhookPayload | null;
+}
+```
+
+### 13.2 Mock 模式
+当 PSP 密钥未配置或使用测试占位值时，系统自动启用 Mock 模式：
+
+```
+[OpnProvider] 🔶 Mock 模式已启用 - 等待真实 API Key
+[TwoC2PProvider] 🔶 Mock 模式已启用
+```
+
+Mock 模式特点：
+- `createCharge()` 返回模拟的支付链接，指向 `/mock-pay/:paymentId`
+- `verifyPaymentWebhookSignature()` 在开发环境（`ALLOW_DEV_WEBHOOKS=true`）下返回 `true`
+- `parsePaymentWebhook()` 正常解析请求体
+
+### 13.3 开发测试端点
+
+**Mock 支付完成 API**（仅开发环境）：
+```
+POST /api/payments/mock-complete
+Body: { "payment_id": "mock_xxx" }
+
+用途：模拟 PSP Webhook，将支付状态更新为已支付并创建积分记录
+```
+
+### 13.4 商户入驻两种模式
+
+| 模式 | onboarding_mode | 说明 |
+|------|----------------|------|
+| **手动录入** | `manual_id` | 商户已有 PSP 账户，手动输入 Merchant ID |
+| **在线开通** | `connect` | 通过 PSP 的 Onboarding API 在线注册（未来支持） |
+
+### 13.5 环境变量
+
+```env
+# Opn Payments
+OPN_PUBLIC_KEY=pkey_test_xxx    # 公钥（前端用）
+OPN_SECRET_KEY=skey_test_xxx    # 密钥（后端用）
+OPN_WEBHOOK_SECRET=whsec_xxx    # Webhook 签名密钥
+
+# 2C2P
+TWO_C2P_MERCHANT_ID=xxx
+TWO_C2P_SECRET_KEY=xxx
+
+# 开发环境选项
+ALLOW_DEV_WEBHOOKS=true         # 跳过 Webhook 签名验证（仅开发）
+```
+
+### 13.6 已实现 API 端点
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/payments/qrcode/meta` | GET | 获取二维码元数据（门店信息、PSP 显示名称） |
+| `/api/payments/qrcode/create` | POST | 创建支付订单 |
+| `/api/payments/:id` | GET | 查询支付状态 |
+| `/api/payments/webhook/opn` | POST | Opn Webhook 回调 |
+| `/api/payments/webhook/two_c2p` | POST | 2C2P Webhook 回调 |
+| `/api/payments/mock-complete` | POST | Mock 支付完成（仅开发） |
+
+---
+
+*文档版本: 1.1*
 *最后更新: 2024-12-04*
