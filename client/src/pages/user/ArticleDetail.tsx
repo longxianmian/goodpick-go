@@ -34,6 +34,7 @@ interface ArticleData {
   creatorName?: string;
   creatorAvatar?: string;
   creatorUserId: number;
+  storeId?: number;
   createdAt: string;
   isLiked?: boolean;
 }
@@ -329,7 +330,15 @@ export default function ArticleDetail() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             
-            <div className="flex items-center gap-2">
+            <div 
+              className="flex items-center gap-2 cursor-pointer"
+              onClick={() => {
+                if (article.storeId) {
+                  setLocation(`/store/${article.storeId}`);
+                }
+              }}
+              data-testid="link-creator-avatar"
+            >
               <Avatar className="w-8 h-8 border">
                 <AvatarImage src={article.creatorAvatar || undefined} />
                 <AvatarFallback className="text-xs bg-muted">
