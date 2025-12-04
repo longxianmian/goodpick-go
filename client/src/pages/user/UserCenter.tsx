@@ -15,7 +15,9 @@ import {
   BadgeCheck,
   Cog,
   Crown,
-  Shield
+  Shield,
+  Copy,
+  Link2
 } from 'lucide-react';
 import { SiLine, SiGoogle, SiApple } from 'react-icons/si';
 import { Card, CardContent } from '@/components/ui/card';
@@ -146,6 +148,39 @@ export default function UserCenter() {
         title: t('common.error'),
         description: error.message,
         variant: 'destructive',
+      });
+    }
+  };
+
+  const handleCopySyncLink = async () => {
+    if (!userToken) {
+      toast({
+        title: t('common.error'),
+        description: '请先登录',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    const baseUrl = window.location.origin;
+    const syncUrl = `${baseUrl}/me?token=${userToken}`;
+    
+    try {
+      await navigator.clipboard.writeText(syncUrl);
+      toast({
+        title: '已复制同步链接',
+        description: '请在 Replit 预览窗口中粘贴此链接打开，即可同步登录状态',
+      });
+    } catch (error) {
+      const textArea = document.createElement('textarea');
+      textArea.value = syncUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      toast({
+        title: '已复制同步链接',
+        description: '请在 Replit 预览窗口中粘贴此链接打开，即可同步登录状态',
       });
     }
   };
@@ -453,15 +488,27 @@ export default function UserCenter() {
                   </div>
                 </div>
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-xs text-muted-foreground" 
-                onClick={handleLogout}
-                data-testid="button-logout"
-              >
-                {t('profile.logout')}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-xs gap-1" 
+                  onClick={handleCopySyncLink}
+                  data-testid="button-copy-sync-link"
+                >
+                  <Link2 className="w-3 h-3" />
+                  同步链接
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-xs text-muted-foreground" 
+                  onClick={handleLogout}
+                  data-testid="button-logout"
+                >
+                  {t('profile.logout')}
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
