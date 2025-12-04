@@ -1319,9 +1319,31 @@ export function registerRoutes(app: Express): Server {
         )
         .orderBy(desc(campaigns.startAt));
 
+      // 获取每个活动关联的店铺信息
+      const campaignsWithStores = await Promise.all(
+        activeCampaigns.map(async (campaign) => {
+          const storeList = await db
+            .select({
+              id: stores.id,
+              name: stores.name,
+              imageUrl: stores.imageUrl,
+              city: stores.city,
+              address: stores.address,
+            })
+            .from(stores)
+            .innerJoin(campaignStores, eq(stores.id, campaignStores.storeId))
+            .where(eq(campaignStores.campaignId, campaign.id));
+          
+          return {
+            ...campaign,
+            stores: storeList,
+          };
+        })
+      );
+
       res.json({
         success: true,
-        data: activeCampaigns,
+        data: campaignsWithStores,
       });
     } catch (error) {
       console.error('Get campaigns list error:', error);
