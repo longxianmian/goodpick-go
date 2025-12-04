@@ -104,12 +104,12 @@ const roleNavConfigs: Record<UserRoleType, { items: NavItem[], activePath: (loca
     items: [
       { key: 'redeem', path: '/staff/redeem', icon: ScanLine, labelKey: 'roleNav.redeem' },
       { key: 'campaign', path: '/staff/campaign', icon: Info, labelKey: 'roleNav.campaignInfo' },
-      { key: 'me', path: '/me', icon: PersonIcon as any, labelKey: 'bottomNav.me' },
+      { key: 'me', path: '/staff/stats', icon: PersonIcon as any, labelKey: 'bottomNav.me' },
     ],
     activePath: (location: string) => {
       if (location.startsWith('/staff/redeem')) return '/staff/redeem';
       if (location.startsWith('/staff/campaign')) return '/staff/campaign';
-      if (location === '/me' || location.startsWith('/me/')) return '/me';
+      if (location === '/staff/stats' || location === '/verifier') return '/staff/stats';
       return location;
     }
   },
