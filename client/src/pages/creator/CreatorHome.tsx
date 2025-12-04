@@ -225,9 +225,9 @@ export default function CreatorHome() {
                 data-testid={`content-grid-${content.id}`}
                 onClick={() => setLocation(`/creator/edit/${content.id}`)}
               >
-                {content.mediaUrls?.[0] && (
+                {(content.coverImageUrl || (content.contentType !== 'video' && content.mediaUrls?.[0])) && (
                   <img 
-                    src={content.mediaUrls[0]} 
+                    src={content.coverImageUrl || content.mediaUrls?.[0]} 
                     alt={content.title}
                     className="absolute inset-0 w-full h-full object-cover"
                   />
@@ -260,9 +260,9 @@ export default function CreatorHome() {
                 onClick={() => setLocation(`/creator/edit/${content.id}`)}
               >
                 <div className="w-24 h-16 bg-muted rounded-md relative overflow-hidden flex-shrink-0">
-                  {content.mediaUrls?.[0] && (
+                  {(content.coverImageUrl || (content.contentType !== 'video' && content.mediaUrls?.[0])) && (
                     <img 
-                      src={content.mediaUrls[0]} 
+                      src={content.coverImageUrl || content.mediaUrls?.[0]} 
                       alt={content.title}
                       className="absolute inset-0 w-full h-full object-cover"
                     />
