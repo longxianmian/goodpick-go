@@ -52,6 +52,8 @@ export default function UserCenter() {
   const [tab, setTab] = useState<TabType>("cart");
   const [identity, setIdentity] = useState<IdentityType>("shua");
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
+  const [showTokenInput, setShowTokenInput] = useState(false);
+  const [tokenInput, setTokenInput] = useState('');
   
   const isLoggedIn = !!userToken && !!user;
   const isTestAccount = user?.isTestAccount === true;
@@ -129,6 +131,67 @@ export default function UserCenter() {
     });
   };
 
+  const handleTokenLogin = async () => {
+    const token = tokenInput.trim();
+    if (!token) {
+      toast({
+        title: '请输入 Token',
+        description: '请先在外部浏览器登录后复制 Token',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setIsLoggingIn(true);
+    try {
+      const res = await fetch('/api/me', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      
+      if (!res.ok) {
+        throw new Error('Token 无效或已过期');
+      }
+      
+      const data = await res.json();
+      if (data.success && data.data) {
+        localStorage.setItem('userToken', token);
+        localStorage.setItem('user', JSON.stringify(data.data));
+        toast({
+          title: '登录成功',
+          description: '已同步登录状态',
+        });
+        window.location.reload();
+      } else {
+        throw new Error('Token 无效');
+      }
+    } catch (error: any) {
+      toast({
+        title: '登录失败',
+        description: error.message || 'Token 无效或已过期',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handlePasteToken = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setTokenInput(text);
+      toast({
+        title: '已粘贴',
+        description: '点击"确认登录"按钮完成登录',
+      });
+    } catch (error) {
+      toast({
+        title: '粘贴失败',
+        description: '请手动粘贴 Token',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleComingSoon = () => {
     toast({
       title: t('common.comingSoon'),
@@ -152,7 +215,7 @@ export default function UserCenter() {
     }
   };
 
-  const handleCopySyncLink = async () => {
+  const handleCopyToken = async () => {
     if (!userToken) {
       toast({
         title: t('common.error'),
@@ -162,25 +225,22 @@ export default function UserCenter() {
       return;
     }
     
-    const baseUrl = window.location.origin;
-    const syncUrl = `${baseUrl}/me?token=${userToken}`;
-    
     try {
-      await navigator.clipboard.writeText(syncUrl);
+      await navigator.clipboard.writeText(userToken);
       toast({
-        title: '已复制同步链接',
-        description: '请在 Replit 预览窗口中粘贴此链接打开，即可同步登录状态',
+        title: '已复制 Token',
+        description: '在 Replit 预览窗口登录页面点击"粘贴Token登录"即可同步',
       });
     } catch (error) {
       const textArea = document.createElement('textarea');
-      textArea.value = syncUrl;
+      textArea.value = userToken;
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
       toast({
-        title: '已复制同步链接',
-        description: '请在 Replit 预览窗口中粘贴此链接打开，即可同步登录状态',
+        title: '已复制 Token',
+        description: '在 Replit 预览窗口登录页面点击"粘贴Token登录"即可同步',
       });
     }
   };
@@ -493,11 +553,11 @@ export default function UserCenter() {
                   variant="outline" 
                   size="sm" 
                   className="text-xs gap-1" 
-                  onClick={handleCopySyncLink}
-                  data-testid="button-copy-sync-link"
+                  onClick={handleCopyToken}
+                  data-testid="button-copy-token"
                 >
-                  <Link2 className="w-3 h-3" />
-                  同步链接
+                  <Copy className="w-3 h-3" />
+                  复制Token
                 </Button>
                 <Button 
                   variant="ghost" 
@@ -661,6 +721,72 @@ export default function UserCenter() {
             {t('login.phoneLogin')}
           </Button>
         </div>
+
+        <div className="flex items-center gap-3 mb-6">
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-muted-foreground">开发调试</span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+
+        <Card className="mb-6">
+          <CardContent className="p-4">
+            {!showTokenInput ? (
+              <Button
+                variant="outline"
+                onClick={() => setShowTokenInput(true)}
+                className="w-full h-10 text-sm"
+                data-testid="button-show-token-input"
+              >
+                <Link2 className="w-4 h-4 mr-2" />
+                粘贴Token登录（同步外部浏览器登录状态）
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground text-center">
+                  在外部浏览器登录后，点击"复制Token"，然后在这里粘贴
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={tokenInput}
+                    onChange={(e) => setTokenInput(e.target.value)}
+                    placeholder="粘贴 Token..."
+                    className="flex-1 h-10 px-3 text-sm border rounded-md bg-background"
+                    data-testid="input-token"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handlePasteToken}
+                    data-testid="button-paste-token"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setShowTokenInput(false);
+                      setTokenInput('');
+                    }}
+                    className="flex-1"
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    onClick={handleTokenLogin}
+                    disabled={isLoggingIn || !tokenInput.trim()}
+                    className="flex-1 bg-[#38B03B] hover:bg-[#2f9332]"
+                    data-testid="button-token-login"
+                  >
+                    {isLoggingIn ? '登录中...' : '确认登录'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="text-center">
           <p className="text-xs text-muted-foreground">
