@@ -57,6 +57,7 @@ import PaymentPage from "@/pages/user/PaymentPage";
 import PaymentSuccess from "@/pages/user/PaymentSuccess";
 import PrivacyPage from "@/pages/PrivacyPage";
 import TermsPage from "@/pages/TermsPage";
+import OpsCenter from "@/pages/ops/OpsCenter";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import { Store, Tag, LogOut, LayoutDashboard } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -184,6 +185,8 @@ function Router() {
       <Route path="/dev/me/verifier" component={MeVerifier} />
       <Route path="/dev/me/sysadmin" component={MeSysAdmin} />
       <Route path="/dev/me/creator" component={CreatorAccount} />
+      {/* 运营中心 - 系统管理员专属 */}
+      <Route path="/ops" component={OpsCenter} />
       {/* 刷刷号（创作者）专属路由 */}
       <Route path="/creator/edit/:id" component={ContentEditor} />
       <Route path="/creator/create" component={CreatorStudio} />

@@ -227,6 +227,25 @@ export default function MeSysAdmin() {
           </CardContent>
         </Card>
 
+        <Card className="bg-gradient-to-r from-[#38B03B]/10 to-[#38B03B]/5 border-[#38B03B]/20">
+          <CardContent className="pt-4">
+            <div 
+              className="flex items-center gap-4 cursor-pointer"
+              onClick={() => setLocation('/ops')}
+              data-testid="link-ops-center"
+            >
+              <div className="w-14 h-14 rounded-xl bg-[#38B03B] flex items-center justify-center">
+                <Shield className="w-7 h-7 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="font-bold text-lg">进入运营中心</div>
+                <div className="text-sm text-muted-foreground">全方位管理平台数据、商户、内容</div>
+              </div>
+              <div className="text-[#38B03B]">→</div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 mb-4">
@@ -237,7 +256,7 @@ export default function MeSysAdmin() {
             <div className="grid grid-cols-2 gap-3">
               <div 
                 className="p-4 rounded-lg bg-muted/50 text-center cursor-pointer hover-elevate"
-                onClick={() => setLocation('/admin/shuashua-ops')}
+                onClick={() => setLocation('/ops')}
                 data-testid="link-shuashua-ops"
               >
                 <Eye className="w-8 h-8 mx-auto mb-2 text-[#38B03B]" />
@@ -245,7 +264,7 @@ export default function MeSysAdmin() {
               </div>
               <div 
                 className="p-4 rounded-lg bg-muted/50 text-center cursor-pointer hover-elevate"
-                onClick={() => setLocation('/admin/discover-ops')}
+                onClick={() => setLocation('/ops')}
                 data-testid="link-discover-ops"
               >
                 <Star className="w-8 h-8 mx-auto mb-2 text-amber-500" />
@@ -253,7 +272,7 @@ export default function MeSysAdmin() {
               </div>
               <div 
                 className="p-4 rounded-lg bg-muted/50 text-center cursor-pointer hover-elevate"
-                onClick={() => setLocation('/admin/dashboard')}
+                onClick={() => setLocation('/ops')}
                 data-testid="link-dashboard"
               >
                 <BarChart3 className="w-8 h-8 mx-auto mb-2 text-blue-500" />
@@ -261,7 +280,7 @@ export default function MeSysAdmin() {
               </div>
               <div 
                 className="p-4 rounded-lg bg-muted/50 text-center cursor-pointer hover-elevate"
-                onClick={() => setLocation('/admin/notifications')}
+                onClick={() => setLocation('/ops')}
                 data-testid="link-notifications"
               >
                 <Bell className="w-8 h-8 mx-auto mb-2 text-purple-500" />
