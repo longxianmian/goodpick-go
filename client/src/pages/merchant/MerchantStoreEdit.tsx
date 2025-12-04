@@ -23,7 +23,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { StoreImageUploader, LicenseUploader } from '@/components/StoreImageUploader';
+import { StoreImageUploader, LicenseUploader, AvatarUploader } from '@/components/StoreImageUploader';
 import type { Store as StoreType } from '@shared/schema';
 
 interface BusinessHours {
@@ -51,6 +51,7 @@ interface StoreFormData {
   pickupTime: number;
   businessLicenseUrl: string | null;
   foodLicenseUrl: string | null;
+  imageUrl: string | null;
 }
 
 const defaultBusinessHours: BusinessHours = {
@@ -87,6 +88,7 @@ export default function MerchantStoreEdit() {
     pickupTime: 10,
     businessLicenseUrl: null,
     foodLicenseUrl: null,
+    imageUrl: null,
   });
 
   const { data: storeData, isLoading } = useQuery<{ success: boolean; data: StoreType }>({
@@ -121,6 +123,7 @@ export default function MerchantStoreEdit() {
         pickupTime: store.pickupTime || 10,
         businessLicenseUrl: store.businessLicenseUrl || null,
         foodLicenseUrl: store.foodLicenseUrl || null,
+        imageUrl: store.imageUrl || null,
       });
     }
   }, [storeData]);
@@ -252,6 +255,15 @@ export default function MerchantStoreEdit() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>{t('merchant.storeAvatar')}</Label>
+                  <AvatarUploader
+                    imageUrl={formData.imageUrl}
+                    onChange={(url) => handleInputChange('imageUrl', url)}
+                    size={80}
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="name">{t('merchant.storeName')}</Label>
                   <Input 

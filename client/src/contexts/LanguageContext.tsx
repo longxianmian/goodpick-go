@@ -765,6 +765,12 @@ const translations: Record<Language, Record<string, string>> = {
     'merchant.imageTooLarge': '图片大小不能超过10MB',
     'merchant.coverImage': '封面',
     'merchant.reupload': '重新上传',
+    'merchant.storeAvatar': '商户头像',
+    'merchant.uploadAvatar': '上传头像',
+    'merchant.changeAvatar': '更换头像',
+    'merchant.avatarUploadSuccess': '头像上传成功',
+    'merchant.avatarUploadError': '头像上传失败',
+    'merchant.avatarHint': '建议尺寸200x200像素',
     
     // 三横杠侧边菜单
     'drawer.title': '菜单',
@@ -2482,6 +2488,12 @@ const translations: Record<Language, Record<string, string>> = {
     'merchant.imageTooLarge': 'Image size cannot exceed 10MB',
     'merchant.coverImage': 'Cover',
     'merchant.reupload': 'Re-upload',
+    'merchant.storeAvatar': 'Store Avatar',
+    'merchant.uploadAvatar': 'Upload Avatar',
+    'merchant.changeAvatar': 'Change Avatar',
+    'merchant.avatarUploadSuccess': 'Avatar uploaded successfully',
+    'merchant.avatarUploadError': 'Failed to upload avatar',
+    'merchant.avatarHint': 'Recommended size 200x200 pixels',
     
     // Drawer Menu
     'drawer.title': 'Menu',
@@ -3957,6 +3969,12 @@ const translations: Record<Language, Record<string, string>> = {
     'merchant.imageTooLarge': 'ขนาดรูปต้องไม่เกิน 10MB',
     'merchant.coverImage': 'ปก',
     'merchant.reupload': 'อัปโหลดใหม่',
+    'merchant.storeAvatar': 'รูปโปรไฟล์ร้านค้า',
+    'merchant.uploadAvatar': 'อัปโหลดรูปโปรไฟล์',
+    'merchant.changeAvatar': 'เปลี่ยนรูปโปรไฟล์',
+    'merchant.avatarUploadSuccess': 'อัปโหลดรูปโปรไฟล์สำเร็จ',
+    'merchant.avatarUploadError': 'อัปโหลดรูปโปรไฟล์ล้มเหลว',
+    'merchant.avatarHint': 'แนะนำขนาด 200x200 พิกเซล',
     
     // Drawer Menu
     'drawer.title': 'เมนู',
