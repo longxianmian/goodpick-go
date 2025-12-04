@@ -259,6 +259,7 @@ export const campaigns = pgTable('campaigns', {
   couponValue: decimal('coupon_value', { precision: 10, scale: 2 }).notNull(),
   discountType: discountTypeEnum('discount_type').notNull(),
   originalPrice: decimal('original_price', { precision: 10, scale: 2 }),
+  currency: text('currency').notNull().default('THB'),
   
   // Time & limits
   startAt: timestamp('start_at').notNull(),

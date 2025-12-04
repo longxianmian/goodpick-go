@@ -33,6 +33,7 @@ interface Campaign {
   couponValue: string;
   discountType: string;
   originalPrice?: string;
+  currency: string;
   startAt: string;
   endAt: string;
   maxPerUser: number;
@@ -40,6 +41,17 @@ interface Campaign {
   currentClaimed: number;
   isActive: boolean;
 }
+
+// 支持的货币列表
+const CURRENCY_OPTIONS = [
+  { value: 'THB', label: '฿ THB', symbol: '฿' },
+  { value: 'TWD', label: 'NT$ TWD', symbol: 'NT$' },
+  { value: 'CNY', label: '¥ CNY', symbol: '¥' },
+  { value: 'USD', label: '$ USD', symbol: '$' },
+  { value: 'IDR', label: 'Rp IDR', symbol: 'Rp' },
+  { value: 'VND', label: '₫ VND', symbol: '₫' },
+  { value: 'MMK', label: 'K MMK', symbol: 'K' },
+];
 
 interface CampaignResponse {
   success: boolean;
@@ -51,6 +63,7 @@ const campaignFormSchema = z.object({
   descriptionSource: z.string().min(1, '请输入活动描述'),
   couponValue: z.string().min(1, '请输入优惠金额'),
   discountType: z.enum(['final_price', 'percentage_off', 'cash_voucher']),
+  currency: z.string().min(1, '请选择货币单位'),
   originalPrice: z.string().optional(),
   startAt: z.string().min(1, '请选择开始时间'),
   endAt: z.string().min(1, '请选择结束时间'),
@@ -83,6 +96,7 @@ export default function MerchantCampaignEdit() {
       descriptionSource: '',
       couponValue: '',
       discountType: 'cash_voucher',
+      currency: 'THB',
       originalPrice: '',
       startAt: '',
       endAt: '',
@@ -105,6 +119,7 @@ export default function MerchantCampaignEdit() {
         descriptionSource: c.descriptionSource || '',
         couponValue: c.couponValue?.toString() || '',
         discountType: (c.discountType as 'final_price' | 'percentage_off' | 'cash_voucher') || 'cash_voucher',
+        currency: c.currency || 'THB',
         originalPrice: c.originalPrice?.toString() || '',
         startAt: c.startAt ? format(new Date(c.startAt), "yyyy-MM-dd'T'HH:mm") : '',
         endAt: c.endAt ? format(new Date(c.endAt), "yyyy-MM-dd'T'HH:mm") : '',
@@ -123,6 +138,7 @@ export default function MerchantCampaignEdit() {
         descriptionSource: values.descriptionSource,
         couponValue: values.couponValue,
         discountType: values.discountType,
+        currency: values.currency,
         originalPrice: values.originalPrice || null,
         startAt: values.startAt,
         endAt: values.endAt,
@@ -369,18 +385,24 @@ export default function MerchantCampaignEdit() {
 
                   <FormField
                     control={form.control}
-                    name="couponValue"
+                    name="currency"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t('merchant.discountValue')} *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field}
-                            type="number"
-                            placeholder={form.watch('discountType') === 'percentage_off' ? '10' : '50'}
-                            data-testid="input-coupon-value"
-                          />
-                        </FormControl>
+                        <FormLabel>{t('merchant.currency')} *</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-currency">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {CURRENCY_OPTIONS.map(option => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -389,21 +411,58 @@ export default function MerchantCampaignEdit() {
 
                 <FormField
                   control={form.control}
+                  name="couponValue"
+                  render={({ field }) => {
+                    const currencySymbol = CURRENCY_OPTIONS.find(c => c.value === form.watch('currency'))?.symbol || '฿';
+                    const isPercentage = form.watch('discountType') === 'percentage_off';
+                    return (
+                      <FormItem>
+                        <FormLabel>{t('merchant.discountValue')} *</FormLabel>
+                        <div className="flex items-center gap-2">
+                          {!isPercentage && (
+                            <span className="text-sm text-muted-foreground min-w-[2rem]">{currencySymbol}</span>
+                          )}
+                          <FormControl>
+                            <Input 
+                              {...field}
+                              type="number"
+                              placeholder={isPercentage ? '10' : '50'}
+                              data-testid="input-coupon-value"
+                            />
+                          </FormControl>
+                          {isPercentage && (
+                            <span className="text-sm text-muted-foreground">%</span>
+                          )}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
+                />
+
+                <FormField
+                  control={form.control}
                   name="originalPrice"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('merchant.originalPrice')}</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field}
-                          type="number"
-                          placeholder="100"
-                          data-testid="input-original-price"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const currencySymbol = CURRENCY_OPTIONS.find(c => c.value === form.watch('currency'))?.symbol || '฿';
+                    return (
+                      <FormItem>
+                        <FormLabel>{t('merchant.originalPrice')}</FormLabel>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground min-w-[2rem]">{currencySymbol}</span>
+                          <FormControl>
+                            <Input 
+                              {...field}
+                              type="number"
+                              placeholder="100"
+                              data-testid="input-original-price"
+                            />
+                          </FormControl>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
               </CardContent>
             </Card>
