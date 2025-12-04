@@ -2,15 +2,14 @@
  * H5 金额确认页 - 用户扫码后的支付入口
  * 路由: /p/:qrToken
  * 
- * 优化流程：用户可选择先登录 LINE 再支付，这样积分自动入账
+ * 简洁流程：扫码 → 输入金额 → 支付 → 成功页一键登录成为会员
  */
 
 import { useState } from 'react';
 import { useParams } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, AlertCircle, User } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface StoreMetaData {
   qrCodeId: number;
@@ -25,11 +24,9 @@ interface StoreMetaData {
 export default function PayEntryPage() {
   const params = useParams<{ qrToken: string }>();
   const qrToken = params.qrToken;
-  const { user, isUserAuthenticated } = useAuth();
   
   const [amount, setAmount] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const { data: storeData, isLoading, error } = useQuery<{ success: boolean; data: StoreMetaData }>({
     queryKey: ['/api/payments/qrcode/meta', qrToken],
@@ -41,7 +38,7 @@ export default function PayEntryPage() {
   });
 
   const createPaymentMutation = useMutation({
-    mutationFn: async (paymentData: { qr_token: string; amount: number; currency: string; line_user_id?: string; user_id?: number }) => {
+    mutationFn: async (paymentData: { qr_token: string; amount: number; currency: string }) => {
       const res = await apiRequest('POST', '/api/payments/qrcode/create', paymentData);
       return res.json();
     },
@@ -60,50 +57,14 @@ export default function PayEntryPage() {
 
     setIsProcessing(true);
     try {
-      // 如果用户已登录，传递 LINE 用户信息，支付成功后自动发积分
       await createPaymentMutation.mutateAsync({
         qr_token: qrToken!,
         amount: amountNum,
         currency: 'THB',
-        line_user_id: user?.lineUserId,
-        user_id: user?.id,
       });
     } catch (err) {
       console.error('Payment creation failed:', err);
       setIsProcessing(false);
-    }
-  };
-
-  // LINE 登录处理
-  const handleLineLogin = async () => {
-    setIsLoggingIn(true);
-    const returnUrl = window.location.href;
-    const origin = window.location.origin;
-    const redirectUri = `${origin}/api/auth/line/callback`;
-    
-    try {
-      const initResponse = await fetch('/api/auth/line/init-oauth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ redirectUri, returnTo: returnUrl }),
-      });
-      
-      if (initResponse.ok) {
-        const { state } = await initResponse.json();
-        const authUrl = new URL('https://access.line.me/oauth2/v2.1/authorize');
-        authUrl.searchParams.set('response_type', 'code');
-        authUrl.searchParams.set('client_id', import.meta.env.VITE_LINE_CHANNEL_ID || '');
-        authUrl.searchParams.set('redirect_uri', redirectUri);
-        authUrl.searchParams.set('state', state);
-        authUrl.searchParams.set('scope', 'profile openid');
-        window.location.href = authUrl.toString();
-      } else {
-        // 回退到开发登录
-        window.location.href = `/dev/login?returnTo=${encodeURIComponent(returnUrl)}`;
-      }
-    } catch (err) {
-      console.error('LINE OAuth init failed:', err);
-      setIsLoggingIn(false);
     }
   };
 
@@ -209,44 +170,6 @@ export default function PayEntryPage() {
               <p className="text-[11px] text-slate-400">
                 The system will use this amount to create a secure payment request only for this transaction.
               </p>
-            </div>
-
-            {/* 用户登录状态 - 登录后积分自动入账 */}
-            <div className="mt-3 pt-3 border-t border-slate-100">
-              {isUserAuthenticated && user ? (
-                <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-50 border border-emerald-100">
-                  <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center overflow-hidden">
-                    {user.avatarUrl ? (
-                      <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <User className="w-4 h-4 text-white" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-medium text-emerald-800 truncate">{user.displayName}</p>
-                    <p className="text-[10px] text-emerald-600">Points will be auto-credited after payment</p>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  className="w-full py-2.5 rounded-xl bg-[#06C755] active:bg-[#05b64d] disabled:bg-slate-300 text-white text-[13px] font-medium flex items-center justify-center gap-2"
-                  onClick={handleLineLogin}
-                  disabled={isLoggingIn}
-                  data-testid="button-line-login"
-                >
-                  {isLoggingIn ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Connecting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="w-4 h-4 rounded-[3px] bg-white flex items-center justify-center text-[10px] text-[#06C755] font-bold">L</span>
-                      <span>Login with LINE for auto points</span>
-                    </>
-                  )}
-                </button>
-              )}
             </div>
 
             {/* Pay button */}
