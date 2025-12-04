@@ -1383,6 +1383,9 @@ export const qrPayments = pgTable('qr_payments', {
   storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
   qrCodeId: integer('qr_code_id').references(() => storeQrCodes.id, { onDelete: 'set null' }),
   
+  // 业务订单号 (前端使用的ID)
+  orderId: text('order_id').unique(),                           // 返回给前端的订单号 pay_xxx
+  
   // PSP 信息
   pspCode: text('psp_code').notNull(),                          // 引用 psp_providers.code
   pspPaymentId: text('psp_payment_id'),                         // PSP 订单号

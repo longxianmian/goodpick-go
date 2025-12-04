@@ -10,7 +10,7 @@ import { db } from './db';
 import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints } from '@shared/schema';
 import { getPaymentProvider } from './services/paymentProvider';
 import QRCode from 'qrcode';
-import { eq, and, desc, sql, inArray, isNotNull } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray, isNotNull, or } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
 import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
 import { translateText } from './services/translationService';
@@ -6370,12 +6370,13 @@ export function registerRoutes(app: Express): Server {
         return res.status(500).json({ success: false, message: chargeResult.error || 'Failed to create charge' });
       }
 
-      // 保存支付记录
+      // 保存支付记录（包含 orderId 用于前端查询）
       const [payment] = await db
         .insert(qrPayments)
         .values({
           storeId: qrCode.storeId,
           qrCodeId: qrCode.id,
+          orderId,  // 保存订单号用于前端查询
           pspCode: pspAccount.pspCode,
           pspPaymentId: chargeResult.pspPaymentId,
           amount: amount.toString(),
@@ -6404,11 +6405,12 @@ export function registerRoutes(app: Express): Server {
     try {
       const { paymentId } = req.params;
 
-      // 查询支付记录和关联的积分
+      // 优先用 orderId 查询，如果没有再用 pspPaymentId 兜底
       const [payment] = await db
         .select({
           id: qrPayments.id,
           storeId: qrPayments.storeId,
+          orderId: qrPayments.orderId,
           amount: qrPayments.amount,
           currency: qrPayments.currency,
           status: qrPayments.status,
@@ -6418,7 +6420,7 @@ export function registerRoutes(app: Express): Server {
         })
         .from(qrPayments)
         .innerJoin(stores, eq(qrPayments.storeId, stores.id))
-        .where(eq(qrPayments.pspPaymentId, paymentId))
+        .where(or(eq(qrPayments.orderId, paymentId), eq(qrPayments.pspPaymentId, paymentId)))
         .limit(1);
 
       if (!payment) {
@@ -6643,7 +6645,7 @@ export function registerRoutes(app: Express): Server {
         .from(paymentPoints)
         .where(eq(paymentPoints.paymentId, payment.id));
 
-      let pointsAmount = Math.floor(payment.amount);
+      let pointsAmount = Math.floor(parseFloat(payment.amount));
       
       if (!existingPoints) {
         // 创建积分记录
