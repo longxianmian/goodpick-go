@@ -42,16 +42,36 @@ interface Campaign {
   isActive: boolean;
 }
 
-// 支持的货币列表
+// 支持的货币列表及其时区
 const CURRENCY_OPTIONS = [
-  { value: 'THB', label: '฿ THB', symbol: '฿' },
-  { value: 'TWD', label: 'NT$ TWD', symbol: 'NT$' },
-  { value: 'CNY', label: '¥ CNY', symbol: '¥' },
-  { value: 'USD', label: '$ USD', symbol: '$' },
-  { value: 'IDR', label: 'Rp IDR', symbol: 'Rp' },
-  { value: 'VND', label: '₫ VND', symbol: '₫' },
-  { value: 'MMK', label: 'K MMK', symbol: 'K' },
+  { value: 'THB', label: '฿ THB', symbol: '฿', offset: 7, tzLabel: 'UTC+7 曼谷' },
+  { value: 'TWD', label: 'NT$ TWD', symbol: 'NT$', offset: 8, tzLabel: 'UTC+8 台北' },
+  { value: 'CNY', label: '¥ CNY', symbol: '¥', offset: 8, tzLabel: 'UTC+8 北京' },
+  { value: 'USD', label: '$ USD', symbol: '$', offset: -5, tzLabel: 'UTC-5 纽约' },
+  { value: 'IDR', label: 'Rp IDR', symbol: 'Rp', offset: 7, tzLabel: 'UTC+7 雅加达' },
+  { value: 'VND', label: '₫ VND', symbol: '₫', offset: 7, tzLabel: 'UTC+7 胡志明' },
+  { value: 'MMK', label: 'K MMK', symbol: 'K', offset: 6.5, tzLabel: 'UTC+6:30 仰光' },
 ];
+
+// 本地时间转UTC
+function localToUTC(localDateStr: string, offsetHours: number): string {
+  const localDate = new Date(localDateStr);
+  const utcTime = localDate.getTime() - (offsetHours * 60 * 60 * 1000);
+  return new Date(utcTime).toISOString();
+}
+
+// UTC转本地时间格式字符串
+function utcToLocalString(utcDateStr: string, offsetHours: number): string {
+  const utcDate = new Date(utcDateStr);
+  const localTime = utcDate.getTime() + (offsetHours * 60 * 60 * 1000);
+  const localDate = new Date(localTime);
+  const year = localDate.getUTCFullYear();
+  const month = String(localDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(localDate.getUTCDate()).padStart(2, '0');
+  const hours = String(localDate.getUTCHours()).padStart(2, '0');
+  const minutes = String(localDate.getUTCMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
 
 interface CampaignResponse {
   success: boolean;
@@ -114,6 +134,9 @@ export default function MerchantCampaignEdit() {
   useEffect(() => {
     if (campaignData?.data) {
       const c = campaignData.data;
+      const currencyInfo = CURRENCY_OPTIONS.find(opt => opt.value === (c.currency || 'THB'));
+      const offset = currencyInfo?.offset || 7;
+      
       form.reset({
         titleSource: c.titleSource || '',
         descriptionSource: c.descriptionSource || '',
@@ -121,8 +144,8 @@ export default function MerchantCampaignEdit() {
         discountType: (c.discountType as 'final_price' | 'percentage_off' | 'cash_voucher') || 'cash_voucher',
         currency: c.currency || 'THB',
         originalPrice: c.originalPrice?.toString() || '',
-        startAt: c.startAt ? format(new Date(c.startAt), "yyyy-MM-dd'T'HH:mm") : '',
-        endAt: c.endAt ? format(new Date(c.endAt), "yyyy-MM-dd'T'HH:mm") : '',
+        startAt: c.startAt ? utcToLocalString(c.startAt, offset) : '',
+        endAt: c.endAt ? utcToLocalString(c.endAt, offset) : '',
         maxPerUser: c.maxPerUser?.toString() || '1',
         maxTotal: c.maxTotal?.toString() || '',
         isActive: c.isActive ?? true,
@@ -133,6 +156,9 @@ export default function MerchantCampaignEdit() {
 
   const saveMutation = useMutation({
     mutationFn: async (values: CampaignFormValues) => {
+      const currencyInfo = CURRENCY_OPTIONS.find(opt => opt.value === values.currency);
+      const offset = currencyInfo?.offset || 7;
+      
       const payload = {
         titleSource: values.titleSource,
         descriptionSource: values.descriptionSource,
@@ -140,8 +166,8 @@ export default function MerchantCampaignEdit() {
         discountType: values.discountType,
         currency: values.currency,
         originalPrice: values.originalPrice || null,
-        startAt: values.startAt,
-        endAt: values.endAt,
+        startAt: localToUTC(values.startAt, offset),
+        endAt: localToUTC(values.endAt, offset),
         maxPerUser: parseInt(values.maxPerUser) || 1,
         maxTotal: values.maxTotal ? parseInt(values.maxTotal) : null,
         bannerImageUrl: bannerImage || null,
@@ -386,26 +412,32 @@ export default function MerchantCampaignEdit() {
                   <FormField
                     control={form.control}
                     name="currency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('merchant.currency')} *</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-currency">
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {CURRENCY_OPTIONS.map(option => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const selectedCurrency = CURRENCY_OPTIONS.find(c => c.value === field.value);
+                      return (
+                        <FormItem>
+                          <FormLabel>{t('merchant.currency')} *</FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-currency">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {CURRENCY_OPTIONS.map(option => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {selectedCurrency && (
+                            <p className="text-xs text-muted-foreground">{t('merchant.timezoneHint')}: {selectedCurrency.tzLabel}</p>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                 </div>
 
