@@ -37,6 +37,7 @@ ShuaShua (刷刷) is a multi-merchant O2O local life platform that evolved from 
 | 商户老板 (owner) | 商户首页 \| 运营中心 \| 我的 |
 | 运营人员 (operator) | 商户首页 \| 运营管理 \| 我的 |
 | 核销员 (verifier) | 核销 \| 活动说明 \| 我的 |
+| 商户会员 (member) | 刷刷 \| 发现 \| 我的 |
 | 系统管理员 (sysadmin) | 刷刷运营 \| 发现运营 \| 我的 |
 
 ## 商户端路由架构
@@ -209,3 +210,31 @@ Security measures include bcryptjs for password hashing, environment variable-ba
   - descriptionZh/En/Th: 多语言描述
   - deliveryTime/pickupTime: 配送/自取时间
   - serviceScores: JSON格式服务评分（taste/service/environment）
+
+## Recent Updates (2025-12-04)
+
+### 账号角色系统完善
+- **角色类型扩展**: `UserRoleType` 现在支持完整的7种角色（consumer, owner, operator, verifier, sysadmin, creator, member）
+- **角色切换UI修复**: 
+  - 角色选择器现在只显示用户实际拥有的角色（使用 `hasRole()` 过滤）
+  - 修复 `member` 角色在角色恢复时无法正确识别的问题
+- **商户创建门店流程优化**:
+  - 添加登录状态检查，未登录用户看到登录引导页面
+  - 创建成功后自动刷新认证状态 (`reloadAuth()`) 并切换到 owner 角色
+- **底部导航完善**: 添加 `member` 角色的底部导航配置（与 consumer 相同）
+- **核心文件**:
+  - `client/src/contexts/AuthContext.tsx` - 角色类型和验证逻辑
+  - `client/src/components/RoleAwareBottomNav.tsx` - 角色导航配置
+  - `client/src/pages/user/UserCenter.tsx` - 角色切换UI
+  - `client/src/pages/merchant/MerchantStoreCreate.tsx` - 门店创建流程
+
+### 角色获取路径
+| 角色 | 获取方式 |
+|------|----------|
+| consumer | 默认角色，所有用户自动拥有 |
+| owner | 创建门店时自动获得 |
+| verifier | 扫描员工授权二维码绑定后获得 |
+| operator | 管理员后台分配 |
+| creator | 申请开通（待实现）|
+| member | 商户会员支付后获得（待实现）|
+| sysadmin | 仅测试账号 |
