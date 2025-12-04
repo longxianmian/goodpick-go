@@ -170,3 +170,27 @@ POST /api/ai/agents/:id/activate  # 激活数字人
 **P2 - 第三阶段:**
 7. 运营工具（人群分群、A/B测试）
 8. 平台配置（多语言、功能开关）
+
+## Payment QR Code System (收款二维码系统) - 规划中
+
+### 功能概述
+商户收款二维码功能，支持顾客扫码支付自动成为会员。
+
+### PSP 集成方案
+- **主力PSP**: Opn Payments (Omise) - 开发者友好、费率低
+- **备用PSP**: 2C2P - 企业级稳定性
+
+### 支持的支付方式
+- PromptPay（泰国银行二维码）
+- TrueMoney Wallet、Rabbit LINE Pay
+- 信用卡/借记卡（Visa、Mastercard）
+- Alipay、WeChat Pay（中国游客）
+
+### 数据库表结构（规划）
+- `merchant_payment_accounts`: 商户收款账户
+- `payment_qrcodes`: 收款码
+- `payment_transactions`: 支付交易
+- `payment_settlements`: 结算记录
+
+### 开发文档
+详见: `docs/payment-qrcode-integration.md`
