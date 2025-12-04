@@ -10,7 +10,8 @@ import {
   Save,
   Eye,
   FileCheck,
-  Loader2
+  Loader2,
+  MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,6 +53,9 @@ interface StoreFormData {
   businessLicenseUrl: string | null;
   foodLicenseUrl: string | null;
   imageUrl: string | null;
+  lineOaId: string;
+  lineOaUrl: string;
+  lineOaChannelToken: string;
 }
 
 const defaultBusinessHours: BusinessHours = {
@@ -89,6 +93,9 @@ export default function MerchantStoreEdit() {
     businessLicenseUrl: null,
     foodLicenseUrl: null,
     imageUrl: null,
+    lineOaId: '',
+    lineOaUrl: '',
+    lineOaChannelToken: '',
   });
 
   const { data: storeData, isLoading } = useQuery<{ success: boolean; data: StoreType }>({
@@ -124,6 +131,9 @@ export default function MerchantStoreEdit() {
         businessLicenseUrl: store.businessLicenseUrl || null,
         foodLicenseUrl: store.foodLicenseUrl || null,
         imageUrl: store.imageUrl || null,
+        lineOaId: store.lineOaId || '',
+        lineOaUrl: store.lineOaUrl || '',
+        lineOaChannelToken: store.lineOaChannelToken || '',
       });
     }
   }, [storeData]);
@@ -240,10 +250,11 @@ export default function MerchantStoreEdit() {
 
       <main className="px-4 py-4 max-w-lg mx-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full grid grid-cols-3 mb-4">
+          <TabsList className="w-full grid grid-cols-4 mb-4">
             <TabsTrigger value="basic">{t('merchant.basicInfo')}</TabsTrigger>
             <TabsTrigger value="hours">{t('merchant.businessHours')}</TabsTrigger>
             <TabsTrigger value="images">{t('merchant.storeImages')}</TabsTrigger>
+            <TabsTrigger value="lineoa">LINE OA</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic" className="space-y-4">
@@ -490,6 +501,68 @@ export default function MerchantStoreEdit() {
                   imageUrl={formData.foodLicenseUrl}
                   onChange={(url) => handleLicenseChange('foodLicenseUrl', url)}
                 />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="lineoa" className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MessageCircle className="w-5 h-5" />
+                  LINE OA
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
+                  <p className="font-medium">配置您的 LINE 官方帐号</p>
+                  <p className="mt-1">
+                    配置 LINE OA 后，顾客支付完成可一键跳转到您的 LINE 官方帐号，自动成为您的会员。
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="lineOaId">LINE OA ID</Label>
+                  <Input 
+                    id="lineOaId"
+                    value={formData.lineOaId}
+                    onChange={(e) => handleInputChange('lineOaId', e.target.value)}
+                    placeholder="@your-oa-id"
+                    data-testid="input-line-oa-id"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    您的 LINE 官方帐号 ID，以 @ 开头
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="lineOaUrl">LINE OA 添加好友链接</Label>
+                  <Input 
+                    id="lineOaUrl"
+                    value={formData.lineOaUrl}
+                    onChange={(e) => handleInputChange('lineOaUrl', e.target.value)}
+                    placeholder="https://line.me/R/ti/p/@xxx"
+                    data-testid="input-line-oa-url"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    顾客支付成功后会跳转到此链接，引导加好友
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="lineOaChannelToken">Channel Access Token</Label>
+                  <Input 
+                    id="lineOaChannelToken"
+                    type="password"
+                    value={formData.lineOaChannelToken}
+                    onChange={(e) => handleInputChange('lineOaChannelToken', e.target.value)}
+                    placeholder="输入您的 Token"
+                    data-testid="input-line-oa-token"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    从 LINE Developers Console 获取，用于发送消费通知消息
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
