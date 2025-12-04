@@ -500,7 +500,9 @@ export default function UserCenter() {
                     <div className="flex items-baseline gap-1.5">
                       <span className="opacity-80 text-[11px]">{t('consumer.points')}</span>
                       <span className="text-lg font-semibold">{membership.points.toLocaleString()}</span>
-                      <span className="text-[10px] opacity-70 ml-auto">{membership.tier || t('consumer.platinumMember')}</span>
+                      <span className="text-[10px] opacity-70 ml-auto">
+                        {t(`consumer.tier.${membership.tier}`) || t('consumer.platinumMember')}
+                      </span>
                     </div>
                   </div>
                 )) : (
