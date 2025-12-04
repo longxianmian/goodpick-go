@@ -52,6 +52,7 @@ import MerchantProductEdit from "@/pages/merchant/MerchantProductEdit";
 import MerchantCampaigns from "@/pages/merchant/MerchantCampaigns";
 import MerchantCampaignEdit from "@/pages/merchant/MerchantCampaignEdit";
 import MerchantPaymentQrCode from "@/pages/merchant/MerchantPaymentQrCode";
+import MerchantPspSetup from "@/pages/merchant/MerchantPspSetup";
 import StoreFront from "@/pages/user/StoreFront";
 import AdminPaymentSettings from "@/pages/admin/AdminPaymentSettings";
 import PaymentPage from "@/pages/user/PaymentPage";
@@ -224,6 +225,7 @@ function Router() {
       <Route path="/merchant/campaigns" component={MerchantCampaigns} />
       <Route path="/merchant/campaigns/:id" component={MerchantCampaignEdit} />
       <Route path="/merchant/payment-qrcode" component={MerchantPaymentQrCode} />
+      <Route path="/merchant/psp-setup" component={MerchantPspSetup} />
       <Route path="/merchant/me" component={MeOwner} />
       {/* 运营号 - 被商户授权的运营人员 */}
       <Route path="/operator/preview" component={OperatorPreview} />
