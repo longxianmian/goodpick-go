@@ -354,7 +354,7 @@ export default function MerchantOperations() {
             <span className="text-[10px] text-muted-foreground">{t('opsCenter.productManageDesc')}</span>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover-elevate" onClick={handleComingSoon} data-testid="button-campaign-manage">
+        <Card className="cursor-pointer hover-elevate" onClick={() => navigate('/merchant/campaigns')} data-testid="button-campaign-manage">
           <CardContent className="p-4 flex flex-col items-center gap-2">
             <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
               <Ticket className="w-5 h-5 text-orange-600" />
