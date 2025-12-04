@@ -427,7 +427,7 @@ export default function MerchantOperations() {
               <Ticket className="w-4 h-4 text-[#38B03B]" />
               <span className="text-sm font-semibold">{t('opsCenter.campaignList')}</span>
             </div>
-            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-auto p-0" onClick={handleComingSoon}>
+            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-auto p-0" onClick={() => navigate('/merchant/campaigns')}>
               {t('opsCenter.manageAll')} <ChevronRight className="w-3 h-3" />
             </Button>
           </div>
@@ -438,7 +438,7 @@ export default function MerchantOperations() {
                 <div 
                   key={campaign.id}
                   className="py-3 border-b border-muted last:border-b-0 cursor-pointer"
-                  onClick={handleComingSoon}
+                  onClick={() => navigate('/merchant/campaigns')}
                   data-testid={`campaign-item-${campaign.id}`}
                 >
                   <div className="flex items-center justify-between mb-2">
@@ -467,7 +467,7 @@ export default function MerchantOperations() {
         </CardContent>
       </Card>
 
-      <Card className="border-[#38B03B]/30 bg-gradient-to-r from-[#38B03B]/5 to-transparent cursor-pointer hover-elevate" onClick={handleComingSoon} data-testid="button-create-campaign">
+      <Card className="border-[#38B03B]/30 bg-gradient-to-r from-[#38B03B]/5 to-transparent cursor-pointer hover-elevate" onClick={() => navigate('/merchant/campaigns/new')} data-testid="button-create-campaign">
         <CardContent className="p-4 flex items-center gap-4">
           <div className="w-10 h-10 rounded-xl bg-[#38B03B] flex items-center justify-center">
             <Plus className="w-5 h-5 text-white" />

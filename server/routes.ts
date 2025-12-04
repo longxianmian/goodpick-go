@@ -5539,6 +5539,380 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // ============ 商户店铺活动管理 API ============
+
+  // 获取店铺活动列表 (需要验证用户对店铺的权限)
+  app.get('/api/stores/:storeId/campaigns', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const userId = req.user?.id;
+      const { status } = req.query;
+      const now = new Date();
+
+      // 验证用户对该店铺的权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限访问该店铺活动' });
+      }
+
+      // 获取与该店铺关联的活动
+      const storeCampaigns = await db
+        .select({
+          id: campaigns.id,
+          titleSource: campaigns.titleSource,
+          titleZh: campaigns.titleZh,
+          titleEn: campaigns.titleEn,
+          titleTh: campaigns.titleTh,
+          descriptionSource: campaigns.descriptionSource,
+          descriptionZh: campaigns.descriptionZh,
+          bannerImageUrl: campaigns.bannerImageUrl,
+          couponValue: campaigns.couponValue,
+          discountType: campaigns.discountType,
+          originalPrice: campaigns.originalPrice,
+          startAt: campaigns.startAt,
+          endAt: campaigns.endAt,
+          maxTotal: campaigns.maxTotal,
+          currentClaimed: campaigns.currentClaimed,
+          isActive: campaigns.isActive,
+          createdAt: campaigns.createdAt,
+        })
+        .from(campaigns)
+        .innerJoin(campaignStores, eq(campaigns.id, campaignStores.campaignId))
+        .where(eq(campaignStores.storeId, storeId))
+        .orderBy(desc(campaigns.createdAt));
+
+      // 计算活动状态
+      const campaignsWithStatus = storeCampaigns.map(c => {
+        let computedStatus = 'inactive';
+        if (c.isActive) {
+          if (now < new Date(c.startAt)) {
+            computedStatus = 'scheduled';
+          } else if (now > new Date(c.endAt)) {
+            computedStatus = 'ended';
+          } else {
+            computedStatus = 'active';
+          }
+        }
+        return { ...c, status: computedStatus };
+      });
+
+      // 状态过滤
+      let filtered = campaignsWithStatus;
+      if (status) {
+        filtered = filtered.filter(c => c.status === status);
+      }
+
+      res.json({ success: true, data: filtered });
+    } catch (error) {
+      console.error('Get store campaigns error:', error);
+      res.status(500).json({ success: false, message: '获取活动列表失败' });
+    }
+  });
+
+  // 获取单个活动详情 (需要验证用户对店铺的权限)
+  app.get('/api/stores/:storeId/campaigns/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const campaignId = parseInt(req.params.id);
+      const userId = req.user?.id;
+
+      // 验证用户对该店铺的权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限访问该店铺活动' });
+      }
+
+      const [campaign] = await db
+        .select({
+          id: campaigns.id,
+          titleSourceLang: campaigns.titleSourceLang,
+          titleSource: campaigns.titleSource,
+          titleZh: campaigns.titleZh,
+          titleEn: campaigns.titleEn,
+          titleTh: campaigns.titleTh,
+          descriptionSourceLang: campaigns.descriptionSourceLang,
+          descriptionSource: campaigns.descriptionSource,
+          descriptionZh: campaigns.descriptionZh,
+          descriptionEn: campaigns.descriptionEn,
+          descriptionTh: campaigns.descriptionTh,
+          bannerImageUrl: campaigns.bannerImageUrl,
+          mediaUrls: campaigns.mediaUrls,
+          couponValue: campaigns.couponValue,
+          discountType: campaigns.discountType,
+          originalPrice: campaigns.originalPrice,
+          startAt: campaigns.startAt,
+          endAt: campaigns.endAt,
+          maxPerUser: campaigns.maxPerUser,
+          maxTotal: campaigns.maxTotal,
+          currentClaimed: campaigns.currentClaimed,
+          isActive: campaigns.isActive,
+          createdAt: campaigns.createdAt,
+        })
+        .from(campaigns)
+        .innerJoin(campaignStores, eq(campaigns.id, campaignStores.campaignId))
+        .where(and(
+          eq(campaignStores.storeId, storeId),
+          eq(campaigns.id, campaignId)
+        ));
+
+      if (!campaign) {
+        return res.status(404).json({ success: false, message: '活动不存在' });
+      }
+
+      res.json({ success: true, data: campaign });
+    } catch (error) {
+      console.error('Get store campaign error:', error);
+      res.status(500).json({ success: false, message: '获取活动详情失败' });
+    }
+  });
+
+  // 创建店铺活动
+  app.post('/api/stores/:storeId/campaigns', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const userId = req.user?.id;
+
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      const {
+        titleSource,
+        descriptionSource,
+        bannerImageUrl,
+        mediaUrls,
+        couponValue,
+        discountType,
+        originalPrice,
+        startAt,
+        endAt,
+        maxPerUser,
+        maxTotal,
+      } = req.body;
+
+      if (!titleSource || !descriptionSource || !couponValue || !discountType || !startAt || !endAt) {
+        return res.status(400).json({ success: false, message: '请填写必填字段' });
+      }
+
+      // 翻译内容
+      const translations = await translateCampaignContent(
+        'zh-cn',
+        titleSource,
+        descriptionSource,
+        undefined,
+        undefined
+      );
+
+      const [newCampaign] = await db
+        .insert(campaigns)
+        .values({
+          titleSourceLang: 'zh-cn',
+          titleSource,
+          titleZh: titleSource,
+          titleEn: translations.titleEn,
+          titleTh: translations.titleTh,
+          descriptionSourceLang: 'zh-cn',
+          descriptionSource,
+          descriptionZh: descriptionSource,
+          descriptionEn: translations.descriptionEn,
+          descriptionTh: translations.descriptionTh,
+          bannerImageUrl,
+          mediaUrls,
+          couponValue,
+          discountType,
+          originalPrice: originalPrice || null,
+          startAt: new Date(startAt),
+          endAt: new Date(endAt),
+          maxPerUser: maxPerUser || 1,
+          maxTotal: maxTotal || null,
+          isActive: true,
+        })
+        .returning();
+
+      // 关联店铺
+      await db.insert(campaignStores).values({
+        campaignId: newCampaign.id,
+        storeId,
+      });
+
+      res.json({ success: true, data: newCampaign, message: '活动创建成功' });
+    } catch (error) {
+      console.error('Create store campaign error:', error);
+      res.status(500).json({ success: false, message: '创建活动失败' });
+    }
+  });
+
+  // 更新店铺活动
+  app.patch('/api/stores/:storeId/campaigns/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const campaignId = parseInt(req.params.id);
+      const userId = req.user?.id;
+
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      // 验证活动属于该店铺
+      const [campaignStore] = await db
+        .select()
+        .from(campaignStores)
+        .where(and(
+          eq(campaignStores.campaignId, campaignId),
+          eq(campaignStores.storeId, storeId)
+        ));
+
+      if (!campaignStore) {
+        return res.status(404).json({ success: false, message: '活动不存在' });
+      }
+
+      const {
+        titleSource,
+        descriptionSource,
+        bannerImageUrl,
+        mediaUrls,
+        couponValue,
+        discountType,
+        originalPrice,
+        startAt,
+        endAt,
+        maxPerUser,
+        maxTotal,
+        isActive,
+      } = req.body;
+
+      const updateData: any = { updatedAt: new Date() };
+
+      if (titleSource !== undefined) {
+        updateData.titleSource = titleSource;
+        updateData.titleZh = titleSource;
+        // 异步翻译
+        translateText(titleSource, 'zh-cn', 'en-us').then(text => {
+          db.update(campaigns).set({ titleEn: text }).where(eq(campaigns.id, campaignId)).execute();
+        }).catch(err => console.error('Translate campaign title EN failed:', err));
+        translateText(titleSource, 'zh-cn', 'th-th').then(text => {
+          db.update(campaigns).set({ titleTh: text }).where(eq(campaigns.id, campaignId)).execute();
+        }).catch(err => console.error('Translate campaign title TH failed:', err));
+      }
+
+      if (descriptionSource !== undefined) {
+        updateData.descriptionSource = descriptionSource;
+        updateData.descriptionZh = descriptionSource;
+        translateText(descriptionSource, 'zh-cn', 'en-us').then(text => {
+          db.update(campaigns).set({ descriptionEn: text }).where(eq(campaigns.id, campaignId)).execute();
+        }).catch(err => console.error('Translate campaign desc EN failed:', err));
+        translateText(descriptionSource, 'zh-cn', 'th-th').then(text => {
+          db.update(campaigns).set({ descriptionTh: text }).where(eq(campaigns.id, campaignId)).execute();
+        }).catch(err => console.error('Translate campaign desc TH failed:', err));
+      }
+
+      if (bannerImageUrl !== undefined) updateData.bannerImageUrl = bannerImageUrl;
+      if (mediaUrls !== undefined) updateData.mediaUrls = mediaUrls;
+      if (couponValue !== undefined) updateData.couponValue = couponValue;
+      if (discountType !== undefined) updateData.discountType = discountType;
+      if (originalPrice !== undefined) updateData.originalPrice = originalPrice;
+      if (startAt) updateData.startAt = new Date(startAt);
+      if (endAt) updateData.endAt = new Date(endAt);
+      if (maxPerUser !== undefined) updateData.maxPerUser = maxPerUser;
+      if (maxTotal !== undefined) updateData.maxTotal = maxTotal;
+      if (isActive !== undefined) updateData.isActive = isActive;
+
+      const [updatedCampaign] = await db
+        .update(campaigns)
+        .set(updateData)
+        .where(eq(campaigns.id, campaignId))
+        .returning();
+
+      res.json({ success: true, data: updatedCampaign, message: '活动更新成功' });
+    } catch (error) {
+      console.error('Update store campaign error:', error);
+      res.status(500).json({ success: false, message: '更新活动失败' });
+    }
+  });
+
+  // 删除店铺活动
+  app.delete('/api/stores/:storeId/campaigns/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const campaignId = parseInt(req.params.id);
+      const userId = req.user?.id;
+
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      // 验证活动属于该店铺
+      const [campaignStore] = await db
+        .select()
+        .from(campaignStores)
+        .where(and(
+          eq(campaignStores.campaignId, campaignId),
+          eq(campaignStores.storeId, storeId)
+        ));
+
+      if (!campaignStore) {
+        return res.status(404).json({ success: false, message: '活动不存在' });
+      }
+
+      // 软删除 - 设为不活跃
+      await db
+        .update(campaigns)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(eq(campaigns.id, campaignId));
+
+      res.json({ success: true, message: '活动已删除' });
+    } catch (error) {
+      console.error('Delete store campaign error:', error);
+      res.status(500).json({ success: false, message: '删除活动失败' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
