@@ -3,14 +3,10 @@
  * 路由: /p/:qrToken
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Loader2, Shield, Store, MapPin, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 
 interface StoreMetaData {
@@ -71,20 +67,22 @@ export default function PayEntryPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
       </div>
     );
   }
 
   if (error || !storeData?.success) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <AlertCircle className="w-16 h-16 text-destructive mb-4" />
-        <h1 className="text-xl font-semibold mb-2">QR Code Invalid</h1>
-        <p className="text-muted-foreground text-center">
-          This payment QR code is not available or has been disabled.
-        </p>
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-[375px] bg-white rounded-3xl shadow-xl p-6 text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-xl font-semibold text-slate-800 mb-2">QR Code Invalid</h1>
+          <p className="text-slate-500">
+            This payment QR code is not available or has been disabled.
+          </p>
+        </div>
       </div>
     );
   }
@@ -92,88 +90,120 @@ export default function PayEntryPage() {
   const store = storeData.data;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-background dark:from-green-950/20 dark:to-background">
-      <div className="max-w-md mx-auto px-4 py-6">
-        <div className="flex items-center gap-2 mb-6">
-          <Shield className="w-5 h-5 text-green-600" />
-          <span className="text-sm text-muted-foreground">Secure payment via HTTPS</span>
-        </div>
-
-        <h1 className="text-2xl font-bold mb-6">Payment amount confirmation</h1>
-
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
-              {store.storeImageUrl ? (
-                <img 
-                  src={store.storeImageUrl} 
-                  alt={store.storeName}
-                  className="w-16 h-16 rounded-lg object-cover"
-                />
-              ) : (
-                <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
-                  <Store className="w-8 h-8 text-muted-foreground" />
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <h2 className="font-semibold text-lg truncate" data-testid="text-store-name">
-                  {store.storeName}
-                </h2>
-                <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-                  <MapPin className="w-4 h-4 flex-shrink-0" />
-                  <span className="truncate">{store.storeAddress}</span>
-                </div>
-                <Badge variant="outline" className="mt-2">Verified Merchant</Badge>
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-[375px] bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200 flex flex-col" style={{ minHeight: '600px' }}>
+        {/* Top bar */}
+        <div className="px-4 pt-4 pb-3 bg-white border-b border-slate-100 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-emerald-500 to-lime-400 flex items-center justify-center text-xs font-bold text-white">
+              S
+            </div>
+            <div className="flex flex-col leading-tight">
+              <div className="text-[13px] font-semibold text-slate-800">Payment amount confirmation</div>
+              <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                <span className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-emerald-500">
+                  <span className="w-1.5 h-1.5 border-[1.5px] border-white border-t-transparent border-l-transparent rounded-sm rotate-45" />
+                </span>
+                <span>Secure page</span>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="flex flex-col items-end leading-tight">
+            <span className="text-[10px] text-slate-400">Page service by</span>
+            <span className="text-[11px] font-medium text-slate-600">DeeCard / Shuashua</span>
+          </div>
+        </div>
 
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <label className="block text-sm font-medium mb-2">
-              Payment Amount
-            </label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-semibold">
-                ฿
-              </span>
-              <Input
-                type="number"
-                inputMode="decimal"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="pl-10 text-2xl h-14 font-semibold"
-                data-testid="input-payment-amount"
-              />
+        {/* Content area */}
+        <div className="flex-1 overflow-y-auto bg-slate-50 px-4 pt-3 pb-4 space-y-4">
+          {/* Store info + amount card */}
+          <div className="bg-white rounded-2xl shadow-sm px-4 pt-4 pb-3 space-y-3">
+            {/* Store info */}
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-slate-200 overflow-hidden flex-shrink-0">
+                {store.storeImageUrl ? (
+                  <img 
+                    src={store.storeImageUrl} 
+                    alt={store.storeName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-orange-400 to-pink-500" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1 flex-wrap">
+                  <p className="text-[14px] font-semibold text-slate-900 truncate" data-testid="text-store-name">
+                    {store.storeName}
+                  </p>
+                  <span className="px-1.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-[10px] text-emerald-700 flex-shrink-0">
+                    Verified store
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 truncate">{store.storeAddress}</p>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Please confirm the amount with the merchant before paying.
+
+            <div className="h-px bg-slate-100" />
+
+            {/* Amount confirmation */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[12px] text-slate-500">Payment amount</span>
+                <span className="text-[11px] text-emerald-600">Please confirm with staff</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[16px] font-semibold text-slate-900">THB</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  className="flex-1 text-[30px] font-semibold text-slate-900 bg-transparent outline-none placeholder:text-slate-300 tracking-tight"
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  data-testid="input-payment-amount"
+                />
+              </div>
+              <p className="text-[11px] text-slate-400">
+                The system will use this amount to create a secure payment request only for this transaction.
+              </p>
+            </div>
+
+            {/* Pay button */}
+            <button
+              className="mt-3 w-full py-3 rounded-2xl bg-emerald-500 active:bg-emerald-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-[15px] font-semibold shadow-sm flex items-center justify-center gap-2"
+              onClick={handleConfirmPayment}
+              disabled={!amount || parseFloat(amount) <= 0 || isProcessing}
+              data-testid="button-confirm-payment"
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                'Confirm and continue to pay'
+              )}
+            </button>
+
+            {/* PSP info */}
+            <div className="mt-2 flex items-center justify-center gap-1 text-[10px] text-slate-400 flex-wrap">
+              <span>Payment service via</span>
+              <span className="px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200 text-[10px] font-medium text-slate-600">
+                Opn / 2C2P (Thailand)
+              </span>
+            </div>
+          </div>
+
+          {/* Legal & branding area */}
+          <div className="mt-1 text-center text-[10px] text-slate-400 space-y-1 pb-2">
+            <p>
+              This page is provided by DeeCard / Shuashua only to show merchant payment information and
+              membership points. Actual payment services are provided directly by licensed PSPs in Thailand.
             </p>
-          </CardContent>
-        </Card>
-
-        <Button
-          className="w-full h-14 text-lg font-semibold bg-green-600 hover:bg-green-700"
-          disabled={!amount || parseFloat(amount) <= 0 || isProcessing}
-          onClick={handleConfirmPayment}
-          data-testid="button-confirm-payment"
-        >
-          {isProcessing ? (
-            <>
-              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              Processing...
-            </>
-          ) : (
-            'Confirm and continue to pay'
-          )}
-        </Button>
-
-        <p className="text-xs text-center text-muted-foreground mt-6">
-          Page service provided by ShuaShua / DeeCard. 
-          Actual payment is processed by licensed payment service provider.
-        </p>
+            <p>DeeCard / Shuashua does not hold customer funds.</p>
+          </div>
+        </div>
       </div>
     </div>
   );

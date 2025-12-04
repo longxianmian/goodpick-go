@@ -1,0 +1,186 @@
+import React, { useState } from "react";
+
+// Preview component: simulate real flow
+// Step 1: payment amount confirmation page
+// Step 2: payment success + points confirmation page
+export default function PaymentEntryPreview() {
+  type Step = "entry" | "success";
+  const [step, setStep] = useState<Step>("entry");
+
+  return (
+    <div className="w-[449px] h-[866px] bg-slate-100 mx-auto flex items-center justify-center">
+      {step === "entry" ? (
+        <EntryScreen onConfirm={() => setStep("success")} />
+      ) : (
+        <SuccessScreen />
+      )}
+    </div>
+  );
+}
+
+type EntryScreenProps = {
+  onConfirm: () => void;
+};
+
+// 1) Entry screen: only "amount confirmation + go to pay"
+//    No points or LINE info is shown here.
+function EntryScreen({ onConfirm }: EntryScreenProps) {
+  return (
+    <div className="w-[375px] h-[812px] bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200 flex flex-col">
+      {/* Top bar: safe page indicator (NOT a payment provider label) */}
+      <div className="px-4 pt-4 pb-3 bg-white border-b border-slate-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-emerald-500 to-lime-400 flex items-center justify-center text-xs font-bold text-white">
+            S
+          </div>
+          <div className="flex flex-col leading-tight">
+            <div className="text-[13px] font-semibold text-slate-800">Payment amount confirmation</div>
+            <div className="text-[10px] text-slate-400 flex items-center gap-1">
+              <span className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-emerald-500">
+                <span className="w-1.5 h-1.5 border-[1.5px] border-white border-t-transparent border-l-transparent rounded-sm rotate-45" />
+              </span>
+              <span>Secure page · HTTPS</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col items-end leading-tight">
+          <span className="text-[10px] text-slate-400">Page service by</span>
+          <span className="text-[11px] font-medium text-slate-600">DeeCard / Shuashua</span>
+        </div>
+      </div>
+
+      {/* Content area */}
+      <div className="flex-1 overflow-y-auto bg-slate-50 px-4 pt-3 pb-4 space-y-4">
+        {/* Store info + amount card */}
+        <div className="bg-white rounded-2xl shadow-sm px-4 pt-4 pb-3 space-y-3">
+          {/* Store info */}
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-slate-200 overflow-hidden">
+              <div className="w-full h-full bg-gradient-to-br from-orange-400 to-pink-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1">
+                <p className="text-[14px] font-semibold text-slate-900 truncate">
+                  Wagyu Yakiniku House · Sukhumvit 11
+                </p>
+                <span className="px-1.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-[10px] text-emerald-700">
+                  Verified store
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 truncate">Bangkok · Sukhumvit 11 Branch</p>
+            </div>
+          </div>
+
+          <div className="h-px bg-slate-100" />
+
+          {/* Amount confirmation */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] text-slate-500">Payment amount</span>
+              <span className="text-[11px] text-emerald-600">Please confirm with staff</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-[16px] font-semibold text-slate-900">THB</span>
+              <input
+                className="flex-1 text-[30px] font-semibold text-slate-900 bg-transparent outline-none placeholder:text-slate-300 tracking-tight"
+                placeholder="0.00"
+                defaultValue="250.00"
+                readOnly
+              />
+            </div>
+            <p className="text-[11px] text-slate-400">
+              The system will use this amount to create a secure payment request only for this transaction.
+            </p>
+          </div>
+
+          {/* Pay button: in real environment goes to PSP; in preview, go to success screen */}
+          <button
+            className="mt-3 w-full py-3 rounded-2xl bg-emerald-500 active:bg-emerald-600 text-white text-[15px] font-semibold shadow-sm"
+            onClick={onConfirm}
+          >
+            Confirm and continue to pay
+          </button>
+
+          {/* PSP info */}
+          <div className="mt-2 flex items-center justify-center gap-1 text-[10px] text-slate-400">
+            <span>Payment service via</span>
+            <span className="px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200 text-[10px] font-medium text-slate-600">
+              Opn / 2C2P (Thailand)
+            </span>
+          </div>
+        </div>
+
+        {/* Legal & branding area */}
+        <div className="mt-1 text-center text-[10px] text-slate-400 space-y-1 pb-2">
+          <p>
+            This page is provided by DeeCard / Shuashua only to show merchant payment information and
+            membership points. Actual payment services are provided directly by licensed PSPs in Thailand.
+          </p>
+          <p>DeeCard / Shuashua does not hold customer funds.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 2) Success screen: show amount + points + one main button "claim via LINE".
+function SuccessScreen() {
+  return (
+    <div className="w-[375px] h-[812px] bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200 flex flex-col">
+      {/* Top bar (same style, different title) */}
+      <div className="px-4 pt-4 pb-3 bg-white border-b border-slate-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-emerald-500 to-lime-400 flex items-center justify-center text-xs font-bold text-white">
+            S
+          </div>
+          <div className="flex flex-col leading-tight">
+            <div className="text-[13px] font-semibold text-slate-800">Payment success</div>
+            <div className="text-[10px] text-slate-400 flex items-center gap-1">
+              <span className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-emerald-500">
+                <span className="w-1.5 h-1.5 border-[1.5px] border-white border-t-transparent border-l-transparent rounded-sm rotate-45" />
+              </span>
+              <span>Secure page · HTTPS</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Content: amount + points + LINE button */}
+      <div className="flex-1 overflow-y-auto bg-slate-50 px-4 pt-5 pb-4 space-y-5">
+        <div className="bg-white rounded-2xl shadow-sm px-4 pt-5 pb-5 space-y-4 flex flex-col items-center text-center">
+          <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mb-1">
+            <span className="w-6 h-6 border-[3px] border-emerald-500 border-t-transparent border-l-transparent rounded-md rotate-45" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-[13px] text-slate-500">Payment amount</p>
+            <p className="text-[28px] font-semibold text-slate-900">THB 250.00</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-[13px] text-slate-500">Points earned this time</p>
+            <p className="text-[22px] font-semibold text-amber-500">250 pts</p>
+          </div>
+
+          {/* Main button: claim points via LINE */}
+          <button className="mt-4 w-full py-3 rounded-2xl bg-[#06C755] active:bg-[#05b64d] text-white text-[15px] font-semibold shadow-sm flex items-center justify-center gap-2">
+            <span className="w-5 h-5 rounded-[4px] bg-white flex items-center justify-center text-[11px] text-[#06C755] font-bold">
+              L
+            </span>
+            <span>Claim points via LINE</span>
+          </button>
+        </div>
+
+        {/* Bottom info */}
+        <div className="mt-1 text-center text-[10px] text-slate-400 space-y-1 pb-2">
+          <p>
+            Points are stored in the merchant membership account on the DeeCard / Shuashua platform. This
+            confirmation page itself does not process any payment.
+          </p>
+          <p>
+            If the LINE page does not open correctly, you can later check your points in the "My points" section
+            of the Shuashua system.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

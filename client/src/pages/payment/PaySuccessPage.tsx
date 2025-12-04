@@ -6,10 +6,7 @@
 import { useState } from 'react';
 import { useParams } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, CheckCircle, Shield, Gift, Sparkles, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -78,20 +75,22 @@ export default function PaySuccessPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
       </div>
     );
   }
 
   if (error || !paymentData?.success) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <AlertCircle className="w-16 h-16 text-destructive mb-4" />
-        <h1 className="text-xl font-semibold mb-2">Payment Not Found</h1>
-        <p className="text-muted-foreground text-center">
-          Unable to find payment information.
-        </p>
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-[375px] bg-white rounded-3xl shadow-xl p-6 text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-xl font-semibold text-slate-800 mb-2">Payment Not Found</h1>
+          <p className="text-slate-500">
+            Unable to find payment information.
+          </p>
+        </div>
       </div>
     );
   }
@@ -103,119 +102,123 @@ export default function PaySuccessPage() {
 
   if (isPending) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <Loader2 className="w-16 h-16 animate-spin text-muted-foreground mb-4" />
-        <h1 className="text-xl font-semibold mb-2">Processing Payment...</h1>
-        <p className="text-muted-foreground text-center">
-          Please wait while we confirm your payment.
-        </p>
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-[375px] bg-white rounded-3xl shadow-xl p-6 text-center">
+          <Loader2 className="w-16 h-16 animate-spin text-slate-400 mx-auto mb-4" />
+          <h1 className="text-xl font-semibold text-slate-800 mb-2">Processing Payment...</h1>
+          <p className="text-slate-500">
+            Please wait while we confirm your payment.
+          </p>
+        </div>
       </div>
     );
   }
 
   if (!isPaid) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <AlertCircle className="w-16 h-16 text-destructive mb-4" />
-        <h1 className="text-xl font-semibold mb-2">Payment Failed</h1>
-        <p className="text-muted-foreground text-center">
-          Your payment was not completed. Please try again.
-        </p>
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-[375px] bg-white rounded-3xl shadow-xl p-6 text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-xl font-semibold text-slate-800 mb-2">Payment Failed</h1>
+          <p className="text-slate-500">
+            Your payment was not completed. Please try again.
+          </p>
+        </div>
       </div>
     );
   }
 
+  const formattedAmount = parseFloat(payment.amount).toLocaleString('en-US', { minimumFractionDigits: 2 });
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-background dark:from-green-950/20 dark:to-background">
-      <div className="max-w-md mx-auto px-4 py-8">
-        <div className="flex items-center gap-2 mb-6">
-          <Shield className="w-5 h-5 text-green-600" />
-          <span className="text-sm text-muted-foreground">Secure payment via HTTPS</span>
-        </div>
-
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="w-12 h-12 text-green-600" />
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-[375px] bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200 flex flex-col" style={{ minHeight: '600px' }}>
+        {/* Top bar */}
+        <div className="px-4 pt-4 pb-3 bg-white border-b border-slate-100 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-emerald-500 to-lime-400 flex items-center justify-center text-xs font-bold text-white">
+              S
+            </div>
+            <div className="flex flex-col leading-tight">
+              <div className="text-[13px] font-semibold text-slate-800">Payment success</div>
+              <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                <span className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-emerald-500">
+                  <span className="w-1.5 h-1.5 border-[1.5px] border-white border-t-transparent border-l-transparent rounded-sm rotate-45" />
+                </span>
+                <span>Secure page</span>
+              </div>
+            </div>
           </div>
-          <h1 className="text-2xl font-bold text-green-600">Payment Successful</h1>
-          <p className="text-muted-foreground mt-1">{payment.storeName}</p>
         </div>
 
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-1">Payment Amount</p>
-              <p className="text-4xl font-bold" data-testid="text-payment-amount">
-                ฿{parseFloat(payment.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto bg-slate-50 px-4 pt-5 pb-4 space-y-5">
+          <div className="bg-white rounded-2xl shadow-sm px-4 pt-5 pb-5 space-y-4 flex flex-col items-center text-center">
+            {/* Success icon */}
+            <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mb-1">
+              <span className="w-6 h-6 border-[3px] border-emerald-500 border-t-transparent border-l-transparent rounded-md rotate-45" />
+            </div>
+
+            {/* Payment amount */}
+            <div className="space-y-1">
+              <p className="text-[13px] text-slate-500">Payment amount</p>
+              <p className="text-[28px] font-semibold text-slate-900" data-testid="text-payment-amount">
+                THB {formattedAmount}
               </p>
             </div>
-          </CardContent>
-        </Card>
 
-        <Card className="mb-6 border-2 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/50 rounded-full flex items-center justify-center">
-                <Gift className="w-6 h-6 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Points earned this time</p>
-                <p className="text-2xl font-bold text-amber-600" data-testid="text-points-earned">
-                  {payment.points} pts
-                </p>
-              </div>
+            {/* Points earned */}
+            <div className="space-y-1">
+              <p className="text-[13px] text-slate-500">Points earned this time</p>
+              <p className="text-[22px] font-semibold text-amber-500" data-testid="text-points-earned">
+                {payment.points} pts
+              </p>
             </div>
 
+            {/* Claim button or claimed status */}
             {isClaimed ? (
-              <div className="flex items-center gap-2 text-green-600">
-                <CheckCircle className="w-5 h-5" />
-                <span className="font-medium">Points claimed to your account</span>
+              <div className="mt-4 w-full py-3 rounded-2xl bg-slate-100 text-slate-600 text-[15px] font-semibold flex items-center justify-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                  <span className="w-2 h-2 border-[2px] border-white border-t-transparent border-l-transparent rounded-sm rotate-45" />
+                </span>
+                <span>Points claimed to your account</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-amber-600">
-                <Sparkles className="w-5 h-5" />
-                <span className="text-sm">Claim your points via LINE to save them!</span>
-              </div>
+              <button 
+                className="mt-4 w-full py-3 rounded-2xl bg-[#06C755] active:bg-[#05b64d] disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-[15px] font-semibold shadow-sm flex items-center justify-center gap-2"
+                onClick={handleClaimPoints}
+                disabled={isClaiming}
+                data-testid="button-claim-points"
+              >
+                {isClaiming ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Claiming...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="w-5 h-5 rounded-[4px] bg-white flex items-center justify-center text-[11px] text-[#06C755] font-bold">
+                      L
+                    </span>
+                    <span>Claim points via LINE</span>
+                  </>
+                )}
+              </button>
             )}
-          </CardContent>
-        </Card>
-
-        {!isClaimed && (
-          <Button
-            className="w-full h-14 text-lg font-semibold bg-[#06C755] hover:bg-[#05b34d]"
-            disabled={isClaiming}
-            onClick={handleClaimPoints}
-            data-testid="button-claim-points"
-          >
-            {isClaiming ? (
-              <>
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                Claiming...
-              </>
-            ) : (
-              <>
-                <svg className="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.48 2 2 5.81 2 10.52c0 2.6 1.24 4.91 3.18 6.57V22l4.38-2.4c.78.12 1.6.19 2.44.19 5.52 0 10-3.81 10-8.48S17.52 2 12 2z"/>
-                </svg>
-                Claim points via LINE
-              </>
-            )}
-          </Button>
-        )}
-
-        {isClaimed && (
-          <div className="text-center">
-            <Badge variant="secondary" className="text-base px-4 py-2">
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Points Added to Your Account
-            </Badge>
           </div>
-        )}
 
-        <p className="text-xs text-center text-muted-foreground mt-8">
-          Page service provided by ShuaShua / DeeCard.
-          Points will be added to your ShuaShua membership account.
-        </p>
+          {/* Bottom info */}
+          <div className="mt-1 text-center text-[10px] text-slate-400 space-y-1 pb-2">
+            <p>
+              Points are stored in the merchant membership account on the DeeCard / Shuashua platform. This
+              confirmation page itself does not process any payment.
+            </p>
+            <p>
+              If the LINE page does not open correctly, you can later check your points in the "My points" section
+              of the Shuashua system.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
