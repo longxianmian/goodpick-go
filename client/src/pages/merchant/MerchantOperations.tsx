@@ -515,7 +515,7 @@ export default function MerchantOperations() {
         </CardContent>
       </Card>
 
-      <Card className="border-amber-500/50 bg-gradient-to-r from-amber-500/10 to-orange-500/10 cursor-pointer hover-elevate" onClick={handleComingSoon} data-testid="button-payment-qrcode">
+      <Card className="border-amber-500/50 bg-gradient-to-r from-amber-500/10 to-orange-500/10 cursor-pointer hover-elevate" onClick={() => navigate('/merchant/payment-qrcode')} data-testid="button-payment-qrcode">
         <CardContent className="p-4 flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
             <QrCode className="w-6 h-6 text-white" />
@@ -524,7 +524,7 @@ export default function MerchantOperations() {
             <div className="text-sm font-semibold">{t('opsCenter.paymentQrCode')}</div>
             <div className="text-xs text-muted-foreground">{t('opsCenter.paymentQrCodeDesc')}</div>
           </div>
-          <Badge variant="secondary" className="text-[10px]">{t('opsCenter.comingSoon')}</Badge>
+          <ChevronRight className="w-5 h-5 text-muted-foreground" />
         </CardContent>
       </Card>
 
