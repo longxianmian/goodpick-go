@@ -1,0 +1,177 @@
+1）Opn 沙盒账户 / API Key 怎么处理？
+
+我会自己去申请 Opn Thailand 的 sandbox 账号，届时提供真实的 key。
+
+现在开发时，请你按以下环境变量约定来写代码：
+
+OPN_PUBLIC_KEY= pkey_test_xxx   # 占位值，后面我会换成真实的
+OPN_SECRET_KEY= skey_test_xxx
+
+
+若环境变量为空或是占位值，代码不要报错，而是：
+
+启用一个 mock/stub 的 OpnProvider：返回假的 redirect_url（比如 https://sandbox.opn.dev/mock-payment），方便先把业务链路走通（二维码 → 金额页 → “跳转” → webhook → 成功页）。
+
+所有真实调用 Opn 的代码结构写好，等我补上真实 key 后即可切换到真连模式。
+
+2）支付方式（PromptPay / 信用卡）怎么做？
+
+V1 只做 PromptPay QR 支付，信用卡以后再加。
+
+数据和代码要预留扩展位，具体要求：
+
+type PaymentMethod = "promptpay" | "card";
+
+// payments 表里加字段
+payment_method: PaymentMethod;
+
+
+V1 中：
+
+所有新建支付订单都写死 payment_method = "promptpay"；
+
+H5 / UI 文案可以按 PromptPay QR 的场景来设计，但不要在代码里写死 “PromptPay-only” 的逻辑，将来可以再加 “card”。
+
+3）商户入驻 Opn / 以及多 PSP 架构怎么设计？
+
+核心：现在先以 Opn 是第 1 个 PSP 为实现对象，但整体架构必须支持未来接入更多 PSP（2C2P、Stripe 等），不能把 Opn 当成唯一的。
+
+3.1 Provider 抽象（多 PSP 插拔）
+
+请实现一个统一的 PaymentProvider 接口，Opn 只是第一个实现：
+
+type PSPCode = "opn" | "two_c2p" | string;
+
+interface PaymentProvider {
+  code: PSPCode;
+  displayName: string;
+
+  // 商户入驻：两种模式（二选一或都支持）
+  createOnboardingLink?(input: CreateOnboardingInput): Promise<OnboardingLinkResult>;
+  validateExistingMerchant?(merchantRef: string): Promise<boolean>;
+
+  // 创建支付订单
+  createCharge(input: CreateChargeInput): Promise<CreateChargeResult>;
+
+  // Webhook 签名校验与解析
+  verifyWebhookSignature(rawBody: string, headers: Record<string, string>): boolean;
+  parseWebhook(body: any): ParsedWebhook;
+}
+
+
+V1 请先实现 OpnProvider implements PaymentProvider，但业务逻辑和数据结构不要依赖 “只有 Opn” 这个假设，以后新增 provider 时，只要多挂一个实现即可。
+
+3.2 数据表（按多 PSP 设计）
+psp_providers {
+  id
+  code          // "opn", "two_c2p", ...
+  name
+  status        // ACTIVE / DISABLED
+  is_default    // 是否可选为默认 PSP
+  config        // jsonb, 预留
+}
+
+merchant_psp_accounts {
+  id
+  merchant_id
+  store_id              // 可空，空=商户级，有值=门店级
+  psp_code              // = psp_providers.code
+
+  onboarding_mode       // "manual_id" | "connect"
+  onboarding_status     // "NOT_STARTED" | "INVITED" | "IN_PROGRESS" | "COMPLETED" | "FAILED"
+
+  provider_merchant_ref // 各 PSP 自己的 merchant/account id
+  onboarding_ref        // Connect 用的 reference
+  onboarding_url        // Onboarding link
+
+  settlement_bank_name
+  settlement_account_name
+  settlement_account_number
+
+  status                // "PENDING_REVIEW" | "ACTIVE" | "SUSPENDED"
+  meta                  // jsonb, provider 扩展字段
+}
+
+payments {
+  id
+  store_id
+  qr_code_id
+  psp_code             // "opn" / "two_c2p" / ...
+  psp_payment_id
+  amount
+  currency
+  payment_method       // 见上：V1 恒为 "promptpay"
+  status               // INIT / PENDING / PAID / FAILED / EXPIRED
+  paid_at
+  raw_payload          // jsonb
+}
+
+3.3 Opn 的商户入驻：两种模式 现在就都做出来
+
+你的问题是“Opn 是平台统一对接，还是让每个商户自己注册？”
+我的要求是：两种都支持，从一开始一并实现，后面不用回来大改。
+
+模式 A：商户已有 Opn 账户（manual_id）
+
+商户在 Opn 官网自己开好户。
+
+在刷刷后台「收款码」页选择：“I already have an Opn account”。
+
+填一个 Opn Merchant ID 字段（或你根据 Opn API 定的 merchant ref 字段）。
+
+后端：
+
+onboarding_mode = "manual_id"
+
+onboarding_status = "COMPLETED"
+
+provider_merchant_ref = (该 merchant id)
+
+status = "ACTIVE"（通过基本校验后）
+
+模式 B：通过 Opn Connect / Onboarding link 开户（connect）
+
+商户在刷刷后台「收款码」页选择：“Open a new Opn account via Shuashua”。
+
+填基本资料（名称、联系人、邮箱、电话等）。
+
+调用 OpnProvider.createOnboardingLink 得到：
+
+onboardingUrl
+
+onboardingRef
+
+写入 merchant_psp_accounts：
+
+onboarding_mode = "connect"
+
+onboarding_status = "INVITED"
+
+onboarding_ref, onboarding_url
+
+前端展示一个按钮“继续在 Opn 完成开户”，跳转 onboardingUrl。
+
+实现 Opn 的 onboarding webhook：
+
+path 示例：POST /api/psp/opn/onboarding-callback
+
+通过 onboardingRef 找到记录；
+
+成功时写入 provider_merchant_ref（真实 merchant id）：
+
+onboarding_status = "COMPLETED"
+
+status = "ACTIVE"
+
+失败时：
+
+onboarding_status = "FAILED"
+
+status = "SUSPENDED" 或 PENDING_REVIEW，并记录失败原因。
+
+3.4 H5 / UI 层的小要求
+
+「Payment service via XXX」这个文案不要写死在前端，改成从后端传 payment_psp_display_name，V1 可以返回 "Opn (Thailand)"。
+
+不允许在任意业务逻辑里写死 if (psp_code === "opn") 来绕开通用流程；
+只能通过 PaymentProvider 接口的能力（比如有没有 createOnboardingLink）来决定是否展示某些功能。

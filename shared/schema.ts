@@ -1245,7 +1245,7 @@ export type InsertRiskAlert = z.infer<typeof insertRiskAlertSchema>;
 export type RiskAlert = typeof riskAlerts.$inferSelect;
 
 // ============================================================
-// 收款二维码功能 - 5张新表
+// 收款二维码功能 - 生产级多 PSP 架构
 // ============================================================
 
 // PSP 状态枚举
@@ -1253,6 +1253,21 @@ export const pspStatusEnum = pgEnum('psp_status', ['active', 'disabled']);
 
 // 商户 PSP 账户状态枚举
 export const merchantPspStatusEnum = pgEnum('merchant_psp_status', ['pending_review', 'active', 'suspended']);
+
+// 商户入驻模式枚举
+export const onboardingModeEnum = pgEnum('onboarding_mode', ['manual_id', 'connect']);
+
+// 商户入驻状态枚举
+export const onboardingStatusEnum = pgEnum('onboarding_status', [
+  'not_started',   // 未开始
+  'invited',       // 已发送邀请链接
+  'in_progress',   // 入驻中
+  'completed',     // 入驻完成
+  'failed',        // 入驻失败
+]);
+
+// 支付方式枚举
+export const paymentMethodEnum = pgEnum('payment_method', ['promptpay', 'card']);
 
 // 二维码类型枚举
 export const qrTypeEnum = pgEnum('qr_type', ['h5_pay_entry']);
@@ -1269,9 +1284,11 @@ export const pointsStatusEnum = pgEnum('points_status', ['unclaimed', 'claimed']
 // 1. PSP 提供方配置表
 export const pspProviders = pgTable('psp_providers', {
   id: serial('id').primaryKey(),
-  code: text('code').notNull().unique(),        // 'opn' | '2c2p'
-  name: text('name').notNull(),                 // 'Opn Thailand' | '2C2P Thailand'
+  code: text('code').notNull().unique(),        // 'opn' | 'two_c2p' | 'stripe'
+  name: text('name').notNull(),                 // 'Opn (Thailand)' | '2C2P Thailand'
   status: pspStatusEnum('status').notNull().default('active'),
+  isDefault: boolean('is_default').notNull().default(false),  // 是否可选为默认 PSP
+  config: text('config'),                       // JSONB 预留扩展配置
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
@@ -1285,13 +1302,21 @@ export type PspProvider = typeof pspProviders.$inferSelect;
 // 2. 商户 PSP 账户配置表
 export const merchantPspAccounts = pgTable('merchant_psp_accounts', {
   id: serial('id').primaryKey(),
-  tenantId: integer('tenant_id'),                              // 平台租户（可选）
-  merchantId: integer('merchant_id'),                           // 刷刷内部商户ID
-  storeId: integer('store_id').references(() => stores.id, { onDelete: 'cascade' }),
+  tenantId: integer('tenant_id'),                               // 平台租户（可选）
+  merchantId: integer('merchant_id'),                            // 刷刷内部商户ID
+  storeId: integer('store_id').references(() => stores.id, { onDelete: 'cascade' }),  // 可空=商户级，有值=门店级
   
   // PSP 配置
-  pspProviderCode: text('psp_provider_code').notNull(),        // 引用 psp_providers.code
-  pspMerchantId: text('psp_merchant_id'),                       // PSP 返回的商户号
+  pspCode: text('psp_code').notNull(),                          // 引用 psp_providers.code
+  
+  // 入驻模式与状态（核心新增）
+  onboardingMode: onboardingModeEnum('onboarding_mode').notNull().default('manual_id'),
+  onboardingStatus: onboardingStatusEnum('onboarding_status').notNull().default('not_started'),
+  
+  // PSP 商户标识
+  providerMerchantRef: text('provider_merchant_ref'),           // PSP 自己的 merchant/account id
+  onboardingRef: text('onboarding_ref'),                        // Connect 用的 reference
+  onboardingUrl: text('onboarding_url'),                        // Onboarding link
   
   // 结算银行信息
   settlementBankName: text('settlement_bank_name'),
@@ -1311,6 +1336,9 @@ export const merchantPspAccounts = pgTable('merchant_psp_accounts', {
   status: merchantPspStatusEnum('status').notNull().default('pending_review'),
   rejectedReason: text('rejected_reason'),
   
+  // 扩展字段
+  meta: text('meta'),                                           // JSONB provider 扩展字段
+  
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -1319,7 +1347,9 @@ export const insertMerchantPspAccountSchema = createInsertSchema(merchantPspAcco
   id: true,
   createdAt: true,
   updatedAt: true,
-  pspMerchantId: true,
+  providerMerchantRef: true,
+  onboardingRef: true,
+  onboardingUrl: true,
 });
 export type InsertMerchantPspAccount = z.infer<typeof insertMerchantPspAccountSchema>;
 export type MerchantPspAccount = typeof merchantPspAccounts.$inferSelect;
@@ -1354,12 +1384,15 @@ export const qrPayments = pgTable('qr_payments', {
   qrCodeId: integer('qr_code_id').references(() => storeQrCodes.id, { onDelete: 'set null' }),
   
   // PSP 信息
-  pspProviderCode: text('psp_provider_code').notNull(),
+  pspCode: text('psp_code').notNull(),                          // 引用 psp_providers.code
   pspPaymentId: text('psp_payment_id'),                         // PSP 订单号
   
   // 金额
   amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
   currency: text('currency').notNull().default('THB'),
+  
+  // 支付方式 (V1 固定为 promptpay，预留 card 扩展)
+  paymentMethod: paymentMethodEnum('payment_method').notNull().default('promptpay'),
   
   // 状态
   status: paymentQrStatusEnum('status').notNull().default('init'),
