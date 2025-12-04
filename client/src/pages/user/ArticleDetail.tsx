@@ -333,8 +333,8 @@ export default function ArticleDetail() {
             <div 
               className="flex items-center gap-2 cursor-pointer"
               onClick={() => {
-                if (article.storeId) {
-                  setLocation(`/store/${article.storeId}`);
+                if (article.creatorUserId) {
+                  setLocation(`/user/${article.creatorUserId}`);
                 }
               }}
               data-testid="link-creator-avatar"
