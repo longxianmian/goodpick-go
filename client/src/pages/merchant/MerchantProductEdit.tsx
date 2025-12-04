@@ -324,14 +324,14 @@ export default function MerchantProductEdit() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('merchant.selectCategory')}</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select value={field.value || "none"} onValueChange={(val) => field.onChange(val === "none" ? "" : val)}>
                         <FormControl>
                           <SelectTrigger data-testid="select-category">
                             <SelectValue placeholder={t('merchant.noCategorySet')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">{t('merchant.noCategorySet')}</SelectItem>
+                          <SelectItem value="none">{t('merchant.noCategorySet')}</SelectItem>
                           {categories.map(cat => (
                             <SelectItem key={cat.id} value={cat.id.toString()}>
                               {cat.nameZh || cat.nameSource}

@@ -31,6 +31,7 @@ import {
   Percent,
   Calendar,
   Eye,
+  EyeOff,
   Heart,
   ShoppingCart,
   Target,
@@ -39,7 +40,8 @@ import {
   Video,
   Lightbulb,
   PartyPopper,
-  MessageSquare
+  MessageSquare,
+  CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -374,39 +376,42 @@ export default function MerchantOperations() {
               {t('opsCenter.viewAll')} <ChevronRight className="w-3 h-3" />
             </Button>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {operationsData.products.map((product) => (
               <div 
                 key={product.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover-elevate"
-                onClick={handleComingSoon}
+                className="flex items-center justify-between py-3 border-b border-muted last:border-b-0 cursor-pointer"
+                onClick={() => navigate(`/merchant/products/${product.id}/edit`)}
                 data-testid={`product-item-${product.id}`}
               >
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium">{product.name}</span>
                     <Badge 
-                      variant={product.status === 'active' ? 'default' : 'secondary'}
-                      className="text-[10px]"
+                      className={`text-[10px] ${product.status === 'active' ? 'bg-[#38B03B]' : 'bg-gray-400'}`}
                     >
                       {product.status === 'active' ? t('opsCenter.onShelf') : t('opsCenter.offShelf')}
                     </Badge>
                   </div>
-                  <div className="text-[10px] text-muted-foreground">{t('opsCenter.sales')}: {product.sales}</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">{t('opsCenter.sales')}: {product.sales}</div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <span className="text-sm font-semibold">¥{product.price}</span>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-7 w-7"
+                    className="h-8 w-8"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleComingSoon();
                     }}
-                    data-testid={`button-toggle-product-${product.id}`}
+                    data-testid={`button-toggle-visibility-${product.id}`}
                   >
-                    <ToggleLeft className="w-4 h-4" />
+                    {product.status === 'active' ? (
+                      <Eye className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <EyeOff className="w-4 h-4 text-muted-foreground" />
+                    )}
                   </Button>
                 </div>
               </div>
@@ -426,34 +431,38 @@ export default function MerchantOperations() {
               {t('opsCenter.manageAll')} <ChevronRight className="w-3 h-3" />
             </Button>
           </div>
-          <div className="space-y-2">
-            {operationsData.campaigns.map((campaign) => (
-              <div 
-                key={campaign.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover-elevate"
-                onClick={handleComingSoon}
-                data-testid={`campaign-item-${campaign.id}`}
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{campaign.name}</span>
-                    <Badge 
-                      variant={campaign.status === 'active' ? 'default' : 'secondary'}
-                      className="text-[10px]"
-                    >
-                      {campaign.status === 'active' ? t('opsCenter.inProgress') : t('opsCenter.scheduled')}
-                    </Badge>
+          <div className="space-y-3">
+            {operationsData.campaigns.map((campaign) => {
+              const usedPercent = ((campaign.total - campaign.remaining) / campaign.total) * 100;
+              return (
+                <div 
+                  key={campaign.id}
+                  className="py-3 border-b border-muted last:border-b-0 cursor-pointer"
+                  onClick={handleComingSoon}
+                  data-testid={`campaign-item-${campaign.id}`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium">{campaign.name}</span>
+                      <Badge 
+                        className={`text-[10px] ${campaign.status === 'active' ? 'bg-[#38B03B]' : 'bg-amber-500'}`}
+                      >
+                        {campaign.status === 'active' ? t('opsCenter.inProgress') : t('opsCenter.scheduled')}
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="text-[10px] text-muted-foreground">{t('opsCenter.remaining')}: {campaign.remaining}/{campaign.total}</div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-[11px] text-muted-foreground">{t('opsCenter.remaining')}: {campaign.remaining}/{campaign.total}</div>
+                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-[#38B03B] rounded-full transition-all duration-300" 
+                        style={{ width: `${usedPercent}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-[#38B03B]" 
-                    style={{ width: `${(campaign.remaining / campaign.total) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>
