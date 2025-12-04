@@ -60,6 +60,8 @@ import TermsPage from "@/pages/TermsPage";
 import OpsCenter from "@/pages/ops/OpsCenter";
 import OpsShuashua from "@/pages/ops/OpsShuashua";
 import OpsDiscover from "@/pages/ops/OpsDiscover";
+import OperatorCenter from "@/pages/operator/OperatorCenter";
+import OperatorPreview from "@/pages/operator/OperatorPreview";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import { Store, Tag, LogOut, LayoutDashboard } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -220,9 +222,11 @@ function Router() {
       <Route path="/merchant/campaigns/:id" component={MerchantCampaignEdit} />
       <Route path="/merchant/me" component={MeOwner} />
       {/* 运营号 - 被商户授权的运营人员 */}
-      <Route path="/operator/me" component={MeOperator} />
+      <Route path="/operator/preview" component={OperatorPreview} />
+      <Route path="/operator/center" component={OperatorCenter} />
       <Route path="/operator/products" component={MerchantProducts} />
       <Route path="/operator/campaigns" component={MerchantCampaigns} />
+      <Route path="/operator/me" component={MeOperator} />
       {/* 支付页面 */}
       <Route path="/pay/:id/success" component={PaymentSuccess} />
       <Route path="/pay/:id" component={PaymentPage} />

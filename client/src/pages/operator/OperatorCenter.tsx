@@ -358,7 +358,7 @@ export default function OperatorCenter() {
         </Tabs>
       </div>
 
-      <RoleAwareBottomNav currentRole="operator" />
+      <RoleAwareBottomNav forceRole="operator" />
     </div>
   );
 }
