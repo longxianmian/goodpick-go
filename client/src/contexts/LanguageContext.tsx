@@ -28,6 +28,7 @@ const translations: Record<Language, Record<string, string>> = {
     'common.confirm': '确认',
     'common.back': '返回',
     'common.share': '分享',
+    'common.viewAll': '查看全部',
     
     // 角色名称
     'roles.consumer': '个人账号',
@@ -1821,6 +1822,7 @@ const translations: Record<Language, Record<string, string>> = {
     'common.confirm': 'Confirm',
     'common.back': 'Back',
     'common.share': 'Share',
+    'common.viewAll': 'View All',
     
     // Role names
     'roles.consumer': 'Personal',
@@ -3613,6 +3615,9 @@ const translations: Record<Language, Record<string, string>> = {
     'common.success': 'สำเร็จ',
     'common.error': 'ข้อผิดพลาด',
     'common.confirm': 'ยืนยัน',
+    'common.back': 'กลับ',
+    'common.share': 'แชร์',
+    'common.viewAll': 'ดูทั้งหมด',
     
     // ชื่อบทบาท
     'roles.consumer': 'ส่วนตัว',
