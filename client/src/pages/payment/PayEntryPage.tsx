@@ -16,6 +16,7 @@ interface StoreMetaData {
   storeAddress: string;
   storeImageUrl: string | null;
   currency: string;
+  pspDisplayName?: string;  // PSP 显示名称从后端获取
 }
 
 export default function PayEntryPage() {
@@ -186,11 +187,11 @@ export default function PayEntryPage() {
               )}
             </button>
 
-            {/* PSP info */}
+            {/* PSP info - 显示名称从后端获取 */}
             <div className="mt-2 flex items-center justify-center gap-1 text-[10px] text-slate-400 flex-wrap">
               <span>Payment service via</span>
               <span className="px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200 text-[10px] font-medium text-slate-600">
-                Opn / 2C2P (Thailand)
+                {store.pspDisplayName || 'Payment Service'}
               </span>
             </div>
           </div>

@@ -5986,7 +5986,9 @@ export function registerRoutes(app: Express): Server {
           id: merchantPspAccounts.id,
           storeId: merchantPspAccounts.storeId,
           storeName: stores.name,
-          pspProviderCode: merchantPspAccounts.pspProviderCode,
+          pspCode: merchantPspAccounts.pspCode,
+          onboardingMode: merchantPspAccounts.onboardingMode,
+          onboardingStatus: merchantPspAccounts.onboardingStatus,
           settlementBankName: merchantPspAccounts.settlementBankName,
           settlementAccountNumber: merchantPspAccounts.settlementAccountNumber,
           status: merchantPspAccounts.status,
@@ -6021,7 +6023,9 @@ export function registerRoutes(app: Express): Server {
 
       const {
         storeId,
-        pspProviderCode,
+        pspCode,
+        onboardingMode = 'manual_id',
+        providerMerchantRef,
         settlementBankName,
         settlementBankCode,
         settlementAccountName,
@@ -6058,7 +6062,10 @@ export function registerRoutes(app: Express): Server {
         const [updated] = await db
           .update(merchantPspAccounts)
           .set({
-            pspProviderCode,
+            pspCode,
+            onboardingMode,
+            providerMerchantRef,
+            onboardingStatus: onboardingMode === 'manual_id' && providerMerchantRef ? 'completed' : 'not_started',
             settlementBankName,
             settlementBankCode,
             settlementAccountName,
@@ -6067,20 +6074,23 @@ export function registerRoutes(app: Express): Server {
             idCardUrl,
             companyRegistrationUrl,
             businessLicenseUrl,
-            status: 'pending_review',
+            status: onboardingMode === 'manual_id' && providerMerchantRef ? 'active' : 'pending_review',
             updatedAt: new Date(),
           })
           .where(eq(merchantPspAccounts.id, existingAccount.id))
           .returning();
 
-        res.json({ success: true, data: updated, message: 'PSP account updated, pending review' });
+        res.json({ success: true, data: updated, message: 'PSP account updated' });
       } else {
         // 创建新配置
         const [created] = await db
           .insert(merchantPspAccounts)
           .values({
             storeId,
-            pspProviderCode,
+            pspCode,
+            onboardingMode,
+            providerMerchantRef,
+            onboardingStatus: onboardingMode === 'manual_id' && providerMerchantRef ? 'completed' : 'not_started',
             settlementBankName,
             settlementBankCode,
             settlementAccountName,
@@ -6090,11 +6100,11 @@ export function registerRoutes(app: Express): Server {
             companyRegistrationUrl,
             businessLicenseUrl,
             currency: 'THB',
-            status: 'pending_review',
+            status: onboardingMode === 'manual_id' && providerMerchantRef ? 'active' : 'pending_review',
           })
           .returning();
 
-        res.json({ success: true, data: created, message: 'PSP account created, pending review' });
+        res.json({ success: true, data: created, message: 'PSP account created' });
       }
     } catch (error) {
       console.error('Create/update merchant PSP account error:', error);
@@ -6258,6 +6268,26 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ success: false, message: 'QR code not found or disabled' });
       }
 
+      // 获取该门店的 PSP 配置
+      const [pspAccount] = await db
+        .select({
+          pspCode: merchantPspAccounts.pspCode,
+        })
+        .from(merchantPspAccounts)
+        .where(and(
+          eq(merchantPspAccounts.storeId, qrCode.storeId),
+          eq(merchantPspAccounts.status, 'active')
+        ));
+
+      // 获取 PSP 显示名称（从 Provider 获取，不写死）
+      let pspDisplayName = 'Payment Service';
+      if (pspAccount?.pspCode) {
+        const provider = getPaymentProvider(pspAccount.pspCode);
+        if (provider) {
+          pspDisplayName = provider.displayName;
+        }
+      }
+
       res.json({
         success: true,
         data: {
@@ -6267,6 +6297,7 @@ export function registerRoutes(app: Express): Server {
           storeAddress: qrCode.storeAddress,
           storeImageUrl: convertHttpToHttps(qrCode.storeImageUrl),
           currency: 'THB',
+          pspDisplayName,  // PSP 显示名称从后端传
         }
       });
     } catch (error) {
@@ -6311,7 +6342,7 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ success: false, message: 'Store payment not configured' });
       }
 
-      const provider = getPaymentProvider(pspAccount.pspProviderCode);
+      const provider = getPaymentProvider(pspAccount.pspCode);
       if (!provider) {
         return res.status(500).json({ success: false, message: 'PSP provider not available' });
       }
@@ -6320,17 +6351,19 @@ export function registerRoutes(app: Express): Server {
       const orderId = `pay_${nanoid(16)}`;
       const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
       const returnUrl = `${baseUrl}/success/${orderId}`;
-      const webhookUrl = `${baseUrl}/api/payments/webhook/${pspAccount.pspProviderCode}`;
+      const webhookUrl = `${baseUrl}/api/payments/webhook/${pspAccount.pspCode}`;
 
-      // 调用 PSP 创建订单
-      const chargeResult = await provider.createQrCharge({
-        amount: Math.round(parseFloat(amount) * 100), // 转为分
+      // 调用 PSP 创建订单（金额保持泰铢小数形式，Provider 内部处理单位转换）
+      const chargeResult = await provider.createCharge({
+        amount: parseFloat(amount),
         currency,
         storeId: qrCode.storeId,
         orderId,
+        paymentMethod: 'promptpay',  // V1 固定为 PromptPay
         returnUrl,
         webhookUrl,
         description: `Payment for store #${qrCode.storeId}`,
+        providerMerchantRef: pspAccount.providerMerchantRef || undefined,
       });
 
       if (!chargeResult.success) {
@@ -6343,10 +6376,11 @@ export function registerRoutes(app: Express): Server {
         .values({
           storeId: qrCode.storeId,
           qrCodeId: qrCode.id,
-          pspProviderCode: pspAccount.pspProviderCode,
+          pspCode: pspAccount.pspCode,
           pspPaymentId: chargeResult.pspPaymentId,
           amount: amount.toString(),
           currency,
+          paymentMethod: 'promptpay',
           status: 'pending',
           redirectUrl: chargeResult.redirectUrl,
         })
@@ -6423,13 +6457,13 @@ export function registerRoutes(app: Express): Server {
       }
 
       // 验证签名
-      if (!provider.verifyWebhookSignature(rawBody, headers)) {
+      if (!provider.verifyPaymentWebhookSignature(rawBody, headers)) {
         console.warn('[Webhook/opn] Invalid signature');
         return res.status(401).json({ success: false, message: 'Invalid signature' });
       }
 
       // 解析数据
-      const payload = provider.parseWebhookPayload(rawBody);
+      const payload = provider.parsePaymentWebhook(rawBody);
       if (!payload) {
         return res.status(400).json({ success: false, message: 'Invalid payload' });
       }
@@ -6491,22 +6525,22 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Webhook: 2C2P 支付回调
-  app.post('/api/payments/webhook/2c2p', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
+  app.post('/api/payments/webhook/two_c2p', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
     try {
       const rawBody = req.body.toString();
       const headers = req.headers as Record<string, string>;
 
-      const provider = getPaymentProvider('2c2p');
+      const provider = getPaymentProvider('two_c2p');
       if (!provider) {
         return res.status(500).json({ success: false, message: 'Provider not configured' });
       }
 
-      if (!provider.verifyWebhookSignature(rawBody, headers)) {
+      if (!provider.verifyPaymentWebhookSignature(rawBody, headers)) {
         console.warn('[Webhook/2c2p] Invalid signature');
         return res.status(401).json({ success: false, message: 'Invalid signature' });
       }
 
-      const payload = provider.parseWebhookPayload(rawBody);
+      const payload = provider.parsePaymentWebhook(rawBody);
       if (!payload) {
         return res.status(400).json({ success: false, message: 'Invalid payload' });
       }
