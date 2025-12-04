@@ -185,6 +185,8 @@ function Router() {
       <Route path="/dev/me/verifier" component={MeVerifier} />
       <Route path="/dev/me/sysadmin" component={MeSysAdmin} />
       <Route path="/dev/me/creator" component={CreatorAccount} />
+      {/* 系统管理员页面 - 快捷访问 */}
+      <Route path="/sysadmin" component={MeSysAdmin} />
       {/* 运营中心 - 系统管理员专属 */}
       <Route path="/ops" component={OpsCenter} />
       {/* 刷刷号（创作者）专属路由 */}
