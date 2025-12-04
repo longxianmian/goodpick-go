@@ -6,15 +6,11 @@ import {
   Users, 
   Ticket, 
   BarChart3, 
-  Settings, 
-  Bell, 
-  FileText, 
   Package, 
   Tags,
   UserPlus,
   ClipboardList,
   BadgeCheck,
-  Calendar,
   ShoppingBag,
   CircleDollarSign,
   Wallet,
@@ -22,8 +18,22 @@ import {
   PieChart,
   ArrowUpRight,
   ArrowDownRight,
-  Store,
-  Clock
+  Clock,
+  Plus,
+  Settings,
+  QrCode,
+  Boxes,
+  FileText,
+  CreditCard,
+  ToggleLeft,
+  Sparkles,
+  Gift,
+  Percent,
+  Calendar,
+  Eye,
+  Heart,
+  ShoppingCart,
+  Target
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -76,57 +86,68 @@ export default function MerchantOperations() {
   };
 
   const operationsData = {
+    totalProducts: 45,
+    activeProducts: 38,
+    inactiveProducts: 7,
+    activeCampaigns: 3,
+    products: [
+      { id: 1, name: '招牌奶茶', price: 18, status: 'active', sales: 156 },
+      { id: 2, name: '超值午餐', price: 38, status: 'active', sales: 89 },
+      { id: 3, name: '甜品套餐', price: 28, status: 'inactive', sales: 67 },
+      { id: 4, name: '会员充值卡', price: 200, status: 'active', sales: 23 },
+    ],
+    campaigns: [
+      { id: 1, name: '新人首单立减', type: 'discount', status: 'active', remaining: 45, total: 100 },
+      { id: 2, name: '周末买一送一', type: 'bogo', status: 'active', remaining: 12, total: 50 },
+      { id: 3, name: '会员专享8折', type: 'member', status: 'scheduled', remaining: 100, total: 100 },
+    ],
+  };
+
+  const assetsData = {
+    totalInventory: 1250,
+    lowStockItems: 5,
+    pendingPurchase: 3,
+    accountBalance: 12680,
+    monthlyRevenue: 38500,
+    monthlyExpense: 15200,
+    inventoryItems: [
+      { id: 1, name: '奶茶原料', stock: 50, unit: '袋', minStock: 20, status: 'normal' },
+      { id: 2, name: '一次性杯子', stock: 15, unit: '箱', minStock: 20, status: 'low' },
+      { id: 3, name: '吸管', stock: 8, unit: '箱', minStock: 10, status: 'low' },
+      { id: 4, name: '打包盒', stock: 100, unit: '个', minStock: 50, status: 'normal' },
+    ],
+    transactions: [
+      { id: 1, type: 'income', desc: '订单收入', amount: 580, time: '今天 10:30' },
+      { id: 2, type: 'income', desc: '订单收入', amount: 320, time: '今天 09:45' },
+      { id: 3, type: 'expense', desc: '进货支出', amount: -1200, time: '昨天 15:00' },
+      { id: 4, type: 'expense', desc: '平台服务费', amount: -45, time: '昨天 23:00' },
+    ],
+  };
+
+  const dataStats = {
     todayOrders: 28,
-    pendingOrders: 5,
+    pendingVerify: 5,
     todayVerified: 23,
     activeCampaigns: 3,
+    todayRevenue: 2580,
+    yesterdayRevenue: 2340,
+    weeklyRevenue: 18500,
+    monthlyRevenue: 68000,
+    todayCustomers: 38,
+    avgOrderValue: 61.4,
+    conversionRate: 12.5,
+    todayViews: 328,
+    todayFavorites: 24,
     orders: [
       { id: 'ORD001', product: '招牌奶茶套餐', amount: 58, status: 'pending', time: '10:30' },
       { id: 'ORD002', product: '超值午餐套餐', amount: 38, status: 'verified', time: '10:25' },
       { id: 'ORD003', product: '会员充值200', amount: 200, status: 'verified', time: '10:20' },
       { id: 'ORD004', product: '甜品双人套餐', amount: 68, status: 'pending', time: '10:15' },
     ],
-    campaigns: [
-      { id: 1, name: '新人首单立减', type: 'discount', remaining: 45, total: 100 },
-      { id: 2, name: '周末买一送一', type: 'bogo', remaining: 12, total: 50 },
-      { id: 3, name: '会员专享8折', type: 'member', remaining: 88, total: 100 },
-    ],
-  };
-
-  const assetsData = {
-    totalProducts: 45,
-    activeProducts: 38,
-    activeCampaigns: 8,
-    accountBalance: 12680,
-    monthlyRevenue: 38500,
-    monthlyExpense: 15200,
-    products: [
-      { id: 1, name: '招牌奶茶', price: 18, stock: 999, sales: 156 },
-      { id: 2, name: '超值午餐', price: 38, stock: 50, sales: 89 },
-      { id: 3, name: '甜品套餐', price: 28, stock: 30, sales: 67 },
-      { id: 4, name: '会员充值卡', price: 200, stock: 999, sales: 23 },
-    ],
-    transactions: [
-      { id: 1, type: 'income', desc: '订单收入', amount: 580, time: '今天 10:30' },
-      { id: 2, type: 'income', desc: '订单收入', amount: 320, time: '今天 09:45' },
-      { id: 3, type: 'expense', desc: '平台服务费', amount: -45, time: '昨天 23:00' },
-      { id: 4, type: 'income', desc: '订单收入', amount: 890, time: '昨天 18:30' },
-    ],
-  };
-
-  const dataStats = {
-    todayRevenue: 2580,
-    yesterdayRevenue: 2340,
-    weeklyRevenue: 18500,
-    monthlyRevenue: 68000,
-    todayOrders: 42,
-    todayCustomers: 38,
-    avgOrderValue: 61.4,
-    conversionRate: 12.5,
-    topProducts: [
-      { name: '招牌奶茶', sales: 156, revenue: 2808 },
-      { name: '超值午餐', sales: 89, revenue: 3382 },
-      { name: '甜品套餐', sales: 67, revenue: 1876 },
+    campaignStats: [
+      { id: 1, name: '新人首单立减', claimed: 55, used: 45, revenue: 2580 },
+      { id: 2, name: '周末买一送一', claimed: 38, used: 28, revenue: 1890 },
+      { id: 3, name: '会员专享8折', claimed: 12, used: 8, revenue: 960 },
     ],
     hourlyData: [
       { hour: '09:00', orders: 8 },
@@ -143,19 +164,19 @@ export default function MerchantOperations() {
       <div className="grid grid-cols-4 gap-2">
         <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-center">
           <div className="text-xl font-bold text-blue-600">{staffData.operators}</div>
-          <div className="text-[10px] text-muted-foreground">运营人员</div>
+          <div className="text-[10px] text-muted-foreground">{t('opsCenter.operators')}</div>
         </div>
         <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-center">
           <div className="text-xl font-bold text-green-600">{staffData.verifiers}</div>
-          <div className="text-[10px] text-muted-foreground">核销员</div>
+          <div className="text-[10px] text-muted-foreground">{t('opsCenter.verifiers')}</div>
         </div>
         <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-center">
           <div className="text-xl font-bold text-purple-600">{staffData.totalStaff}</div>
-          <div className="text-[10px] text-muted-foreground">总人数</div>
+          <div className="text-[10px] text-muted-foreground">{t('opsCenter.totalStaff')}</div>
         </div>
         <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-center">
           <div className="text-xl font-bold text-amber-600">{staffData.pendingActivation}</div>
-          <div className="text-[10px] text-muted-foreground">待激活</div>
+          <div className="text-[10px] text-muted-foreground">{t('opsCenter.pendingActivation')}</div>
         </div>
       </div>
 
@@ -164,13 +185,14 @@ export default function MerchantOperations() {
           <div 
             className="flex items-center gap-4 p-4 cursor-pointer hover-elevate active-elevate-2"
             onClick={handleComingSoon}
+            data-testid="button-add-staff"
           >
             <div className="w-10 h-10 rounded-xl bg-[#38B03B] flex items-center justify-center">
               <UserPlus className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1">
-              <div className="text-sm font-semibold">添加新员工</div>
-              <div className="text-xs text-muted-foreground">生成邀请二维码邀请员工加入</div>
+              <div className="text-sm font-semibold">{t('opsCenter.addStaff')}</div>
+              <div className="text-xs text-muted-foreground">{t('opsCenter.addStaffDesc')}</div>
             </div>
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </div>
@@ -180,11 +202,11 @@ export default function MerchantOperations() {
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-semibold">员工列表</span>
+            <span className="text-sm font-semibold">{t('opsCenter.staffList')}</span>
             <div className="flex gap-2">
-              <Badge variant="outline" className="text-[10px]">全部</Badge>
-              <Badge variant="secondary" className="text-[10px]">运营</Badge>
-              <Badge variant="secondary" className="text-[10px]">核销</Badge>
+              <Badge variant="outline" className="text-[10px]">{t('common.all')}</Badge>
+              <Badge variant="secondary" className="text-[10px]">{t('opsCenter.operatorRole')}</Badge>
+              <Badge variant="secondary" className="text-[10px]">{t('opsCenter.verifierRole')}</Badge>
             </div>
           </div>
           <div className="space-y-2">
@@ -193,6 +215,7 @@ export default function MerchantOperations() {
                 key={staff.id}
                 className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover-elevate"
                 onClick={handleComingSoon}
+                data-testid={`staff-item-${staff.id}`}
               >
                 <div className="flex items-center gap-3">
                   <Avatar className="w-10 h-10">
@@ -202,7 +225,7 @@ export default function MerchantOperations() {
                     <div className="text-sm font-medium">{staff.name}</div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-[10px]">
-                        {staff.role === 'operator' ? '运营' : '核销'}
+                        {staff.role === 'operator' ? t('opsCenter.operatorRole') : t('opsCenter.verifierRole')}
                       </Badge>
                       <span className="text-[10px] text-muted-foreground">{staff.lastActive}</span>
                     </div>
@@ -213,7 +236,7 @@ export default function MerchantOperations() {
                     variant={staff.status === 'active' ? 'default' : 'secondary'}
                     className="text-[10px]"
                   >
-                    {staff.status === 'active' ? '已激活' : '待激活'}
+                    {staff.status === 'active' ? t('opsCenter.activated') : t('opsCenter.pendingActivation')}
                   </Badge>
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </div>
@@ -229,54 +252,90 @@ export default function MerchantOperations() {
     <div className="space-y-4">
       <div className="grid grid-cols-4 gap-2">
         <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-center">
-          <div className="text-xl font-bold text-blue-600">{operationsData.todayOrders}</div>
-          <div className="text-[10px] text-muted-foreground">今日订单</div>
-        </div>
-        <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-center">
-          <div className="text-xl font-bold text-amber-600">{operationsData.pendingOrders}</div>
-          <div className="text-[10px] text-muted-foreground">待核销</div>
+          <div className="text-xl font-bold text-blue-600">{operationsData.totalProducts}</div>
+          <div className="text-[10px] text-muted-foreground">{t('opsCenter.totalProducts')}</div>
         </div>
         <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-center">
-          <div className="text-xl font-bold text-green-600">{operationsData.todayVerified}</div>
-          <div className="text-[10px] text-muted-foreground">已核销</div>
+          <div className="text-xl font-bold text-green-600">{operationsData.activeProducts}</div>
+          <div className="text-[10px] text-muted-foreground">{t('opsCenter.activeProducts')}</div>
+        </div>
+        <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-center">
+          <div className="text-xl font-bold text-amber-600">{operationsData.inactiveProducts}</div>
+          <div className="text-[10px] text-muted-foreground">{t('opsCenter.inactiveProducts')}</div>
         </div>
         <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-center">
           <div className="text-xl font-bold text-purple-600">{operationsData.activeCampaigns}</div>
-          <div className="text-[10px] text-muted-foreground">活动中</div>
+          <div className="text-[10px] text-muted-foreground">{t('opsCenter.activeCampaigns')}</div>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="cursor-pointer hover-elevate" onClick={() => navigate('/merchant/products')} data-testid="button-product-manage">
+          <CardContent className="p-4 flex flex-col items-center gap-2">
+            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+              <ShoppingBag className="w-5 h-5 text-blue-600" />
+            </div>
+            <span className="text-sm font-medium">{t('opsCenter.productManage')}</span>
+            <span className="text-[10px] text-muted-foreground">{t('opsCenter.productManageDesc')}</span>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover-elevate" onClick={handleComingSoon} data-testid="button-campaign-manage">
+          <CardContent className="p-4 flex flex-col items-center gap-2">
+            <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+              <Ticket className="w-5 h-5 text-orange-600" />
+            </div>
+            <span className="text-sm font-medium">{t('opsCenter.campaignManage')}</span>
+            <span className="text-[10px] text-muted-foreground">{t('opsCenter.campaignManageDesc')}</span>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-[#38B03B]" />
-              <span className="text-sm font-semibold">今日订单</span>
+              <ShoppingBag className="w-4 h-4 text-[#38B03B]" />
+              <span className="text-sm font-semibold">{t('opsCenter.productList')}</span>
             </div>
-            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-auto p-0" onClick={handleComingSoon}>
-              全部订单 <ChevronRight className="w-3 h-3" />
+            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-auto p-0" onClick={() => navigate('/merchant/products')}>
+              {t('opsCenter.viewAll')} <ChevronRight className="w-3 h-3" />
             </Button>
           </div>
           <div className="space-y-2">
-            {operationsData.orders.map((order) => (
+            {operationsData.products.map((product) => (
               <div 
-                key={order.id}
+                key={product.id}
                 className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover-elevate"
                 onClick={handleComingSoon}
+                data-testid={`product-item-${product.id}`}
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{order.product}</span>
+                    <span className="text-sm font-medium">{product.name}</span>
                     <Badge 
-                      variant={order.status === 'verified' ? 'default' : 'secondary'}
+                      variant={product.status === 'active' ? 'default' : 'secondary'}
                       className="text-[10px]"
                     >
-                      {order.status === 'verified' ? '已核销' : '待核销'}
+                      {product.status === 'active' ? t('opsCenter.onShelf') : t('opsCenter.offShelf')}
                     </Badge>
                   </div>
-                  <div className="text-[10px] text-muted-foreground">{order.id} · {order.time}</div>
+                  <div className="text-[10px] text-muted-foreground">{t('opsCenter.sales')}: {product.sales}</div>
                 </div>
-                <div className="text-sm font-semibold text-[#38B03B]">¥{order.amount}</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">¥{product.price}</span>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-7 w-7"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleComingSoon();
+                    }}
+                    data-testid={`button-toggle-product-${product.id}`}
+                  >
+                    <ToggleLeft className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -288,10 +347,10 @@ export default function MerchantOperations() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Ticket className="w-4 h-4 text-[#38B03B]" />
-              <span className="text-sm font-semibold">进行中活动</span>
+              <span className="text-sm font-semibold">{t('opsCenter.campaignList')}</span>
             </div>
             <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-auto p-0" onClick={handleComingSoon}>
-              管理活动 <ChevronRight className="w-3 h-3" />
+              {t('opsCenter.manageAll')} <ChevronRight className="w-3 h-3" />
             </Button>
           </div>
           <div className="space-y-2">
@@ -300,10 +359,19 @@ export default function MerchantOperations() {
                 key={campaign.id}
                 className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover-elevate"
                 onClick={handleComingSoon}
+                data-testid={`campaign-item-${campaign.id}`}
               >
                 <div className="flex-1">
-                  <div className="text-sm font-medium">{campaign.name}</div>
-                  <div className="text-[10px] text-muted-foreground">剩余 {campaign.remaining}/{campaign.total} 份</div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{campaign.name}</span>
+                    <Badge 
+                      variant={campaign.status === 'active' ? 'default' : 'secondary'}
+                      className="text-[10px]"
+                    >
+                      {campaign.status === 'active' ? t('opsCenter.inProgress') : t('opsCenter.scheduled')}
+                    </Badge>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">{t('opsCenter.remaining')}: {campaign.remaining}/{campaign.total}</div>
                 </div>
                 <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
                   <div 
@@ -317,24 +385,18 @@ export default function MerchantOperations() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="cursor-pointer hover-elevate" onClick={handleComingSoon}>
-          <CardContent className="p-4 flex flex-col items-center gap-2">
-            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-blue-600" />
-            </div>
-            <span className="text-sm font-medium">活动日历</span>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer hover-elevate" onClick={handleComingSoon}>
-          <CardContent className="p-4 flex flex-col items-center gap-2">
-            <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <Store className="w-5 h-5 text-green-600" />
-            </div>
-            <span className="text-sm font-medium">营业设置</span>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="border-[#38B03B]/30 bg-gradient-to-r from-[#38B03B]/5 to-transparent cursor-pointer hover-elevate" onClick={handleComingSoon} data-testid="button-create-campaign">
+        <CardContent className="p-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-[#38B03B] flex items-center justify-center">
+            <Plus className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex-1">
+            <div className="text-sm font-semibold">{t('opsCenter.createCampaign')}</div>
+            <div className="text-xs text-muted-foreground">{t('opsCenter.createCampaignDesc')}</div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-muted-foreground" />
+        </CardContent>
+      </Card>
     </div>
   );
 
@@ -345,50 +407,71 @@ export default function MerchantOperations() {
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Wallet className="w-5 h-5" />
-              <span className="text-sm font-medium">账户余额</span>
+              <span className="text-sm font-medium">{t('opsCenter.accountBalance')}</span>
             </div>
             <Button 
               variant="ghost" 
               size="sm" 
               className="text-xs text-white/80 hover:text-white hover:bg-white/20 h-auto p-1"
               onClick={handleComingSoon}
+              data-testid="button-withdraw"
             >
-              提现 <ChevronRight className="w-3 h-3" />
+              {t('opsCenter.withdraw')} <ChevronRight className="w-3 h-3" />
             </Button>
           </div>
           <div className="text-3xl font-bold mb-2">¥{assetsData.accountBalance.toLocaleString()}</div>
           <div className="flex items-center gap-4 text-xs">
             <div>
-              <span className="opacity-70">本月收入</span>
+              <span className="opacity-70">{t('opsCenter.monthlyRevenue')}</span>
               <span className="ml-1 font-medium">¥{assetsData.monthlyRevenue.toLocaleString()}</span>
             </div>
             <div>
-              <span className="opacity-70">本月支出</span>
+              <span className="opacity-70">{t('opsCenter.monthlyExpense')}</span>
               <span className="ml-1 font-medium">¥{assetsData.monthlyExpense.toLocaleString()}</span>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="cursor-pointer hover-elevate" onClick={() => navigate('/merchant/products')}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <ShoppingBag className="w-4 h-4 text-blue-500" />
-              <span className="text-xs text-muted-foreground">商品库</span>
+      <Card className="border-amber-500/50 bg-gradient-to-r from-amber-500/10 to-orange-500/10 cursor-pointer hover-elevate" onClick={handleComingSoon} data-testid="button-payment-qrcode">
+        <CardContent className="p-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+            <QrCode className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex-1">
+            <div className="text-sm font-semibold">{t('opsCenter.paymentQrCode')}</div>
+            <div className="text-xs text-muted-foreground">{t('opsCenter.paymentQrCodeDesc')}</div>
+          </div>
+          <Badge variant="secondary" className="text-[10px]">{t('opsCenter.comingSoon')}</Badge>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-3 gap-3">
+        <Card className="cursor-pointer hover-elevate" onClick={handleComingSoon} data-testid="button-inventory">
+          <CardContent className="p-3 flex flex-col items-center gap-1">
+            <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+              <Boxes className="w-4 h-4 text-blue-600" />
             </div>
-            <div className="text-2xl font-bold">{assetsData.totalProducts}</div>
-            <div className="text-xs text-muted-foreground">在售 {assetsData.activeProducts} 件</div>
+            <span className="text-xs font-medium">{t('opsCenter.inventory')}</span>
+            <span className="text-lg font-bold">{assetsData.totalInventory}</span>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover-elevate" onClick={handleComingSoon}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Ticket className="w-4 h-4 text-orange-500" />
-              <span className="text-xs text-muted-foreground">活动库</span>
+        <Card className="cursor-pointer hover-elevate" onClick={handleComingSoon} data-testid="button-purchase">
+          <CardContent className="p-3 flex flex-col items-center gap-1">
+            <div className="w-9 h-9 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <Package className="w-4 h-4 text-green-600" />
             </div>
-            <div className="text-2xl font-bold">{assetsData.activeCampaigns}</div>
-            <div className="text-xs text-muted-foreground">进行中活动</div>
+            <span className="text-xs font-medium">{t('opsCenter.purchase')}</span>
+            <Badge variant="destructive" className="text-[9px] h-4">{assetsData.pendingPurchase} {t('opsCenter.pending')}</Badge>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover-elevate" onClick={handleComingSoon} data-testid="button-finance">
+          <CardContent className="p-3 flex flex-col items-center gap-1">
+            <div className="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+              <FileText className="w-4 h-4 text-purple-600" />
+            </div>
+            <span className="text-xs font-medium">{t('opsCenter.finance')}</span>
+            <span className="text-[10px] text-muted-foreground">{t('opsCenter.viewReport')}</span>
           </CardContent>
         </Card>
       </div>
@@ -397,25 +480,30 @@ export default function MerchantOperations() {
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <ShoppingBag className="w-4 h-4 text-[#38B03B]" />
-              <span className="text-sm font-semibold">热门商品</span>
+              <Boxes className="w-4 h-4 text-[#38B03B]" />
+              <span className="text-sm font-semibold">{t('opsCenter.inventoryAlert')}</span>
             </div>
-            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-auto p-0" onClick={() => navigate('/merchant/products')}>
-              全部商品 <ChevronRight className="w-3 h-3" />
-            </Button>
+            <Badge variant="destructive" className="text-[10px]">{assetsData.lowStockItems} {t('opsCenter.lowStock')}</Badge>
           </div>
           <div className="space-y-2">
-            {assetsData.products.map((product) => (
+            {assetsData.inventoryItems.map((item) => (
               <div 
-                key={product.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover-elevate"
-                onClick={handleComingSoon}
+                key={item.id}
+                className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                data-testid={`inventory-item-${item.id}`}
               >
                 <div className="flex-1">
-                  <div className="text-sm font-medium">{product.name}</div>
-                  <div className="text-[10px] text-muted-foreground">销量 {product.sales} · 库存 {product.stock}</div>
+                  <div className="text-sm font-medium">{item.name}</div>
+                  <div className="text-[10px] text-muted-foreground">{t('opsCenter.minStock')}: {item.minStock}{item.unit}</div>
                 </div>
-                <div className="text-sm font-semibold">¥{product.price}</div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm font-semibold ${item.status === 'low' ? 'text-destructive' : ''}`}>
+                    {item.stock}{item.unit}
+                  </span>
+                  {item.status === 'low' && (
+                    <Badge variant="destructive" className="text-[9px]">{t('opsCenter.lowStock')}</Badge>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -427,10 +515,10 @@ export default function MerchantOperations() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <CircleDollarSign className="w-4 h-4 text-[#38B03B]" />
-              <span className="text-sm font-semibold">最近收支</span>
+              <span className="text-sm font-semibold">{t('opsCenter.recentTransactions')}</span>
             </div>
             <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-auto p-0" onClick={handleComingSoon}>
-              全部记录 <ChevronRight className="w-3 h-3" />
+              {t('opsCenter.allRecords')} <ChevronRight className="w-3 h-3" />
             </Button>
           </div>
           <div className="space-y-2">
@@ -466,36 +554,67 @@ export default function MerchantOperations() {
 
   const renderDataTab = () => (
     <div className="space-y-4">
+      <div className="grid grid-cols-4 gap-2">
+        <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-center">
+          <div className="text-xl font-bold text-blue-600">{dataStats.todayOrders}</div>
+          <div className="text-[10px] text-muted-foreground">{t('opsCenter.todayOrders')}</div>
+        </div>
+        <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-center">
+          <div className="text-xl font-bold text-amber-600">{dataStats.pendingVerify}</div>
+          <div className="text-[10px] text-muted-foreground">{t('opsCenter.pendingVerify')}</div>
+        </div>
+        <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-center">
+          <div className="text-xl font-bold text-green-600">{dataStats.todayVerified}</div>
+          <div className="text-[10px] text-muted-foreground">{t('opsCenter.todayVerified')}</div>
+        </div>
+        <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-center">
+          <div className="text-xl font-bold text-purple-600">{dataStats.activeCampaigns}</div>
+          <div className="text-[10px] text-muted-foreground">{t('opsCenter.activeCampaigns')}</div>
+        </div>
+      </div>
+
       <Card className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-0">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium">今日营业额</span>
+            <span className="text-sm font-medium">{t('opsCenter.todayRevenue')}</span>
             <div className="flex items-center gap-1 text-xs bg-white/20 px-2 py-0.5 rounded-full">
               <TrendingUp className="w-3 h-3" />
               <span>+10.2%</span>
             </div>
           </div>
           <div className="text-3xl font-bold mb-1">¥{dataStats.todayRevenue.toLocaleString()}</div>
-          <div className="text-xs opacity-70">昨日 ¥{dataStats.yesterdayRevenue.toLocaleString()}</div>
+          <div className="text-xs opacity-70">{t('opsCenter.yesterday')} ¥{dataStats.yesterdayRevenue.toLocaleString()}</div>
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-4 gap-2">
         <div className="p-3 rounded-lg bg-muted/50 text-center">
-          <div className="text-lg font-bold">{dataStats.todayOrders}</div>
-          <div className="text-[10px] text-muted-foreground">今日订单</div>
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <Eye className="w-3 h-3 text-muted-foreground" />
+          </div>
+          <div className="text-lg font-bold">{dataStats.todayViews}</div>
+          <div className="text-[10px] text-muted-foreground">{t('opsCenter.views')}</div>
         </div>
         <div className="p-3 rounded-lg bg-muted/50 text-center">
-          <div className="text-lg font-bold">{dataStats.todayCustomers}</div>
-          <div className="text-[10px] text-muted-foreground">今日顾客</div>
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <Heart className="w-3 h-3 text-muted-foreground" />
+          </div>
+          <div className="text-lg font-bold">{dataStats.todayFavorites}</div>
+          <div className="text-[10px] text-muted-foreground">{t('opsCenter.favorites')}</div>
         </div>
         <div className="p-3 rounded-lg bg-muted/50 text-center">
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <ShoppingCart className="w-3 h-3 text-muted-foreground" />
+          </div>
           <div className="text-lg font-bold">¥{dataStats.avgOrderValue}</div>
-          <div className="text-[10px] text-muted-foreground">客单价</div>
+          <div className="text-[10px] text-muted-foreground">{t('opsCenter.avgOrderValue')}</div>
         </div>
         <div className="p-3 rounded-lg bg-muted/50 text-center">
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <Target className="w-3 h-3 text-muted-foreground" />
+          </div>
           <div className="text-lg font-bold">{dataStats.conversionRate}%</div>
-          <div className="text-[10px] text-muted-foreground">转化率</div>
+          <div className="text-[10px] text-muted-foreground">{t('opsCenter.conversionRate')}</div>
         </div>
       </div>
 
@@ -503,10 +622,79 @@ export default function MerchantOperations() {
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-[#38B03B]" />
-              <span className="text-sm font-semibold">时段分布</span>
+              <ClipboardList className="w-4 h-4 text-[#38B03B]" />
+              <span className="text-sm font-semibold">{t('opsCenter.todayOrderList')}</span>
             </div>
-            <span className="text-[10px] text-muted-foreground">今日订单</span>
+            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-auto p-0" onClick={handleComingSoon}>
+              {t('opsCenter.allOrders')} <ChevronRight className="w-3 h-3" />
+            </Button>
+          </div>
+          <div className="space-y-2">
+            {dataStats.orders.map((order) => (
+              <div 
+                key={order.id}
+                className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover-elevate"
+                onClick={handleComingSoon}
+                data-testid={`order-item-${order.id}`}
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{order.product}</span>
+                    <Badge 
+                      variant={order.status === 'verified' ? 'default' : 'secondary'}
+                      className="text-[10px]"
+                    >
+                      {order.status === 'verified' ? t('opsCenter.verified') : t('opsCenter.pendingVerify')}
+                    </Badge>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">{order.id} · {order.time}</div>
+                </div>
+                <div className="text-sm font-semibold text-[#38B03B]">¥{order.amount}</div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Ticket className="w-4 h-4 text-[#38B03B]" />
+              <span className="text-sm font-semibold">{t('opsCenter.campaignStats')}</span>
+            </div>
+            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-auto p-0" onClick={handleComingSoon}>
+              {t('opsCenter.viewDetails')} <ChevronRight className="w-3 h-3" />
+            </Button>
+          </div>
+          <div className="space-y-2">
+            {dataStats.campaignStats.map((campaign) => (
+              <div 
+                key={campaign.id}
+                className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                data-testid={`campaign-stats-${campaign.id}`}
+              >
+                <div className="flex-1">
+                  <div className="text-sm font-medium">{campaign.name}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {t('opsCenter.claimed')}: {campaign.claimed} · {t('opsCenter.used')}: {campaign.used}
+                  </div>
+                </div>
+                <div className="text-sm font-semibold text-[#38B03B]">¥{campaign.revenue}</div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-[#38B03B]" />
+              <span className="text-sm font-semibold">{t('opsCenter.hourlyDistribution')}</span>
+            </div>
+            <span className="text-[10px] text-muted-foreground">{t('opsCenter.todayOrders')}</span>
           </div>
           <div className="flex items-end gap-2 h-24">
             {dataStats.hourlyData.map((item, index) => (
@@ -526,73 +714,11 @@ export default function MerchantOperations() {
           </div>
         </CardContent>
       </Card>
-
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <PieChart className="w-4 h-4 text-[#38B03B]" />
-              <span className="text-sm font-semibold">热销排行</span>
-            </div>
-            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-auto p-0" onClick={handleComingSoon}>
-              详细报表 <ChevronRight className="w-3 h-3" />
-            </Button>
-          </div>
-          <div className="space-y-3">
-            {dataStats.topProducts.map((product, index) => (
-              <div key={index} className="flex items-center gap-3">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                  index === 0 ? 'bg-amber-100 text-amber-600' :
-                  index === 1 ? 'bg-gray-100 text-gray-600' :
-                  'bg-orange-100 text-orange-600'
-                }`}>
-                  {index + 1}
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium">{product.name}</div>
-                  <div className="text-[10px] text-muted-foreground">销量 {product.sales}</div>
-                </div>
-                <div className="text-sm font-semibold text-[#38B03B]">¥{product.revenue}</div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="cursor-pointer hover-elevate" onClick={handleComingSoon}>
-          <CardContent className="p-4 text-center">
-            <div className="text-lg font-bold text-[#38B03B]">¥{dataStats.weeklyRevenue.toLocaleString()}</div>
-            <div className="text-xs text-muted-foreground">本周营业额</div>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer hover-elevate" onClick={handleComingSoon}>
-          <CardContent className="p-4 text-center">
-            <div className="text-lg font-bold text-[#38B03B]">¥{dataStats.monthlyRevenue.toLocaleString()}</div>
-            <div className="text-xs text-muted-foreground">本月营业额</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="cursor-pointer hover-elevate" onClick={handleComingSoon}>
-        <CardContent className="p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-              <FileText className="w-5 h-5 text-purple-600" />
-            </div>
-            <div>
-              <div className="text-sm font-medium">查看完整报表</div>
-              <div className="text-xs text-muted-foreground">日报/周报/月报</div>
-            </div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-muted-foreground" />
-        </CardContent>
-      </Card>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-muted/30 pb-20">
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="flex items-center h-12 px-4 gap-2">
           <Link href="/merchant/me">
@@ -600,31 +726,31 @@ export default function MerchantOperations() {
               <ChevronLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <h1 className="text-lg font-bold flex-1" data-testid="text-page-title">{t('merchant.operations')}</h1>
+          <h1 className="text-lg font-bold">{t('merchant.operationsCenter')}</h1>
         </div>
       </header>
 
-      <main className="px-4 py-4 max-w-lg mx-auto">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)} className="w-full">
+      <main className="px-4 py-4">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)}>
           <TabsList className="grid w-full grid-cols-4 mb-4">
-            <TabsTrigger value="staff" className="text-xs gap-1">
-              <Users className="w-3.5 h-3.5" />
-              员工
+            <TabsTrigger value="staff" className="text-xs gap-1" data-testid="tab-staff">
+              <Users className="w-3 h-3" />
+              {t('opsCenter.staff')}
             </TabsTrigger>
-            <TabsTrigger value="operations" className="text-xs gap-1">
-              <ClipboardList className="w-3.5 h-3.5" />
-              运营
+            <TabsTrigger value="operations" className="text-xs gap-1" data-testid="tab-operations">
+              <ClipboardList className="w-3 h-3" />
+              {t('opsCenter.operations')}
             </TabsTrigger>
-            <TabsTrigger value="assets" className="text-xs gap-1">
-              <Package className="w-3.5 h-3.5" />
-              资产
+            <TabsTrigger value="assets" className="text-xs gap-1" data-testid="tab-assets">
+              <Wallet className="w-3 h-3" />
+              {t('opsCenter.assets')}
             </TabsTrigger>
-            <TabsTrigger value="data" className="text-xs gap-1">
-              <BarChart3 className="w-3.5 h-3.5" />
-              数据
+            <TabsTrigger value="data" className="text-xs gap-1" data-testid="tab-data">
+              <BarChart3 className="w-3 h-3" />
+              {t('opsCenter.data')}
             </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="staff" className="mt-0">
             {renderStaffTab()}
           </TabsContent>
