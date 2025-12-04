@@ -3,7 +3,7 @@
  * 路由: /success/:paymentId
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2, AlertCircle } from 'lucide-react';
@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 interface PaymentData {
   id: number;
   storeId: number;
+  orderId?: string;
   amount: string;
   currency: string;
   status: string;
@@ -28,6 +29,12 @@ export default function PaySuccessPage() {
   const { user, isUserAuthenticated } = useAuth();
   
   const [isClaiming, setIsClaiming] = useState(false);
+  const [mockCompleting, setMockCompleting] = useState(false);
+  const mockCompleteTriggered = useRef(false);
+  
+  // 检查是否为 Mock 模式
+  const urlParams = new URLSearchParams(window.location.search);
+  const isMockMode = urlParams.get('mock') === 'true';
 
   const { data: paymentData, isLoading, error, refetch } = useQuery<{ success: boolean; data: PaymentData }>({
     queryKey: ['/api/payments', paymentId],
@@ -43,6 +50,37 @@ export default function PaySuccessPage() {
       return false;
     },
   });
+
+  // Mock 模式自动完成支付
+  useEffect(() => {
+    const triggerMockComplete = async () => {
+      if (isMockMode && paymentData?.data?.status === 'pending' && !mockCompleteTriggered.current) {
+        mockCompleteTriggered.current = true;
+        setMockCompleting(true);
+        
+        console.log('[Mock] Triggering mock payment completion for:', paymentId);
+        
+        try {
+          const res = await fetch('/api/payments/mock-complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ payment_id: paymentId }),
+          });
+          const result = await res.json();
+          console.log('[Mock] Mock complete result:', result);
+          
+          // 刷新支付状态
+          setTimeout(() => refetch(), 500);
+        } catch (err) {
+          console.error('[Mock] Mock complete failed:', err);
+        } finally {
+          setMockCompleting(false);
+        }
+      }
+    };
+    
+    triggerMockComplete();
+  }, [isMockMode, paymentData?.data?.status, paymentId, refetch]);
 
   const claimPointsMutation = useMutation({
     mutationFn: async (lineUserId: string) => {

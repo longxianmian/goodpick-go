@@ -6614,13 +6614,14 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ success: false, message: 'Missing payment_id' });
       }
 
-      // 查找支付记录
+      // 查找支付记录（优先用 orderId，兼容 pspPaymentId）
       const [payment] = await db
         .select()
         .from(qrPayments)
-        .where(eq(qrPayments.pspPaymentId, payment_id));
+        .where(or(eq(qrPayments.orderId, payment_id), eq(qrPayments.pspPaymentId, payment_id)));
 
       if (!payment) {
+        console.log('[Mock Complete] Payment not found for id:', payment_id);
         return res.status(404).json({ success: false, message: 'Payment not found' });
       }
 
@@ -6693,11 +6694,11 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ success: false, message: 'Missing required fields' });
       }
 
-      // 查询支付记录
+      // 查询支付记录（优先用 orderId，兼容 pspPaymentId）
       const [payment] = await db
         .select()
         .from(qrPayments)
-        .where(eq(qrPayments.pspPaymentId, payment_id));
+        .where(or(eq(qrPayments.orderId, payment_id), eq(qrPayments.pspPaymentId, payment_id)));
 
       if (!payment || payment.status !== 'paid') {
         return res.status(404).json({ success: false, message: 'Payment not found or not paid' });
