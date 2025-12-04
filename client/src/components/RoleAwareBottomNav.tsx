@@ -115,13 +115,13 @@ const roleNavConfigs: Record<UserRoleType, { items: NavItem[], activePath: (loca
   },
   sysadmin: {
     items: [
-      { key: 'shuashuaOps', path: '/ops', icon: EyeIcon as any, labelKey: 'roleNav.shuashuaOps' },
-      { key: 'discoverOps', path: '/shop', icon: StarIcon as any, labelKey: 'roleNav.discoverOps' },
+      { key: 'shuashuaOps', path: '/ops/shuashua', icon: EyeIcon as any, labelKey: 'roleNav.shuashuaOps' },
+      { key: 'discoverOps', path: '/ops/discover', icon: StarIcon as any, labelKey: 'roleNav.discoverOps' },
       { key: 'me', path: '/sysadmin', icon: PersonIcon as any, labelKey: 'bottomNav.me' },
     ],
     activePath: (location: string) => {
-      if (location.startsWith('/ops')) return '/ops';
-      if (location === '/shop' || location.startsWith('/shop/')) return '/shop';
+      if (location === '/ops/shuashua') return '/ops/shuashua';
+      if (location === '/ops/discover') return '/ops/discover';
       if (location === '/sysadmin' || location === '/me' || location.startsWith('/me/')) return '/sysadmin';
       return location;
     }

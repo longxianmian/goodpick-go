@@ -58,6 +58,8 @@ import PaymentSuccess from "@/pages/user/PaymentSuccess";
 import PrivacyPage from "@/pages/PrivacyPage";
 import TermsPage from "@/pages/TermsPage";
 import OpsCenter from "@/pages/ops/OpsCenter";
+import OpsShuashua from "@/pages/ops/OpsShuashua";
+import OpsDiscover from "@/pages/ops/OpsDiscover";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import { Store, Tag, LogOut, LayoutDashboard } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -189,6 +191,8 @@ function Router() {
       <Route path="/sysadmin" component={MeSysAdmin} />
       {/* 运营中心 - 系统管理员专属 */}
       <Route path="/ops" component={OpsCenter} />
+      <Route path="/ops/shuashua" component={OpsShuashua} />
+      <Route path="/ops/discover" component={OpsDiscover} />
       {/* 刷刷号（创作者）专属路由 */}
       <Route path="/creator/edit/:id" component={ContentEditor} />
       <Route path="/creator/create" component={CreatorStudio} />
