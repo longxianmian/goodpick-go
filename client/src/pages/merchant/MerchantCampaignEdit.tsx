@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useParams } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ChevronLeft, Upload, X, Megaphone, Loader2, Calendar } from 'lucide-react';
+import { ChevronLeft, Upload, X, Megaphone, Loader2, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -18,7 +20,9 @@ import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format } from 'date-fns';
+import { format, setHours, setMinutes } from 'date-fns';
+import { zhCN } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface Campaign {
   id: number;
@@ -411,37 +415,185 @@ export default function MerchantCampaignEdit() {
                   <FormField
                     control={form.control}
                     name="startAt"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('merchant.startTime')} *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field}
-                            type="datetime-local"
-                            data-testid="input-start-time"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const selectedDate = field.value ? new Date(field.value) : undefined;
+                      return (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>{t('merchant.startTime')} *</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    "pl-3 text-left font-normal justify-start",
+                                    !field.value && "text-muted-foreground"
+                                  )}
+                                  data-testid="input-start-time"
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {field.value ? (
+                                    format(new Date(field.value), "yyyy/MM/dd HH:mm", { locale: zhCN })
+                                  ) : (
+                                    <span>{t('merchant.selectStartTime')}</span>
+                                  )}
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={selectedDate}
+                                onSelect={(date) => {
+                                  if (date) {
+                                    const hours = selectedDate?.getHours() || 0;
+                                    const minutes = selectedDate?.getMinutes() || 0;
+                                    const newDate = setMinutes(setHours(date, hours), minutes);
+                                    field.onChange(format(newDate, "yyyy-MM-dd'T'HH:mm"));
+                                  }
+                                }}
+                                locale={zhCN}
+                                initialFocus
+                              />
+                              <div className="p-3 border-t flex items-center gap-2">
+                                <Select
+                                  value={selectedDate ? selectedDate.getHours().toString().padStart(2, '0') : "00"}
+                                  onValueChange={(hour) => {
+                                    const base = selectedDate || new Date();
+                                    const newDate = setHours(base, parseInt(hour));
+                                    field.onChange(format(newDate, "yyyy-MM-dd'T'HH:mm"));
+                                  }}
+                                >
+                                  <SelectTrigger className="w-[70px]">
+                                    <SelectValue placeholder="时" />
+                                  </SelectTrigger>
+                                  <SelectContent className="max-h-[200px]">
+                                    {Array.from({ length: 24 }, (_, i) => (
+                                      <SelectItem key={i} value={i.toString().padStart(2, '0')}>
+                                        {i.toString().padStart(2, '0')}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <span>:</span>
+                                <Select
+                                  value={selectedDate ? selectedDate.getMinutes().toString().padStart(2, '0') : "00"}
+                                  onValueChange={(minute) => {
+                                    const base = selectedDate || new Date();
+                                    const newDate = setMinutes(base, parseInt(minute));
+                                    field.onChange(format(newDate, "yyyy-MM-dd'T'HH:mm"));
+                                  }}
+                                >
+                                  <SelectTrigger className="w-[70px]">
+                                    <SelectValue placeholder="分" />
+                                  </SelectTrigger>
+                                  <SelectContent className="max-h-[200px]">
+                                    {Array.from({ length: 60 }, (_, i) => (
+                                      <SelectItem key={i} value={i.toString().padStart(2, '0')}>
+                                        {i.toString().padStart(2, '0')}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
 
                   <FormField
                     control={form.control}
                     name="endAt"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('merchant.endTime')} *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field}
-                            type="datetime-local"
-                            data-testid="input-end-time"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const selectedDate = field.value ? new Date(field.value) : undefined;
+                      return (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>{t('merchant.endTime')} *</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    "pl-3 text-left font-normal justify-start",
+                                    !field.value && "text-muted-foreground"
+                                  )}
+                                  data-testid="input-end-time"
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {field.value ? (
+                                    format(new Date(field.value), "yyyy/MM/dd HH:mm", { locale: zhCN })
+                                  ) : (
+                                    <span>{t('merchant.selectEndTime')}</span>
+                                  )}
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={selectedDate}
+                                onSelect={(date) => {
+                                  if (date) {
+                                    const hours = selectedDate?.getHours() || 23;
+                                    const minutes = selectedDate?.getMinutes() || 59;
+                                    const newDate = setMinutes(setHours(date, hours), minutes);
+                                    field.onChange(format(newDate, "yyyy-MM-dd'T'HH:mm"));
+                                  }
+                                }}
+                                locale={zhCN}
+                                initialFocus
+                              />
+                              <div className="p-3 border-t flex items-center gap-2">
+                                <Select
+                                  value={selectedDate ? selectedDate.getHours().toString().padStart(2, '0') : "23"}
+                                  onValueChange={(hour) => {
+                                    const base = selectedDate || new Date();
+                                    const newDate = setHours(base, parseInt(hour));
+                                    field.onChange(format(newDate, "yyyy-MM-dd'T'HH:mm"));
+                                  }}
+                                >
+                                  <SelectTrigger className="w-[70px]">
+                                    <SelectValue placeholder="时" />
+                                  </SelectTrigger>
+                                  <SelectContent className="max-h-[200px]">
+                                    {Array.from({ length: 24 }, (_, i) => (
+                                      <SelectItem key={i} value={i.toString().padStart(2, '0')}>
+                                        {i.toString().padStart(2, '0')}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <span>:</span>
+                                <Select
+                                  value={selectedDate ? selectedDate.getMinutes().toString().padStart(2, '0') : "59"}
+                                  onValueChange={(minute) => {
+                                    const base = selectedDate || new Date();
+                                    const newDate = setMinutes(base, parseInt(minute));
+                                    field.onChange(format(newDate, "yyyy-MM-dd'T'HH:mm"));
+                                  }}
+                                >
+                                  <SelectTrigger className="w-[70px]">
+                                    <SelectValue placeholder="分" />
+                                  </SelectTrigger>
+                                  <SelectContent className="max-h-[200px]">
+                                    {Array.from({ length: 60 }, (_, i) => (
+                                      <SelectItem key={i} value={i.toString().padStart(2, '0')}>
+                                        {i.toString().padStart(2, '0')}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                 </div>
               </CardContent>
