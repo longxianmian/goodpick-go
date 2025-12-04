@@ -183,9 +183,9 @@ POST /api/ai/agents/:id/activate  # 激活数字人
 - **TwoC2PProvider**: 2C2P (备用 PSP)，支持 Mock 模式
 - **Mock 模式**: 当密钥未配置或为测试占位值时自动启用，返回模拟支付链接
 
-### 商户入驻两种模式
-- **manual_id**: 商户已有 PSP 账户，手动录入 Merchant ID
-- **connect**: 通过 PSP Onboarding API 在线注册（未来支持）
+### 商户入驻两种模式（已实现）
+- **manual_id (已有账户)**: 商户已有 PSP 账户，直接输入 Merchant ID，即时激活
+- **connect (新开通账户)**: 商户填写银行账户信息（泰国银行列表）、证件资料，提交后状态为 pending_review，等待 PSP 审核
 
 ### PSP 集成方案
 - **主力PSP**: Opn Payments (Omise) - 开发者友好、费率低 (1.6-3.65%)
