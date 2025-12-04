@@ -154,6 +154,12 @@ const translations: Record<Language, Record<string, string>> = {
     'creatorHome.profileUpdated': '资料更新成功',
     'creatorHome.profileUpdateFailed': '资料更新失败',
     
+    // 用户公开主页
+    'userProfile.title': '个人主页',
+    'userProfile.works': '作品',
+    'userProfile.likes': '获赞',
+    'userProfile.noWorks': '暂无作品',
+    
     // 刷刷号创作中心
     'creatorStudio.title': '创作中心',
     'creatorStudio.publishedCount': '已发布',
@@ -1958,6 +1964,12 @@ const translations: Record<Language, Record<string, string>> = {
     'creatorHome.shuaBioPlaceholder': 'Tell us about yourself',
     'creatorHome.profileUpdated': 'Profile updated',
     'creatorHome.profileUpdateFailed': 'Failed to update profile',
+    
+    // User Profile Page
+    'userProfile.title': 'Profile',
+    'userProfile.works': 'Works',
+    'userProfile.likes': 'Likes',
+    'userProfile.noWorks': 'No works yet',
     
     // Creator Studio Page
     'creatorStudio.title': 'Create',

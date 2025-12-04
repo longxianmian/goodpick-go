@@ -4646,6 +4646,76 @@ export function registerRoutes(app: Express): Server {
   });
 
   // ============================================
+  // 用户公开信息 API
+  // ============================================
+  
+  // 获取用户公开资料
+  app.get('/api/users/:id/profile', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ success: false, message: '无效的用户ID' });
+      }
+      
+      const [user] = await db
+        .select({
+          id: users.id,
+          displayName: users.displayName,
+          shuaName: users.shuaName,
+          shuaBio: users.shuaBio,
+          avatarUrl: users.avatarUrl,
+        })
+        .from(users)
+        .where(eq(users.id, userId));
+      
+      if (!user) {
+        return res.status(404).json({ success: false, message: '用户不存在' });
+      }
+      
+      res.json({ success: true, data: user });
+    } catch (error) {
+      console.error('Get user profile error:', error);
+      res.status(500).json({ success: false, message: '获取用户资料失败' });
+    }
+  });
+  
+  // 获取用户公开发布的内容
+  app.get('/api/users/:id/contents', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ success: false, message: '无效的用户ID' });
+      }
+      
+      // 从 shortVideos 表获取用户发布的内容
+      const userContents = await db
+        .select({
+          id: shortVideos.id,
+          title: shortVideos.title,
+          contentType: shortVideos.contentType,
+          mediaUrls: shortVideos.mediaUrls,
+          coverImageUrl: shortVideos.coverImageUrl,
+          viewCount: shortVideos.viewCount,
+          likeCount: shortVideos.likeCount,
+        })
+        .from(shortVideos)
+        .where(and(
+          eq(shortVideos.creatorUserId, userId),
+          eq(shortVideos.status, 'ready'),
+          eq(shortVideos.isPublic, true)
+        ))
+        .orderBy(desc(shortVideos.createdAt));
+      
+      res.json({ success: true, data: userContents });
+    } catch (error) {
+      console.error('Get user contents error:', error);
+      res.status(500).json({ success: false, message: '获取用户内容失败' });
+    }
+  });
+
+  // ============================================
   // 抖音式短视频系统 API
   // ============================================
 

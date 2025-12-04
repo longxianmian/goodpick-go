@@ -38,6 +38,7 @@ import AccountSecurity from "@/pages/creator/AccountSecurity";
 import DevLogin from "@/pages/dev/DevLogin";
 import ShortVideoFeed from "@/pages/short-video/ShortVideoFeed";
 import ArticleDetail from "@/pages/user/ArticleDetail";
+import UserProfile from "@/pages/user/UserProfile";
 import LanguageSettings from "@/pages/user/LanguageSettings";
 import SettingsPage from "@/pages/user/SettingsPage";
 import HelpPage from "@/pages/user/HelpPage";
@@ -182,6 +183,7 @@ function Router() {
       <Route path="/videos/:id" component={ShortVideoFeed} />
       <Route path="/videos" component={ShortVideoFeed} />
       <Route path="/articles/:id" component={ArticleDetail} />
+      <Route path="/user/:id" component={UserProfile} />
       <Route path="/shop" component={ShopHome} />
       <Route path="/me" component={RoleBasedMe} />
       {/* 开发环境 - 测试登录 */}
