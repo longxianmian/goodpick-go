@@ -63,11 +63,12 @@ export default function MerchantPaymentQrCode() {
     queryKey: ['/api/merchant/qr-codes', selectedStoreId],
     queryFn: async () => {
       if (!selectedStoreId) return { success: true, data: [] };
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('userToken');
       const res = await fetch(`/api/merchant/qr-codes/${selectedStoreId}`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
+        credentials: 'include',
       });
       return res.json();
     },
