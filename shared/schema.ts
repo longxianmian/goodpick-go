@@ -1243,3 +1243,174 @@ export const insertRiskAlertSchema = createInsertSchema(riskAlerts).omit({
 });
 export type InsertRiskAlert = z.infer<typeof insertRiskAlertSchema>;
 export type RiskAlert = typeof riskAlerts.$inferSelect;
+
+// ============================================================
+// 收款二维码功能 - 5张新表
+// ============================================================
+
+// PSP 状态枚举
+export const pspStatusEnum = pgEnum('psp_status', ['active', 'disabled']);
+
+// 商户 PSP 账户状态枚举
+export const merchantPspStatusEnum = pgEnum('merchant_psp_status', ['pending_review', 'active', 'suspended']);
+
+// 二维码类型枚举
+export const qrTypeEnum = pgEnum('qr_type', ['h5_pay_entry']);
+
+// 二维码状态枚举
+export const qrStatusEnum = pgEnum('qr_status', ['active', 'disabled']);
+
+// 支付状态枚举（用于收款二维码）
+export const paymentQrStatusEnum = pgEnum('payment_qr_status', ['init', 'pending', 'paid', 'failed', 'expired']);
+
+// 积分状态枚举
+export const pointsStatusEnum = pgEnum('points_status', ['unclaimed', 'claimed']);
+
+// 1. PSP 提供方配置表
+export const pspProviders = pgTable('psp_providers', {
+  id: serial('id').primaryKey(),
+  code: text('code').notNull().unique(),        // 'opn' | '2c2p'
+  name: text('name').notNull(),                 // 'Opn Thailand' | '2C2P Thailand'
+  status: pspStatusEnum('status').notNull().default('active'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertPspProviderSchema = createInsertSchema(pspProviders).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertPspProvider = z.infer<typeof insertPspProviderSchema>;
+export type PspProvider = typeof pspProviders.$inferSelect;
+
+// 2. 商户 PSP 账户配置表
+export const merchantPspAccounts = pgTable('merchant_psp_accounts', {
+  id: serial('id').primaryKey(),
+  tenantId: integer('tenant_id'),                              // 平台租户（可选）
+  merchantId: integer('merchant_id'),                           // 刷刷内部商户ID
+  storeId: integer('store_id').references(() => stores.id, { onDelete: 'cascade' }),
+  
+  // PSP 配置
+  pspProviderCode: text('psp_provider_code').notNull(),        // 引用 psp_providers.code
+  pspMerchantId: text('psp_merchant_id'),                       // PSP 返回的商户号
+  
+  // 结算银行信息
+  settlementBankName: text('settlement_bank_name'),
+  settlementBankCode: text('settlement_bank_code'),             // 银行代码如 BBL, KBANK, SCB
+  settlementAccountName: text('settlement_account_name'),
+  settlementAccountNumber: text('settlement_account_number'),
+  settlementBranch: text('settlement_branch'),                  // 分行信息
+  
+  currency: text('currency').notNull().default('THB'),
+  
+  // 认证资料 URLs
+  idCardUrl: text('id_card_url'),                               // 身份证/护照扫描件
+  companyRegistrationUrl: text('company_registration_url'),     // 公司注册文件
+  businessLicenseUrl: text('business_license_url'),             // 营业执照
+  
+  // 状态
+  status: merchantPspStatusEnum('status').notNull().default('pending_review'),
+  rejectedReason: text('rejected_reason'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertMerchantPspAccountSchema = createInsertSchema(merchantPspAccounts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  pspMerchantId: true,
+});
+export type InsertMerchantPspAccount = z.infer<typeof insertMerchantPspAccountSchema>;
+export type MerchantPspAccount = typeof merchantPspAccounts.$inferSelect;
+
+// 3. 门店二维码配置表
+export const storeQrCodes = pgTable('store_qr_codes', {
+  id: serial('id').primaryKey(),
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  
+  qrType: qrTypeEnum('qr_type').notNull().default('h5_pay_entry'),
+  qrPayload: text('qr_payload').notNull(),                      // H5链接如 https://pay.shuashua.com/p/:qr_token
+  qrToken: text('qr_token').notNull().unique(),                 // 短码/token
+  qrImageUrl: text('qr_image_url'),                             // 二维码图片URL
+  
+  status: qrStatusEnum('status').notNull().default('active'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertStoreQrCodeSchema = createInsertSchema(storeQrCodes).omit({
+  id: true,
+  createdAt: true,
+  qrImageUrl: true,
+});
+export type InsertStoreQrCode = z.infer<typeof insertStoreQrCodeSchema>;
+export type StoreQrCode = typeof storeQrCodes.$inferSelect;
+
+// 4. 支付记录表
+export const qrPayments = pgTable('qr_payments', {
+  id: serial('id').primaryKey(),
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  qrCodeId: integer('qr_code_id').references(() => storeQrCodes.id, { onDelete: 'set null' }),
+  
+  // PSP 信息
+  pspProviderCode: text('psp_provider_code').notNull(),
+  pspPaymentId: text('psp_payment_id'),                         // PSP 订单号
+  
+  // 金额
+  amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+  currency: text('currency').notNull().default('THB'),
+  
+  // 状态
+  status: paymentQrStatusEnum('status').notNull().default('init'),
+  paidAt: timestamp('paid_at'),
+  
+  // PSP 回调原文
+  rawPayload: text('raw_payload'),                              // JSONB 存储
+  
+  // 跳转 URL
+  redirectUrl: text('redirect_url'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertQrPaymentSchema = createInsertSchema(qrPayments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  paidAt: true,
+  pspPaymentId: true,
+  rawPayload: true,
+});
+export type InsertQrPayment = z.infer<typeof insertQrPaymentSchema>;
+export type QrPayment = typeof qrPayments.$inferSelect;
+
+// 5. 积分表（与支付关联）
+export const paymentPoints = pgTable('payment_points', {
+  id: serial('id').primaryKey(),
+  paymentId: integer('payment_id').notNull().references(() => qrPayments.id, { onDelete: 'cascade' }),
+  
+  // 会员信息（用户用LINE认领时回填）
+  memberId: integer('member_id').references(() => users.id, { onDelete: 'set null' }),
+  lineUserId: text('line_user_id'),
+  
+  // 积分
+  points: integer('points').notNull(),
+  
+  // 状态
+  status: pointsStatusEnum('status').notNull().default('unclaimed'),
+  claimedAt: timestamp('claimed_at'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertPaymentPointsSchema = createInsertSchema(paymentPoints).omit({
+  id: true,
+  createdAt: true,
+  memberId: true,
+  lineUserId: true,
+  claimedAt: true,
+});
+export type InsertPaymentPoints = z.infer<typeof insertPaymentPointsSchema>;
+export type PaymentPoints = typeof paymentPoints.$inferSelect;

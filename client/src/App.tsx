@@ -62,6 +62,8 @@ import OpsShuashua from "@/pages/ops/OpsShuashua";
 import OpsDiscover from "@/pages/ops/OpsDiscover";
 import OperatorCenter from "@/pages/operator/OperatorCenter";
 import OperatorPreview from "@/pages/operator/OperatorPreview";
+import PayEntryPage from "@/pages/payment/PayEntryPage";
+import PaySuccessPage from "@/pages/payment/PaySuccessPage";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import { Store, Tag, LogOut, LayoutDashboard } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -230,6 +232,9 @@ function Router() {
       {/* 支付页面 */}
       <Route path="/pay/:id/success" component={PaymentSuccess} />
       <Route path="/pay/:id" component={PaymentPage} />
+      {/* 收款二维码支付 - H5 */}
+      <Route path="/p/:qrToken" component={PayEntryPage} />
+      <Route path="/success/:paymentId" component={PaySuccessPage} />
       <Route path="/campaign/:id" component={CampaignDetail} />
       <Route path="/my-coupons" component={MyCoupons} />
       <Route path="/privacy" component={PrivacyPage} />

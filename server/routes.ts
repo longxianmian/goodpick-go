@@ -7,7 +7,9 @@ import jwt from 'jsonwebtoken';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, products, productCategories } from '@shared/schema';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints } from '@shared/schema';
+import { getPaymentProvider } from './services/paymentProvider';
+import QRCode from 'qrcode';
 import { eq, and, desc, sql, inArray, isNotNull } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
 import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
@@ -5934,6 +5936,733 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Delete store campaign error:', error);
       res.status(500).json({ success: false, message: '删除活动失败' });
+    }
+  });
+
+  // ============ 收款二维码功能 API ============
+
+  // 获取可用的 PSP 列表
+  app.get('/api/psp-providers', async (req: Request, res: Response) => {
+    try {
+      const providers = await db
+        .select()
+        .from(pspProviders)
+        .where(eq(pspProviders.status, 'active'));
+
+      res.json({ success: true, data: providers });
+    } catch (error) {
+      console.error('Get PSP providers error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get PSP providers' });
+    }
+  });
+
+  // 获取商户 PSP 账户配置
+  app.get('/api/merchant/psp-accounts', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+
+      // 获取用户管理的门店
+      const userRoles = await db
+        .select({ storeId: merchantStaffRoles.storeId })
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator']),
+          eq(merchantStaffRoles.isActive, true)
+        ));
+
+      const storeIds = userRoles.map(r => r.storeId);
+
+      if (storeIds.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      // 获取 PSP 账户
+      const accounts = await db
+        .select({
+          id: merchantPspAccounts.id,
+          storeId: merchantPspAccounts.storeId,
+          storeName: stores.name,
+          pspProviderCode: merchantPspAccounts.pspProviderCode,
+          settlementBankName: merchantPspAccounts.settlementBankName,
+          settlementAccountNumber: merchantPspAccounts.settlementAccountNumber,
+          status: merchantPspAccounts.status,
+          createdAt: merchantPspAccounts.createdAt,
+        })
+        .from(merchantPspAccounts)
+        .innerJoin(stores, eq(merchantPspAccounts.storeId, stores.id))
+        .where(inArray(merchantPspAccounts.storeId, storeIds));
+
+      // 脱敏账号显示
+      const maskedAccounts = accounts.map(a => ({
+        ...a,
+        settlementAccountNumber: a.settlementAccountNumber 
+          ? '****' + a.settlementAccountNumber.slice(-4) 
+          : null,
+      }));
+
+      res.json({ success: true, data: maskedAccounts });
+    } catch (error) {
+      console.error('Get merchant PSP accounts error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get PSP accounts' });
+    }
+  });
+
+  // 创建/更新商户 PSP 账户配置
+  app.post('/api/merchant/psp-accounts', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+
+      const {
+        storeId,
+        pspProviderCode,
+        settlementBankName,
+        settlementBankCode,
+        settlementAccountName,
+        settlementAccountNumber,
+        settlementBranch,
+        idCardUrl,
+        companyRegistrationUrl,
+        businessLicenseUrl,
+      } = req.body;
+
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator']),
+          eq(merchantStaffRoles.isActive, true)
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: 'No permission for this store' });
+      }
+
+      // 检查是否已有配置
+      const [existingAccount] = await db
+        .select()
+        .from(merchantPspAccounts)
+        .where(eq(merchantPspAccounts.storeId, storeId));
+
+      if (existingAccount) {
+        // 更新现有配置
+        const [updated] = await db
+          .update(merchantPspAccounts)
+          .set({
+            pspProviderCode,
+            settlementBankName,
+            settlementBankCode,
+            settlementAccountName,
+            settlementAccountNumber,
+            settlementBranch,
+            idCardUrl,
+            companyRegistrationUrl,
+            businessLicenseUrl,
+            status: 'pending_review',
+            updatedAt: new Date(),
+          })
+          .where(eq(merchantPspAccounts.id, existingAccount.id))
+          .returning();
+
+        res.json({ success: true, data: updated, message: 'PSP account updated, pending review' });
+      } else {
+        // 创建新配置
+        const [created] = await db
+          .insert(merchantPspAccounts)
+          .values({
+            storeId,
+            pspProviderCode,
+            settlementBankName,
+            settlementBankCode,
+            settlementAccountName,
+            settlementAccountNumber,
+            settlementBranch,
+            idCardUrl,
+            companyRegistrationUrl,
+            businessLicenseUrl,
+            currency: 'THB',
+            status: 'pending_review',
+          })
+          .returning();
+
+        res.json({ success: true, data: created, message: 'PSP account created, pending review' });
+      }
+    } catch (error) {
+      console.error('Create/update merchant PSP account error:', error);
+      res.status(500).json({ success: false, message: 'Failed to save PSP account' });
+    }
+  });
+
+  // 生成门店收款二维码
+  app.post('/api/merchant/qr-codes', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+
+      const { storeId } = req.body;
+
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator']),
+          eq(merchantStaffRoles.isActive, true)
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: 'No permission for this store' });
+      }
+
+      // 检查是否已有 PSP 账户配置
+      const [pspAccount] = await db
+        .select()
+        .from(merchantPspAccounts)
+        .where(and(
+          eq(merchantPspAccounts.storeId, storeId),
+          eq(merchantPspAccounts.status, 'active')
+        ));
+
+      if (!pspAccount) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Please configure and activate PSP account first' 
+        });
+      }
+
+      // 检查是否已有二维码
+      const [existingQr] = await db
+        .select()
+        .from(storeQrCodes)
+        .where(and(
+          eq(storeQrCodes.storeId, storeId),
+          eq(storeQrCodes.status, 'active')
+        ));
+
+      if (existingQr) {
+        return res.json({ 
+          success: true, 
+          data: existingQr, 
+          message: 'QR code already exists' 
+        });
+      }
+
+      // 生成新二维码
+      const qrToken = nanoid(12);
+      const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
+      const qrPayload = `${baseUrl}/p/${qrToken}`;
+
+      // 生成二维码图片 (Data URL)
+      const qrImageDataUrl = await QRCode.toDataURL(qrPayload, {
+        width: 512,
+        margin: 2,
+        color: { dark: '#000000', light: '#FFFFFF' }
+      });
+
+      // 保存到数据库
+      const [qrCode] = await db
+        .insert(storeQrCodes)
+        .values({
+          storeId,
+          qrType: 'h5_pay_entry',
+          qrPayload,
+          qrToken,
+          qrImageUrl: qrImageDataUrl,
+          status: 'active',
+        })
+        .returning();
+
+      res.json({ success: true, data: qrCode });
+    } catch (error) {
+      console.error('Generate store QR code error:', error);
+      res.status(500).json({ success: false, message: 'Failed to generate QR code' });
+    }
+  });
+
+  // 获取门店二维码列表
+  app.get('/api/merchant/qr-codes/:storeId', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      const storeId = parseInt(req.params.storeId);
+
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator']),
+          eq(merchantStaffRoles.isActive, true)
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: 'No permission for this store' });
+      }
+
+      const qrCodes = await db
+        .select()
+        .from(storeQrCodes)
+        .where(eq(storeQrCodes.storeId, storeId))
+        .orderBy(desc(storeQrCodes.createdAt));
+
+      res.json({ success: true, data: qrCodes });
+    } catch (error) {
+      console.error('Get store QR codes error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get QR codes' });
+    }
+  });
+
+  // H5 支付入口 - 获取二维码元数据
+  app.get('/api/payments/qrcode/meta', async (req: Request, res: Response) => {
+    try {
+      const { qr_token } = req.query;
+
+      if (!qr_token || typeof qr_token !== 'string') {
+        return res.status(400).json({ success: false, message: 'Missing qr_token' });
+      }
+
+      // 查询二维码和关联门店
+      const [qrCode] = await db
+        .select({
+          id: storeQrCodes.id,
+          storeId: storeQrCodes.storeId,
+          qrToken: storeQrCodes.qrToken,
+          status: storeQrCodes.status,
+          storeName: stores.name,
+          storeAddress: stores.address,
+          storeImageUrl: stores.imageUrl,
+        })
+        .from(storeQrCodes)
+        .innerJoin(stores, eq(storeQrCodes.storeId, stores.id))
+        .where(eq(storeQrCodes.qrToken, qr_token));
+
+      if (!qrCode || qrCode.status !== 'active') {
+        return res.status(404).json({ success: false, message: 'QR code not found or disabled' });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          qrCodeId: qrCode.id,
+          storeId: qrCode.storeId,
+          storeName: qrCode.storeName,
+          storeAddress: qrCode.storeAddress,
+          storeImageUrl: convertHttpToHttps(qrCode.storeImageUrl),
+          currency: 'THB',
+        }
+      });
+    } catch (error) {
+      console.error('Get QR code meta error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get QR code info' });
+    }
+  });
+
+  // 创建支付订单
+  app.post('/api/payments/qrcode/create', async (req: Request, res: Response) => {
+    try {
+      const { qr_token, amount, currency = 'THB' } = req.body;
+
+      if (!qr_token || !amount) {
+        return res.status(400).json({ success: false, message: 'Missing required fields' });
+      }
+
+      // 查询二维码和 PSP 账户
+      const [qrCode] = await db
+        .select({
+          id: storeQrCodes.id,
+          storeId: storeQrCodes.storeId,
+          status: storeQrCodes.status,
+        })
+        .from(storeQrCodes)
+        .where(eq(storeQrCodes.qrToken, qr_token));
+
+      if (!qrCode || qrCode.status !== 'active') {
+        return res.status(404).json({ success: false, message: 'QR code not found or disabled' });
+      }
+
+      // 获取 PSP 配置
+      const [pspAccount] = await db
+        .select()
+        .from(merchantPspAccounts)
+        .where(and(
+          eq(merchantPspAccounts.storeId, qrCode.storeId),
+          eq(merchantPspAccounts.status, 'active')
+        ));
+
+      if (!pspAccount) {
+        return res.status(400).json({ success: false, message: 'Store payment not configured' });
+      }
+
+      const provider = getPaymentProvider(pspAccount.pspProviderCode);
+      if (!provider) {
+        return res.status(500).json({ success: false, message: 'PSP provider not available' });
+      }
+
+      // 创建支付记录
+      const orderId = `pay_${nanoid(16)}`;
+      const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
+      const returnUrl = `${baseUrl}/success/${orderId}`;
+      const webhookUrl = `${baseUrl}/api/payments/webhook/${pspAccount.pspProviderCode}`;
+
+      // 调用 PSP 创建订单
+      const chargeResult = await provider.createQrCharge({
+        amount: Math.round(parseFloat(amount) * 100), // 转为分
+        currency,
+        storeId: qrCode.storeId,
+        orderId,
+        returnUrl,
+        webhookUrl,
+        description: `Payment for store #${qrCode.storeId}`,
+      });
+
+      if (!chargeResult.success) {
+        return res.status(500).json({ success: false, message: chargeResult.error || 'Failed to create charge' });
+      }
+
+      // 保存支付记录
+      const [payment] = await db
+        .insert(qrPayments)
+        .values({
+          storeId: qrCode.storeId,
+          qrCodeId: qrCode.id,
+          pspProviderCode: pspAccount.pspProviderCode,
+          pspPaymentId: chargeResult.pspPaymentId,
+          amount: amount.toString(),
+          currency,
+          status: 'pending',
+          redirectUrl: chargeResult.redirectUrl,
+        })
+        .returning();
+
+      res.json({
+        success: true,
+        data: {
+          payment_id: orderId,
+          redirect_url: chargeResult.redirectUrl,
+        }
+      });
+    } catch (error) {
+      console.error('Create payment error:', error);
+      res.status(500).json({ success: false, message: 'Failed to create payment' });
+    }
+  });
+
+  // 查询支付状态
+  app.get('/api/payments/:paymentId', async (req: Request, res: Response) => {
+    try {
+      const { paymentId } = req.params;
+
+      // 查询支付记录和关联的积分
+      const [payment] = await db
+        .select({
+          id: qrPayments.id,
+          storeId: qrPayments.storeId,
+          amount: qrPayments.amount,
+          currency: qrPayments.currency,
+          status: qrPayments.status,
+          paidAt: qrPayments.paidAt,
+          createdAt: qrPayments.createdAt,
+          storeName: stores.name,
+        })
+        .from(qrPayments)
+        .innerJoin(stores, eq(qrPayments.storeId, stores.id))
+        .where(eq(qrPayments.pspPaymentId, paymentId))
+        .limit(1);
+
+      if (!payment) {
+        return res.status(404).json({ success: false, message: 'Payment not found' });
+      }
+
+      // 查询关联积分
+      const [points] = await db
+        .select()
+        .from(paymentPoints)
+        .where(eq(paymentPoints.paymentId, payment.id));
+
+      res.json({
+        success: true,
+        data: {
+          ...payment,
+          points: points?.points || 0,
+          pointsStatus: points?.status || 'unclaimed',
+        }
+      });
+    } catch (error) {
+      console.error('Get payment error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get payment' });
+    }
+  });
+
+  // Webhook: Opn 支付回调
+  app.post('/api/payments/webhook/opn', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
+    try {
+      const rawBody = req.body.toString();
+      const headers = req.headers as Record<string, string>;
+
+      const provider = getPaymentProvider('opn');
+      if (!provider) {
+        return res.status(500).json({ success: false, message: 'Provider not configured' });
+      }
+
+      // 验证签名
+      if (!provider.verifyWebhookSignature(rawBody, headers)) {
+        console.warn('[Webhook/opn] Invalid signature');
+        return res.status(401).json({ success: false, message: 'Invalid signature' });
+      }
+
+      // 解析数据
+      const payload = provider.parseWebhookPayload(rawBody);
+      if (!payload) {
+        return res.status(400).json({ success: false, message: 'Invalid payload' });
+      }
+
+      console.log('[Webhook/opn] Received:', { 
+        pspPaymentId: payload.pspPaymentId, 
+        status: payload.status 
+      });
+
+      // 更新支付记录（幂等）
+      const [payment] = await db
+        .select()
+        .from(qrPayments)
+        .where(eq(qrPayments.pspPaymentId, payload.pspPaymentId));
+
+      if (!payment) {
+        console.warn('[Webhook/opn] Payment not found:', payload.pspPaymentId);
+        return res.json({ success: true, message: 'Payment not found, ignored' });
+      }
+
+      if (payment.status === 'paid') {
+        return res.json({ success: true, message: 'Already processed' });
+      }
+
+      // 更新状态
+      await db
+        .update(qrPayments)
+        .set({
+          status: payload.status,
+          paidAt: payload.paidAt || new Date(),
+          rawPayload: JSON.stringify(payload.rawData),
+          updatedAt: new Date(),
+        })
+        .where(eq(qrPayments.id, payment.id));
+
+      // 如果支付成功，创建积分记录
+      if (payload.status === 'paid') {
+        const pointsAmount = Math.floor(payload.amount); // 1 THB = 1 积分
+
+        await db
+          .insert(paymentPoints)
+          .values({
+            paymentId: payment.id,
+            points: pointsAmount,
+            status: 'unclaimed',
+          });
+
+        console.log('[Webhook/opn] Points created:', { 
+          paymentId: payment.id, 
+          points: pointsAmount 
+        });
+      }
+
+      res.json({ success: true, message: 'Webhook processed' });
+    } catch (error) {
+      console.error('Webhook/opn error:', error);
+      res.status(500).json({ success: false, message: 'Webhook processing failed' });
+    }
+  });
+
+  // Webhook: 2C2P 支付回调
+  app.post('/api/payments/webhook/2c2p', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
+    try {
+      const rawBody = req.body.toString();
+      const headers = req.headers as Record<string, string>;
+
+      const provider = getPaymentProvider('2c2p');
+      if (!provider) {
+        return res.status(500).json({ success: false, message: 'Provider not configured' });
+      }
+
+      if (!provider.verifyWebhookSignature(rawBody, headers)) {
+        console.warn('[Webhook/2c2p] Invalid signature');
+        return res.status(401).json({ success: false, message: 'Invalid signature' });
+      }
+
+      const payload = provider.parseWebhookPayload(rawBody);
+      if (!payload) {
+        return res.status(400).json({ success: false, message: 'Invalid payload' });
+      }
+
+      console.log('[Webhook/2c2p] Received:', { 
+        pspPaymentId: payload.pspPaymentId, 
+        status: payload.status 
+      });
+
+      const [payment] = await db
+        .select()
+        .from(qrPayments)
+        .where(eq(qrPayments.pspPaymentId, payload.pspPaymentId));
+
+      if (!payment) {
+        console.warn('[Webhook/2c2p] Payment not found:', payload.pspPaymentId);
+        return res.json({ success: true, message: 'Payment not found, ignored' });
+      }
+
+      if (payment.status === 'paid') {
+        return res.json({ success: true, message: 'Already processed' });
+      }
+
+      await db
+        .update(qrPayments)
+        .set({
+          status: payload.status,
+          paidAt: payload.paidAt || new Date(),
+          rawPayload: JSON.stringify(payload.rawData),
+          updatedAt: new Date(),
+        })
+        .where(eq(qrPayments.id, payment.id));
+
+      if (payload.status === 'paid') {
+        const pointsAmount = Math.floor(payload.amount);
+
+        await db
+          .insert(paymentPoints)
+          .values({
+            paymentId: payment.id,
+            points: pointsAmount,
+            status: 'unclaimed',
+          });
+
+        console.log('[Webhook/2c2p] Points created:', { 
+          paymentId: payment.id, 
+          points: pointsAmount 
+        });
+      }
+
+      res.json({ success: true, message: 'Webhook processed' });
+    } catch (error) {
+      console.error('Webhook/2c2p error:', error);
+      res.status(500).json({ success: false, message: 'Webhook processing failed' });
+    }
+  });
+
+  // 积分认领 API
+  app.post('/api/points/claim', async (req: Request, res: Response) => {
+    try {
+      const { payment_id, line_user_id } = req.body;
+
+      if (!payment_id || !line_user_id) {
+        return res.status(400).json({ success: false, message: 'Missing required fields' });
+      }
+
+      // 查询支付记录
+      const [payment] = await db
+        .select()
+        .from(qrPayments)
+        .where(eq(qrPayments.pspPaymentId, payment_id));
+
+      if (!payment || payment.status !== 'paid') {
+        return res.status(404).json({ success: false, message: 'Payment not found or not paid' });
+      }
+
+      // 查询积分记录
+      const [points] = await db
+        .select()
+        .from(paymentPoints)
+        .where(eq(paymentPoints.paymentId, payment.id));
+
+      if (!points) {
+        return res.status(404).json({ success: false, message: 'Points not found' });
+      }
+
+      if (points.status === 'claimed') {
+        return res.json({ success: true, message: 'Points already claimed', data: points });
+      }
+
+      // 查找或创建用户
+      let [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.lineUserId, line_user_id));
+
+      if (!user) {
+        [user] = await db
+          .insert(users)
+          .values({
+            lineUserId: line_user_id,
+            displayName: 'LINE User',
+            language: 'th-th',
+          })
+          .returning();
+      }
+
+      // 更新积分记录
+      const [updatedPoints] = await db
+        .update(paymentPoints)
+        .set({
+          memberId: user.id,
+          lineUserId: line_user_id,
+          status: 'claimed',
+          claimedAt: new Date(),
+        })
+        .where(eq(paymentPoints.id, points.id))
+        .returning();
+
+      res.json({
+        success: true,
+        data: {
+          points: updatedPoints.points,
+          status: 'claimed',
+          memberId: user.id,
+        },
+        message: 'Points claimed successfully'
+      });
+    } catch (error) {
+      console.error('Claim points error:', error);
+      res.status(500).json({ success: false, message: 'Failed to claim points' });
+    }
+  });
+
+  // 初始化 PSP Providers（开发用，只运行一次）
+  app.post('/api/admin/init-psp-providers', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      // 检查是否已有数据
+      const existing = await db.select().from(pspProviders);
+      if (existing.length > 0) {
+        return res.json({ success: true, message: 'PSP providers already initialized', data: existing });
+      }
+
+      // 插入默认 PSP
+      const providers = await db
+        .insert(pspProviders)
+        .values([
+          { code: 'opn', name: 'Opn Thailand', status: 'active' },
+          { code: '2c2p', name: '2C2P Thailand', status: 'active' },
+        ])
+        .returning();
+
+      res.json({ success: true, message: 'PSP providers initialized', data: providers });
+    } catch (error) {
+      console.error('Init PSP providers error:', error);
+      res.status(500).json({ success: false, message: 'Failed to init PSP providers' });
     }
   });
 

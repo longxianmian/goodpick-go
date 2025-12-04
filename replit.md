@@ -171,13 +171,13 @@ POST /api/ai/agents/:id/activate  # 激活数字人
 7. 运营工具（人群分群、A/B测试）
 8. 平台配置（多语言、功能开关）
 
-## Payment QR Code System (收款二维码系统) - 规划中
+## Payment QR Code System (收款二维码系统) - 已实现
 
 ### 功能概述
-商户收款二维码功能，支持顾客扫码支付自动成为会员。
+商户收款二维码功能，支持顾客扫码支付自动成为会员。刷刷/DeeCard 只提供「收款页面 + 会员积分」服务，不直接提供支付服务，资金由持牌 PSP 直接结算给商户。
 
 ### PSP 集成方案
-- **主力PSP**: Opn Payments (Omise) - 开发者友好、费率低
+- **主力PSP**: Opn Payments (Omise) - 开发者友好、费率低 (1.6-3.65%)
 - **备用PSP**: 2C2P - 企业级稳定性
 
 ### 支持的支付方式
@@ -186,11 +186,33 @@ POST /api/ai/agents/:id/activate  # 激活数字人
 - 信用卡/借记卡（Visa、Mastercard）
 - Alipay、WeChat Pay（中国游客）
 
-### 数据库表结构（规划）
-- `merchant_payment_accounts`: 商户收款账户
-- `payment_qrcodes`: 收款码
-- `payment_transactions`: 支付交易
-- `payment_settlements`: 结算记录
+### 数据库表结构
+- `psp_providers`: PSP 服务商配置表
+- `merchant_psp_accounts`: 商户 PSP 收款账户
+- `store_qr_codes`: 门店收款二维码
+- `qr_payments`: 二维码支付订单
+- `payment_points`: 支付积分记录
+
+### API 接口
+- `GET /api/psp-providers`: 获取可用 PSP 列表
+- `GET/POST /api/merchant/psp-accounts`: 商户 PSP 账户管理
+- `POST /api/merchant/qr-codes`: 生成门店收款二维码
+- `GET /api/payments/qrcode/meta`: 获取二维码元数据
+- `POST /api/payments/qrcode/create`: 创建支付订单
+- `GET /api/payments/:id`: 查询支付状态
+- `POST /api/payments/webhook/opn`: Opn 支付回调
+- `POST /api/payments/webhook/2c2p`: 2C2P 支付回调
+- `POST /api/points/claim`: 积分认领
+
+### H5 页面
+- `/p/:qrToken`: 支付入口页 (PayEntryPage)
+- `/success/:paymentId`: 支付成功页 (PaySuccessPage)
+
+### 安全措施
+- Webhook 签名验证（生产环境强制开启）
+- 商户权限验证（owner/operator 角色检查）
+- 幂等性处理（重复 webhook 不重复处理）
+- 开发环境需设置 `ALLOW_DEV_WEBHOOKS=true` 才能测试
 
 ### 开发文档
 详见: `docs/payment-qrcode-integration.md`
