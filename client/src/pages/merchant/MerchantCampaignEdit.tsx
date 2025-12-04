@@ -50,7 +50,7 @@ const campaignFormSchema = z.object({
   titleSource: z.string().min(1, '请输入活动标题'),
   descriptionSource: z.string().min(1, '请输入活动描述'),
   couponValue: z.string().min(1, '请输入优惠金额'),
-  discountType: z.enum(['fixed', 'percentage']),
+  discountType: z.enum(['final_price', 'percentage_off', 'cash_voucher']),
   originalPrice: z.string().optional(),
   startAt: z.string().min(1, '请选择开始时间'),
   endAt: z.string().min(1, '请选择结束时间'),
@@ -82,7 +82,7 @@ export default function MerchantCampaignEdit() {
       titleSource: '',
       descriptionSource: '',
       couponValue: '',
-      discountType: 'fixed',
+      discountType: 'cash_voucher',
       originalPrice: '',
       startAt: '',
       endAt: '',
@@ -104,7 +104,7 @@ export default function MerchantCampaignEdit() {
         titleSource: c.titleSource || '',
         descriptionSource: c.descriptionSource || '',
         couponValue: c.couponValue?.toString() || '',
-        discountType: (c.discountType as 'fixed' | 'percentage') || 'fixed',
+        discountType: (c.discountType as 'final_price' | 'percentage_off' | 'cash_voucher') || 'cash_voucher',
         originalPrice: c.originalPrice?.toString() || '',
         startAt: c.startAt ? format(new Date(c.startAt), "yyyy-MM-dd'T'HH:mm") : '',
         endAt: c.endAt ? format(new Date(c.endAt), "yyyy-MM-dd'T'HH:mm") : '',
@@ -357,8 +357,9 @@ export default function MerchantCampaignEdit() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="fixed">{t('merchant.fixedAmount')}</SelectItem>
-                            <SelectItem value="percentage">{t('merchant.percentage')}</SelectItem>
+                            <SelectItem value="cash_voucher">{t('merchant.cashVoucher')}</SelectItem>
+                            <SelectItem value="percentage_off">{t('merchant.percentageOff')}</SelectItem>
+                            <SelectItem value="final_price">{t('merchant.finalPrice')}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -376,7 +377,7 @@ export default function MerchantCampaignEdit() {
                           <Input 
                             {...field}
                             type="number"
-                            placeholder={form.watch('discountType') === 'fixed' ? '50' : '10'}
+                            placeholder={form.watch('discountType') === 'percentage_off' ? '10' : '50'}
                             data-testid="input-coupon-value"
                           />
                         </FormControl>
