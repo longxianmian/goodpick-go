@@ -82,6 +82,8 @@ export default function PaySuccessPage() {
     triggerMockComplete();
   }, [isMockMode, paymentData?.data?.status, paymentId, refetch]);
 
+  const [redirectingToLine, setRedirectingToLine] = useState(false);
+  
   const claimPointsMutation = useMutation({
     mutationFn: async (lineUserId: string) => {
       const res = await apiRequest('POST', '/api/points/claim', {
@@ -90,8 +92,16 @@ export default function PaySuccessPage() {
       });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       refetch();
+      
+      // 如果有 LINE OA URL，延迟跳转
+      if (result?.data?.lineOaUrl) {
+        setRedirectingToLine(true);
+        setTimeout(() => {
+          window.location.href = result.data.lineOaUrl;
+        }, 2000); // 2秒后跳转，让用户看到成功信息
+      }
     },
   });
 
@@ -214,12 +224,21 @@ export default function PaySuccessPage() {
             </div>
 
             {/* Claim button or claimed status */}
-            {isClaimed ? (
+            {isClaimed || redirectingToLine ? (
               <div className="mt-4 w-full py-3 rounded-2xl bg-slate-100 text-slate-600 text-[15px] font-semibold flex items-center justify-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
-                  <span className="w-2 h-2 border-[2px] border-white border-t-transparent border-l-transparent rounded-sm rotate-45" />
-                </span>
-                <span>Points claimed to your account</span>
+                {redirectingToLine ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin text-[#06C755]" />
+                    <span>Redirecting to merchant LINE...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                      <span className="w-2 h-2 border-[2px] border-white border-t-transparent border-l-transparent rounded-sm rotate-45" />
+                    </span>
+                    <span>Points claimed to your account</span>
+                  </>
+                )}
               </div>
             ) : (
               <button 
