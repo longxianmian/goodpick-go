@@ -813,3 +813,433 @@ export const insertShortVideoCommentSchema = createInsertSchema(shortVideoCommen
 });
 export type InsertShortVideoComment = z.infer<typeof insertShortVideoCommentSchema>;
 export type ShortVideoComment = typeof shortVideoComments.$inferSelect;
+
+// ============================================
+// 数字人系统 - 预留表结构 (Digital Agent System)
+// ============================================
+
+// 数字人类型枚举
+export const agentTypeEnum = pgEnum('agent_type', [
+  'platform',     // 平台内使用型
+  'line_oa',      // LINE OA 账号型
+]);
+
+// 数字人状态枚举
+export const agentStatusEnum = pgEnum('agent_status', [
+  'draft',        // 草稿
+  'active',       // 上架销售中
+  'suspended',    // 暂停
+  'deprecated',   // 已废弃
+]);
+
+// 订阅状态枚举
+export const subscriptionStatusEnum = pgEnum('subscription_status', [
+  'trial',        // 试用中
+  'active',       // 订阅中
+  'expired',      // 已过期
+  'cancelled',    // 已取消
+]);
+
+// 计费模式枚举（数字人专用）
+export const agentPricingModelEnum = pgEnum('agent_pricing_model', [
+  'free',         // 免费
+  'one_time',     // 一次性购买
+  'subscription', // 月度订阅
+  'per_session',  // 按会话量计费
+]);
+
+// 对话状态枚举
+export const conversationStatusEnum = pgEnum('conversation_status', [
+  'active',       // 进行中
+  'completed',    // 已完成
+  'abandoned',    // 已放弃
+]);
+
+// 数字人产品表 (AI Digital Agents Catalog)
+export const aiDigitalAgents = pgTable('ai_digital_agents', {
+  id: serial('id').primaryKey(),
+  
+  // 基本信息
+  name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
+  description: text('description'),
+  avatarUrl: text('avatar_url'),
+  coverImageUrl: text('cover_image_url'),
+  demoVideoUrl: text('demo_video_url'),
+  
+  // 类型与能力
+  agentType: agentTypeEnum('agent_type').notNull(),
+  capabilities: text('capabilities').array(),  // ['search', 'compare', 'recommend', 'payment', 'tracking']
+  
+  // 定价
+  pricingModel: agentPricingModelEnum('pricing_model').notNull().default('subscription'),
+  monthlyPrice: decimal('monthly_price', { precision: 10, scale: 2 }),
+  yearlyPrice: decimal('yearly_price', { precision: 10, scale: 2 }),
+  perSessionPrice: decimal('per_session_price', { precision: 10, scale: 4 }),
+  trialDays: integer('trial_days').default(7),
+  
+  // 状态与排序
+  status: agentStatusEnum('status').notNull().default('draft'),
+  sortOrder: integer('sort_order').default(0),
+  
+  // 统计
+  subscriberCount: integer('subscriber_count').default(0),
+  totalSessions: integer('total_sessions').default(0),
+  avgRating: decimal('avg_rating', { precision: 2, scale: 1 }),
+  
+  // 外部系统配置 (预留字段)
+  externalSystemId: text('external_system_id'),      // 外部数字人系统ID
+  externalConfig: text('external_config'),           // JSON配置
+  webhookUrl: text('webhook_url'),                   // 回调URL
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertAiDigitalAgentSchema = createInsertSchema(aiDigitalAgents).omit({
+  id: true,
+  subscriberCount: true,
+  totalSessions: true,
+  avgRating: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertAiDigitalAgent = z.infer<typeof insertAiDigitalAgentSchema>;
+export type AiDigitalAgent = typeof aiDigitalAgents.$inferSelect;
+
+// AI能力配置表 (统一管理所有AI能力)
+export const aiCapabilities = pgTable('ai_capabilities', {
+  id: serial('id').primaryKey(),
+  
+  // 能力标识
+  capabilityKey: text('capability_key').notNull().unique(),  // 'product_search', 'price_compare', 'smart_recommend', etc.
+  name: text('name').notNull(),
+  description: text('description'),
+  
+  // 提供者信息
+  provider: text('provider').notNull(),       // 'internal', 'openai', 'custom'
+  modelRef: text('model_ref'),                // 模型引用
+  version: text('version'),
+  
+  // 性能配置
+  latencySla: integer('latency_sla'),         // 延迟SLA (ms)
+  costPerCall: decimal('cost_per_call', { precision: 10, scale: 6 }),
+  
+  // 状态
+  isEnabled: boolean('is_enabled').notNull().default(true),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertAiCapabilitySchema = createInsertSchema(aiCapabilities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertAiCapability = z.infer<typeof insertAiCapabilitySchema>;
+export type AiCapability = typeof aiCapabilities.$inferSelect;
+
+// 商家数字人实例表 (商家购买/订阅的数字人)
+export const agentStoreBindings = pgTable('agent_store_bindings', {
+  id: serial('id').primaryKey(),
+  
+  // 关联
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  agentId: integer('agent_id').notNull().references(() => aiDigitalAgents.id, { onDelete: 'cascade' }),
+  
+  // LINE OA 配置 (仅 line_oa 类型使用)
+  lineChannelId: text('line_channel_id'),
+  lineChannelSecret: text('line_channel_secret'),
+  lineAccessToken: text('line_access_token'),
+  
+  // 订阅信息
+  subscriptionStatus: subscriptionStatusEnum('subscription_status').notNull().default('trial'),
+  trialEndsAt: timestamp('trial_ends_at'),
+  subscriptionEndsAt: timestamp('subscription_ends_at'),
+  sessionsUsed: integer('sessions_used').default(0),
+  sessionsLimit: integer('sessions_limit'),
+  
+  // 个性化配置 (JSON)
+  customConfig: text('custom_config'),        // 推荐策略、敏感词等
+  knowledgeBaseUrl: text('knowledge_base_url'),
+  
+  // 状态
+  isActive: boolean('is_active').notNull().default(true),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqStoreAgent: unique().on(table.storeId, table.agentId),
+}));
+
+export const insertAgentStoreBindingSchema = createInsertSchema(agentStoreBindings).omit({
+  id: true,
+  sessionsUsed: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertAgentStoreBinding = z.infer<typeof insertAgentStoreBindingSchema>;
+export type AgentStoreBinding = typeof agentStoreBindings.$inferSelect;
+
+// 数字人对话记录表
+export const agentConversations = pgTable('agent_conversations', {
+  id: serial('id').primaryKey(),
+  
+  // 关联
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  agentId: integer('agent_id').notNull().references(() => aiDigitalAgents.id, { onDelete: 'cascade' }),
+  storeId: integer('store_id').references(() => stores.id, { onDelete: 'set null' }),
+  
+  // 渠道信息
+  channel: text('channel').notNull(),         // 'platform', 'line'
+  channelUserId: text('channel_user_id'),     // LINE user ID 等
+  
+  // 对话内容 (JSON Array)
+  messages: text('messages'),                 // [{role, content, timestamp}]
+  
+  // 推荐结果 (JSON Array)
+  recommendations: text('recommendations'),   // [{productId, score, reason}]
+  selectedProductId: integer('selected_product_id'),
+  
+  // 关联订单
+  paymentOrderId: integer('payment_order_id'),
+  
+  // 状态与统计
+  status: conversationStatusEnum('status').notNull().default('active'),
+  messageCount: integer('message_count').default(0),
+  
+  // 追踪
+  traceId: text('trace_id'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertAgentConversationSchema = createInsertSchema(agentConversations).omit({
+  id: true,
+  messageCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertAgentConversation = z.infer<typeof insertAgentConversationSchema>;
+export type AgentConversation = typeof agentConversations.$inferSelect;
+
+// 数字人订阅/支付订单表
+export const agentPaymentOrders = pgTable('agent_payment_orders', {
+  id: serial('id').primaryKey(),
+  
+  // 关联
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  agentId: integer('agent_id').notNull().references(() => aiDigitalAgents.id, { onDelete: 'cascade' }),
+  
+  // 订单类型
+  orderType: text('order_type').notNull(),    // 'subscription', 'one_time', 'session_pack'
+  
+  // 金额
+  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+  currency: text('currency').notNull().default('THB'),
+  
+  // 订阅周期
+  periodStart: timestamp('period_start'),
+  periodEnd: timestamp('period_end'),
+  sessionsIncluded: integer('sessions_included'),
+  
+  // 支付状态
+  paymentStatus: paymentStatusEnum('payment_status').notNull().default('pending'),
+  paymentMethod: text('payment_method'),
+  paymentReference: text('payment_reference'),
+  paidAt: timestamp('paid_at'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertAgentPaymentOrderSchema = createInsertSchema(agentPaymentOrders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertAgentPaymentOrder = z.infer<typeof insertAgentPaymentOrderSchema>;
+export type AgentPaymentOrder = typeof agentPaymentOrders.$inferSelect;
+
+// 数字人物流追踪表
+export const agentDeliveryTracks = pgTable('agent_delivery_tracks', {
+  id: serial('id').primaryKey(),
+  
+  // 关联
+  orderId: integer('order_id'),                               // 业务订单ID
+  conversationId: integer('conversation_id').references(() => agentConversations.id, { onDelete: 'set null' }),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  
+  // 物流信息
+  trackingNumber: text('tracking_number'),
+  carrier: text('carrier'),                   // 物流公司
+  status: text('status').notNull(),           // 'pending', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered'
+  
+  // 位置信息
+  currentLocation: text('current_location'),
+  latitude: decimal('latitude', { precision: 10, scale: 7 }),
+  longitude: decimal('longitude', { precision: 10, scale: 7 }),
+  
+  // 时间预估
+  estimatedDeliveryTime: timestamp('estimated_delivery_time'),
+  actualDeliveryTime: timestamp('actual_delivery_time'),
+  
+  // 骑手信息 (即时配送)
+  riderName: text('rider_name'),
+  riderPhone: text('rider_phone'),
+  riderAvatarUrl: text('rider_avatar_url'),
+  
+  // 通知状态
+  lastNotifiedAt: timestamp('last_notified_at'),
+  notificationCount: integer('notification_count').default(0),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertAgentDeliveryTrackSchema = createInsertSchema(agentDeliveryTracks).omit({
+  id: true,
+  notificationCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertAgentDeliveryTrack = z.infer<typeof insertAgentDeliveryTrackSchema>;
+export type AgentDeliveryTrack = typeof agentDeliveryTracks.$inferSelect;
+
+// ============================================
+// 互联网基因组识别系统 - 预留表结构 (Internet Genome Recognition)
+// ============================================
+
+// 用户画像类型枚举
+export const profileTypeEnum = pgEnum('profile_type', [
+  'shopping',       // 购物偏好
+  'content',        // 内容偏好
+  'behavior',       // 行为模式
+  'risk',           // 风险特征
+]);
+
+// 风险等级枚举
+export const riskLevelEnum = pgEnum('risk_level', [
+  'low',
+  'medium',
+  'high',
+  'critical',
+]);
+
+// 用户AI画像表 (基因组识别用)
+export const userAiProfiles = pgTable('user_ai_profiles', {
+  id: serial('id').primaryKey(),
+  
+  // 关联
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  
+  // 画像类型与版本
+  profileType: profileTypeEnum('profile_type').notNull(),
+  version: integer('version').notNull().default(1),
+  
+  // 特征数据 (JSON)
+  features: text('features'),                 // 特征向量或结构化数据
+  
+  // 标签
+  tags: text('tags').array(),                 // ['high_value', 'price_sensitive', 'frequent_buyer']
+  
+  // 置信度
+  confidence: decimal('confidence', { precision: 5, scale: 4 }),
+  
+  // 合规字段
+  consentFlag: boolean('consent_flag').notNull().default(false),
+  dataSource: text('data_source'),            // 数据来源
+  
+  // 外部系统引用
+  externalProfileId: text('external_profile_id'),
+  
+  lastUpdated: timestamp('last_updated').notNull().defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqUserProfile: unique().on(table.userId, table.profileType),
+}));
+
+export const insertUserAiProfileSchema = createInsertSchema(userAiProfiles).omit({
+  id: true,
+  version: true,
+  lastUpdated: true,
+  createdAt: true,
+});
+export type InsertUserAiProfile = z.infer<typeof insertUserAiProfileSchema>;
+export type UserAiProfile = typeof userAiProfiles.$inferSelect;
+
+// 行为事件表 (用户行为分析)
+export const behaviorEvents = pgTable('behavior_events', {
+  id: serial('id').primaryKey(),
+  
+  // 用户信息
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  sessionId: text('session_id'),
+  
+  // 事件信息
+  eventType: text('event_type').notNull(),    // 'page_view', 'product_click', 'search', 'add_cart', 'purchase', etc.
+  eventSource: text('event_source'),          // 'app', 'web', 'line', 'agent'
+  
+  // 事件数据 (JSON)
+  payload: text('payload'),                   // 事件详细数据
+  
+  // 关联对象
+  targetType: text('target_type'),            // 'product', 'campaign', 'store', 'video'
+  targetId: integer('target_id'),
+  
+  // 追踪
+  traceId: text('trace_id'),
+  
+  // 合规字段
+  consentFlag: boolean('consent_flag').default(true),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertBehaviorEventSchema = createInsertSchema(behaviorEvents).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertBehaviorEvent = z.infer<typeof insertBehaviorEventSchema>;
+export type BehaviorEvent = typeof behaviorEvents.$inferSelect;
+
+// 风险告警表
+export const riskAlerts = pgTable('risk_alerts', {
+  id: serial('id').primaryKey(),
+  
+  // 关联
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  storeId: integer('store_id').references(() => stores.id, { onDelete: 'set null' }),
+  
+  // 告警类型
+  alertType: text('alert_type').notNull(),    // 'fraud', 'abuse', 'anomaly', 'spam', 'fake_review'
+  riskLevel: riskLevelEnum('risk_level').notNull(),
+  
+  // 风险评分
+  riskScore: decimal('risk_score', { precision: 5, scale: 4 }),
+  
+  // 证据 (JSON)
+  evidence: text('evidence'),                 // 告警详细证据
+  
+  // 处理状态
+  status: text('status').notNull().default('pending'),  // 'pending', 'reviewing', 'confirmed', 'dismissed'
+  reviewedBy: integer('reviewed_by').references(() => admins.id, { onDelete: 'set null' }),
+  reviewedAt: timestamp('reviewed_at'),
+  resolution: text('resolution'),
+  
+  // 外部系统引用
+  externalAlertId: text('external_alert_id'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertRiskAlertSchema = createInsertSchema(riskAlerts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertRiskAlert = z.infer<typeof insertRiskAlertSchema>;
+export type RiskAlert = typeof riskAlerts.$inferSelect;

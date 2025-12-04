@@ -66,3 +66,71 @@ Security features include bcryptjs for password hashing, JWT secrets managed via
 - **Vite**: Build tool and development server.
 - **TypeScript**: Type safety.
 - **Drizzle Kit**: Database migrations.
+
+## Future Integration: Digital Agent & Genome System
+
+### Digital Agent System (数字人系统)
+预留的数据库表结构和API接口，用于后期集成数字人系统。
+
+**两类数字人产品:**
+- **平台内使用型 (platform)**: 在刷刷 App/H5 内使用
+- **LINE OA 账号型 (line_oa)**: 部署到商家 LINE 官方账号
+
+**核心能力:**
+- 智能搜索商品
+- 比价分析
+- 智能推荐 TOP 3
+- 聊天内支付
+- 实时物流追踪
+
+**预留表结构:**
+- `ai_digital_agents`: 数字人产品目录
+- `ai_capabilities`: AI能力配置
+- `agent_store_bindings`: 商家数字人实例
+- `agent_conversations`: 对话记录
+- `agent_payment_orders`: 订阅/支付订单
+- `agent_delivery_tracks`: 物流追踪
+
+**预留API接口规范:**
+```
+POST /api/ai/orchestrations    # 触发 AI 会话
+POST /api/ai/events            # 外部系统回调 (CloudEvents)
+GET  /api/insights/user/:id    # 用户画像查询
+POST /api/behavior/events      # 行为事件上报
+GET  /api/ai/agents            # 数字人列表
+POST /api/ai/agents/:id/activate  # 激活数字人
+```
+
+### Internet Genome Recognition System (互联网基因组识别)
+预留的数据库表结构，用于后期集成用户行为分析和风险识别系统。
+
+**预留表结构:**
+- `user_ai_profiles`: 用户AI画像（购物偏好、内容偏好、行为模式、风险特征）
+- `behavior_events`: 行为事件记录
+- `risk_alerts`: 风险告警
+
+**关键设计原则:**
+- 松耦合: 通过事件总线异步通信
+- 标准化: 采用 CloudEvents 等业界标准格式
+- 可开关: 每个 AI 能力都有启用/禁用开关
+- 合规优先: 所有用户数据都有 consent 字段
+
+## Operations Backend Strategy (运营后台战略)
+
+### 核心定位
+"平台指挥塔" - 区别于商户门户（单商户视角），运营后台是全局视角，负责跨商户治理、平台策略、风险控制。
+
+### 8大核心模块 (按优先级)
+**P0 - 必须优先实现:**
+1. 用户与角色管理
+2. 商户生态管理（入驻审核、资质验证）
+3. 内容与活动管理（审核、违规处理）
+4. 基础数据看板
+
+**P1 - 第二阶段:**
+5. 订单与客服（核销监控、投诉仲裁）
+6. 财务与结算（佣金配置、对账）
+
+**P2 - 第三阶段:**
+7. 运营工具（人群分群、A/B测试）
+8. 平台配置（多语言、功能开关）
