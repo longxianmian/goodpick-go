@@ -220,6 +220,31 @@ POST /api/ai/agents/:id/activate  # 激活数字人
 - `/p/:qrToken`: 支付入口页 (PayEntryPage)
 - `/success/:paymentId`: 支付成功页 (PaySuccessPage)
 
+### LINE OA 会员绑定流程（已实现）
+支付即会员的核心功能，支持商户配置 LINE 官方账号，自动引导付款用户成为会员。
+
+**商户配置（门店编辑 → LINE OA 设置）：**
+- `lineOaId`: LINE OA 的 @ID（例如 @myshop）
+- `lineOaUrl`: 加好友链接（支付成功后跳转）
+- `lineOaChannelToken`: Channel Access Token（发送消费通知用，安全脱敏处理）
+
+**用户流程：**
+1. 顾客扫码支付 → 支付成功页
+2. 用户领取积分（需先登录 LINE）
+3. 如商户已配置 LINE OA Token，发送消费通知消息
+4. 如商户已配置 LINE OA URL，引导跳转加好友
+
+**安全措施：**
+- Channel Access Token 不会在 API 响应中返回（GET/PATCH 均脱敏）
+- 商户后台只显示"已配置"状态指示器，不显示实际 Token
+- 仅当用户输入新值时才更新 Token
+- 积分领取 API 验证 LINE OA 配置完整性后才触发消息发送
+
+**技术实现：**
+- `server/services/lineMessagingService.ts`: LINE Messaging API 集成
+- 门店表新增字段：lineOaId, lineOaUrl, lineOaChannelToken
+- API 返回 `hasLineOaToken: boolean` 替代实际 Token
+
 ### 安全措施
 - Webhook 签名验证（生产环境强制开启）
 - 商户权限验证（owner/operator 角色检查）
