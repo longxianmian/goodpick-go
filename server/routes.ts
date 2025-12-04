@@ -3977,6 +3977,51 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // 通用图片上传 API (商户商品图片等)
+  app.post('/api/upload/image', userAuthMiddleware, upload.single('file'), async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No file uploaded' });
+      }
+
+      if (!req.file.mimetype.startsWith('image/')) {
+        return res.status(400).json({ success: false, message: 'Only images are allowed' });
+      }
+
+      const userId = req.user!.id;
+      const folder = req.body.folder || 'images';
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(2, 8);
+      const ext = req.file.originalname.split('.').pop();
+      const objectName = `${folder}/${userId}/${timestamp}-${randomStr}.${ext}`;
+
+      const fileUrl = await getOssService().uploadFile(
+        objectName,
+        req.file.buffer,
+        req.file.mimetype
+      );
+
+      await db.insert(mediaFiles).values({
+        fileName: req.file.originalname,
+        fileUrl,
+        fileType: 'image',
+        fileSize: req.file.size,
+        uploadedBy: userId,
+        isPublic: true,
+      });
+
+      res.json({
+        success: true,
+        url: fileUrl,
+        fileType: 'image',
+        fileSize: req.file.size,
+      });
+    } catch (error) {
+      console.error('Image upload error:', error);
+      res.status(500).json({ success: false, message: 'Failed to upload image' });
+    }
+  });
+
   // ============ J. 刷刷号创作者 API ============
 
   // 将creator content转换为驼峰格式
