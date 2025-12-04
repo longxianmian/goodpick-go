@@ -146,6 +146,13 @@ const translations: Record<Language, Record<string, string>> = {
     'creatorHome.bio': '分享美食与生活，发现身边的精彩',
     'creatorHome.myWorks': '我的作品',
     'creatorHome.manageInStudio': '在创作中心管理',
+    'creatorHome.editProfile': '编辑刷刷号资料',
+    'creatorHome.shuaName': '刷刷号名称',
+    'creatorHome.shuaNamePlaceholder': '输入你的刷刷号名称',
+    'creatorHome.shuaBio': '个人简介',
+    'creatorHome.shuaBioPlaceholder': '介绍一下你自己',
+    'creatorHome.profileUpdated': '资料更新成功',
+    'creatorHome.profileUpdateFailed': '资料更新失败',
     
     // 刷刷号创作中心
     'creatorStudio.title': '创作中心',
@@ -1944,6 +1951,13 @@ const translations: Record<Language, Record<string, string>> = {
     'creatorHome.bio': 'Sharing food and life, discovering local gems',
     'creatorHome.myWorks': 'My Works',
     'creatorHome.manageInStudio': 'Manage in Studio',
+    'creatorHome.editProfile': 'Edit Profile',
+    'creatorHome.shuaName': 'Account Name',
+    'creatorHome.shuaNamePlaceholder': 'Enter your account name',
+    'creatorHome.shuaBio': 'Bio',
+    'creatorHome.shuaBioPlaceholder': 'Tell us about yourself',
+    'creatorHome.profileUpdated': 'Profile updated',
+    'creatorHome.profileUpdateFailed': 'Failed to update profile',
     
     // Creator Studio Page
     'creatorStudio.title': 'Create',

@@ -27,6 +27,8 @@ interface User {
   id: number;
   lineUserId: string;
   displayName: string;
+  shuaName?: string | null;
+  shuaBio?: string | null;
   avatarUrl: string | null;
   language: string;
   // 新增角色相关字段

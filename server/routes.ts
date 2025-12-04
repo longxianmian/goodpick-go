@@ -656,6 +656,8 @@ export function registerRoutes(app: Express): Server {
           id: users.id,
           lineUserId: users.lineUserId,
           displayName: users.displayName,
+          shuaName: users.shuaName,
+          shuaBio: users.shuaBio,
           avatarUrl: users.avatarUrl,
           language: users.language,
         })
@@ -717,6 +719,8 @@ export function registerRoutes(app: Express): Server {
           id: user.id,
           lineUserId: user.lineUserId,
           displayName: user.displayName,
+          shuaName: user.shuaName,
+          shuaBio: user.shuaBio,
           avatarUrl: user.avatarUrl,
           language: user.language,
           // 主要角色（用于UI切换）
@@ -4597,6 +4601,47 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Get creator stats error:', error);
       res.status(500).json({ success: false, message: '获取统计数据失败' });
+    }
+  });
+
+  // 更新刷刷号资料 (名称、简介)
+  app.patch('/api/creator/profile', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { shuaName, shuaBio } = req.body;
+      
+      const updateData: any = {};
+      if (shuaName !== undefined) {
+        updateData.shuaName = shuaName.trim() || null;
+      }
+      if (shuaBio !== undefined) {
+        updateData.shuaBio = shuaBio.trim() || null;
+      }
+      
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ success: false, message: '没有要更新的内容' });
+      }
+      
+      updateData.updatedAt = new Date();
+      
+      const [updated] = await db
+        .update(users)
+        .set(updateData)
+        .where(eq(users.id, userId))
+        .returning();
+      
+      res.json({
+        success: true,
+        data: {
+          id: updated.id,
+          shuaName: updated.shuaName,
+          shuaBio: updated.shuaBio,
+          displayName: updated.displayName,
+        },
+      });
+    } catch (error) {
+      console.error('Update creator profile error:', error);
+      res.status(500).json({ success: false, message: '更新刷刷号资料失败' });
     }
   });
 

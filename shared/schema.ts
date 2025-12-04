@@ -324,6 +324,8 @@ export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   lineUserId: text('line_user_id').notNull().unique(),
   displayName: text('display_name'),
+  shuaName: text('shua_name'), // Creator's custom ShuaShua account name (different from LINE display name)
+  shuaBio: text('shua_bio'), // Creator's bio/introduction for ShuaShua profile
   avatarUrl: text('avatar_url'),
   phone: text('phone'), // Phone number from LINE profile (for staff binding verification)
   language: languageEnum('language').notNull().default('th-th'),

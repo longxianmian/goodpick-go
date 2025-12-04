@@ -5,6 +5,9 @@ import { RoleAwareBottomNav } from '@/components/RoleAwareBottomNav';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { 
   ChevronLeft, 
   Menu, 
@@ -15,10 +18,13 @@ import {
   Grid3X3,
   List,
   Zap,
-  Play
+  Play,
+  Pencil
 } from 'lucide-react';
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface CreatorContent {
   id: number;
@@ -34,8 +40,12 @@ interface CreatorContent {
 export default function CreatorHome() {
   const [, setLocation] = useLocation();
   const { t } = useLanguage();
-  const { user, token: userToken } = useAuth();
+  const { user, userToken, reloadAuth } = useAuth();
+  const { toast } = useToast();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editBio, setEditBio] = useState('');
   
   const { data: contentsResponse, isLoading } = useQuery<{ success: boolean; data: CreatorContent[] }>({
     queryKey: ['/api/creator/contents'],
@@ -50,6 +60,37 @@ export default function CreatorHome() {
   const contents = contentsResponse?.data || [];
   const publishedContents = contents.filter(c => c.status === 'published');
   const stats = statsResponse?.data || {};
+
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: { shuaName?: string; shuaBio?: string }) => {
+      const res = await apiRequest('PATCH', '/api/creator/profile', data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: t('common.success'), description: t('creatorHome.profileUpdated') });
+      setEditDialogOpen(false);
+      reloadAuth();
+    },
+    onError: () => {
+      toast({ title: t('common.error'), description: t('creatorHome.profileUpdateFailed'), variant: 'destructive' });
+    },
+  });
+
+  const handleOpenEditDialog = () => {
+    setEditName(user?.shuaName || user?.displayName || '');
+    setEditBio(user?.shuaBio || '');
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveProfile = () => {
+    updateProfileMutation.mutate({
+      shuaName: editName,
+      shuaBio: editBio,
+    });
+  };
+
+  const displayName = user?.shuaName || user?.displayName || t('creator.defaultName');
+  const displayBio = user?.shuaBio || t('creatorHome.bio');
 
   const formatNumber = (num: number) => {
     if (num >= 10000) {
@@ -92,17 +133,26 @@ export default function CreatorHome() {
             </Avatar>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold">{user?.displayName || t('creator.defaultName')}</h2>
+                <h2 className="text-xl font-bold">{displayName}</h2>
                 <Badge className="bg-pink-500/20 text-pink-200 border-pink-400/30">
                   <Zap className="w-3 h-3 mr-1" />
                   {t('creator.badge')}
                 </Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white/70 h-6 w-6"
+                  onClick={handleOpenEditDialog}
+                  data-testid="button-edit-profile"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
               </div>
               <p className="text-sm text-white/70 mt-1">
                 ID: SH{String(user?.id || 10001).padStart(6, '0')}
               </p>
               <p className="text-sm text-white/80 mt-2">
-                {t('creatorHome.bio')}
+                {displayBio}
               </p>
             </div>
           </div>
@@ -260,6 +310,47 @@ export default function CreatorHome() {
       </main>
 
       <RoleAwareBottomNav forceRole="creator" />
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('creatorHome.editProfile')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t('creatorHome.shuaName')}</label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder={t('creatorHome.shuaNamePlaceholder')}
+                data-testid="input-shua-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t('creatorHome.shuaBio')}</label>
+              <Textarea
+                value={editBio}
+                onChange={(e) => setEditBio(e.target.value)}
+                placeholder={t('creatorHome.shuaBioPlaceholder')}
+                rows={3}
+                data-testid="input-shua-bio"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button 
+              onClick={handleSaveProfile}
+              disabled={updateProfileMutation.isPending}
+              data-testid="button-save-profile"
+            >
+              {updateProfileMutation.isPending ? t('common.saving') : t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
