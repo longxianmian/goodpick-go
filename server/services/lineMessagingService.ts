@@ -107,6 +107,77 @@ export async function pushLineMessage(
 }
 
 /**
+ * Send payment notification message to a LINE user via merchant's OA
+ * 
+ * @param channelAccessToken - Merchant's LINE OA Channel Access Token
+ * @param lineUserId - LINE user ID (recipient)
+ * @param storeName - Store name
+ * @param amount - Payment amount
+ * @param points - Points earned
+ * @returns Response status information
+ */
+export async function sendPaymentNotification(
+  channelAccessToken: string,
+  lineUserId: string,
+  storeName: string,
+  amount: number,
+  points: number
+): Promise<{ success: boolean; status?: number; error?: string }> {
+  if (!channelAccessToken) {
+    console.error('[Payment Notification] Channel Access Token not provided');
+    return { success: false, error: 'Channel Access Token not provided' };
+  }
+
+  const messageText = `感谢在 ${storeName} 消费 ${amount.toFixed(2)} THB！\n您已获得 ${points} 积分，快来商家页面查看您的会员权益吧！`;
+
+  console.log('[Payment Notification] Sending message', {
+    to: lineUserId.substring(0, 8) + '...',
+    storeName,
+    amount,
+    points,
+  });
+
+  try {
+    const response = await fetch(LINE_MESSAGING_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${channelAccessToken}`,
+      },
+      body: JSON.stringify({
+        to: lineUserId,
+        messages: [{
+          type: 'text',
+          text: messageText,
+        }],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[Payment Notification] Failed to send:', {
+        status: response.status,
+        error: errorText,
+      });
+      return { 
+        success: false, 
+        status: response.status, 
+        error: `${response.status}: ${errorText.substring(0, 100)}` 
+      };
+    }
+
+    console.log('[Payment Notification] Message sent successfully to:', lineUserId.substring(0, 8) + '...');
+    return { success: true, status: response.status };
+  } catch (error) {
+    console.error('[Payment Notification] Exception:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error) 
+    };
+  }
+}
+
+/**
  * Campaign broadcast message templates in three languages
  * v1: Simple text messages with campaign link
  */

@@ -1391,6 +1391,10 @@ export const qrPayments = pgTable('qr_payments', {
   // 业务订单号 (前端使用的ID)
   orderId: text('order_id').unique(),                           // 返回给前端的订单号 pay_xxx
   
+  // 用户信息（支付时记录，Webhook 时自动发积分）
+  lineUserId: text('line_user_id'),                             // 支付用户的 LINE ID
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),  // 关联用户表
+  
   // PSP 信息
   pspCode: text('psp_code').notNull(),                          // 引用 psp_providers.code
   pspPaymentId: text('psp_payment_id'),                         // PSP 订单号
@@ -1405,6 +1409,9 @@ export const qrPayments = pgTable('qr_payments', {
   // 状态
   status: paymentQrStatusEnum('status').notNull().default('init'),
   paidAt: timestamp('paid_at'),
+  
+  // 自动积分状态
+  autoPointsGranted: boolean('auto_points_granted').default(false),  // 积分是否已自动发放
   
   // PSP 回调原文
   rawPayload: text('raw_payload'),                              // JSONB 存储

@@ -14,6 +14,7 @@ interface PaymentData {
   id: number;
   storeId: number;
   orderId?: string;
+  lineUserId?: string;
   amount: string;
   currency: string;
   status: string;
@@ -21,6 +22,9 @@ interface PaymentData {
   storeName: string;
   points: number;
   pointsStatus: string;
+  autoPointsGranted: boolean;
+  lineOaUrl?: string | null;
+  lineOaId?: string | null;
 }
 
 export default function PaySuccessPage() {
@@ -174,6 +178,8 @@ export default function PaySuccessPage() {
   const isPending = payment.status === 'pending';
   const isPaid = payment.status === 'paid';
   const isClaimed = payment.pointsStatus === 'claimed';
+  const isAutoGranted = payment.autoPointsGranted;
+  const hasLineOa = !!payment.lineOaUrl;
 
   if (isPending) {
     return (
@@ -250,22 +256,35 @@ export default function PaySuccessPage() {
               </p>
             </div>
 
-            {/* Claim button or claimed status */}
-            {isClaimed || redirectingToLine ? (
-              <div className="mt-4 w-full py-3 rounded-2xl bg-slate-100 text-slate-600 text-[15px] font-semibold flex items-center justify-center gap-2">
-                {redirectingToLine ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin text-[#06C755]" />
-                    <span>Redirecting to merchant LINE...</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
-                      <span className="w-2 h-2 border-[2px] border-white border-t-transparent border-l-transparent rounded-sm rotate-45" />
+            {/* 积分状态 - 自动发放或手动领取 */}
+            {isAutoGranted || isClaimed ? (
+              <div className="mt-4 w-full space-y-3">
+                {/* 积分已入账提示 */}
+                <div className="w-full py-3 rounded-2xl bg-emerald-50 text-emerald-700 text-[15px] font-semibold flex items-center justify-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                    <span className="w-2 h-2 border-[2px] border-white border-t-transparent border-l-transparent rounded-sm rotate-45" />
+                  </span>
+                  <span>Points automatically credited</span>
+                </div>
+                
+                {/* 加好友按钮 - 如果有配置 LINE OA */}
+                {hasLineOa && (
+                  <button 
+                    className="w-full py-3 rounded-2xl bg-[#06C755] active:bg-[#05b64d] text-white text-[15px] font-semibold shadow-sm flex items-center justify-center gap-2"
+                    onClick={() => window.location.href = payment.lineOaUrl!}
+                    data-testid="button-add-line-friend"
+                  >
+                    <span className="w-5 h-5 rounded-[4px] bg-white flex items-center justify-center text-[11px] text-[#06C755] font-bold">
+                      L
                     </span>
-                    <span>Points claimed to your account</span>
-                  </>
+                    <span>Add merchant as LINE friend</span>
+                  </button>
                 )}
+              </div>
+            ) : redirectingToLine ? (
+              <div className="mt-4 w-full py-3 rounded-2xl bg-slate-100 text-slate-600 text-[15px] font-semibold flex items-center justify-center gap-2">
+                <Loader2 className="w-5 h-5 animate-spin text-[#06C755]" />
+                <span>Redirecting to merchant LINE...</span>
               </div>
             ) : (
               <button 
@@ -284,7 +303,7 @@ export default function PaySuccessPage() {
                     <span className="w-5 h-5 rounded-[4px] bg-white flex items-center justify-center text-[11px] text-[#06C755] font-bold">
                       L
                     </span>
-                    <span>Claim points via LINE</span>
+                    <span>Login with LINE to claim points</span>
                   </>
                 )}
               </button>

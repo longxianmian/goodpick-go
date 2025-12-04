@@ -6334,10 +6334,61 @@ export function registerRoutes(app: Express): Server {
   // 创建支付订单
   app.post('/api/payments/qrcode/create', async (req: Request, res: Response) => {
     try {
-      const { qr_token, amount, currency = 'THB' } = req.body;
+      const { qr_token, amount, currency = 'THB', line_user_id, user_id } = req.body;
 
       if (!qr_token || !amount) {
         return res.status(400).json({ success: false, message: 'Missing required fields' });
+      }
+
+      // 安全验证: 如果提供了 line_user_id/user_id，必须验证 JWT Token 以防冒充
+      let verifiedLineUserId: string | null = null;
+      let verifiedUserId: number | null = null;
+      
+      if (line_user_id || user_id) {
+        // 安全检查：如果没有配置 JWT_SECRET，拒绝处理用户身份
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+          console.warn('[Security] JWT_SECRET not configured, rejecting user identity in payment');
+          return res.status(500).json({ 
+            success: false, 
+            message: 'Server security configuration error' 
+          });
+        }
+        
+        const authHeader = req.headers.authorization;
+        if (!authHeader?.startsWith('Bearer ')) {
+          return res.status(401).json({ 
+            success: false, 
+            message: 'Authentication required when providing user identity' 
+          });
+        }
+        
+        const token = authHeader.slice(7);
+        try {
+          const decoded = jwt.verify(token, jwtSecret) as any;
+          
+          // 验证 token 中的用户身份与提交的一致
+          if (line_user_id && decoded.lineUserId !== line_user_id) {
+            return res.status(403).json({ 
+              success: false, 
+              message: 'LINE user identity mismatch' 
+            });
+          }
+          if (user_id && decoded.userId !== user_id) {
+            return res.status(403).json({ 
+              success: false, 
+              message: 'User identity mismatch' 
+            });
+          }
+          
+          verifiedLineUserId = decoded.lineUserId || null;
+          verifiedUserId = decoded.userId || null;
+        } catch (jwtError) {
+          return res.status(401).json({ 
+            success: false, 
+            message: 'Invalid authentication token' 
+          });
+        }
       }
 
       // 查询二维码和 PSP 账户
@@ -6395,13 +6446,15 @@ export function registerRoutes(app: Express): Server {
         return res.status(500).json({ success: false, message: chargeResult.error || 'Failed to create charge' });
       }
 
-      // 保存支付记录（包含 orderId 用于前端查询）
+      // 保存支付记录（包含 orderId 和验证后的用户信息用于自动积分）
       const [payment] = await db
         .insert(qrPayments)
         .values({
           storeId: qrCode.storeId,
           qrCodeId: qrCode.id,
           orderId,  // 保存订单号用于前端查询
+          lineUserId: verifiedLineUserId,  // 使用验证后的 LINE 用户 ID，防止冒充
+          userId: verifiedUserId,
           pspCode: pspAccount.pspCode,
           pspPaymentId: chargeResult.pspPaymentId,
           amount: amount.toString(),
@@ -6436,12 +6489,16 @@ export function registerRoutes(app: Express): Server {
           id: qrPayments.id,
           storeId: qrPayments.storeId,
           orderId: qrPayments.orderId,
+          lineUserId: qrPayments.lineUserId,
+          autoPointsGranted: qrPayments.autoPointsGranted,
           amount: qrPayments.amount,
           currency: qrPayments.currency,
           status: qrPayments.status,
           paidAt: qrPayments.paidAt,
           createdAt: qrPayments.createdAt,
           storeName: stores.name,
+          lineOaUrl: stores.lineOaUrl,
+          lineOaId: stores.lineOaId,
         })
         .from(qrPayments)
         .innerJoin(stores, eq(qrPayments.storeId, stores.id))
@@ -6464,6 +6521,9 @@ export function registerRoutes(app: Express): Server {
           ...payment,
           points: points?.points || 0,
           pointsStatus: points?.status || 'unclaimed',
+          autoPointsGranted: payment.autoPointsGranted || false,
+          lineOaUrl: payment.lineOaUrl || null,
+          lineOaId: payment.lineOaId || null,
         }
       });
     } catch (error) {
@@ -6526,22 +6586,66 @@ export function registerRoutes(app: Express): Server {
         })
         .where(eq(qrPayments.id, payment.id));
 
-      // 如果支付成功，创建积分记录
+      // 如果支付成功，创建积分记录并自动发放
       if (payload.status === 'paid') {
         const pointsAmount = Math.floor(payload.amount); // 1 THB = 1 积分
+
+        // 检查用户是否已登录（有 lineUserId）
+        const hasUser = !!payment.lineUserId;
 
         await db
           .insert(paymentPoints)
           .values({
             paymentId: payment.id,
             points: pointsAmount,
-            status: 'unclaimed',
+            lineUserId: payment.lineUserId || null,
+            memberId: payment.userId || null,
+            // 有用户信息则自动认领，无则待认领
+            status: hasUser ? 'claimed' : 'unclaimed',
+            claimedAt: hasUser ? new Date() : null,
           });
 
         console.log('[Webhook/opn] Points created:', { 
           paymentId: payment.id, 
-          points: pointsAmount 
+          points: pointsAmount,
+          autoGranted: hasUser,
         });
+
+        // 如果有用户信息，标记自动发放并尝试发送 LINE 消息
+        if (hasUser) {
+          await db
+            .update(qrPayments)
+            .set({ autoPointsGranted: true })
+            .where(eq(qrPayments.id, payment.id));
+
+          // 尝试发送 LINE 消息（异步，不阻塞响应）
+          // 注意：直接从数据库查询 Token，不通过 API（API 会脱敏）
+          (async () => {
+            try {
+              const [storeWithToken] = await db
+                .select({
+                  name: stores.name,
+                  lineOaChannelToken: stores.lineOaChannelToken,
+                })
+                .from(stores)
+                .where(eq(stores.id, payment.storeId));
+
+              if (storeWithToken?.lineOaChannelToken && payment.lineUserId) {
+                const { sendPaymentNotification } = await import('./services/lineMessagingService');
+                await sendPaymentNotification(
+                  storeWithToken.lineOaChannelToken,  // 直接从 DB 获取真实 Token
+                  payment.lineUserId,
+                  storeWithToken.name,
+                  parseFloat(payment.amount),
+                  pointsAmount
+                );
+                console.log('[Webhook/opn] LINE message sent to:', payment.lineUserId);
+              }
+            } catch (msgError) {
+              console.error('[Webhook/opn] Failed to send LINE message:', msgError);
+            }
+          })();
+        }
       }
 
       res.json({ success: true, message: 'Webhook processed' });
@@ -6601,21 +6705,62 @@ export function registerRoutes(app: Express): Server {
         })
         .where(eq(qrPayments.id, payment.id));
 
+      // 如果支付成功，创建积分记录并自动发放
       if (payload.status === 'paid') {
         const pointsAmount = Math.floor(payload.amount);
+        const hasUser = !!payment.lineUserId;
 
         await db
           .insert(paymentPoints)
           .values({
             paymentId: payment.id,
             points: pointsAmount,
-            status: 'unclaimed',
+            lineUserId: payment.lineUserId || null,
+            memberId: payment.userId || null,
+            status: hasUser ? 'claimed' : 'unclaimed',
+            claimedAt: hasUser ? new Date() : null,
           });
 
         console.log('[Webhook/2c2p] Points created:', { 
           paymentId: payment.id, 
-          points: pointsAmount 
+          points: pointsAmount,
+          autoGranted: hasUser,
         });
+
+        // 如果有用户信息，标记自动发放并尝试发送 LINE 消息
+        if (hasUser) {
+          await db
+            .update(qrPayments)
+            .set({ autoPointsGranted: true })
+            .where(eq(qrPayments.id, payment.id));
+
+          // 直接从数据库查询 Token，不通过 API（API 会脱敏）
+          (async () => {
+            try {
+              const [storeWithToken] = await db
+                .select({
+                  name: stores.name,
+                  lineOaChannelToken: stores.lineOaChannelToken,
+                })
+                .from(stores)
+                .where(eq(stores.id, payment.storeId));
+
+              if (storeWithToken?.lineOaChannelToken && payment.lineUserId) {
+                const { sendPaymentNotification } = await import('./services/lineMessagingService');
+                await sendPaymentNotification(
+                  storeWithToken.lineOaChannelToken,
+                  payment.lineUserId,
+                  storeWithToken.name,
+                  parseFloat(payment.amount),
+                  pointsAmount
+                );
+                console.log('[Webhook/2c2p] LINE message sent to:', payment.lineUserId);
+              }
+            } catch (msgError) {
+              console.error('[Webhook/2c2p] Failed to send LINE message:', msgError);
+            }
+          })();
+        }
       }
 
       res.json({ success: true, message: 'Webhook processed' });
@@ -6672,22 +6817,62 @@ export function registerRoutes(app: Express): Server {
         .where(eq(paymentPoints.paymentId, payment.id));
 
       let pointsAmount = Math.floor(parseFloat(payment.amount));
+      const hasUser = !!payment.lineUserId;
       
       if (!existingPoints) {
-        // 创建积分记录
+        // 创建积分记录（有用户信息则自动认领）
         await db
           .insert(paymentPoints)
           .values({
             paymentId: payment.id,
             points: pointsAmount,
-            status: 'unclaimed',
+            lineUserId: payment.lineUserId || null,
+            memberId: payment.userId || null,
+            status: hasUser ? 'claimed' : 'unclaimed',
+            claimedAt: hasUser ? new Date() : null,
           });
 
         console.log('[Mock Webhook] Payment completed & points created:', { 
           paymentId: payment.id, 
           pspPaymentId: payment_id,
-          points: pointsAmount 
+          points: pointsAmount,
+          autoGranted: hasUser,
         });
+
+        // 如果有用户信息，标记自动发放并尝试发送 LINE 消息
+        if (hasUser) {
+          await db
+            .update(qrPayments)
+            .set({ autoPointsGranted: true })
+            .where(eq(qrPayments.id, payment.id));
+
+          // 直接从数据库查询 Token（API 会脱敏，webhook 需要真实 Token）
+          (async () => {
+            try {
+              const [storeWithToken] = await db
+                .select({
+                  name: stores.name,
+                  lineOaChannelToken: stores.lineOaChannelToken,
+                })
+                .from(stores)
+                .where(eq(stores.id, payment.storeId));
+
+              if (storeWithToken?.lineOaChannelToken && payment.lineUserId) {
+                const { sendPaymentNotification } = await import('./services/lineMessagingService');
+                await sendPaymentNotification(
+                  storeWithToken.lineOaChannelToken,
+                  payment.lineUserId,
+                  storeWithToken.name,
+                  parseFloat(payment.amount),
+                  pointsAmount
+                );
+                console.log('[Mock Webhook] LINE message sent to:', payment.lineUserId);
+              }
+            } catch (msgError) {
+              console.error('[Mock Webhook] Failed to send LINE message:', msgError);
+            }
+          })();
+        }
       } else {
         pointsAmount = existingPoints.points;
         console.log('[Mock Webhook] Payment completed, points already exist:', { 
@@ -6702,6 +6887,7 @@ export function registerRoutes(app: Express): Server {
         data: { 
           paymentId: payment.id,
           points: pointsAmount,
+          autoGranted: hasUser && !existingPoints,
         } 
       });
     } catch (error) {
