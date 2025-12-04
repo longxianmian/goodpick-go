@@ -50,6 +50,8 @@ export default function MerchantPaymentQrCode() {
   const { data: pspAccountsData, isLoading: loadingAccounts } = useQuery<{ success: boolean; data: PspAccount[] }>({
     queryKey: ['/api/merchant/psp-accounts'],
     enabled: !!user,
+    refetchOnMount: 'always',
+    staleTime: 0,
   });
 
   const { data: providersData } = useQuery<{ success: boolean; data: PspProvider[] }>({
