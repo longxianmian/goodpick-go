@@ -6685,7 +6685,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // 积分认领 API
+  // 积分认领 API（支付即会员核心功能）
   app.post('/api/points/claim', async (req: Request, res: Response) => {
     try {
       const { payment_id, line_user_id } = req.body;
@@ -6714,8 +6714,22 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ success: false, message: 'Points not found' });
       }
 
+      // 查询门店信息（获取 LINE OA 配置）
+      const [store] = await db
+        .select()
+        .from(stores)
+        .where(eq(stores.id, payment.storeId));
+
       if (points.status === 'claimed') {
-        return res.json({ success: true, message: 'Points already claimed', data: points });
+        // 已领取，直接返回（包含 LINE OA URL）
+        return res.json({ 
+          success: true, 
+          message: 'Points already claimed', 
+          data: {
+            ...points,
+            lineOaUrl: store?.lineOaUrl || null,
+          }
+        });
       }
 
       // 查找或创建用户
@@ -6747,12 +6761,63 @@ export function registerRoutes(app: Express): Server {
         .where(eq(paymentPoints.id, points.id))
         .returning();
 
+      // 发送 LINE 消息通知（如果商户配置了 LINE OA）
+      let lineMessageSent = false;
+      if (store?.lineOaChannelToken) {
+        try {
+          const amount = parseFloat(payment.amount).toFixed(2);
+          const pointsEarned = updatedPoints.points;
+          const storeName = store.name;
+          
+          // 多语言消息模板
+          const message = {
+            type: 'text',
+            text: `🎉 感谢您在「${storeName}」消费了 ${amount} THB！\n\n` +
+                  `✨ 您的 ${pointsEarned} 积分已存入您的积分卡包！\n\n` +
+                  `📱 随时在刷刷App查看您的会员权益～`,
+          };
+
+          // 使用商户自己的 Channel Token 发送
+          const response = await fetch('https://api.line.me/v2/bot/message/push', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${store.lineOaChannelToken}`,
+            },
+            body: JSON.stringify({
+              to: line_user_id,
+              messages: [message],
+            }),
+          });
+
+          if (response.ok) {
+            lineMessageSent = true;
+            console.log('[Points/Claim] LINE message sent:', { 
+              storeId: store.id, 
+              userId: line_user_id.substring(0, 8) + '...',
+              points: pointsEarned,
+            });
+          } else {
+            const errorText = await response.text();
+            console.warn('[Points/Claim] LINE message failed:', { 
+              status: response.status, 
+              error: errorText.substring(0, 100),
+            });
+          }
+        } catch (lineError) {
+          console.error('[Points/Claim] LINE API error:', lineError);
+          // 不影响积分领取流程，继续返回成功
+        }
+      }
+
       res.json({
         success: true,
         data: {
           points: updatedPoints.points,
           status: 'claimed',
           memberId: user.id,
+          lineOaUrl: store?.lineOaUrl || null,  // 返回 LINE OA URL 用于跳转
+          lineMessageSent,
         },
         message: 'Points claimed successfully'
       });

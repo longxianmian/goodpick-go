@@ -121,6 +121,11 @@ export const stores = pgTable('stores', {
   
   // 关联商户老板用户ID
   ownerId: integer('owner_id'),
+  
+  // LINE OA 配置（支付即会员功能）
+  lineOaId: text('line_oa_id'),                      // LINE OA 标识符
+  lineOaUrl: text('line_oa_url'),                    // LINE OA 添加好友链接 (如 https://line.me/R/ti/p/@xxx)
+  lineOaChannelToken: text('line_oa_channel_token'), // LINE OA Channel Access Token（用于发送消息）
 });
 
 export const insertStoreSchema = createInsertSchema(stores).omit({
