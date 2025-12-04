@@ -516,14 +516,14 @@ export default function UserCenter() {
 
           <Card>
             <CardContent className="p-3">
-              <div className="flex mb-3 gap-1 bg-muted/50 rounded-lg p-1">
+              <div className="flex mb-3 gap-2">
                 {tabItems.map((item) => (
                   <button
                     key={item.key}
-                    className={`flex-1 py-2 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1 ${
+                    className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
                       tab === item.key
-                        ? "bg-background text-[#38B03B] shadow-sm"
-                        : "text-muted-foreground"
+                        ? "bg-[#38B03B] text-white shadow-md ring-2 ring-[#38B03B]/30"
+                        : "bg-[#38B03B]/90 text-white shadow-sm"
                     }`}
                     onClick={() => setTab(item.key)}
                     data-testid={`tab-${item.key}`}
