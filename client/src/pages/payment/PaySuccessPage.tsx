@@ -116,8 +116,35 @@ export default function PaySuccessPage() {
         setIsClaiming(false);
       }
     } else {
+      // 使用 LINE OAuth 登录（生产环境）
       const returnUrl = window.location.href;
-      window.location.href = `/dev/login?returnTo=${encodeURIComponent(returnUrl)}`;
+      const origin = window.location.origin;
+      const redirectUri = `${origin}/api/auth/line/callback`;
+      
+      try {
+        const initResponse = await fetch('/api/auth/line/init-oauth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ redirectUri, returnTo: returnUrl }),
+        });
+        
+        if (initResponse.ok) {
+          const { state } = await initResponse.json();
+          const authUrl = new URL('https://access.line.me/oauth2/v2.1/authorize');
+          authUrl.searchParams.set('response_type', 'code');
+          authUrl.searchParams.set('client_id', import.meta.env.VITE_LINE_CHANNEL_ID || '');
+          authUrl.searchParams.set('redirect_uri', redirectUri);
+          authUrl.searchParams.set('state', state);
+          authUrl.searchParams.set('scope', 'profile openid');
+          window.location.href = authUrl.toString();
+        } else {
+          // 回退到开发登录
+          window.location.href = `/dev/login?returnTo=${encodeURIComponent(returnUrl)}`;
+        }
+      } catch (err) {
+        console.error('LINE OAuth init failed:', err);
+        window.location.href = `/dev/login?returnTo=${encodeURIComponent(returnUrl)}`;
+      }
     }
   };
 

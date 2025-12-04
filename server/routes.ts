@@ -3536,7 +3536,14 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ success: false, message: '店铺不存在' });
       }
       
-      res.json({ success: true, data: store });
+      // 安全处理：不返回敏感 Token，只返回是否已配置的标识
+      const safeStore = {
+        ...store,
+        lineOaChannelToken: undefined, // 不返回实际 Token
+        hasLineOaToken: !!store.lineOaChannelToken, // 只返回是否已配置
+      };
+      
+      res.json({ success: true, data: safeStore });
     } catch (error) {
       console.error('Get store error:', error);
       res.status(500).json({ success: false, message: '获取店铺信息失败' });
@@ -3661,6 +3668,9 @@ export function registerRoutes(app: Express): Server {
         businessLicenseUrl,
         foodLicenseUrl,
         imageUrl,
+        lineOaId,
+        lineOaUrl,
+        lineOaChannelToken,
       } = req.body;
 
       const updateData: any = { updatedAt: new Date() };
@@ -3692,6 +3702,14 @@ export function registerRoutes(app: Express): Server {
       if (businessLicenseUrl !== undefined) updateData.businessLicenseUrl = businessLicenseUrl;
       if (foodLicenseUrl !== undefined) updateData.foodLicenseUrl = foodLicenseUrl;
       if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+      
+      // LINE OA 配置
+      if (lineOaId !== undefined) updateData.lineOaId = lineOaId;
+      if (lineOaUrl !== undefined) updateData.lineOaUrl = lineOaUrl;
+      // Token 只有在有值时才更新（前端只在用户输入新值时才发送）
+      if (lineOaChannelToken !== undefined && lineOaChannelToken.trim()) {
+        updateData.lineOaChannelToken = lineOaChannelToken;
+      }
 
       const [updatedStore] = await db
         .update(stores)
@@ -3703,7 +3721,14 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ success: false, message: '门店不存在' });
       }
 
-      res.json({ success: true, message: '门店信息已更新', data: updatedStore });
+      // 安全处理：不返回敏感 Token
+      const safeStore = {
+        ...updatedStore,
+        lineOaChannelToken: undefined,
+        hasLineOaToken: !!updatedStore.lineOaChannelToken,
+      };
+
+      res.json({ success: true, message: '门店信息已更新', data: safeStore });
     } catch (error) {
       console.error('Update store error:', error);
       res.status(500).json({ success: false, message: '更新门店信息失败' });
@@ -6720,14 +6745,17 @@ export function registerRoutes(app: Express): Server {
         .from(stores)
         .where(eq(stores.id, payment.storeId));
 
+      // 检查 LINE OA 配置是否完整（用于返回跳转 URL）
+      const hasCompleteLineOaConfig = store?.lineOaUrl && store?.lineOaChannelToken;
+      
       if (points.status === 'claimed') {
-        // 已领取，直接返回（包含 LINE OA URL）
+        // 已领取，直接返回（仅当配置完整时返回 LINE OA URL）
         return res.json({ 
           success: true, 
           message: 'Points already claimed', 
           data: {
             ...points,
-            lineOaUrl: store?.lineOaUrl || null,
+            lineOaUrl: hasCompleteLineOaConfig ? store.lineOaUrl : null,
           }
         });
       }
@@ -6761,9 +6789,12 @@ export function registerRoutes(app: Express): Server {
         .where(eq(paymentPoints.id, points.id))
         .returning();
 
-      // 发送 LINE 消息通知（如果商户配置了 LINE OA）
+      // 注意：hasCompleteLineOaConfig 在上面已经定义
+      const hasValidLineOaConfig = hasCompleteLineOaConfig;
+      
+      // 发送 LINE 消息通知（仅当配置完整时）
       let lineMessageSent = false;
-      if (store?.lineOaChannelToken) {
+      if (hasValidLineOaConfig && store.lineOaChannelToken) {
         try {
           const amount = parseFloat(payment.amount).toFixed(2);
           const pointsEarned = updatedPoints.points;
@@ -6808,6 +6839,9 @@ export function registerRoutes(app: Express): Server {
           console.error('[Points/Claim] LINE API error:', lineError);
           // 不影响积分领取流程，继续返回成功
         }
+      } else if (store?.lineOaUrl && !store?.lineOaChannelToken) {
+        // 只配置了 URL 没配置 Token - 记录警告
+        console.warn('[Points/Claim] Store has lineOaUrl but no channelToken:', { storeId: store.id });
       }
 
       res.json({
@@ -6816,7 +6850,8 @@ export function registerRoutes(app: Express): Server {
           points: updatedPoints.points,
           status: 'claimed',
           memberId: user.id,
-          lineOaUrl: store?.lineOaUrl || null,  // 返回 LINE OA URL 用于跳转
+          // 只有配置了完整 LINE OA 才返回跳转 URL
+          lineOaUrl: hasValidLineOaConfig ? store.lineOaUrl : null,
           lineMessageSent,
         },
         message: 'Points claimed successfully'

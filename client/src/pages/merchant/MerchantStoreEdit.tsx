@@ -133,17 +133,23 @@ export default function MerchantStoreEdit() {
         imageUrl: store.imageUrl || null,
         lineOaId: store.lineOaId || '',
         lineOaUrl: store.lineOaUrl || '',
-        lineOaChannelToken: store.lineOaChannelToken || '',
+        lineOaChannelToken: '', // Token 不会从 API 返回，只在前端输入新值时更新
       });
     }
   }, [storeData]);
 
   const updateMutation = useMutation({
     mutationFn: async (data: Partial<StoreFormData>) => {
-      const payload = {
+      const payload: Record<string, any> = {
         ...data,
         businessHours: JSON.stringify(data.businessHours),
       };
+      
+      // 只有当用户输入了新 Token 时才发送更新
+      if (!data.lineOaChannelToken) {
+        delete payload.lineOaChannelToken;
+      }
+      
       return apiRequest('PATCH', `/api/stores/${storeId}`, payload);
     },
     onSuccess: () => {
@@ -551,16 +557,22 @@ export default function MerchantStoreEdit() {
 
                 <div className="space-y-2">
                   <Label htmlFor="lineOaChannelToken">Channel Access Token</Label>
+                  {(storeData?.data as any)?.hasLineOaToken && !formData.lineOaChannelToken && (
+                    <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950 rounded-md border border-green-200 dark:border-green-800 mb-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full" />
+                      <span className="text-xs text-green-700 dark:text-green-300">Token 已配置</span>
+                    </div>
+                  )}
                   <Input 
                     id="lineOaChannelToken"
                     type="password"
                     value={formData.lineOaChannelToken}
                     onChange={(e) => handleInputChange('lineOaChannelToken', e.target.value)}
-                    placeholder="输入您的 Token"
+                    placeholder={(storeData?.data as any)?.hasLineOaToken ? "输入新 Token 以更新" : "输入您的 Token"}
                     data-testid="input-line-oa-token"
                   />
                   <p className="text-xs text-muted-foreground">
-                    从 LINE Developers Console 获取，用于发送消费通知消息
+                    从 LINE Developers Console 获取，用于发送消费通知消息。出于安全考虑，已保存的 Token 不会显示。
                   </p>
                 </div>
               </CardContent>
