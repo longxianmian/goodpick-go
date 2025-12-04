@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,14 +7,28 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
 import { 
   ChevronLeft, 
+  ChevronDown,
   Menu, 
   Shield, 
   Eye, 
   Star,
   Users,
+  User,
+  Zap,
   Store,
+  Cog,
+  BadgeCheck,
+  Crown,
   BarChart3,
   TrendingUp,
   TrendingDown,
@@ -26,7 +41,30 @@ import {
 export default function MeSysAdmin() {
   const [, setLocation] = useLocation();
   const { t } = useLanguage();
-  const { user, logoutUser } = useAuth();
+  const { user, logoutUser, userRoles, setActiveRole, activeRole, hasRole } = useAuth();
+  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
+  
+  const isTestAccount = user?.isTestAccount === true;
+  
+  const allRoleOptions = [
+    { role: 'consumer', label: t('roles.consumer'), icon: User, path: '/me', color: 'text-blue-500' },
+    { role: 'creator', label: t('roles.creator'), icon: Zap, path: '/creator/me', color: 'text-pink-500' },
+    { role: 'owner', label: t('roles.owner'), icon: Store, path: '/merchant/me', color: 'text-orange-500' },
+    { role: 'operator', label: t('roles.operator'), icon: Cog, path: '/merchant', color: 'text-purple-500' },
+    { role: 'verifier', label: t('roles.verifier'), icon: BadgeCheck, path: '/verifier', color: 'text-green-500' },
+    { role: 'member', label: t('roles.member'), icon: Crown, path: '/me', color: 'text-yellow-500' },
+    { role: 'sysadmin', label: t('roles.sysadmin'), icon: Shield, path: '/sysadmin', color: 'text-red-500' },
+  ];
+  
+  const availableRoleOptions = allRoleOptions.filter(option => 
+    hasRole(option.role as any)
+  );
+
+  const handleSwitchRole = (role: string, path: string) => {
+    setActiveRole(role as any);
+    setRoleMenuOpen(false);
+    setLocation(path);
+  };
   
   const mockOverviewData = {
     totalUsers: 12580,
@@ -86,8 +124,50 @@ export default function MeSysAdmin() {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold">{user?.displayName || t('sysadmin.admin')}</h2>
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <h2 className="text-base font-bold truncate" data-testid="text-user-name">
+                  {user?.displayName || t('sysadmin.admin')}
+                </h2>
+                {isTestAccount && availableRoleOptions.length > 1 && (
+                  <DropdownMenu open={roleMenuOpen} onOpenChange={setRoleMenuOpen}>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 px-1.5 text-[10px] gap-0.5 bg-white/20 hover:bg-white/30 text-white"
+                        data-testid="button-switch-role"
+                      >
+                        <span>{allRoleOptions.find(r => r.role === activeRole)?.label || t('roles.sysadmin')}</span>
+                        <ChevronDown className="w-3 h-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-48">
+                      <DropdownMenuLabel className="text-xs text-muted-foreground">
+                        {t('common.switchRole')}
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {availableRoleOptions.map((option) => {
+                        const IconComponent = option.icon;
+                        return (
+                          <DropdownMenuItem
+                            key={option.role}
+                            onClick={() => handleSwitchRole(option.role, option.path)}
+                            className={`gap-2 cursor-pointer ${activeRole === option.role ? 'bg-accent' : ''}`}
+                            data-testid={`menu-role-${option.role}`}
+                          >
+                            <IconComponent className={`w-4 h-4 ${option.color}`} />
+                            <span>{option.label}</span>
+                            {activeRole === option.role && (
+                              <Badge variant="outline" className="ml-auto text-[10px]">{t('common.current')}</Badge>
+                            )}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1">
                 <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30">
                   <Shield className="w-3 h-3 mr-1" />
                   {t('sysadmin.badge')}
