@@ -520,10 +520,10 @@ export default function UserCenter() {
                 {tabItems.map((item) => (
                   <button
                     key={item.key}
-                    className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
+                    className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 border ${
                       tab === item.key
-                        ? "bg-[#38B03B] text-white shadow-md ring-2 ring-[#38B03B]/30"
-                        : "bg-[#38B03B]/90 text-white shadow-sm"
+                        ? "bg-[#38B03B] text-white border-[#38B03B] shadow-md"
+                        : "bg-white dark:bg-slate-800 text-[#38B03B] border-[#38B03B]"
                     }`}
                     onClick={() => setTab(item.key)}
                     data-testid={`tab-${item.key}`}
