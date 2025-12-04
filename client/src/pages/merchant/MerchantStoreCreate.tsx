@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { ChevronLeft, Store, MapPin, Phone, Building2, Loader2 } from 'lucide-react';
+import { ChevronLeft, Store, MapPin, Phone, Building2, Loader2, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
@@ -33,6 +34,7 @@ interface CreateStoreData {
 export default function MerchantStoreCreate() {
   const { t } = useLanguage();
   const { toast } = useToast();
+  const { isUserAuthenticated, authPhase, reloadAuth, setActiveRole } = useAuth();
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   
@@ -59,7 +61,10 @@ export default function MerchantStoreCreate() {
         });
         
         await queryClient.invalidateQueries({ queryKey: ['/api/user/roles'] });
-        await queryClient.invalidateQueries({ queryKey: ['/api/user/me'] });
+        await queryClient.invalidateQueries({ queryKey: ['/api/me'] });
+        
+        reloadAuth();
+        setActiveRole('owner');
         
         navigate(`/merchant/store-edit/${data.data.id}`);
       } else {
@@ -130,6 +135,43 @@ export default function MerchantStoreCreate() {
   const handleInputChange = (field: keyof CreateStoreData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  if (authPhase === 'booting') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!isUserAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background pb-6">
+        <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+          <div className="flex items-center h-12 px-4 gap-2">
+            <Link href="/merchant/store-settings">
+              <Button variant="ghost" size="icon" data-testid="button-back">
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+            <h1 className="text-lg font-bold" data-testid="text-page-title">{t('merchant.createStore')}</h1>
+          </div>
+        </header>
+        <main className="px-4 py-8 max-w-lg mx-auto">
+          <Card>
+            <CardContent className="p-6 text-center space-y-4">
+              <LogIn className="w-12 h-12 mx-auto text-muted-foreground" />
+              <h2 className="text-lg font-semibold">{t('merchant.loginRequired')}</h2>
+              <p className="text-sm text-muted-foreground">{t('merchant.loginRequiredDesc')}</p>
+              <Button onClick={() => navigate('/me')} className="w-full" data-testid="button-go-login">
+                {t('login.title')}
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-6">

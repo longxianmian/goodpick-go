@@ -42,7 +42,7 @@ type IdentityType = "shua" | "discover";
 
 export default function UserCenter() {
   const { t } = useLanguage();
-  const { user, authPhase, userToken, logoutUser, setActiveRole, activeRole } = useAuth();
+  const { user, authPhase, userToken, logoutUser, setActiveRole, activeRole, hasRole } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -63,6 +63,10 @@ export default function UserCenter() {
     { role: 'member', label: t('roles.member'), icon: Crown, path: '/me', color: 'text-yellow-500' },
     { role: 'sysadmin', label: t('roles.sysadmin'), icon: Shield, path: '/sysadmin', color: 'text-red-500' },
   ];
+  
+  const availableRoleOptions = allRoleOptions.filter(option => 
+    hasRole(option.role as any)
+  );
 
   const handleSwitchRole = (role: string, path: string) => {
     setActiveRole(role as any);
@@ -402,7 +406,7 @@ export default function UserCenter() {
                             {t('common.switchRole')}
                           </DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          {allRoleOptions.map((option) => {
+                          {availableRoleOptions.map((option) => {
                             const IconComponent = option.icon;
                             return (
                               <DropdownMenuItem

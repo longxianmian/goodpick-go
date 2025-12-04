@@ -140,6 +140,20 @@ const roleNavConfigs: Record<UserRoleType, { items: NavItem[], activePath: (loca
       return location;
     }
   },
+  member: {
+    // 商户会员角色：与consumer一样使用刷刷发现平台，同时可以使用会员权益
+    items: [
+      { key: 'feed', path: '/', icon: EyeIcon as any, labelKey: 'bottomNav.feed' },
+      { key: 'discover', path: '/shop', icon: StarIcon as any, labelKey: 'bottomNav.discover' },
+      { key: 'me', path: '/me', icon: PersonIcon as any, labelKey: 'bottomNav.me' },
+    ],
+    activePath: (location: string) => {
+      if (location === '/' || location.startsWith('/campaign/')) return '/';
+      if (location === '/shop' || location.startsWith('/shop/')) return '/shop';
+      if (location === '/me' || location.startsWith('/me/') || location.startsWith('/my-')) return '/me';
+      return location;
+    }
+  },
 };
 
 interface RoleAwareBottomNavProps {

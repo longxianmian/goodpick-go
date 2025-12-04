@@ -21,7 +21,7 @@ export interface UserStoreRole {
 // verifier: 核销员
 // sysadmin: 系统管理员
 // creator: 刷刷号（自媒体）
-export type UserRoleType = 'consumer' | 'owner' | 'operator' | 'verifier' | 'sysadmin' | 'creator';
+export type UserRoleType = 'consumer' | 'owner' | 'operator' | 'verifier' | 'sysadmin' | 'creator' | 'member';
 
 interface User {
   id: number;
@@ -202,7 +202,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               (savedRole === 'operator' && me.hasOperatorRole) ||
               (savedRole === 'verifier' && me.hasVerifierRole) ||
               (savedRole === 'sysadmin' && me.hasSysAdminRole) ||
-              (savedRole === 'creator' && me.hasCreatorRole))) {
+              (savedRole === 'creator' && me.hasCreatorRole) ||
+              (savedRole === 'member' && me.hasMemberRole))) {
             setActiveRoleState(savedRole);
           } else {
             setActiveRoleState(primaryRole);
@@ -295,6 +296,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (role === 'verifier') return !!user?.hasVerifierRole;
     if (role === 'sysadmin') return !!user?.hasSysAdminRole;
     if (role === 'creator') return !!user?.hasCreatorRole;
+    if (role === 'member') return !!user?.hasMemberRole;
     return false;
   };
 
