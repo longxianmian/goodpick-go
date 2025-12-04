@@ -3658,6 +3658,7 @@ export function registerRoutes(app: Express): Server {
         pickupTime,
         businessLicenseUrl,
         foodLicenseUrl,
+        imageUrl,
       } = req.body;
 
       const updateData: any = { updatedAt: new Date() };
@@ -3688,6 +3689,7 @@ export function registerRoutes(app: Express): Server {
       if (pickupTime !== undefined) updateData.pickupTime = pickupTime;
       if (businessLicenseUrl !== undefined) updateData.businessLicenseUrl = businessLicenseUrl;
       if (foodLicenseUrl !== undefined) updateData.foodLicenseUrl = foodLicenseUrl;
+      if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
 
       const [updatedStore] = await db
         .update(stores)
