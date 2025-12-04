@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
-import { ChevronLeft, Search, MessageCircle, Share2, Star, Ticket, Package, ThumbsUp, Clock, Headphones, Sparkles, ArrowUpDown } from 'lucide-react';
+import { ChevronLeft, Search, MessageCircle, Share2, Star, Ticket, Package, ThumbsUp, Clock, Headphones, Sparkles, ArrowUpDown, Eye, Heart, ShoppingCart, TrendingUp, Edit3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
 import { MerchantBottomNav } from '@/components/MerchantBottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import type { Campaign, Store } from '@shared/schema';
 
 interface CampaignWithStores extends Campaign {
@@ -200,9 +202,37 @@ export default function MerchantHome() {
   const { t } = useLanguage();
   const { user, userToken } = useAuth();
   const [, navigate] = useLocation();
+  const { toast } = useToast();
   const [activeSort, setActiveSort] = useState<SortType>('comprehensive');
+  const [showOwnerBar, setShowOwnerBar] = useState(true);
   
   const isLoggedIn = !!userToken && !!user;
+  
+  const ownerStats = {
+    todayViews: 328,
+    todayFavorites: 24,
+    todayOrders: 18,
+    conversionRate: 5.5,
+    viewsTrend: 12.3,
+    favoritesTrend: 8.5,
+    ordersTrend: 15.2,
+  };
+
+  const handleEditStore = () => {
+    const roles = rolesData?.data?.roles || [];
+    const merchantRoles = roles.filter(r => r.role === 'owner' || r.role === 'operator');
+    const currentStore = merchantRoles[0];
+    if (currentStore) {
+      navigate(`/merchant/store-edit/${currentStore.storeId}`);
+    }
+  };
+
+  const handleComingSoon = () => {
+    toast({
+      title: t('common.comingSoon'),
+      description: t('common.featureInDevelopment'),
+    });
+  };
   
   const { data: rolesData, isLoading: rolesLoading } = useQuery<RolesResponse>({
     queryKey: ['/api/me/roles'],
@@ -293,26 +323,115 @@ export default function MerchantHome() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between h-12 px-4">
-        <Link href="/me">
-          <Button variant="ghost" size="icon" className="bg-background/60 backdrop-blur-sm" data-testid="button-back">
+      {showOwnerBar && (
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+          <div className="flex items-center justify-between px-3 py-2">
+            <div className="flex items-center gap-1">
+              <Eye className="w-3.5 h-3.5" />
+              <span className="text-[10px] font-medium">老板视角</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-6 px-2 text-[10px] text-white/90 hover:text-white hover:bg-white/20 gap-1"
+                onClick={handleEditStore}
+                data-testid="button-edit-store"
+              >
+                <Edit3 className="w-3 h-3" />
+                编辑店铺
+              </Button>
+              <button 
+                onClick={() => setShowOwnerBar(false)}
+                className="text-white/60 hover:text-white text-xs"
+                data-testid="button-collapse-owner-bar"
+              >
+                收起
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-2 px-3 pb-2">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-1">
+                <span className="text-base font-bold">{ownerStats.todayViews}</span>
+                <span className="text-[9px] text-green-300 flex items-center">
+                  <TrendingUp className="w-2.5 h-2.5" />
+                  {ownerStats.viewsTrend}%
+                </span>
+              </div>
+              <div className="text-[9px] text-white/70 flex items-center justify-center gap-0.5">
+                <Eye className="w-2.5 h-2.5" />
+                今日浏览
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-1">
+                <span className="text-base font-bold">{ownerStats.todayFavorites}</span>
+                <span className="text-[9px] text-green-300 flex items-center">
+                  <TrendingUp className="w-2.5 h-2.5" />
+                  {ownerStats.favoritesTrend}%
+                </span>
+              </div>
+              <div className="text-[9px] text-white/70 flex items-center justify-center gap-0.5">
+                <Heart className="w-2.5 h-2.5" />
+                收藏
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-1">
+                <span className="text-base font-bold">{ownerStats.todayOrders}</span>
+                <span className="text-[9px] text-green-300 flex items-center">
+                  <TrendingUp className="w-2.5 h-2.5" />
+                  {ownerStats.ordersTrend}%
+                </span>
+              </div>
+              <div className="text-[9px] text-white/70 flex items-center justify-center gap-0.5">
+                <ShoppingCart className="w-2.5 h-2.5" />
+                下单
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-base font-bold">{ownerStats.conversionRate}%</div>
+              <div className="text-[9px] text-white/70">转化率</div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-12 px-4 bg-background/80 backdrop-blur-sm">
+        <Link href="/merchant/me">
+          <Button variant="ghost" size="icon" data-testid="button-back">
             <ChevronLeft className="w-5 h-5" />
           </Button>
         </Link>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="bg-background/60 backdrop-blur-sm" data-testid="button-search">
+          {!showOwnerBar && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-7 px-2 text-[10px] gap-1 bg-blue-600 text-white hover:bg-blue-700"
+              onClick={() => setShowOwnerBar(true)}
+              data-testid="button-expand-owner-bar"
+            >
+              <Eye className="w-3 h-3" />
+              老板视角
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" data-testid="button-search" onClick={handleComingSoon}>
             <Search className="w-5 h-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="bg-background/60 backdrop-blur-sm" data-testid="button-message">
+          <Button variant="ghost" size="icon" data-testid="button-message" onClick={handleComingSoon}>
             <MessageCircle className="w-5 h-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="bg-background/60 backdrop-blur-sm" data-testid="button-share">
+          <Button variant="ghost" size="icon" data-testid="button-share" onClick={handleComingSoon}>
             <Share2 className="w-5 h-5" />
           </Button>
         </div>
       </header>
 
-      <StoreHeader store={currentStore} />
+      <div className="pt-12">
+        <StoreHeader store={currentStore} />
+      </div>
 
       <div className="sticky top-0 z-30 bg-background border-b">
         <div className="flex items-center gap-4 px-4 py-2">
