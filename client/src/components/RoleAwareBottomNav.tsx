@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'wouter';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth, UserRoleType } from '@/contexts/AuthContext';
-import { ScanLine, Info, User, Home, Settings, BarChart3, Shield, Upload, Megaphone } from 'lucide-react';
+import { ScanLine, Info, User, Home, Settings, BarChart3, Shield, Upload, Megaphone, ShoppingBag, Calendar } from 'lucide-react';
 
 interface NavItem {
   key: string;
@@ -89,14 +89,14 @@ const roleNavConfigs: Record<UserRoleType, { items: NavItem[], activePath: (loca
   },
   operator: {
     items: [
-      { key: 'merchantHome', path: '/merchant', icon: Home, labelKey: 'roleNav.merchantHome' },
-      { key: 'operations', path: '/merchant/operations', icon: Settings, labelKey: 'roleNav.operationManage' },
-      { key: 'me', path: '/me', icon: PersonIcon as any, labelKey: 'bottomNav.me' },
+      { key: 'products', path: '/operator/products', icon: ShoppingBag, labelKey: 'roleNav.products' },
+      { key: 'campaigns', path: '/operator/campaigns', icon: Calendar, labelKey: 'roleNav.campaigns' },
+      { key: 'me', path: '/operator/me', icon: PersonIcon as any, labelKey: 'bottomNav.me' },
     ],
     activePath: (location: string) => {
-      if (location === '/merchant') return '/merchant';
-      if (location.startsWith('/merchant/operations')) return '/merchant/operations';
-      if (location === '/me' || location.startsWith('/me/')) return '/me';
+      if (location.startsWith('/operator/products')) return '/operator/products';
+      if (location.startsWith('/operator/campaigns')) return '/operator/campaigns';
+      if (location === '/operator/me' || location.startsWith('/operator/')) return '/operator/me';
       return location;
     }
   },

@@ -219,6 +219,10 @@ function Router() {
       <Route path="/merchant/campaigns" component={MerchantCampaigns} />
       <Route path="/merchant/campaigns/:id" component={MerchantCampaignEdit} />
       <Route path="/merchant/me" component={MeOwner} />
+      {/* 运营号 - 被商户授权的运营人员 */}
+      <Route path="/operator/me" component={MeOperator} />
+      <Route path="/operator/products" component={MerchantProducts} />
+      <Route path="/operator/campaigns" component={MerchantCampaigns} />
       {/* 支付页面 */}
       <Route path="/pay/:id/success" component={PaymentSuccess} />
       <Route path="/pay/:id" component={PaymentPage} />
