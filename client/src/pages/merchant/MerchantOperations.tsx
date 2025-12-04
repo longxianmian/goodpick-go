@@ -33,7 +33,13 @@ import {
   Eye,
   Heart,
   ShoppingCart,
-  Target
+  Target,
+  Bot,
+  Palette,
+  Video,
+  Lightbulb,
+  PartyPopper,
+  MessageSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -159,6 +165,20 @@ export default function MerchantOperations() {
     ],
   };
 
+  const digitalAgents = {
+    purchased: [
+      { id: 1, name: '小美', type: 'guide', typeLabel: 'opsCenter.agentGuide', price: 299, status: 'active', icon: MessageSquare, color: 'text-blue-600', bgColor: 'bg-blue-100 dark:bg-blue-900/30' },
+      { id: 2, name: '设计师小艺', type: 'designer', typeLabel: 'opsCenter.agentDesigner', price: 399, status: 'active', icon: Palette, color: 'text-pink-600', bgColor: 'bg-pink-100 dark:bg-pink-900/30' },
+    ],
+    available: [
+      { id: 101, name: '导购数字人', type: 'guide', typeLabel: 'opsCenter.agentGuide', price: 299, icon: MessageSquare, color: 'text-blue-600', bgColor: 'bg-blue-100 dark:bg-blue-900/30', desc: 'opsCenter.agentGuideDesc' },
+      { id: 102, name: '平面设计师', type: 'designer', typeLabel: 'opsCenter.agentDesigner', price: 399, icon: Palette, color: 'text-pink-600', bgColor: 'bg-pink-100 dark:bg-pink-900/30', desc: 'opsCenter.agentDesignerDesc' },
+      { id: 103, name: '视频制作师', type: 'video', typeLabel: 'opsCenter.agentVideo', price: 499, icon: Video, color: 'text-purple-600', bgColor: 'bg-purple-100 dark:bg-purple-900/30', desc: 'opsCenter.agentVideoDesc' },
+      { id: 104, name: '经营顾问', type: 'consultant', typeLabel: 'opsCenter.agentConsultant', price: 599, icon: Lightbulb, color: 'text-amber-600', bgColor: 'bg-amber-100 dark:bg-amber-900/30', desc: 'opsCenter.agentConsultantDesc' },
+      { id: 105, name: '活动策划师', type: 'planner', typeLabel: 'opsCenter.agentPlanner', price: 349, icon: PartyPopper, color: 'text-green-600', bgColor: 'bg-green-100 dark:bg-green-900/30', desc: 'opsCenter.agentPlannerDesc' },
+    ],
+  };
+
   const renderStaffTab = () => (
     <div className="space-y-4">
       <div className="grid grid-cols-4 gap-2">
@@ -245,6 +265,59 @@ export default function MerchantOperations() {
           </div>
         </CardContent>
       </Card>
+
+      {digitalAgents.purchased.length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Bot className="w-4 h-4 text-[#38B03B]" />
+                <span className="text-sm font-semibold">{t('opsCenter.digitalAgents')}</span>
+              </div>
+              <Badge variant="secondary" className="text-[10px]">
+                {digitalAgents.purchased.length} {t('opsCenter.agentWorking')}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              {digitalAgents.purchased.map((agent) => {
+                const IconComponent = agent.icon;
+                return (
+                  <div 
+                    key={agent.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 cursor-pointer hover-elevate"
+                    onClick={handleComingSoon}
+                    data-testid={`digital-agent-${agent.id}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full ${agent.bgColor} flex items-center justify-center`}>
+                        <IconComponent className={`w-5 h-5 ${agent.color}`} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{agent.name}</span>
+                          <Sparkles className="w-3 h-3 text-amber-500" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[10px] bg-violet-100 dark:bg-violet-900/30 border-violet-200">
+                            {t(agent.typeLabel)}
+                          </Badge>
+                          <span className="text-[10px] text-muted-foreground">¥{agent.price}/{t('opsCenter.perMonth')}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="text-[10px] bg-[#38B03B]">
+                        {t('opsCenter.agentOnline')}
+                      </Badge>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 
@@ -446,32 +519,41 @@ export default function MerchantOperations() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-2">
         <Card className="cursor-pointer hover-elevate" onClick={handleComingSoon} data-testid="button-inventory">
-          <CardContent className="p-3 flex flex-col items-center gap-1">
-            <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+          <CardContent className="p-2 flex flex-col items-center gap-1">
+            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
               <Boxes className="w-4 h-4 text-blue-600" />
             </div>
-            <span className="text-xs font-medium">{t('opsCenter.inventory')}</span>
-            <span className="text-lg font-bold">{assetsData.totalInventory}</span>
+            <span className="text-[11px] font-medium">{t('opsCenter.inventory')}</span>
+            <span className="text-sm font-bold">{assetsData.totalInventory}</span>
           </CardContent>
         </Card>
         <Card className="cursor-pointer hover-elevate" onClick={handleComingSoon} data-testid="button-purchase">
-          <CardContent className="p-3 flex flex-col items-center gap-1">
-            <div className="w-9 h-9 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+          <CardContent className="p-2 flex flex-col items-center gap-1">
+            <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
               <Package className="w-4 h-4 text-green-600" />
             </div>
-            <span className="text-xs font-medium">{t('opsCenter.purchase')}</span>
-            <Badge variant="destructive" className="text-[9px] h-4">{assetsData.pendingPurchase} {t('opsCenter.pending')}</Badge>
+            <span className="text-[11px] font-medium">{t('opsCenter.purchase')}</span>
+            <Badge variant="destructive" className="text-[8px] h-4">{assetsData.pendingPurchase} {t('opsCenter.pending')}</Badge>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover-elevate border-violet-300 dark:border-violet-700" onClick={handleComingSoon} data-testid="button-digital-agents">
+          <CardContent className="p-2 flex flex-col items-center gap-1">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/30 dark:to-purple-900/30 flex items-center justify-center">
+              <Bot className="w-4 h-4 text-violet-600" />
+            </div>
+            <span className="text-[11px] font-medium">{t('opsCenter.digitalAgentPurchase')}</span>
+            <Badge className="text-[8px] h-4 bg-violet-500">{digitalAgents.purchased.length} {t('opsCenter.agentWorking')}</Badge>
           </CardContent>
         </Card>
         <Card className="cursor-pointer hover-elevate" onClick={handleComingSoon} data-testid="button-finance">
-          <CardContent className="p-3 flex flex-col items-center gap-1">
-            <div className="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+          <CardContent className="p-2 flex flex-col items-center gap-1">
+            <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
               <FileText className="w-4 h-4 text-purple-600" />
             </div>
-            <span className="text-xs font-medium">{t('opsCenter.finance')}</span>
-            <span className="text-[10px] text-muted-foreground">{t('opsCenter.viewReport')}</span>
+            <span className="text-[11px] font-medium">{t('opsCenter.finance')}</span>
+            <span className="text-[9px] text-muted-foreground">{t('opsCenter.viewReport')}</span>
           </CardContent>
         </Card>
       </div>
@@ -547,6 +629,72 @@ export default function MerchantOperations() {
               </div>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {digitalAgents.purchased.length > 0 && (
+        <Card className="border-violet-200 dark:border-violet-800">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Bot className="w-4 h-4 text-violet-600" />
+                <span className="text-sm font-semibold">{t('opsCenter.myDigitalAgents')}</span>
+              </div>
+              <Button variant="ghost" size="sm" className="text-xs text-violet-600 h-auto p-0" onClick={handleComingSoon}>
+                {t('opsCenter.browseMore')} <ChevronRight className="w-3 h-3" />
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {digitalAgents.purchased.map((agent) => {
+                const IconComponent = agent.icon;
+                return (
+                  <div 
+                    key={agent.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 cursor-pointer hover-elevate"
+                    onClick={handleComingSoon}
+                    data-testid={`purchased-agent-${agent.id}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full ${agent.bgColor} flex items-center justify-center`}>
+                        <IconComponent className={`w-5 h-5 ${agent.color}`} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{agent.name}</span>
+                          <Sparkles className="w-3 h-3 text-amber-500" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[10px] bg-violet-100 dark:bg-violet-900/30 border-violet-200">
+                            {t(agent.typeLabel)}
+                          </Badge>
+                          <span className="text-[10px] text-muted-foreground">¥{agent.price}/{t('opsCenter.perMonth')}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="text-[10px] bg-[#38B03B]">
+                        {t('opsCenter.agentOnline')}
+                      </Badge>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="border-violet-300 dark:border-violet-700 bg-gradient-to-r from-violet-500/5 to-purple-500/5 cursor-pointer hover-elevate" onClick={handleComingSoon} data-testid="button-browse-digital-agents">
+        <CardContent className="p-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+            <Bot className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex-1">
+            <div className="text-sm font-semibold">{t('opsCenter.discoverDigitalAgents')}</div>
+            <div className="text-xs text-muted-foreground">{t('opsCenter.discoverDigitalAgentsDesc')}</div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-muted-foreground" />
         </CardContent>
       </Card>
     </div>
