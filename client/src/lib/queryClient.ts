@@ -18,10 +18,11 @@ export async function apiRequest(
   const userToken = localStorage.getItem('userToken');
   
   // 根据URL路径选择正确的token
-  // /api/creator/* 和 /api/user/* 和 /api/short-videos/* 需要userToken
+  // /api/creator/* 和 /api/user/* 和 /api/short-videos/* 和 /api/stores/* 需要userToken
   // /api/admin/* 需要adminToken
   const isUserRoute = url.includes('/api/creator') || url.includes('/api/user') || 
-                      url.includes('/api/short-videos') || url.includes('/api/me');
+                      url.includes('/api/short-videos') || url.includes('/api/me') ||
+                      url.includes('/api/stores');
   const isAdminRoute = url.includes('/api/admin');
   
   if (isAdminRoute && adminToken) {
@@ -63,7 +64,8 @@ export const getQueryFn: <T>(options: {
     // 根据URL路径选择正确的token
     const url = queryKey[0] as string;
     const isUserRoute = url.includes('/api/creator') || url.includes('/api/user') || 
-                        url.includes('/api/short-videos') || url.includes('/api/me');
+                        url.includes('/api/short-videos') || url.includes('/api/me') ||
+                        url.includes('/api/stores');
     const isAdminRoute = url.includes('/api/admin');
     
     if (isAdminRoute && adminToken) {
