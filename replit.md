@@ -32,6 +32,7 @@ Security features include bcryptjs for password hashing, JWT secrets managed via
 - **Rich Text Editor**: Integrated Tiptap-based editor for content creation.
 - **Merchant Store Management**: Supports single and chain store models, with detailed store editing (basic info, business hours, images, multi-language descriptions), and a consumer-facing store front.
 - **Merchant Owner Management**: "MeOwner" page provides an overview of 'People', 'Operations', and 'Assets', with detailed management accessible via a dedicated 'Operations Center'.
+- **Digital Agent Marketplace**: AI assistant marketplace where merchant owners can discover and purchase digital agents (guide assistant, graphic designer, video creator, business advisor, campaign planner, operations expert). Purchased agents appear in both Staff tab (as virtual team members) and Assets tab (as digital resources), with online/working status indicators and monthly subscription pricing.
 
 ## External Dependencies
 
