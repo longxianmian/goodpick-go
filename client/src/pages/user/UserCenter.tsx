@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
 import { 
   ChevronRight, 
   ChevronDown,
@@ -28,6 +29,20 @@ import { DrawerMenu } from '@/components/DrawerMenu';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+
+interface MembershipData {
+  id: number;
+  tier: string;
+  points: number;
+  totalAmount: string;
+  visitCount: number;
+  lastVisitAt: string | null;
+  joinedAt: string;
+  storeId: number;
+  storeName: string;
+  storeBrand: string | null;
+  storeImageUrl: string | null;
+}
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,6 +68,13 @@ export default function UserCenter() {
   
   const isLoggedIn = !!userToken && !!user;
   const isTestAccount = user?.isTestAccount === true;
+  
+  // 获取用户会员卡数据
+  const { data: membershipsData } = useQuery<{ success: boolean; data: MembershipData[] }>({
+    queryKey: ['/api/me/memberships'],
+    enabled: isLoggedIn,
+  });
+  const memberships = membershipsData?.data || [];
   
   const allRoleOptions = [
     { role: 'consumer', label: t('roles.consumer'), icon: User, path: '/me', color: 'text-blue-500' },
@@ -458,30 +480,34 @@ export default function UserCenter() {
                   {t('common.more')} <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
-              <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
-                {[1, 2, 3, 4].map((i) => (
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                {memberships.length > 0 ? memberships.map((membership) => (
                   <div
-                    key={i}
-                    className="min-w-[180px] h-28 rounded-xl bg-gradient-to-br from-[#38B03B] to-emerald-600 text-white p-3 flex flex-col justify-between flex-shrink-0 cursor-pointer"
+                    key={membership.id}
+                    className="min-w-[160px] h-24 rounded-xl bg-gradient-to-br from-[#38B03B] to-emerald-600 text-white p-2.5 flex flex-col justify-between flex-shrink-0 cursor-pointer"
                     onClick={handleComingSoon}
-                    data-testid={`card-member-${i}`}
+                    data-testid={`card-member-${membership.id}`}
                   >
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-white/20" />
-                      <div className="text-xs font-semibold">{t('consumer.mockStoreName')} {i}</div>
+                      <Avatar className="w-6 h-6 border border-white/30">
+                        <AvatarImage src={membership.storeImageUrl || undefined} />
+                        <AvatarFallback className="bg-white/20 text-white text-[10px]">
+                          {membership.storeName?.charAt(0) || 'S'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="text-xs font-semibold truncate flex-1">{membership.storeName}</div>
                     </div>
-                    <div className="flex items-end justify-between text-xs">
-                      <div>
-                        <div className="text-[11px] opacity-80 mb-1">{t('consumer.platinumMember')}</div>
-                        <div className="flex items-baseline gap-2">
-                          <span className="opacity-80">{t('consumer.points')}</span>
-                          <span className="text-lg font-semibold">3,28{i}</span>
-                        </div>
-                      </div>
-                      <div className="text-right opacity-80 text-[11px]">{t('consumer.mockCardSlogan')}</div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="opacity-80 text-[11px]">{t('consumer.points')}</span>
+                      <span className="text-lg font-semibold">{membership.points.toLocaleString()}</span>
+                      <span className="text-[10px] opacity-70 ml-auto">{membership.tier || t('consumer.platinumMember')}</span>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="w-full text-center py-4 text-sm text-muted-foreground">
+                    {t('consumer.noMemberCards')}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
