@@ -383,7 +383,7 @@ export default function CampaignDetail() {
                   const isVideo = url.match(/\.(mp4|webm|ogg|mov)$/i);
                   return (
                     <CarouselItem key={index}>
-                      <div className="bg-muted relative" style={{ aspectRatio: '1/1.618' }}>
+                      <div className="bg-muted relative aspect-square">
                         {isVideo ? (
                           <div 
                             className="w-full h-full relative cursor-pointer"
@@ -435,7 +435,7 @@ export default function CampaignDetail() {
               </CarouselContent>
             </Carousel>
           ) : (
-            <div className="bg-muted flex items-center justify-center" style={{ aspectRatio: '1/1.618' }}>
+            <div className="bg-muted flex items-center justify-center aspect-square">
               <Store className="w-16 h-16 text-muted-foreground" />
             </div>
           )}
