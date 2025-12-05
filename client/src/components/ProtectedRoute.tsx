@@ -2,6 +2,7 @@ import { useAuth, UserRoleType } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { LineLoginButton } from "@/components/LineLoginButton";
 import { LogIn, Lock, ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -13,7 +14,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
   const { isUserAuthenticated, authPhase, user, hasRole } = useAuth();
   const { t } = useLanguage();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
 
   if (authPhase === 'booting') {
     return (
@@ -39,14 +40,10 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
               {t('auth.loginRequiredDesc')}
             </p>
             <div className="space-y-3">
-              <Button 
-                className="w-full bg-[#38B03B] hover:bg-[#2d8c2f]"
-                onClick={() => navigate('/dev/login')}
-                data-testid="button-go-login"
-              >
-                <LogIn className="w-4 h-4 mr-2" />
-                {t('auth.goLogin')}
-              </Button>
+              <LineLoginButton 
+                returnTo={location}
+                className="w-full bg-[#06C755] hover:bg-[#05b04c]"
+              />
               <Button 
                 variant="outline" 
                 className="w-full"

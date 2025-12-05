@@ -74,11 +74,12 @@ const translations: Record<Language, Record<string, string>> = {
     'common.loadMore': '加载更多',
     'common.backToHome': '返回首页',
     
-    // 认证相关
-    'auth.loginRequired': '请先登录',
-    'auth.loginRequiredDesc': '此页面需要登录后才能访问',
-    'auth.goLogin': '前往登录',
-    'auth.noPermission': '无访问权限',
+    // 认证
+    'auth.loginRequired': '需要登录',
+    'auth.loginRequiredDesc': '请登录后访问此页面',
+    'auth.goLogin': '去登录',
+    'auth.lineLogin': 'LINE 一键登录',
+    'auth.noPermission': '无权访问',
     'auth.noPermissionDesc': '您没有权限访问此页面',
     'common.noMore': '没有更多了',
     'common.pullToRefresh': '下拉刷新',
@@ -2240,6 +2241,7 @@ const translations: Record<Language, Record<string, string>> = {
     'auth.loginRequired': 'Login Required',
     'auth.loginRequiredDesc': 'Please login to access this page',
     'auth.goLogin': 'Go to Login',
+    'auth.lineLogin': 'Login with LINE',
     'auth.noPermission': 'Access Denied',
     'auth.noPermissionDesc': 'You do not have permission to access this page',
     'common.noMore': 'No more',
@@ -4398,6 +4400,7 @@ const translations: Record<Language, Record<string, string>> = {
     'auth.loginRequired': 'กรุณาเข้าสู่ระบบ',
     'auth.loginRequiredDesc': 'คุณต้องเข้าสู่ระบบเพื่อเข้าถึงหน้านี้',
     'auth.goLogin': 'ไปเข้าสู่ระบบ',
+    'auth.lineLogin': 'เข้าสู่ระบบด้วย LINE',
     'auth.noPermission': 'ไม่มีสิทธิ์เข้าถึง',
     'auth.noPermissionDesc': 'คุณไม่มีสิทธิ์เข้าถึงหน้านี้',
     
@@ -6110,6 +6113,7 @@ const translations: Record<Language, Record<string, string>> = {
     'auth.loginRequired': 'Perlu Login',
     'auth.loginRequiredDesc': 'Silakan login untuk mengakses halaman ini',
     'auth.goLogin': 'Ke Login',
+    'auth.lineLogin': 'Masuk dengan LINE',
     'auth.noPermission': 'Akses Ditolak',
     'auth.noPermissionDesc': 'Anda tidak memiliki izin untuk halaman ini',
 
@@ -6911,6 +6915,7 @@ const translations: Record<Language, Record<string, string>> = {
     'auth.loginRequired': 'Cần Đăng nhập',
     'auth.loginRequiredDesc': 'Vui lòng đăng nhập để truy cập trang này',
     'auth.goLogin': 'Đến Đăng nhập',
+    'auth.lineLogin': 'Đăng nhập bằng LINE',
     'auth.noPermission': 'Bị Từ chối',
     'auth.noPermissionDesc': 'Bạn không có quyền truy cập trang này',
 
@@ -7712,6 +7717,7 @@ const translations: Record<Language, Record<string, string>> = {
     'auth.loginRequired': 'ဝင်ရောက်ရန်လိုအပ်',
     'auth.loginRequiredDesc': 'ဤစာမျက်နှာကိုကြည့်ရန် ဝင်ရောက်ပါ',
     'auth.goLogin': 'ဝင်ရောက်ရန်သွားပါ',
+    'auth.lineLogin': 'LINE ဖြင့်ဝင်ရောက်ပါ',
     'auth.noPermission': 'ဝင်ခွင့်မရှိ',
     'auth.noPermissionDesc': 'ဤစာမျက်နှာကို သင်ဝင်ခွင့်မရှိပါ',
 
