@@ -469,7 +469,7 @@ export default function ArticleDetail() {
           <VideoPlayer
             src={article.videoUrl}
             poster={article.coverImageUrl}
-            className="w-full aspect-video"
+            className="w-full aspect-square"
           />
         ) : imageCount > 0 && (
           <div className="relative bg-black">
@@ -482,14 +482,13 @@ export default function ArticleDetail() {
               {images.map((url, idx) => (
                 <div 
                   key={idx} 
-                  className="flex-shrink-0 w-full snap-center cursor-pointer"
+                  className="flex-shrink-0 w-full aspect-square snap-center cursor-pointer"
                   onClick={() => handleImageClick(idx)}
                 >
                   <img
                     src={url}
                     alt={`${t('feed.article')} ${idx + 1}`}
-                    className="w-full h-auto"
-                    style={{ maxHeight: '70vh', objectFit: 'contain' }}
+                    className="w-full h-full object-cover"
                     loading={idx === 0 ? 'eager' : 'lazy'}
                     data-testid={`image-${idx}`}
                   />
