@@ -9,6 +9,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface PaymentData {
   id: number;
@@ -28,6 +29,7 @@ interface PaymentData {
 }
 
 export default function PaySuccessPage() {
+  const { t } = useLanguage();
   const params = useParams<{ paymentId: string }>();
   const paymentId = params.paymentId;
   const { user, isUserAuthenticated } = useAuth();
@@ -163,9 +165,9 @@ export default function PaySuccessPage() {
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
         <div className="w-full max-w-[375px] bg-white rounded-3xl shadow-xl p-6 text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-xl font-semibold text-slate-800 mb-2">Payment Not Found</h1>
+          <h1 className="text-xl font-semibold text-slate-800 mb-2">{t('paySuccess.notFound')}</h1>
           <p className="text-slate-500">
-            Unable to find payment information.
+            {t('paySuccess.notFoundDesc')}
           </p>
         </div>
       </div>
@@ -184,9 +186,9 @@ export default function PaySuccessPage() {
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
         <div className="w-full max-w-[375px] bg-white rounded-3xl shadow-xl p-6 text-center">
           <Loader2 className="w-16 h-16 animate-spin text-slate-400 mx-auto mb-4" />
-          <h1 className="text-xl font-semibold text-slate-800 mb-2">Processing Payment...</h1>
+          <h1 className="text-xl font-semibold text-slate-800 mb-2">{t('paySuccess.processing')}</h1>
           <p className="text-slate-500">
-            Please wait while we confirm your payment.
+            {t('paySuccess.processingDesc')}
           </p>
         </div>
       </div>
@@ -198,9 +200,9 @@ export default function PaySuccessPage() {
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
         <div className="w-full max-w-[375px] bg-white rounded-3xl shadow-xl p-6 text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-xl font-semibold text-slate-800 mb-2">Payment Failed</h1>
+          <h1 className="text-xl font-semibold text-slate-800 mb-2">{t('paySuccess.failed')}</h1>
           <p className="text-slate-500">
-            Your payment was not completed. Please try again.
+            {t('paySuccess.failedDesc')}
           </p>
         </div>
       </div>
@@ -219,12 +221,12 @@ export default function PaySuccessPage() {
               S
             </div>
             <div className="flex flex-col leading-tight">
-              <div className="text-[13px] font-semibold text-slate-800">Payment success</div>
+              <div className="text-[13px] font-semibold text-slate-800">{t('paySuccess.title')}</div>
               <div className="text-[10px] text-slate-400 flex items-center gap-1">
                 <span className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-emerald-500">
                   <span className="w-1.5 h-1.5 border-[1.5px] border-white border-t-transparent border-l-transparent rounded-sm rotate-45" />
                 </span>
-                <span>Secure page</span>
+                <span>{t('paySuccess.securePage')}</span>
               </div>
             </div>
           </div>
@@ -240,7 +242,7 @@ export default function PaySuccessPage() {
 
             {/* Payment amount */}
             <div className="space-y-1">
-              <p className="text-[13px] text-slate-500">Payment amount</p>
+              <p className="text-[13px] text-slate-500">{t('paySuccess.paymentAmount')}</p>
               <p className="text-[28px] font-semibold text-slate-900" data-testid="text-payment-amount">
                 THB {formattedAmount}
               </p>
@@ -248,9 +250,9 @@ export default function PaySuccessPage() {
 
             {/* Points earned */}
             <div className="space-y-1">
-              <p className="text-[13px] text-slate-500">Points earned this time</p>
+              <p className="text-[13px] text-slate-500">{t('paySuccess.pointsEarned')}</p>
               <p className="text-[22px] font-semibold text-amber-500" data-testid="text-points-earned">
-                {payment.points} pts
+                {payment.points} {t('paySuccess.pts')}
               </p>
             </div>
 
@@ -262,7 +264,7 @@ export default function PaySuccessPage() {
                   <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
                     <span className="w-2 h-2 border-[2px] border-white border-t-transparent border-l-transparent rounded-sm rotate-45" />
                   </span>
-                  <span>Points automatically credited</span>
+                  <span>{t('paySuccess.pointsCredited')}</span>
                 </div>
                 
                 {/* 加好友按钮 - 如果有配置 LINE OA */}
@@ -275,14 +277,14 @@ export default function PaySuccessPage() {
                     <span className="w-5 h-5 rounded-[4px] bg-white flex items-center justify-center text-[11px] text-[#06C755] font-bold">
                       L
                     </span>
-                    <span>Add merchant as LINE friend</span>
+                    <span>{t('paySuccess.addLineFriend')}</span>
                   </button>
                 )}
               </div>
             ) : redirectingToLine ? (
               <div className="mt-4 w-full py-3 rounded-2xl bg-slate-100 text-slate-600 text-[15px] font-semibold flex items-center justify-center gap-2">
                 <Loader2 className="w-5 h-5 animate-spin text-[#06C755]" />
-                <span>Redirecting to merchant LINE...</span>
+                <span>{t('paySuccess.redirectingLine')}</span>
               </div>
             ) : (
               <button 
@@ -294,14 +296,14 @@ export default function PaySuccessPage() {
                 {isClaiming ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Claiming...</span>
+                    <span>{t('paySuccess.claiming')}</span>
                   </>
                 ) : (
                   <>
                     <span className="w-5 h-5 rounded-[4px] bg-white flex items-center justify-center text-[11px] text-[#06C755] font-bold">
                       L
                     </span>
-                    <span>Login with LINE to claim points</span>
+                    <span>{t('paySuccess.loginLineClaim')}</span>
                   </>
                 )}
               </button>
@@ -310,14 +312,8 @@ export default function PaySuccessPage() {
 
           {/* Bottom info */}
           <div className="mt-1 text-center text-[10px] text-slate-400 space-y-1 pb-2">
-            <p>
-              Points are stored in the merchant membership account on the DeeCard / Shuashua platform. This
-              confirmation page itself does not process any payment.
-            </p>
-            <p>
-              If the LINE page does not open correctly, you can later check your points in the "My points" section
-              of the Shuashua system.
-            </p>
+            <p>{t('paySuccess.disclaimer1')}</p>
+            <p>{t('paySuccess.disclaimer2')}</p>
           </div>
         </div>
       </div>
