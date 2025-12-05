@@ -1,0 +1,1145 @@
+# goodpick-go 升级为「刷刷」多商户 O2O 本地生活平台 · 开发执行文档（给 Replit AI 代理用）
+
+> 目标：在 **现有 goodpick-go 项目基础上**，升级为「刷刷」多商户 O2O 平台，支持：
+>
+> * 消费者端：刷刷 / 购物 / 我的 三栏结构
+> * 商户端：商户首页 + 运营中心
+> * 员工端：核销工作台
+>
+> **要求：** 尽量复用现有代码结构（stores / campaigns / staffPresets / staff 页面），以最小侵入方式迭代，不做重构式推倒重来。
+
+---
+
+## 0. 项目现状简要（基于上传代码）
+
+* 技术栈：
+
+  * Node.js + Express（`server/index.ts`, `server/routes.ts`）
+  * PostgreSQL + Drizzle ORM（`server/db.ts`, `shared/schema.ts`）
+  * React + Vite + Tailwind + shadcn/ui（`client/src`）
+* 主要目录：
+
+  * 后端：`server/routes.ts`, `server/services/*`, `server/db.ts`
+  * 数据结构：`shared/schema.ts`
+  * 前端：`client/src/App.tsx`, `client/src/pages/admin/*`, `client/src/pages/user/*`
+* 现有前端页面：
+
+  * Admin：`AdminLogin`, `AdminStores`, `AdminCampaigns`, `AdminDashboard`
+  * User：
+
+    * 用户：`CampaignDetail.tsx`, `MyCoupons.tsx`
+    * 员工：`StaffBind.tsx`, `StaffCampaignList.tsx`, `StaffCampaignDetail.tsx`, `StaffRedeem.tsx`, `StaffStats.tsx`
+  * 员工底部导航组件：`components/StaffBottomNav.tsx`
+* 现有数据模型：
+
+  * `stores`：门店（已支持多门店）
+  * `campaigns` / `campaignStores`：活动与门店关系
+  * `users`：基于 LINE 的用户
+  * `coupons`：券
+  * `staffPresets`：预置员工，用于绑定核销权限
+
+> 现状本质是：**平台 + 门店 + 活动 + 员工核销** 的优惠券系统。
+
+接下来在此基础上升级为「刷刷」：
+
+* 加一层「账号角色」（老板 / 运营 / 核销员）
+* 加一层「前端结构」（刷刷 / 购物 / 我的 + 商户首页 / 运营中心 / 核销工作台）
+
+---
+
+## 1. 概念与导航结构统一
+
+### 1.1 C 端（消费者）统一：刷刷 / 购物 / 我的
+
+以后所有 **消费者视角的前端入口（H5 + 平台 OA）**，底部导航统一为：
+
+1. **刷刷**：内容流（本地商户图文 / 短视频 / 活动卡片）
+2. **购物**：跨商户的商品 / 活动卡片列表（MVP 阶段可用 `campaigns` 替代商品）
+3. **我的**：用户个人中心（我的券、我的活动、我的商户会员）
+
+> 在代码层面：新增用户前台页面文件，挂到 `client/src/pages/user` 下，并在 `App.tsx` 中增加路由。
+
+### 1.2 单商户前台：刷刷 / 购物 / 我的
+
+单个门店的“商户首页”（消费者看到的商户主页），底部导航同样统一为：
+
+1. **刷刷**：该门店自己的内容流（未来会扩展为 content 表，MVP 可先用活动卡片 + 店铺介绍占位）
+2. **购物**：该门店的商品 / 活动列表（MVP 阶段用 `campaigns` + `campaignStores` 映射）
+3. **我的**：当前用户在该门店的会员信息（等级、优惠券、历史核销）
+
+> 技术实现：新增 `MerchantHome.tsx`，根据 `storeId` 渲染这三栏内容。
+
+### 1.3 商户端工作模式
+
+商户老板将某个普通账号设定为员工后，该账号进入对应“工作模式”时底部导航改变：
+
+* **运营模式（运营号）：**
+
+  * 底部：`商户首页 / 运营中心 / 我的`
+  * 商户首页：与消费者看到的该店首页一致，但有“发刷刷内容 / 管理商品 / 管理活动”等入口
+  * 运营中心：专注内容、商品、活动管理
+  * 我的：该账号在各店的运营身份列表 + 退出运营模式
+
+* **核销模式（核销员）：**
+
+  * 底部：`核销 / 说明 / 我的`
+  * 核销：扫码核销 + 手动输入券码核销（复用现有 `StaffRedeem.tsx` 能力）
+  * 说明：本门店活动规则、培训说明（使用静态内容或后台配置）
+  * 我的：个人核销统计（复用 `StaffStats.tsx` 能力）
+
+---
+
+## 2. 数据层升级（Drizzle schema 调整）
+
+目标：在不破坏现有表的前提下，增加一张“门店角色表”，支持老板 / 运营 / 核销员。
+
+### 2.1 新增 staff 角色枚举
+
+在 `shared/schema.ts` 里 enums 区域，新增：
+
+```ts
+export const staffRoleEnum = pgEnum('staff_role', [
+  'owner',      // 老板 / 创始人
+  'operator',   // 运营号：负责发内容、上商品、配活动
+  'verifier',   // 核销员：负责扫码/手动核销
+]);
+```
+
+### 2.2 新增 merchant_staff_roles 表
+
+在 `shared/schema.ts` 中，`staffPresets` 之后新增一张门店角色关联表：
+
+```ts
+export const merchantStaffRoles = pgTable('merchant_staff_roles', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  role: staffRoleEnum('role').notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqUserStoreRole: unique().on(table.userId, table.storeId, table.role),
+}));
+
+export const insertMerchantStaffRoleSchema = createInsertSchema(merchantStaffRoles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type MerchantStaffRole = typeof merchantStaffRoles.$inferSelect;
+```
+
+> 说明：
+>
+> * 不新增 merchants 表，短期用 `stores` 直接代表“商户 + 门店”，保持简单。
+> * owner/operator/verifier 统一通过该表管理。
+
+### 2.3 复用 staffPresets 做核销员绑定
+
+维持现有 `staffPresets` 表逻辑：
+
+* 预生成带 `authToken` 的核销员预置记录 + QR 码
+* 员工扫描后绑定到 `users.id`
+
+**新增逻辑：**
+
+* 在绑定成功时，同时在 `merchantStaffRoles` 中插入一条 `role = 'verifier'` 记录，storeId 同 `staffPresets.storeId`。
+
+> 这样可以保持现有核销绑定流程不变，只是增加角色能力。
+
+---
+
+## 3. 后端 API 升级（server/routes.ts）
+
+### 3.1 新增：获取当前用户在门店的角色信息
+
+在 `routes.ts` 中新增：
+
+* `GET /api/me/roles`
+
+  * 需要用户登录（基于现有 `users` 登录/识别机制）
+  * 返回该用户在所有门店下的角色列表：
+
+```jsonc
+{
+  "user": { "id": 1, "displayName": "..." },
+  "roles": [
+    { "storeId": 1, "storeName": "A 店", "role": "owner" },
+    { "storeId": 1, "storeName": "A 店", "role": "operator" },
+    { "storeId": 2, "storeName": "B 店", "role": "verifier" }
+  ]
+}
+```
+
+实现要点：
+
+* 从 `merchantStaffRoles` + `stores` join
+* 过滤 `isActive = true`
+
+### 3.2 新增：老板管理员工角色的接口
+
+在 `routes.ts` 中新增一组 `/api/merchant/staff` 路由（需要 auth + 校验 owner 权限）：
+
+1. `GET /api/merchant/:storeId/staff`
+
+   * 返回该门店所有员工及其角色（owner / operator / verifier）
+
+2. `POST /api/merchant/:storeId/staff`
+
+   * body: `{ userId, role }`
+   * 要求当前登录用户在该 storeId 下是 `owner`
+   * 在 `merchantStaffRoles` 中插入记录
+
+3. `DELETE /api/merchant/:storeId/staff/:staffRoleId`
+
+   * 逻辑删除 `merchantStaffRoles.isActive = false`
+
+> MVP 可以只支持后台（管理端）调用，后续再接到商户工作台前端。
+
+### 3.3 员工核销绑定时，写入角色表
+
+在现有处理 `staffPresets` 绑定的接口（大致在 `routes.ts` 中 staff 相关路由）中：
+
+* 当核销员扫码绑定成功时：
+
+  * 更新 `staffPresets.isBound, boundUserId, boundAt`
+  * 同时：
+
+```ts
+await db.insert(merchantStaffRoles).values({
+  userId: boundUserId,
+  storeId: preset.storeId,
+  role: 'verifier',
+}).onConflictDoNothing();
+```
+
+> 这样，现有 StaffRedeem/StaffStats 不会被破坏，只是未来可以通过角色表扩展更多入口。
+
+### 3.4（可选）申请商户号接口（后续再做）
+
+当前阶段可以先由平台 Admin 在 `AdminStores` 里为商户创建门店，并手动给某个 `users.id` 加上 `owner` 角色。
+
+* 后续如需“个人账号在线申请商户号”，可以新增：
+
+  * `merchantApplications` 表
+  * `POST /api/merchant/apply` + Admin 审核流程
+
+本文档先不强制实现申请流程，只保留扩展空间。
+
+---
+
+## 4. 前端：C 端用户视角页面改造（`client/src/pages/user`）
+
+### 4.1 新增 Tab：刷刷 / 购物 / 我的
+
+在 `client/src/App.tsx` 中：
+
+* 为用户端新增三条路由：
+
+```tsx
+<Route path="/">
+  <ShuaShuaHome />
+</Route>
+<Route path="/shop">
+  <ShopHome />
+</Route>
+<Route path="/me">
+  <UserCenter />
+</Route>
+```
+
+#### 组件结构建议
+
+1. `ShuaShuaHome.tsx`
+
+   * 显示平台级刷刷内容流（MVP：可以使用 campaigns + stores 组合成“活动卡片流”）
+   * 卡片元素：
+
+     * 店铺名称 / 品类 / 距离（从 `stores`）
+     * 活动标题 / 优惠简述（从 `campaigns`）
+   * 点击卡片 → 跳转到 `CampaignDetail` 或 `MerchantHome`。
+
+2. `ShopHome.tsx`
+
+   * 展示所有可购买/可领取的活动（类似当前活动列表）
+   * 支持按品类 / 门店过滤（可后续迭代）
+
+3. `UserCenter.tsx`
+
+   * 聚合：
+
+     * 我的券（复用 `MyCoupons.tsx` 内逻辑）
+     * 我参加过的活动
+     * 我是哪些门店的会员（后续扩展）
+   * 保留隐私政策 / 条款跳转入口
+
+4. 底部导航组件
+
+   * 新建 `components/UserBottomNav.tsx`：渲染 **刷刷 / 购物 / 我的** 三个 Tab
+   * 在上述三个页面底部复用。
+
+> 现有 `CampaignDetail.tsx`、`MyCoupons.tsx` 保留，仅作为点击入口后的详情页。
+
+---
+
+## 5. 前端：商户与员工视角页面调整
+
+### 5.1 商户首页 + 运营中心（运营号视角）
+
+新增文件（放在 `client/src/pages/user`，但路由前缀用 `/merchant`）：
+
+1. `MerchantHome.tsx`
+
+   * 路由：`/merchant/:storeId/home`
+   * 用于消费者 / 运营 / 老板查看该门店“前台”：
+
+     * 顶部：店名、评分、地址、电话（来自 `stores`）
+     * Tab：刷刷 / 购物 / 我的
+
+       * 刷刷：展示该门店相关活动/内容列表
+       * 购物：该门店关联的 campaigns 列表
+       * 我的：当前用户在该门店的券 / 活动记录（MVP 可先简单展示）
+
+2. `MerchantOperateCenter.tsx`
+
+   * 路由：`/merchant/:storeId/operate`
+   * 针对 `role = operator` 或 `owner` 用户：
+
+     * 内容管理（MVP 可暂不做，预留入口）
+     * 活动管理：调用后台 `/api/admin/campaigns` 的子集接口，只显示当前 store 相关数据
+     * 商品管理：当前阶段可直接映射为活动管理；后续增加真正商品表时再细分
+
+3. `MerchantCenterBottomNav.tsx`
+
+   * 一个专门的底部导航组件：渲染 `商户首页 / 运营中心 / 我的` 三个 Tab
+   * 在 `MerchantHome` 和 `MerchantOperateCenter` 中复用。
+
+### 5.2 员工核销模式（核销员视角）
+
+复用现有页面，统一入口和导航：
+
+1. 保留并稍微改造：
+
+   * `StaffRedeem.tsx` → 对应「核销」
+   * `StaffStats.tsx` → 对应「我的」中的核销统计
+   * `StaffCampaignList.tsx` / `StaffCampaignDetail.tsx` → 可作为「说明」 Tab 的活动列表 & 详情
+
+2. 调整底部导航：
+
+   * 现有 `components/StaffBottomNav.tsx` 目前是 `redeem / campaign / stats`，符合「核销 / 说明 / 我的」结构：
+
+     * `redeem` → 核销
+     * `campaign` → 说明（活动列表 + 详情）
+     * `stats` → 我的（核销统计）
+   * 只需：
+
+     * 文案从英文调整为中文/泰文合适文案（核销 / 说明 / 我的）
+     * 路由路径保持 `/staff/redeem`, `/staff/campaigns`, `/staff/stats` 即可
+
+3. 入口统一：
+
+   * 新增一个“工作模式选择页”，例如 `StaffWorkMode.tsx`：
+
+     * 通过 `GET /api/me/roles` 获取当前账号在各 store 的 `verifier` 角色
+     * 列表展示：“你是哪些门店的核销员”
+     * 点击某个门店 → 跳转到 `/staff/redeem?storeId=xxx`
+
+> 这样可以保留现有核销逻辑，只在入口和导航上做轻量改造。
+
+---
+
+## 6. 角色切换与入口逻辑（前端）
+
+### 6.1 在「我的」页中增加工作台入口
+
+在 `UserCenter.tsx` 中：
+
+1. 首屏调用 `GET /api/me/roles`，根据返回的 roles 判断：
+
+   * 是否有 owner
+   * 是否有 operator
+   * 是否有 verifier
+
+2. 根据角色渲染：
+
+   * 如果有 owner/operator 角色：
+
+     * 展示「商户工作台」区域：
+
+       * 列表：每个 store 一行，可选择进入：
+
+         * 商户首页：`/merchant/:storeId/home`
+         * 运营中心：`/merchant/:storeId/operate`
+   * 如果有 verifier 角色：
+
+     * 展示「核销工作台」区域：
+
+       * 列表：每个 store 一行，点击进入 `/staff/redeem?storeId=xxx`
+
+### 6.2 未被授权的普通用户
+
+* 没有任何 `merchantStaffRoles` 的用户：
+
+  * 在「我的」页看不到任何“工作台”入口
+  * 只保留普通消费者功能：券、订单、设置
+
+### 6.3 老板如何分配角色
+
+当前阶段可以先通过 **Admin 后台手动插入** `merchantStaffRoles` 记录，或在 API 层面增加接口，仅供平台运营使用。
+
+后续如需在线开店：
+
+* 在 `UserCenter` 中增加「申请开通商户号」入口
+* 提交表单到后台，由 Admin 审核后：
+
+  * 创建 `stores` 记录
+  * 给申请用户插入一条 `role = owner` 的 `merchantStaffRoles` 记录
+
+---
+
+## 7. 迁移与上线建议
+
+1. **第一阶段（最小可用）**
+
+   * 数据层：增加 `staffRoleEnum` + `merchantStaffRoles` 表
+   * 后端：
+
+     * 实现 `/api/me/roles`
+     * staff 绑定时写入 `merchantStaffRoles(role='verifier')`
+   * 前端：
+
+     * 新增 `ShuaShuaHome`, `ShopHome`, `UserCenter` + 底部导航
+     * 调整 App 路由，将 `/` 指向 `ShuaShuaHome`
+     * 员工核销入口仍然使用原有 `/staff/*` 路由
+
+2. **第二阶段（商户工作台雏形）**
+
+   * 前端：
+
+     * 新增 `MerchantHome`, `MerchantOperateCenter`, `MerchantCenterBottomNav`
+     * 在 `UserCenter` 中根据 `/api/me/roles` 返回，展示商户工作台入口
+   * 后端：
+
+     * 增加 `/api/merchant/:storeId/staff` 与基础权限校验
+
+3. **第三阶段（内容流 + 商品化）**
+
+   * 引入 content 表（可后续新加）
+   * 将“刷刷”真正做成图文/视频内容流
+   * 增强“购物”页与活动/商品之间的联动
+
+---
+
+## 8. 开发注意事项
+
+* 保持现有 `campaigns / coupons / staffPresets / Staff*` 功能可用，不要在第一阶段做大规模重构。
+* 所有新增页面/组件遵循 `design_guidelines.md` 的排版和 UI 规范。
+* 多语言：沿用现有 `LanguageContext` 和 `useLanguage`，新增文案统一放入多语言字典。
+* 所有新表、新字段添加后，记得：
+
+  * 更新 `drizzle.config.ts`
+  * 运行 `npm run db:push` / 对应迁移命令。
+
+---
+
+## 9. 登录与账号体系设计（重点：简化新客登录流程）
+
+### 9.1 登录总体原则
+
+1. **优先 LINE 一键登录**：
+
+   * 在 LINE 内置浏览器中打开刷刷 H5 时，只提供「用 LINE 一键开始」按钮。
+   * 使用现有或新增的 LINE OAuth 流程：`/auth/line/login` → `/auth/line/callback`。
+   * 回调成功后直接创建/更新用户并登录，不再额外让用户填昵称/头像等信息。
+
+2. **非 LINE 环境下，优先浏览器主账号 + 手机号兜底**：
+
+   * iOS + Safari：主按钮为「用 Apple 一键登录」，辅以手机号验证码登录。
+   * Android / Chrome / 桌面 Chrome：主按钮为「用 Google 一键登录」，辅以手机号验证码登录。
+   * 其他浏览器：主按钮直接为「用手机号一键登录」，可选展示 Google 登录作为备选方式。
+
+> 目标：无论环境如何，用户第一眼只看到一个“最大最简单”的登录入口，其他方式折叠在次级入口里，减少决策成本。
+
+### 9.2 账号与 OAuth 绑定结构
+
+在 `shared/schema.ts` 中为多端登录统一增加一张 `oauth_accounts` 表：
+
+```ts
+export const oauthProviderEnum = pgEnum('oauth_provider', [
+  'line',    // LINE Login
+  'google',  // Google OAuth
+  'apple',   // Sign in with Apple
+  'phone',   // 手机号 + 验证码登录
+]);
+
+export const oauthAccounts = pgTable('oauth_accounts', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  provider: oauthProviderEnum('provider').notNull(),
+  providerUserId: varchar('provider_user_id', { length: 191 }).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqProviderUser: unique().on(table.provider, table.providerUserId),
+}));
+
+export type OAuthAccount = typeof oauthAccounts.$inferSelect;
+```
+
+统一登录逻辑：
+
+1. OAuth 提供方回调时（LINE / Google / Apple）：
+
+   * 解析出 `provider` 与 `providerUserId`（如 LINE userId、Google sub、Apple sub）。
+   * 在 `oauthAccounts` 中通过 `(provider, providerUserId)` 查找已有记录：
+
+     * 如存在 → 取出 `userId`，直接登录。
+     * 如不存在 → 创建新的 `users` 记录，并插入一条 `oauthAccounts` 记录，然后登录。
+
+2. 手机号登录：
+
+   * 流程：
+
+     * `POST /auth/phone/send-code`：发送验证码到手机。
+     * `POST /auth/phone/verify`：校验验证码。
+   * 校验通过后，视为 `provider = 'phone'`, `providerUserId = phoneNumber`，按与 OAuth 相同逻辑处理：
+
+     * 在 `oauthAccounts` 中查找/创建，再关联到 `users`。
+
+> 这样，一个用户可以同时绑定 LINE / Google / Apple / 手机号等多种方式，最终都归一到同一个 `users.id`。
+
+### 9.3 前端环境检测与登录入口
+
+在 H5 前端公共登录组件中（可新建 `client/src/components/LoginEntry.tsx`）：
+
+1. 使用 `navigator.userAgent` 检测当前环境：
+
+```ts
+const ua = navigator.userAgent || '';
+const inLine = /Line/i.test(ua);
+const inIOS = /iPhone|iPad|iPod/i.test(ua);
+const inAndroid = /Android/i.test(ua);
+const inSafari = /Safari/i.test(ua) && !/Chrome/i.test(ua);
+const inChrome = /Chrome/i.test(ua);
+```
+
+2. 渲染登录按钮策略：
+
+* **在 LINE 内：**
+
+  * 大按钮：`用 LINE 一键开始` → 跳转 `/auth/line/login`。
+  * 次要文字链接：`改用手机号登录` → 展开手机号验证码登录弹窗。
+
+* **非 LINE 环境：**
+
+  * 根据浏览器选择主按钮：
+
+    * iOS + Safari → 主按钮文案 `一键开始`，点击实际调起 `/auth/apple/login`。
+    * Android / Chrome → 主按钮文案 `一键开始`，点击调起 `/auth/google/login`。
+    * 其他 → 主按钮直接弹出手机号登录弹窗。
+  * 小链接：`其他方式登录` → 展开手机号登录 或 显示备用 OAuth 按钮。
+
+> 统一体验：用户只看到一个主按钮“开始”，不需要在多个 logo 之间做选择。
+
+### 9.4 与角色系统的衔接
+
+* 登录完成后，后端会话中只需要记录 `userId`（统一的 `users.id`）。
+* 前端在进入「我的」页面时调用 `GET /api/me/roles`：
+
+  * 决定是否展示「商户工作台」与「核销工作台」入口。
+  * 即：
+
+    * 没有任何 `merchantStaffRoles` → 普通用户，只展示消费者功能。
+    * 有 `owner` / `operator` 角色 → 展示商户首页 / 运营中心入口。
+    * 有 `verifier` 角色 → 展示核销工作台入口，底部导航为「核销 / 说明 / 我的」。
+
+> 登录层只负责确认“你是谁”（userId），具体显示什么页面、你是老板/运营/核销，全由已有的 `merchantStaffRoles` 和业务逻辑来决定。
+
+---
+
+> 补充说明：
+>
+> * 请在实现登录与 OAuth 时，参考现有 LINE 登录逻辑（如果项目中已有 `/auth/line/*` 路由），按统一模式扩展到 Google / Apple / 手机号。
+> * 任何新建的 `/auth/*` 路由，请都在 `server/routes.ts` 中集中管理，并保持与前端路由约定一致。
+> * 目标是：在 **不打断现有优惠券/核销流程** 的前提下，尽可能把新客登录简化为“一键开始 + 极少数兜底选项”。
+
+---
+
+## 10. 总结
+
+* 本文档将原有 goodpick-go 项目的优惠券 + 门店 + 员工核销能力，升级为刷刷多商户 O2O 平台的基础骨架：
+
+  * C 端：刷刷 / 购物 / 我的；
+  * B 端：商户首页 + 运营中心（老板 / 运营号）；
+  * 员工端：核销 / 说明 / 我的；
+  * 数据层：统一 staff 角色表 + oauth 登录绑定。
+* 登录策略已统一为：“优先 LINE，一键浏览器账号，兜底手机号”，所有登录方式最终归一到一个 `userId`，再由角色系统决定不同页面结构。
+
+> Replit AI 代理在执行本方案时，请遵循「分阶段上线」原则，优先保证现有功能稳定，再逐步落地新的导航结构与账号体系。
+
+---
+
+## 11. 数字人接入预留：OAuth 风格 Agent API 标准
+
+> 目的：为未来世界聊的数字人（或其他外部“数字人平台”）预留一套稳定的、类 OAuth 的 API 接入方式，使数字人可以在获得用户授权的前提下，代表用户在刷刷平台内查询数据、执行简单操作。
+
+当前阶段只要求：
+
+* 设计并实现最小可用的 **Agent Token 机制**；
+* 预留标准的 Bearer Token 认证中间件；
+* 暂时只开放 1–2 个只读接口（例如：查看用户基本信息、查看我的券列表），后续可逐步扩展。
+
+### 11.1 数据结构：agentTokens（个人授权给数字人的访问凭证）
+
+在 `shared/schema.ts` 中新增一张 `agentTokens` 表：
+
+```ts
+export const agentTokens = pgTable('agent_tokens', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  label: varchar('label', { length: 100 }).notNull(), // 例如："世界聊数字人"
+  tokenHash: varchar('token_hash', { length: 191 }).notNull(), // 存哈希，不存明文
+  scopes: varchar('scopes', { length: 255 }).notNull().default('basic'), // 逗号分隔的 scope 列表
+  expiresAt: timestamp('expires_at'), // 可以为空 = 长期有效
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  idxUser: index().on(table.userId),
+}));
+
+export type AgentToken = typeof agentTokens.$inferSelect;
+```
+
+说明：
+
+* **不直接存明文 token**，只存 `tokenHash`，明文仅在创建时返回一次。
+* `label` 用于前端展示（用户知道这个 token 是给哪个数字人 / 平台用的）。
+* `scopes` 预留权限控制，MVP 阶段可以只用 `basic`，以后扩展：`basic,read_coupons,create_orders` 等。
+
+### 11.2 后端：生成 Agent Token 的接口（用户在刷刷里授权）
+
+新增一组路由（需要用户登录 Session）：
+
+1. `POST /api/agent-tokens`
+
+   * 作用：当前登录用户在“我的 → 数字人授权”里点击“生成授权码”时调用。
+   * 请求体：
+
+```jsonc
+{
+  "label": "世界聊数字人",   // 可选，默认可用"数字人授权"
+  "scopes": ["basic", "read_coupons"] // MVP 可固定为 ["basic"]
+}
+```
+
+* 处理逻辑：
+
+  1. 生成一段高强度随机字符串 `rawToken`（例如 32/40 位）。
+  2. 使用安全哈希算法（如 `sha256`）生成 `tokenHash`。
+  3. 将 `{ userId, label, tokenHash, scopes, expiresAt }` 写入 `agentTokens`。
+  4. 返回：只在响应中包含一次 `rawToken` 明文：
+
+```jsonc
+{
+  "token": "<RAW_TOKEN_ONE_TIME_ONLY>",
+  "label": "世界聊数字人",
+  "scopes": ["basic", "read_coupons"],
+  "expiresAt": null
+}
+```
+
+* 前端提示用户：
+
+  * “此 token 只显示一次，请复制到世界聊的数字人配置中保存。”
+
+2. `GET /api/agent-tokens`
+
+   * 返回当前用户已创建的 agent token 列表（不含明文 token，仅显示 label / scopes / createdAt / expiresAt）。
+   * 用于用户在「我的 → 数字人授权」里查看、管理自己的授权。
+
+3. `DELETE /api/agent-tokens/:id`
+
+   * 当前用户撤销某个 agent token，后端可直接删除或标记为失效。
+
+### 11.3 中间件：Bearer Token 认证（给数字人用）
+
+在 `server` 目录新增一个中间件，例如 `server/middleware/agentAuth.ts`：
+
+```ts
+import { db } from '../db';
+import { agentTokens } from '../../shared/schema';
+import crypto from 'crypto';
+
+export async function agentAuth(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing bearer token' });
+  }
+
+  const rawToken = auth.slice('Bearer '.length).trim();
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+  const now = new Date();
+  const token = await db.query.agentTokens.findFirst({
+    where: (t, { and, or, isNull, gt, eq }) => and(
+      eq(t.tokenHash, tokenHash),
+      or(isNull(t.expiresAt), gt(t.expiresAt, now)),
+    ),
+    with: { user: true },
+  });
+
+  if (!token) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+
+  // 挂到 req 上，后续路由可使用
+  (req as any).agentUser = token.user;
+  (req as any).agentScopes = (token.scopes || 'basic').split(',');
+
+  return next();
+}
+```
+
+> 注意：以上代码是示意，Replit AI 需要按实际项目结构调整导入路径和查询写法。
+
+### 11.4 数字人可调用的 Agent API（MVP 版）
+
+为数字人预留一组只读接口，统一挂载在 `/api/agent/` 前缀下，均使用 `agentAuth` 中间件：
+
+1. `GET /api/agent/me`
+
+   * 中间件：`agentAuth`
+   * 返回基于 token 对应的用户视角的基本信息：
+
+```jsonc
+{
+  "id": 123,
+  "displayName": "张三",
+  "avatarUrl": "...",
+  "locale": "th-TH",  // 语言偏好（可后续扩展）
+  "roles": [
+    // 可选：来自 merchantStaffRoles，用于数字人知道用户是否也是老板/员工
+  ]
+}
+```
+
+2. `GET /api/agent/coupons`
+
+   * 中间件：`agentAuth`
+   * 查询当前用户的有效券列表（复用现有逻辑，只是换成基于 `agentUser.id`）：
+
+```jsonc
+[
+  {
+    "id": 1,
+    "storeId": 10,
+    "storeName": "XX 店",
+    "title": "新客立减 100 THB",
+    "expiresAt": "2025-12-31T23:59:59.000Z",
+    "status": "available" // available/used/expired
+  },
+  ...
+]
+```
+
+> 未来可以追加：
+>
+> * `GET /api/agent/stores`：用户常去 / 已成为会员的门店列表；
+> * `POST /api/agent/orders`：代表用户预下单 / 购买到店券（需额外安全设计）。
+
+### 11.5 世界聊数字人如何使用
+
+未来在世界聊侧配置一个“刷刷助手数字人”时：
+
+1. 用户在刷刷 H5 的「我的 → 数字人授权」中：
+
+   * 点击“生成授权码（给世界聊数字人使用）”。
+   * 复制返回的 `token` 明文。
+
+2. 在世界聊的数字人配置界面中：
+
+   * 将该 token 粘贴到“刷刷 API Token”配置项中。
+
+3. 数字人在调用刷刷 API 时：
+
+   * 将 token 放在请求头：
+
+```http
+GET /api/agent/coupons HTTP/1.1
+Host: shua.shua
+Authorization: Bearer <RAW_TOKEN>
+```
+
+4. 刷刷后端通过 `agentAuth` 中间件验证，通过后以该用户身份返回数据。
+
+> 这样世界聊的数字人就可以在用户授权的前提下，安全地查询用户在刷刷平台的券、门店等信息，实现：“数字人帮我看我在这家店有什么券”“帮我挑一间附近有优惠的店”等能力。
+
+### 11.6 与 OAuth 标准的一致性说明
+
+* 本方案实际上是 **类 OAuth2 的个人访问令牌（Personal Access Token）模式**：
+
+  * 用户在刷刷平台内主动生成一个 token；
+  * 外部应用（如世界聊数字人）仅需携带该 token 作为 Bearer Token 即可访问用户授权的数据；
+  * 后续如果需要，可以在此基础上升级为完整的 OAuth2 授权码模式（增加 `clients`/`redirectUri` 表等），现有 Agent Token 机制仍可兼容。
+* 该设计对现有业务影响极小，只是新增一套认证通道和少量只读接口，方便未来快速接入世界聊数字人能力。
+
+---
+
+## 12. 「支付即会员」模块设计（MVP 实施方案）
+
+> 目标：在不改变商户收银方式的前提下，实现：
+>
+> * 用户在门店扫码支付后，自动成为该门店会员；
+> * 同时沉淀为刷刷平台的统一用户资产；
+> * 后续可基于消费金额/次数做会员等级、积分和发券。
+>
+> 现阶段只要求完成：数据结构 + 核心服务函数 + Webhook + 支付成功页 H5 流程，为接入真实 PSP（Opn/2C2P 等）预留接口。
+
+### 12.1 核心概念
+
+1. **支付配置（per 门店）**
+
+   * 每个 `store` 对应一套支付配置（PSP 商户号、收款码信息等）。
+   * 扫码支付走 PSP 对接，刷刷只通过 Webhook/回调获知支付结果。
+
+2. **支付交易记录（payment_transactions）**
+
+   * 记录从 PSP Webhook / 回调收到的每一笔支付。
+   * 与 `storeId`、`userId` 关联，用于统计和驱动会员逻辑。
+
+3. **门店会员关系（user_store_memberships）**
+
+   * 一个用户在一个门店的会员记录：已加入时间、消费次数、消费金额、最后到店时间、会员等级等。
+   * 支付即会员 = 有支付记录即可自动创建/升级该表记录。
+
+4. **门店会员规则（membership_rules）**
+
+   * 每个门店可配置是否“支付即入会”、首单福利、积分规则、等级规则等。
+
+### 12.2 数据表设计（Drizzle schema 示意）
+
+在 `shared/schema.ts` 中新增以下表：
+
+#### 12.2.1 门店支付配置：paymentConfigs
+
+```ts
+export const pspProviderEnum = pgEnum('psp_provider', [
+  'mock',   // 开发阶段模拟
+  'opn',    // 例如 Opn Payments
+  'twoc2p', // 例如 2C2P
+]);
+
+export const paymentConfigs = pgTable('payment_configs', {
+  id: serial('id').primaryKey(),
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  provider: pspProviderEnum('provider').notNull(),
+  providerMerchantId: varchar('provider_merchant_id', { length: 191 }).notNull(),
+  notifyUrl: varchar('notify_url', { length: 255 }).notNull(), // PSP Webhook 地址（指向本系统）
+  returnUrl: varchar('return_url', { length: 255 }).notNull(), // 支付成功后跳转到本系统 H5
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+```
+
+> 说明：
+>
+> * 暂不生成二维码图片本身（可在前端或后台基于 providerMerchantId 生成）。
+> * `notifyUrl`/`returnUrl` 在代码中统一使用配置常量组合，表中主要用于记录。
+
+#### 12.2.2 支付交易记录：paymentTransactions
+
+```ts
+export const paymentStatusEnum = pgEnum('payment_status', [
+  'pending',
+  'paid',
+  'failed',
+  'refunded',
+]);
+
+export const paymentTransactions = pgTable('payment_transactions', {
+  id: serial('id').primaryKey(),
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }), // 可能在支付时还未完成登录绑定
+  provider: pspProviderEnum('provider').notNull(),
+  providerTxnId: varchar('provider_txn_id', { length: 191 }).notNull(), // PSP 交易号
+  amount: integer('amount').notNull(), // 单位：最小货币单位（如 satang）
+  currency: varchar('currency', { length: 10 }).notNull().default('THB'),
+  status: paymentStatusEnum('status').notNull().default('pending'),
+  paidAt: timestamp('paid_at'),
+  rawPayload: jsonb('raw_payload'), // 存 PSP 回调原始数据，用于排查
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqProviderTxn: unique().on(table.provider, table.providerTxnId),
+}));
+```
+
+#### 12.2.3 门店会员关系：userStoreMemberships
+
+```ts
+export const membershipTierEnum = pgEnum('membership_tier', [
+  'basic',
+  'silver',
+  'gold',
+  'platinum',
+]);
+
+export const userStoreMemberships = pgTable('user_store_memberships', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  joinedAt: timestamp('joined_at').notNull().defaultNow(),
+  totalAmount: integer('total_amount').notNull().default(0), // 累计消费
+  visitCount: integer('visit_count').notNull().default(0),   // 消费次数
+  lastVisitAt: timestamp('last_visit_at'),
+  tier: membershipTierEnum('tier').notNull().default('basic'),
+  points: integer('points').notNull().default(0),
+}, (table) => ({
+  uniqUserStore: unique().on(table.userId, table.storeId),
+}));
+```
+
+#### 12.2.4 门店会员规则：membershipRules（MVP 可先简化）
+
+```ts
+export const membershipRules = pgTable('membership_rules', {
+  id: serial('id').primaryKey(),
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  // 是否启用支付即入会
+  autoJoinOnPay: boolean('auto_join_on_pay').notNull().default(true),
+  // 新会员首单是否发券
+  welcomeCampaignId: integer('welcome_campaign_id').references(() => campaigns.id, { onDelete: 'set null' }),
+  // 积分规则：每消费多少金额积 1 分，例如 amount / pointsDivisor
+  pointsDivisor: integer('points_divisor').notNull().default(100),
+  // 等级阈值（MVP 可简单使用累计消费金额来区分）
+  silverThreshold: integer('silver_threshold').notNull().default(5000),
+  goldThreshold: integer('gold_threshold').notNull().default(20000),
+  platinumThreshold: integer('platinum_threshold').notNull().default(50000),
+});
+```
+
+> MVP 阶段可不提供前端配置页面，由 Admin 在后台直接写入 / 修改；后续可在商户工作台「会员规则」页面中开放配置 UI。
+
+### 12.3 支付 → 会员的业务流程
+
+#### 12.3.1 支付流程（概念）
+
+1. 顾客在门店扫描商户的**收款码**（背后对应某个 `paymentConfigs`）。
+2. 跳转至 PSP 支付页面完成支付（银行卡 / 钱包 / PromptPay 等）。
+3. PSP：
+
+   * 在支付完成时异步调用本系统 `notifyUrl`（Webhook），通知支付结果；
+   * 在支付完成后将顾客浏览器重定向到 `returnUrl`（带上交易号等参数）。
+
+> 当前文档不要求实际对接具体 PSP，只需要：
+>
+> * 预留 `/api/payments/webhook/:provider` 接口；
+> * 预留 `/pay/success` 成功页路由及其绑定逻辑。
+
+#### 12.3.2 Webhook：记录交易 & 触发会员逻辑
+
+新增后端路由（`server/routes.ts`）：
+
+```ts
+POST /api/payments/webhook/:provider
+```
+
+* `:provider` 为 `mock | opn | twoc2p` 等。
+* 处理流程（伪代码）：
+
+```ts
+// 1. 验证签名（MVP 可先跳过，直接信任 payload，接入真实 PSP 时必须补上）
+
+// 2. 解析 PSP payload → 标准化对象：
+//    { provider, providerTxnId, storeId, amount, currency, paidAt, status }
+
+// 3. 使用 (provider, providerTxnId) 在 paymentTransactions 中 upsert：
+//    - 如不存在：插入 pending → 更新为 paid / failed
+//    - 如存在：按最新状态更新
+
+// 4. 若 status = 'paid'：调用 applyPayToMembership(tx)
+```
+
+新增内部服务函数（可在 `server/services/membership.ts`）：
+
+```ts
+async function applyPayToMembership(tx: PaymentTransaction) {
+  // 1）找 membershipRules
+  const rule = await db.query.membershipRules.findFirst({ where: ...tx.storeId });
+  if (!rule || !rule.autoJoinOnPay) return;
+
+  if (!tx.userId) {
+    // 未绑定用户（用户尚未在 H5 完成登录），暂时只记录交易
+    return;
+  }
+
+  // 2）查/建 userStoreMemberships
+  let membership = await db.query.userStoreMemberships.findFirst({ where: ...userId/storeId });
+  const now = new Date();
+
+  if (!membership) {
+    membership = await db.insert(userStoreMemberships).values({
+      userId: tx.userId,
+      storeId: tx.storeId,
+      joinedAt: now,
+      totalAmount: tx.amount,
+      visitCount: 1,
+      lastVisitAt: now,
+      tier: 'basic',
+      points: Math.floor(tx.amount / rule.pointsDivisor),
+    }).returning()[0];
+
+    // 新会员首单福利：发券（若配置了 welcomeCampaignId）
+    if (rule.welcomeCampaignId) {
+      await issueWelcomeCoupon({
+        userId: tx.userId,
+        storeId: tx.storeId,
+        campaignId: rule.welcomeCampaignId,
+      });
+    }
+  } else {
+    // 3）老会员累加数据
+    const newTotal = membership.totalAmount + tx.amount;
+    let newTier: MembershipTier = membership.tier;
+    if (newTotal >= rule.platinumThreshold) newTier = 'platinum';
+    else if (newTotal >= rule.goldThreshold) newTier = 'gold';
+    else if (newTotal >= rule.silverThreshold) newTier = 'silver';
+
+    const extraPoints = Math.floor(tx.amount / rule.pointsDivisor);
+
+    await db.update(userStoreMemberships)
+      .set({
+        totalAmount: newTotal,
+        visitCount: membership.visitCount + 1,
+        lastVisitAt: now,
+        tier: newTier,
+        points: membership.points + extraPoints,
+      })
+      .where(eq(userStoreMemberships.id, membership.id));
+  }
+}
+```
+
+> `issueWelcomeCoupon` 可复用现有发券逻辑（基于 `campaigns` 和 `coupons` 表），只是在调用时增加来源标记（如 `source = 'pay_to_member'`）。
+
+#### 12.3.3 支付成功页 H5：绑定 userId
+
+支付成功后，PSP 会重定向用户浏览器到 `returnUrl`，例如：
+
+```text
+GET /pay/success?provider=mock&txn_id=abc123
+```
+
+前端新增页面：`client/src/pages/user/PaySuccess.tsx`，路由 `/pay/success`：
+
+1. 页面加载时：
+
+   * 读取 URL 参数：`provider`, `txn_id`。
+   * 调用 `/api/auth/session` 检查用户是否已登录：
+
+     * 已登录 → 直接调用 `POST /api/payments/attach-user`。
+     * 未登录 → 展示登录入口组件（复用第 9 章的 LoginEntry 逻辑）。
+
+2. 登录完成后：
+
+   * 向后端发送：
+
+```http
+POST /api/payments/attach-user
+Content-Type: application/json
+
+{
+  "provider": "mock",
+  "providerTxnId": "abc123"
+}
+```
+
+后端处理：
+
+* 从当前会话中获取 `userId`；
+* 在 `paymentTransactions` 中找到对应记录，更新 `userId` 字段；
+* 然后调用 `applyPayToMembership(tx)`（此时 tx 已有 userId）；
+* 返回：
+
+```jsonc
+{
+  "ok": true,
+  "store": { "id": 10, "name": "XX 店" },
+  "membership": {
+    "isNew": true,
+    "tier": "basic",
+    "pointsAdded": 50
+  },
+  "welcomeCouponIssued": true
+}
+```
+
+3. 前端在 PaySuccess 页面展示：
+
+   * 「你已经成为【XX 店】会员」
+   * 「本次获得 X 积分」
+   * 若发了欢迎券：展示「已为你发放新客礼券，点击查看」按钮 → 跳转到该店的「我的」或券包页面。
+
+> 注意：交易记录一旦写入，即使前端页面被关闭，数据也不会丢失。实际设计时，建议：
+>
+> * 在 PSP 侧将支付完成后的行为配置为**自动重定向到刷刷的 `returnUrl`**（而不是让用户手动点“返回商户”），
+> * 在 LINE / 浏览器内，将“关闭 PSP 支付页面”的手势等同于“完成支付并返回商户”，由 PSP 直接拉起我们配置好的 `returnUrl`，
+> * 这样用户支付完成后，无论是点关闭、返回，还是等倒计时结束，都会自动进入我们指定的成功页（例如门店会员中心 / 平台「我的」），不需要再额外点击。
+>
+> 对于仍然未成功完成登录绑定的极端情况，交易记录依然保留，用户下次通过其他入口登录后，后台仍可以通过补偿任务做“迟绑定”（可后续扩展），但正常产品设计应尽量通过自动重定向，将“关闭支付页”这一动作自然视为“打开重定向链接 → 进入成功页”。
+
+### 12.4 与「商户 OA 模式 / 平台 OA 模式」的关系
+
+* 无论顾客是通过：
+
+  * 商户自己的 LINE OA 收款码，
+  * 还是刷刷平台 OA 下的统一收款码，
+    只要最终支付落到某个 `storeId` + Webhook 打到本系统，即可：
+  * 自动生成/更新 `userStoreMemberships`；
+  * 为门店和平台同时沉淀会员。
+
+* 差异仅在于**入口展示形式**：
+
+  * 商户 OA 模式：
+
+    * 支付成功页 / 欢迎信息，优先引导用户「回到该商户 OA 的会员中心 H5」。
+  * 平台 OA 模式：
+
+    * 支付成功页 / 欢迎信息，优先引导用户「关注刷刷平台 OA」，在平台的「我的」中查看多店会员与券包。
+
+> 核心是：数据层一套（`userStoreMemberships` + `paymentTransactions`），前端入口可多种形态。
+
+### 12.5 实施优先级建议
+
+1. **第一步：建表 + 服务逻辑**
+
+   * 新增 `paymentConfigs` / `paymentTransactions` / `userStoreMemberships` / `membershipRules`。
+   * 实现 `applyPayToMembership` 内部服务函数。
+
+2. **第二步：Mock PSP 接入**
+
+   * 实现 `POST /api/payments/webhook/mock`，接受一个简单 JSON：
+
+```jsonc
+{
+  "storeId": 10,
+  "providerTxnId": "mock-123",
+  "amount": 500,
+  "currency": "THB",
+  "status": "paid"
+}
+```
+
+* 手动调用该接口模拟支付，验证 membership 与发券逻辑。
+
+3. **第三步：支付成功页 + 绑定 userId**
+
+   * 新增 `/pay/success` 页面和 `POST /api/payments/attach-user`。
+   * 串通登录流程，确保用户在完成支付后能一键成为会员。
+
+4. **第四步（后续）：对接真实 PSP**
+
+   * 按具体 PSP 文档实现 `/api/payments/webhook/opn` 或 `/api/payments/webhook/twoc2p` 的签名校验与参数解析。
+   * 将生成的收款码挂到门店后台或商户 OA 菜单中。
+
+> 以上实现完成后，刷刷即可真正具备「支付即会员」的核心能力，为商户提供“无需更换收银系统，只需更换收款码即可拥有会员系统”的体验。

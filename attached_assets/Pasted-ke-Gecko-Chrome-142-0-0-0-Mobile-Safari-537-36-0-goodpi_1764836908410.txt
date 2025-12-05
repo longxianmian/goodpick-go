@@ -1,0 +1,55 @@
+ke Gecko) Chrome/142.0.0.0 Mobile Safari/537.36
+0|goodpick | 4:18:56 PM [express] GET /api/campaigns/1 304 in 15ms :: {"success":true,"data":{"id":1,"title":"Cro…
+
+/root/.pm2/logs/goodpick-go-error.log last 50 lines:
+0|goodpick | [OAUTH INIT] missing campaignId {
+0|goodpick |   campaignId: undefined,
+0|goodpick |   sessionID: 'vvZrS2afHjQMXBv4_oh-zyLBB7-rkFFG'
+0|goodpick | }
+0|goodpick | [OAUTH INIT] missing campaignId {
+0|goodpick |   campaignId: undefined,
+0|goodpick |   sessionID: 'wH1wp3hGUCjqo0Eh-88q71olGQsJ0AC1'
+0|goodpick | }
+0|goodpick | [OAUTH INIT] missing campaignId {
+0|goodpick |   campaignId: undefined,
+0|goodpick |   sessionID: 'r0zjgEjzDyOHd8CMZndF93wXZ7cj8_Vm'
+0|goodpick | }
+0|goodpick | [OAUTH INIT] missing campaignId {
+0|goodpick |   campaignId: undefined,
+0|goodpick |   sessionID: 'DQV93Jj1z_oHo-tY0YG5W7YYK29qftME'
+0|goodpick | }
+0|goodpick | [OAUTH INIT] missing campaignId {
+0|goodpick |   campaignId: undefined,
+0|goodpick |   sessionID: '0kHHdM2fhbRVv7byB-5cDMKCqGcsdFyL'
+0|goodpick | }
+0|goodpick | [OAUTH INIT] missing campaignId {
+0|goodpick |   campaignId: undefined,
+0|goodpick |   sessionID: 'ThvV0CFwCbyMn3_OGuugxINabnne3XuQ'
+0|goodpick | }
+0|goodpick | [OAUTH INIT] missing campaignId {
+0|goodpick |   campaignId: undefined,
+0|goodpick |   sessionID: '5Cd1cAbUi2WeWugH27O0qMnDGTeB77A2'
+0|goodpick | }
+0|goodpick | Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vite' imported from /var/www/goodpick-go/dist/index.js
+0|goodpick |     at packageResolve (node:internal/modules/esm/resolve:873:9)
+0|goodpick |     at moduleResolve (node:internal/modules/esm/resolve:946:18)
+0|goodpick |     at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+0|goodpick |     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+0|goodpick |     at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+0|goodpick |     at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+0|goodpick |     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+0|goodpick |     at ModuleJob._link (node:internal/modules/esm/module_job:168:49) {
+0|goodpick |   code: 'ERR_MODULE_NOT_FOUND'
+0|goodpick | }
+0|goodpick | Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vite' imported from /var/www/goodpick-go/dist/index.js
+0|goodpick |     at packageResolve (node:internal/modules/esm/resolve:873:9)
+0|goodpick |     at moduleResolve (node:internal/modules/esm/resolve:946:18)
+0|goodpick |     at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+0|goodpick |     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+0|goodpick |     at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+0|goodpick |     at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+0|goodpick |     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+0|goodpick |     at ModuleJob._link (node:internal/modules/esm/module_job:168:49) {
+0|goodpick |   code: 'ERR_MODULE_NOT_FOUND'
+0|goodpick | }
+

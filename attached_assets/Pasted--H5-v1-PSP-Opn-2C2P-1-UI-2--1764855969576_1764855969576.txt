@@ -1,0 +1,368 @@
+# 刷刷 H5 收款二维码功能开发说明 v1
+
+> 目标：在刷刷系统集成「扫码支付即会员」能力，后端支持多 PSP（例如 Opn / 2C2P），前端提供：
+> 1）商户配置收款信息的后台 UI；2）用户扫码后的标准金额确认页；3）支付成功后的确认页（积分 + LINE 绑定）。
+>
+> 注意：刷刷 / DeeCard 只提供「收款页面 + 会员积分」服务，不直接提供支付服务，资金由持牌 PSP 直接结算给商户。
+
+---
+
+## 1. 整体架构与流程
+
+### 1.1 角色
+
+* **Consumer（用户）**：在门店消费，用手机扫码门店二维码付款。
+* **Merchant（商户 / 门店）**：在刷刷商户后台配置自己的收款方式和银行卡结算资料。
+* **Shuashua Platform（刷刷平台）**：
+
+  * 生成门店专属 H5 收款链接 / 二维码；
+  * 提供金额确认页 + 支付成功确认页；
+  * 记录交易、发放积分、触发 LINE 绑定与消息。
+* **PSP（Payment Service Provider）**：如 Opn / 2C2P
+
+  * 负责真正的收款、风控、结算；
+  * 为刷刷提供 API（创建订单、生成二维码 / deeplink、通知 webhook）。
+
+### 1.2 用户支付流程（线下扫码）
+
+1. 用户在门店看到刷刷提供的收款二维码（印在桌牌、收银台等）。
+2. 用户用手机扫码：
+
+   * 若用「银行 App / PromptPay 扫码器」：
+
+     * 可配置为跳转一个 HTTPS H5 页（`https://pay.shuashua.com/p/:qr_id`）。
+   * 若用「系统浏览器」扫码：
+
+     * 直接打开同一 H5 金额确认页。
+3. **H5 金额确认页**（我们已经有原型组件 `PaymentEntryPreview`）：
+
+   * 显示门店信息 + 文案“Payment amount confirmation”；
+   * 用户与店员确认金额（可只读 250 THB，下个迭代再考虑可编辑）；
+   * 用户点击 `Confirm and continue to pay`。
+4. 前端调用刷刷后端：`POST /api/payments/qrcode/create`：
+
+   * 参数：`store_id, qr_id, amount`；
+   * 后端根据商户配置选择 PSP，调用 PSP API 创建订单，得到 `redirect_url`；
+   * 返回：`payment_id, redirect_url`。
+5. 前端 `window.location.href = redirect_url` 跳转到 PSP 页面 / 银行页面完成支付。
+6. 支付成功后：
+
+   * PSP 通过 **webhook** 通知刷刷后端：`/api/payments/webhook/:psp`；
+   * 刷刷更新 `payments` 记录为 `PAID`，计算积分，写入 `member_points`；
+   * 同时根据 PSP 提供的 `return_url` 把用户带回到刷刷的 `success` 页面。
+7. 用户打开 **支付成功确认页**：
+
+   * 显示：`THB 250.00` + `250 pts`；
+   * 核心按钮：`Claim points via LINE`；
+   * 点击后走 LINE OA / LIFF 登录流程，完成积分账户绑定。
+
+---
+
+## 2. 后端数据结构设计（简化版）
+
+### 2.1 支付服务提供方配置（PSP Providers）
+
+表：`psp_providers`
+
+* `id` (PK)
+* `code` (string)：`"opn" | "2c2p"` 等
+* `name` (string)
+* `status` (enum)：`ACTIVE | DISABLED`
+
+### 2.2 商户 PSP 账户配置
+
+表：`merchant_psp_accounts`
+
+* `id` (PK)
+* `tenant_id`（平台租户，可选）
+* `merchant_id`（刷刷内部商户 ID）
+* `store_id`（门店 ID，连锁店可配置“总部级”和“门店级”）
+* `psp_provider_code`（引用 `psp_providers.code`）
+* `psp_merchant_id`（PSP 返回的商户号）
+* `settlement_bank_name`
+* `settlement_account_name`
+* `settlement_account_number`
+* `currency`（THB）
+* `status` (enum)：`PENDING_REVIEW | ACTIVE | SUSPENDED`
+* `created_at`
+* `updated_at`
+
+> 说明：真正的开户和风控由 PSP 完成，这张表只记录刷刷所需的信息 + PSP 返回的 ID。
+
+### 2.3 门店二维码配置
+
+表：`store_qr_codes`
+
+* `id` (PK)
+* `store_id`
+* `qr_type`：`H5_PAY_ENTRY`
+* `qr_payload`：H5 链接，如 `https://pay.shuashua.com/p/:qr_token`
+* `qr_token`：短码 / token
+* `status`：`ACTIVE | DISABLED`
+* `created_at`
+
+### 2.4 支付与积分
+
+表：`payments`
+
+* `id` (PK)
+* `store_id`
+* `qr_code_id`
+* `psp_provider_code`
+* `psp_payment_id`（PSP 订单号）
+* `amount`（decimal）
+* `currency`（THB）
+* `status`：`INIT | PENDING | PAID | FAILED | EXPIRED`
+* `paid_at`
+* `raw_payload`（JSONB，记录 PSP 回调原文）
+
+表：`payment_points`
+
+* `id` (PK)
+* `payment_id`
+* `member_id`（刷刷会员 ID，可为空，等用户用 LINE 认领时回填）
+* `points`
+* `status`：`UNCLAIMED | CLAIMED`
+* `claimed_at`
+
+---
+
+## 3. 后台商户配置功能
+
+入口：
+
+* 商户号（发现号）后台 → `运营中心` → Tab `资产` → 卡片列表中的「收款码」。
+* 点击「收款码」卡片进入配置页。
+
+### 3.1 配置页信息架构
+
+**页面：收款码与结算配置**
+
+上半区：当前收款状态
+
+* 当前启用 PSP：Opn / 2C2P / 未配置
+* 当前状态：`未配置 | 审核中 | 已启用 | 已停用`
+* 操作入口：`新建收款配置` / `编辑` / `停用` / `下载门店二维码`。
+
+下半区：配置表单（新增 / 编辑）
+
+1. **选择支付服务提供方（PSP）**
+
+   * 单选框 / 下拉：
+
+     * `Opn Thailand`
+     * `2C2P Thailand`
+   * 提示：
+
+     * “Actual payment is processed by the selected payment service provider.”
+
+2. **门店信息确认**（只读）
+
+   * 门店名称
+   * 地址
+   * 负责人姓名 / 联系电话
+
+3. **结算银行卡信息**
+
+   * 结算银行（下拉）
+   * 账户名（必须与 PSP 开户一致）
+   * 账号
+   * 分行信息（可选）
+
+4. **必要认证资料上传（可视 PSP 要求）**
+
+   * 身份证/护照扫描件
+   * 公司注册文件
+   * 营业执照
+   * （这些文件实际需要提交给 PSP，刷刷只做上传 + 透传给 PSP）
+
+5. **保存与提交流程**
+
+   * 按钮：`保存草稿` / `提交审核`
+   * 提交后状态变成 `PENDING_REVIEW`，后台任务与 PSP 对接开户 / 绑定。
+
+### 3.2 与 PSP 适配层
+
+在后端实现一个统一接口，例如：
+
+```ts
+interface PaymentProvider {
+  code: "opn" | "2c2p";
+  createMerchantAccount(input: CreateMerchantInput): Promise<CreateMerchantResult>;
+  createQrCharge(input: CreateChargeInput): Promise<CreateChargeResult>;
+  verifyWebhookSignature(rawBody: string, headers: Record<string, string>): boolean;
+}
+```
+
+* 针对不同 PSP 实现不同 adapter：`OpnProvider`, `TwoC2PProvider`；
+* 商户配置表 `merchant_psp_accounts` 存 `psp_provider_code`，根据 code 选择 adapter。
+
+---
+
+## 4. 前端 H5 页面设计
+
+### 4.1 金额确认页（Entry Screen）
+
+使用已经在画布中的 React 组件 `EntryScreen` 做模板，业务逻辑如下：
+
+1. 从 URL 中读取 `qr_token`，调用：
+
+   * `GET /api/payments/qrcode/meta?qr_token=xxx`
+   * 返回：门店信息（名称、地址）、默认货币等。
+2. 渲染页面：
+
+   * 顶部：安全提示 + “Payment amount confirmation”；
+   * 中部：门店信息卡片；
+   * 金额：
+
+     * V1：只读金额（由收银员操作另一端输入金额后再让顾客确认）；
+     * V2（可选）：允许用户输入金额，但需要与门店 POS 对账方案。
+   * 底部按钮：`Confirm and continue to pay`。
+3. 用户点击按钮：
+
+   * 调用 `POST /api/payments/qrcode/create`：
+
+```json
+// Request
+{
+  "qr_token": "xxx",
+  "amount": 25000, // 单位分
+  "currency": "THB"
+}
+
+// Response
+{
+  "payment_id": "pay_123",
+  "redirect_url": "https://...psp..."
+}
+```
+
+4. 前端拿到 `redirect_url` 后：
+
+```ts
+window.location.href = redirectUrl;
+```
+
+> 注意：页面上不要出现“DeeCard 收款方”或任何暗示刷刷是收单机构的文案，只表述为“Payment amount confirmation / Page service by DeeCard / Shuashua”。
+
+### 4.2 支付成功确认页（Success Screen）
+
+入口有两种：
+
+1. PSP 支持 `return_url`：支付完成后跳转到：
+
+   * `https://pay.shuashua.com/success?payment_id=xxx`；
+2. 若用户关闭 PSP 页面再扫码第二次，同样可以通过 `payment_id` 查询最近一笔支付记录来展示确认页。
+
+页面逻辑：
+
+1. 前端根据 `payment_id` 调用 `GET /api/payments/:id`：
+
+   * 返回：`amount`, `points`, `status` 等；
+2. 渲染：
+
+   * 顶部：`Payment success` + HTTPS 提示；
+   * 中部：
+
+     * Payment amount: `THB 250.00`
+     * Points earned this time: `250 pts`
+   * 主按钮：`Claim points via LINE`；
+3. 点击按钮：
+
+   * 触发 LINE 登录 / 授权（LIFF 或 OA Login）；
+   * 前端拿到 LINE user id / profile，调用：
+
+     * `POST /api/points/claim`：`{ payment_id, line_user_id }`
+   * 后端完成：
+
+     * 创建/查找平台会员；
+     * 把 `payment_points.member_id` 回填；
+     * 状态改为 `CLAIMED`。
+
+---
+
+## 5. Webhook 与安全
+
+### 5.1 Webhook 路由
+
+* `POST /api/payments/webhook/opn`
+* `POST /api/payments/webhook/2c2p`
+
+流程：
+
+1. 读取原始 body + headers，通过对应 `PaymentProvider.verifyWebhookSignature` 校验签名；
+2. 解析 PSP payload，找到 `psp_payment_id` 与金额、状态；
+3. 在 `payments` 表中定位记录，并幂等更新：
+
+   * `status: PAID`
+   * `paid_at`
+   * `raw_payload`
+4. 根据支付金额计算积分：
+
+   * 示例：`points = floor(amount_thb)`；
+   * 写入 `payment_points` 表，初始状态 `UNCLAIMED`。
+
+### 5.2 我方不处理敏感支付信息
+
+* 不接触卡号、CVV 等；
+* 不做任何支付尝试，只调用 PSP 提供的安全链接 / deeplink；
+* 环境变量中仅存储 PSP 的 `API_KEY / SECRET` 等必要配置。
+
+---
+
+## 6. 给 Replit AI 的任务拆解
+
+可以按以下顺序交给 Replit AI 代理实现：
+
+1. **后端数据模型**
+
+   * 新建：`psp_providers`, `merchant_psp_accounts`, `store_qr_codes`, `payments`, `payment_points` 五张表的 migration 与 ORM model。
+
+2. **PSP 适配层接口**
+
+   * 定义 `PaymentProvider` 接口与 `CreateMerchantInput`, `CreateChargeInput` 等类型；
+   * stub 出 `OpnProvider` 和 `TwoC2PProvider`，先返回 fake 数据，后续再接真 API。
+
+3. **商户后台 API + UI**
+
+   * API：
+
+     * `GET /api/merchant/psp-accounts`
+     * `POST /api/merchant/psp-accounts`
+   * 前端页面：
+
+     * 在商户后台 `运营中心 > 资产` 下，新增「收款码」详情页；
+     * 按 3.1 所述表单字段实现 UI。
+
+4. **二维码生成与配置**
+
+   * API：`POST /api/merchant/qr-codes` 为门店生成 H5 收款二维码；
+   * 把生成的 URL 编入 PNG / SVG 二维码，供下载。
+
+5. **H5 金额确认页与成功页**
+
+   * 基于当前画布中的 `PaymentEntryPreview` 拆分出两个独立页面组件：
+
+     * `PayEntryPage`（路由：`/p/:qr_token`）
+     * `PaySuccessPage`（路由：`/success/:payment_id`）
+   * 接上对应 API 调用。
+
+6. **Webhook 接口与积分逻辑**
+
+   * 实现 `POST /api/payments/webhook/opn` 与 `.../2c2p`；
+   * 更新 `payments` 状态并写入 `payment_points`；
+   * 实现 `POST /api/points/claim`（绑定 LINE 账户并标记积分已领取）。
+
+7. **日志与监控**
+
+   * 对每一次 PSP 调用和 webhook 写入结构化日志（含 `psp`, `payment_id`, `status`）。
+
+---
+
+这份文档可以作为刷刷收款二维码功能的 v1 实施说明，后续如果你决定：
+
+* 再加一个 PSP；
+* 加入退款流程；
+* 支持“多门店共享一个 PSP 商户号”；
+
+可以在本基础上继续扩展。

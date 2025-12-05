@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
-import { Plus, Pencil, Trash2, Store as StoreIcon, MapPin, FileText } from 'lucide-react';
+import { Plus, Pencil, Trash2, Store as StoreIcon, MapPin, FileText, Megaphone } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,10 +19,26 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { MediaUploader } from '@/components/MediaUploader';
 import type { Campaign, Store as StoreType } from '@shared/schema';
 import { format } from 'date-fns';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface MediaFile {
   type: 'image' | 'video';
   url: string;
+}
+
+interface CampaignBroadcast {
+  id: number;
+  campaignId: number;
+  oaId: string;
+  status: 'pending' | 'processing' | 'done' | 'failed';
+  totalTargetUsers: number;
+  sentCount: number;
+  successCount: number;
+  failedCount: number;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  error: string | null;
 }
 
 type CampaignFormData = {
@@ -46,6 +62,52 @@ function normalizeLanguageCode(lang: string): 'zh-cn' | 'en-us' | 'th-th' {
   if (normalized.startsWith('zh')) return 'zh-cn';
   if (normalized.startsWith('th')) return 'th-th';
   return 'en-us';
+}
+
+// Component to display broadcast info for a campaign
+function BroadcastInfo({ campaignId, adminToken }: { campaignId: number; adminToken: string | null }) {
+  const { data: broadcastsData } = useQuery<{ success: boolean; data: CampaignBroadcast[] }>({
+    queryKey: ['/api/admin/campaigns', campaignId, 'broadcasts'],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/campaigns/${campaignId}/broadcasts`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      return res.json();
+    },
+    enabled: !!adminToken,
+  });
+
+  const latestBroadcast = broadcastsData?.data?.[0];
+
+  if (!latestBroadcast) {
+    return <span className="text-xs text-muted-foreground">暂无广播记录</span>;
+  }
+
+  const statusMap = {
+    pending: '待处理',
+    processing: '处理中',
+    done: '已完成',
+    failed: '失败',
+  };
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '-';
+    return format(new Date(dateStr), 'yyyy-MM-dd HH:mm');
+  };
+
+  return (
+    <div className="text-xs">
+      <div className="font-medium">{statusMap[latestBroadcast.status]}</div>
+      <div className="text-muted-foreground">
+        {formatDate(latestBroadcast.createdAt)}
+      </div>
+      {latestBroadcast.status === 'done' && (
+        <div className="text-muted-foreground">
+          发送 {latestBroadcast.totalTargetUsers} 人，成功 {latestBroadcast.successCount}，失败 {latestBroadcast.failedCount}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function AdminCampaigns() {
@@ -82,6 +144,9 @@ export default function AdminCampaigns() {
     staffTraining: '',
     trainingMediaFiles: [] as MediaFile[],
   });
+
+  // 广播状态
+  const [broadcastingCampaignId, setBroadcastingCampaignId] = useState<number | null>(null);
 
   const { data: campaignsData, isLoading } = useQuery<{ success: boolean; data: Campaign[] }>({
     queryKey: ['/api/admin/campaigns'],
@@ -284,6 +349,41 @@ export default function AdminCampaigns() {
     },
   });
 
+  // 广播 mutation
+  const broadcastMutation = useMutation({
+    mutationFn: async (campaignId: number) => {
+      const res = await fetch(`/api/admin/campaigns/${campaignId}/broadcast`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`,
+        },
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to create broadcast');
+      }
+      return res.json();
+    },
+    onSuccess: (data, campaignId) => {
+      toast({ 
+        title: '广播任务已创建', 
+        description: '已创建 DeeCard OA 广播任务' 
+      });
+      // Invalidate broadcasts query to refresh the latest broadcast info
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/campaigns', campaignId, 'broadcasts'] });
+      setBroadcastingCampaignId(null);
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: '创建失败', 
+        description: error.message || '创建广播任务失败，请稍后重试', 
+        variant: 'destructive' 
+      });
+      setBroadcastingCampaignId(null);
+    },
+  });
+
   // 城市筛选逻辑
   const availableCities = useMemo(() => {
     const cities = new Set<string>();
@@ -423,6 +523,11 @@ export default function AdminCampaigns() {
     }
   };
 
+  const handleBroadcast = (campaignId: number) => {
+    setBroadcastingCampaignId(campaignId);
+    broadcastMutation.mutate(campaignId);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingCampaign) {
@@ -521,6 +626,7 @@ export default function AdminCampaigns() {
                   <TableHead>{t('campaigns.startDate')}</TableHead>
                   <TableHead>{t('campaigns.endDate')}</TableHead>
                   <TableHead>{t('campaigns.status')}</TableHead>
+                  <TableHead>最近广播</TableHead>
                   <TableHead className="text-right">{t('campaigns.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -547,8 +653,27 @@ export default function AdminCampaigns() {
                         {campaign.isActive ? t('campaigns.active') : t('campaigns.inactive')}
                       </Badge>
                     </TableCell>
+                    <TableCell>
+                      <BroadcastInfo campaignId={campaign.id} adminToken={adminToken} />
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleBroadcast(campaign.id)}
+                              disabled={broadcastingCampaignId === campaign.id}
+                              data-testid={`button-broadcast-${campaign.id}`}
+                            >
+                              <Megaphone className="w-4 h-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>向 DeeCard 会员发送本活动</p>
+                          </TooltipContent>
+                        </Tooltip>
                         <Button
                           size="sm"
                           variant="ghost"
@@ -587,7 +712,7 @@ export default function AdminCampaigns() {
                 ))}
                 {(!(campaignsData?.data || []).length) && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
                       {t('campaigns.noCampaigns')}
                     </TableCell>
                   </TableRow>

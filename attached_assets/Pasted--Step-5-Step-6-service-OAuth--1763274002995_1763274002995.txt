@@ -1,0 +1,262 @@
+好的，Step 5 的实现我确认没问题，接下来我们进入 Step 6：实现“欢迎消息” service，并在 OAuth 回调里调用它。
+
+请严格按下面的分步骤来做，先实现服务，再接到回调上，并加好开发环境的安全保护。
+
+---
+
+【Step 6 总目标】
+
+实现一套“会员级欢迎消息”流程：
+
+1. 后端有一个独立的 `welcome` service，负责：
+   - 根据用户语言选择欢迎消息模板（中/英/泰三套）；
+   - 调用 LINE Messaging API 的 `pushMessage`，以 OA 身份发给指定 `line_user_id`；
+   - 更新 `oa_user_links.welcome_sent` 和 `welcome_sent_at`。
+
+2. 在 `/api/auth/line/callback` 里，当用户**第一次成为系统内会员**时：
+   - 如果 `oa_user_links.welcome_sent = false`，则调用 welcome service 发送欢迎消息；
+   - 已经发过欢迎消息的用户不再重复发送。
+
+3. 开发环境（Replit）必须有安全阀：
+   - 只给配置的测试用户 `LINE_DEV_TEST_USER_ID` 发欢迎消息；
+   - 其他用户在 dev 环境下只记录日志，不真的发。
+
+---
+
+【Step 6.1：实现 LINE Messaging API 客户端（复用 OA 身份）】
+
+1. 在 `server/services` 下新建文件，例如：
+
+   - `server/services/lineMessagingService.ts`
+
+2. 在这个文件中，实现一个最小可用的 LINE Messaging API 客户端，用于 `pushMessage`：
+
+   - 从环境变量读取：
+
+     ```ts
+     const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+     ```
+
+     要求：
+     - 如果没有配置，记录错误日志并直接 return，不抛出导致崩溃；
+     - 不要把 token 打印到日志中。
+
+   - 实现函数（建议导出）：
+
+     ```ts
+     export async function pushLineMessage(to: string, message: any): Promise<void> {
+       // 使用 fetch 或 axios 调用 https://api.line.me/v2/bot/message/push
+       // Header: Authorization: Bearer {channelAccessToken}
+       // Body: { to, messages: [message] }
+     }
+     ```
+
+   - 要求：
+     - 正确设置 `Content-Type: application/json`;
+     - 错误时捕获并 `console.error('[LINE PUSH ERROR]', err)`，不让整个请求崩掉。
+
+3. 完成后，请贴出：
+   - `lineMessagingService.ts` 中 `pushLineMessage` 的实现代码片段（隐去 token）；
+   - 使用的 LINE API URL 和 headers。
+
+---
+
+【Step 6.2：实现欢迎消息 service（welcome.service.ts）】
+
+1. 在 `server/services` 下新增文件，例如：
+
+   - `server/services/welcomeService.ts`
+
+2. 在这个文件中实现一个导出函数，例如：
+
+   ```ts
+   import { mapLineLangToPreferredLang } from '../utils/language';
+   import { pushLineMessage } from './lineMessagingService';
+   import { db } from '../db';
+   import { oaUserLinks } from '../shared/schema';
+
+   type SendWelcomeOptions = {
+     user: { id: number; preferredLanguage: 'th' | 'en' | 'zh' | null };
+     lineUserId: string;
+     oaId: string;
+     initialLanguage: 'th' | 'en' | 'zh';
+   };
+
+   export async function sendWelcomeMessageIfNeeded(options: SendWelcomeOptions): Promise<void> {
+     // 里面实现具体逻辑
+   }
+在 sendWelcomeMessageIfNeeded 中需要实现的逻辑：
+
+A. 开发环境安全阀
+
+从环境变量读取测试用户 ID，例如：
+
+ts
+复制代码
+const devTestUserId = process.env.LINE_DEV_TEST_USER_ID;
+如果 process.env.NODE_ENV !== 'production' 且配置了 devTestUserId，那么：
+
+ts
+复制代码
+if (lineUserId !== devTestUserId) {
+  console.log('[WELCOME DEV] Skip sending welcome message to non-test user', { lineUserId });
+  return;
+}
+这样保证在 Replit/dev 环境只会给你自己的测试号发欢迎消息。
+
+B. 查询 oa_user_links 中对应记录，检查 welcome_sent
+
+根据 (oa_id, line_user_id) 查询 oa_user_links；
+
+如果找不到记录，直接 console.warn 一下并 return（数据异常，先不发）；
+
+如果 welcome_sent === true，直接 return（已经发过）。
+
+C. 确定使用的语言
+
+优先使用用户的 preferredLanguage（如果有）；
+
+否则使用 initialLanguage；
+
+再兜底 'th'。
+
+伪代码：
+
+ts
+复制代码
+const lang = user.preferredLanguage ?? initialLanguage ?? 'th';
+D. 选择欢迎消息模板（代码常量即可）
+
+在 welcomeService.ts 内部定义一个简单模板对象，例如：
+
+ts
+复制代码
+const WELCOME_TEMPLATES = {
+  th: {
+    text: '（泰文版本的欢迎语，说明可以在这里查看优惠券等）',
+    // 如需 Flex 或按钮，可先用简单 text 开始
+  },
+  en: {
+    text: 'Welcome to GoodPick Go! You can view your coupons and member benefits here.',
+  },
+  zh: {
+    text: '欢迎加入 GoodPick Go！你可以在这里查看你的优惠券和会员权益。',
+  },
+};
+v1 可以先用简单 text 消息，不强制 Flex/按钮，但结构要留出以后扩展的空间。
+
+E. 调用 LINE Messaging API 发送
+
+组装消息：
+
+ts
+复制代码
+const template = WELCOME_TEMPLATES[lang] ?? WELCOME_TEMPLATES['th'];
+const message = {
+  type: 'text',
+  text: template.text,
+};
+调用 pushLineMessage(lineUserId, message);
+
+F. 更新 welcome_sent 状态
+
+如果发送成功，更新 oa_user_links 该记录：
+
+ts
+复制代码
+await db
+  .update(oaUserLinks)
+  .set({
+    welcomeSent: true,
+    welcomeSentAt: new Date(),
+    updatedAt: new Date(),
+  })
+  .where(eq(oaUserLinks.id, link.id));
+完成后，请贴出：
+
+sendWelcomeMessageIfNeeded 函数的关键实现代码；
+
+WELCOME_TEMPLATES 中三种语言的文案（可以先用简单占位语句，后续我会调整文案）。
+
+【Step 6.3：在 /api/auth/line/callback 中调用 welcome service】
+
+在 server/routes.ts 中 /api/auth/line/callback 处理函数里：
+
+在你已经完成：
+
+创建/查找用户（有 user.id）；
+
+更新 users.preferred_language；
+
+upsert oa_user_links；
+之后，插入以下调用：
+
+你需要拿到：
+
+user（包括 preferredLanguage）；
+
+lineUserId（来自 lineProfile.sub）；
+
+oaId（从配置，如 GOODPICK_MAIN_OA_ID）；
+
+initialLanguage（来自刚才查到或新插入的 oa_user_links 记录）。
+
+然后调用：
+
+ts
+复制代码
+await sendWelcomeMessageIfNeeded({
+  user: { id: user.id, preferredLanguage: user.preferredLanguage ?? null },
+  lineUserId,
+  oaId,
+  initialLanguage: link.initialLanguage,
+});
+注意：
+
+不要影响原有 JWT 签发和前端重定向逻辑；
+
+即使发送欢迎消息失败（比如 LINE API 报错），也不能导致登录失败，应该捕获错误并写日志。
+
+完成后，请贴出：
+
+/api/auth/line/callback 中新增的“调用 welcome 服务”的代码片段；
+
+简要说明你是如何拿到 link.initialLanguage 的（是通过刚插入/查到的记录）。
+
+【Step 6 完成后的自测建议】
+
+在开发环境中使用你自己的测试 LINE 账号（LINE_DEV_TEST_USER_ID）：
+
+配置环境变量：
+
+LINE_CHANNEL_ACCESS_TOKEN
+
+GOODPICK_MAIN_OA_ID
+
+LINE_DEV_TEST_USER_ID（设置为你的测试 line_user_id）
+
+走一遍 Web LINE 登录流程：
+
+确认：
+
+users 表中 preferred_language 有值；
+
+oa_user_links 表中对应记录的 welcome_sent 变为 true，welcome_sent_at 有时间；
+
+你的 LINE OA 聊天里收到一条欢迎消息（文本）。
+
+再用另一个非测试账号试一次（如果有）：
+
+预期：在 dev 环境应该 不会收到欢迎消息，但登录流程正常；
+
+日志中看到：[WELCOME DEV] Skip sending welcome message to non-test user ...
+
+完成 Step 6 后，请用文字总结：
+
+新增了哪些文件（路径）；
+
+修改了哪些现有文件；
+
+在开发环境的实际测试结果如何（是否成功收到欢迎消息，数据库标记是否正确）。
+
+等你完成 Step 6，我们再继续下一步：为“活动广播”（Campaign Broadcast）做后端 API 和运营入口

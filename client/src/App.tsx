@@ -18,7 +18,57 @@ import StaffStats from "@/pages/user/StaffStats";
 import StaffCampaignList from "@/pages/user/StaffCampaignList";
 import StaffCampaignDetail from "@/pages/user/StaffCampaignDetail";
 import CampaignDetail from "@/pages/user/CampaignDetail";
+import ProductDetail from "@/pages/user/ProductDetail";
 import MyCoupons from "@/pages/user/MyCoupons";
+import ShuaShuaHome from "@/pages/user/ShuaShuaHome";
+import ShopHome from "@/pages/user/ShopHome";
+import RoleBasedMe from "@/pages/user/RoleBasedMe";
+import UserCenter from "@/pages/user/UserCenter";
+import MeOwner from "@/pages/user/MeOwner";
+import MeOperator from "@/pages/user/MeOperator";
+import MeVerifier from "@/pages/user/MeVerifier";
+import MeSysAdmin from "@/pages/user/MeSysAdmin";
+import CreatorHome from "@/pages/creator/CreatorHome";
+import CreatorStudio from "@/pages/creator/CreatorStudio";
+import CreatorAccount from "@/pages/creator/CreatorAccount";
+import CreatorAnalytics from "@/pages/creator/CreatorAnalytics";
+import ContentEditor from "@/pages/creator/ContentEditor";
+import IncomeRecords from "@/pages/creator/IncomeRecords";
+import PaymentSettings from "@/pages/creator/PaymentSettings";
+import CreatorNotifications from "@/pages/creator/CreatorNotifications";
+import AccountSecurity from "@/pages/creator/AccountSecurity";
+import DevLogin from "@/pages/dev/DevLogin";
+import ShortVideoFeed from "@/pages/short-video/ShortVideoFeed";
+import ArticleDetail from "@/pages/user/ArticleDetail";
+import UserProfile from "@/pages/user/UserProfile";
+import LanguageSettings from "@/pages/user/LanguageSettings";
+import SettingsPage from "@/pages/user/SettingsPage";
+import HelpPage from "@/pages/user/HelpPage";
+import AboutPage from "@/pages/user/AboutPage";
+import MerchantHome from "@/pages/merchant/MerchantHome";
+import MerchantOperations from "@/pages/merchant/MerchantOperations";
+import MerchantStoreSettings from "@/pages/merchant/MerchantStoreSettings";
+import MerchantStoreEdit from "@/pages/merchant/MerchantStoreEdit";
+import MerchantStoreCreate from "@/pages/merchant/MerchantStoreCreate";
+import MerchantProducts from "@/pages/merchant/MerchantProducts";
+import MerchantProductEdit from "@/pages/merchant/MerchantProductEdit";
+import MerchantCampaigns from "@/pages/merchant/MerchantCampaigns";
+import MerchantCampaignEdit from "@/pages/merchant/MerchantCampaignEdit";
+import MerchantPaymentQrCode from "@/pages/merchant/MerchantPaymentQrCode";
+import MerchantPspSetup from "@/pages/merchant/MerchantPspSetup";
+import StoreFront from "@/pages/user/StoreFront";
+import AdminPaymentSettings from "@/pages/admin/AdminPaymentSettings";
+import PaymentPage from "@/pages/user/PaymentPage";
+import PaymentSuccess from "@/pages/user/PaymentSuccess";
+import PrivacyPage from "@/pages/PrivacyPage";
+import TermsPage from "@/pages/TermsPage";
+import OpsCenter from "@/pages/ops/OpsCenter";
+import OpsShuashua from "@/pages/ops/OpsShuashua";
+import OpsDiscover from "@/pages/ops/OpsDiscover";
+import OperatorCenter from "@/pages/operator/OperatorCenter";
+import OperatorPreview from "@/pages/operator/OperatorPreview";
+import PayEntryPage from "@/pages/payment/PayEntryPage";
+import PaySuccessPage from "@/pages/payment/PaySuccessPage";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import { Store, Tag, LogOut, LayoutDashboard } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -117,6 +167,7 @@ function ProtectedAdminRoutes() {
   return (
     <AdminLayout>
       <Switch location={location}>
+        <Route path="/admin/stores/:id/payment" component={AdminPaymentSettings} />
         <Route path="/admin/stores" component={AdminStores} />
         <Route path="/admin/campaigns" component={AdminCampaigns} />
         <Route path="/admin/dashboard" component={AdminDashboard} />
@@ -129,9 +180,75 @@ function ProtectedAdminRoutes() {
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={() => <Redirect to="/admin/login" />} />
+      {/* 刷刷升级 - C端三栏结构 + 角色自适应 */}
+      <Route path="/" component={ShuaShuaHome} />
+      <Route path="/videos/:id" component={ShortVideoFeed} />
+      <Route path="/videos" component={ShortVideoFeed} />
+      <Route path="/articles/:id" component={ArticleDetail} />
+      <Route path="/user/:id" component={UserProfile} />
+      <Route path="/shop" component={ShopHome} />
+      <Route path="/me" component={RoleBasedMe} />
+      {/* 开发环境 - 测试登录 */}
+      <Route path="/dev/login" component={DevLogin} />
+      {/* 开发预览 - 直接访问各角色个人中心 */}
+      <Route path="/dev/me/consumer" component={UserCenter} />
+      <Route path="/dev/me/owner" component={MeOwner} />
+      <Route path="/dev/me/operator" component={MeOperator} />
+      <Route path="/dev/me/verifier" component={MeVerifier} />
+      <Route path="/dev/me/sysadmin" component={MeSysAdmin} />
+      <Route path="/dev/me/creator" component={CreatorAccount} />
+      {/* 系统管理员页面 - 快捷访问 */}
+      <Route path="/sysadmin" component={MeSysAdmin} />
+      {/* 运营中心 - 系统管理员专属 */}
+      <Route path="/ops" component={OpsCenter} />
+      <Route path="/ops/shuashua" component={OpsShuashua} />
+      <Route path="/ops/discover" component={OpsDiscover} />
+      {/* 刷刷号（创作者）专属路由 */}
+      <Route path="/creator/edit/:id" component={ContentEditor} />
+      <Route path="/creator/create" component={CreatorStudio} />
+      <Route path="/creator/me" component={CreatorAccount} />
+      <Route path="/creator/analytics" component={CreatorAnalytics} />
+      <Route path="/creator/income-records" component={IncomeRecords} />
+      <Route path="/creator/payment" component={PaymentSettings} />
+      <Route path="/creator/notifications" component={CreatorNotifications} />
+      <Route path="/creator/security" component={AccountSecurity} />
+      <Route path="/creator" component={CreatorHome} />
+      <Route path="/settings/language" component={LanguageSettings} />
+      <Route path="/settings" component={SettingsPage} />
+      <Route path="/help" component={HelpPage} />
+      <Route path="/about" component={AboutPage} />
+      {/* 店铺首页 - C端用户视角 */}
+      <Route path="/store/:id" component={StoreFront} />
+      {/* 商户端 */}
+      <Route path="/merchant" component={MerchantHome} />
+      <Route path="/merchant/operations" component={MerchantOperations} />
+      <Route path="/merchant/store-settings" component={MerchantStoreSettings} />
+      <Route path="/merchant/store-create" component={MerchantStoreCreate} />
+      <Route path="/merchant/store-edit/:id" component={MerchantStoreEdit} />
+      <Route path="/merchant/products" component={MerchantProducts} />
+      <Route path="/merchant/products/:id" component={MerchantProductEdit} />
+      <Route path="/merchant/campaigns" component={MerchantCampaigns} />
+      <Route path="/merchant/campaigns/:id" component={MerchantCampaignEdit} />
+      <Route path="/merchant/payment-qrcode" component={MerchantPaymentQrCode} />
+      <Route path="/merchant/psp-setup" component={MerchantPspSetup} />
+      <Route path="/merchant/me" component={MeOwner} />
+      {/* 运营号 - 被商户授权的运营人员 */}
+      <Route path="/operator/preview" component={OperatorPreview} />
+      <Route path="/operator/center" component={OperatorCenter} />
+      <Route path="/operator/products" component={MerchantProducts} />
+      <Route path="/operator/campaigns" component={MerchantCampaigns} />
+      <Route path="/operator/me" component={MeOperator} />
+      {/* 支付页面 */}
+      <Route path="/pay/:id/success" component={PaymentSuccess} />
+      <Route path="/pay/:id" component={PaymentPage} />
+      {/* 收款二维码支付 - H5 */}
+      <Route path="/p/:qrToken" component={PayEntryPage} />
+      <Route path="/success/:paymentId" component={PaySuccessPage} />
       <Route path="/campaign/:id" component={CampaignDetail} />
-      <Route path="/my-coupons" component={() => <MyCoupons />} />
+      <Route path="/product/:id" component={ProductDetail} />
+      <Route path="/my-coupons" component={MyCoupons} />
+      <Route path="/privacy" component={PrivacyPage} />
+      <Route path="/terms" component={TermsPage} />
       <Route path="/admin" component={() => <Redirect to="/admin/login" />} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/staff/bind" component={StaffBind} />

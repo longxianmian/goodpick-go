@@ -160,7 +160,7 @@ export default function StaffRedeem() {
   // Web OAuth登录
   const handleWebLogin = async () => {
     setIsLoggingIn(true);
-    const lineChannelId = import.meta.env.VITE_LINE_CHANNEL_ID;
+    const lineChannelId = import.meta.env.VITE_LINE_CHANNEL_ID || '2008410104';
     if (!lineChannelId) {
       toast({
         title: t('common.error'),

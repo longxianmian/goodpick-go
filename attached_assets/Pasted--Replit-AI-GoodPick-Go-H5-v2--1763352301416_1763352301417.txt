@@ -1,0 +1,332 @@
+[给 Replit AI] GoodPick Go H5 登录 / 领券 状态机重构 v2
+一、目标 & 问题背景
+
+用户当前真实体验现象：
+
+进入活动详情页，按钮先显示 「立即领取」
+
+点一次后黑屏，再回到详情页，按钮变成 「用 LINE 一键领取」
+
+再点「用 LINE 一键领取」，黑屏，然后回到详情页，按钮变成 「查看我的优惠券」（此时其实已领取成功）
+
+期望行为（最终目标）：
+
+未登录用户：第一次就看到「用 LINE 一键领取」，点击后走 LIFF 登录 + 自动领券，回来后直接显示「查看我的优惠券」
+
+已登录且没领券：按钮是「立即领取」
+
+已登录且已领券：按钮是「查看我的优惠券」
+
+整个过程不要出现中间状态乱跳 / 黑屏两次 / 逻辑错乱。
+
+你之前在项目里增加了 authLoading / userToken / reloadVersion / oauthCallbackProcessed 等状态，Architect 已经指出核心问题：
+
+logoutUser() 把 userToken 设为 null 后，依赖 userToken 的 effect 会卡在旧状态，无法重新加载
+
+authLoading === true 时增加 reloadVersion 会被 effect 里的 early return 吃掉
+
+OAuth 回调后 oauthCallbackProcessed 没有进入依赖数组，导致回调完成后没有触发完整的 reload
+
+下面请你重写前端 Auth 状态机，实现稳定、可维护的逻辑。
+
+二、修改范围（请先定位文件）
+
+在 client 目录下，查找包含以下文本的文件（应该是 1 个核心文件）：
+
+authLoading
+
+reloadVersion
+
+oauthCallbackProcessed
+
+logoutUser
+
+getStoredToken / 从 URL ?token= 读取 token 等逻辑
+
+要求： 所有登录 / 退出 / OAuth 回调相关状态机逻辑，都集中在同一个“Auth 管理模块”里（hook 或 store），不要分散在多个页面里各自乱写。
+
+假设该文件名类似（具体以实际为准）：
+
+client/src/hooks/useAuth.ts 或
+
+client/src/store/authStore.ts 或
+
+client/src/App.tsx 中的一大段 auth 逻辑
+
+下面用「Auth 模块」来指这个文件。
+
+三、重写 Auth 状态机核心逻辑
+3.1 统一 Auth 状态字段（在 Auth 模块里）
+
+在 Auth 模块中，统一维护这些状态（如果已有类似字段，请按下面语义整理/更名）：
+
+type AuthPhase = 'booting' | 'ready' | 'error';
+
+const [authPhase, setAuthPhase] = useState<AuthPhase>('booting');
+const [authError, setAuthError] = useState<string | null>(null);
+
+// 持久化 token 的单一来源（localStorage + 内存）
+const [accessToken, setAccessToken] = useState<string | null>(null);
+
+// 当前登录用户（可为空）
+const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+// 强制重新加载用的计数器
+const [reloadVersion, setReloadVersion] = useState(0);
+
+
+注意：不要再暴露 authLoading / oauthCallbackProcessed 这类容易乱用的标志，改为用 authPhase + URL token 统一管理。
+
+同时导出一个统一的 API 供页面使用，例如：
+
+return {
+  authPhase,
+  authError,
+  currentUser,
+  accessToken,
+  reloadAuth,   // 手动触发重新加载
+  logoutUser,   // 退出登录
+};
+
+3.2 统一处理 token 来源（URL + localStorage）
+
+在 Auth 模块里新增一个工具函数（或者保持现有函数，但请按此行为改）：
+
+function bootstrapTokenFromUrlAndStorage() {
+  // 1）优先从 URL ?token=... 读取（OAuth 回调）
+  const url = new URL(window.location.href);
+  const urlToken = url.searchParams.get('token');
+
+  if (urlToken) {
+    // 存进 localStorage
+    window.localStorage.setItem('goodpick_access_token', urlToken);
+    // 同步到内存
+    setAccessToken(urlToken);
+
+    // 清理 URL 上的 token 参数（避免后续重复处理）
+    url.searchParams.delete('token');
+    url.searchParams.delete('autoClaim');
+    const cleanUrl = url.pathname + url.search + url.hash;
+    window.history.replaceState(null, '', cleanUrl);
+    return urlToken;
+  }
+
+  // 2）否则从 localStorage 中读取
+  const stored = window.localStorage.getItem('goodpick_access_token');
+  if (stored) {
+    setAccessToken(stored);
+    return stored;
+  }
+
+  setAccessToken(null);
+  return null;
+}
+
+
+说明：不要把 URL token 处理散落在各个页面，集中在 Auth 模块一次性完成，然后清理 URL。
+
+3.3 重写 Auth 主 effect（核心）
+
+删除/废弃原先依赖 userToken / oauthCallbackProcessed 的 useEffect，改为单一 effect，仅依赖 reloadVersion 和初次挂载：
+
+useEffect(() => {
+  let cancelled = false;
+
+  async function run() {
+    setAuthPhase('booting');
+    setAuthError(null);
+
+    try {
+      // 1）解析 URL & localStorage，统一拿到 token
+      const token = bootstrapTokenFromUrlAndStorage();
+
+      if (!token) {
+        // 没有 token = 未登录匿名用户
+        setCurrentUser(null);
+        if (!cancelled) setAuthPhase('ready');
+        return;
+      }
+
+      // 2）带 token 拉取当前用户基本信息（/api/me 或类似接口）
+      const me = await fetchCurrentUser(token); // 这个函数请你在本模块内封装
+      if (cancelled) return;
+
+      setCurrentUser(me);
+      setAuthPhase('ready');
+    } catch (err) {
+      if (cancelled) return;
+
+      console.error('[AUTH] bootstrap failed', err);
+      setCurrentUser(null);
+      setAuthError('auth_bootstrap_failed');
+
+      // 出错时清掉坏 token，避免死循环
+      window.localStorage.removeItem('goodpick_access_token');
+      setAccessToken(null);
+      setAuthPhase('ready'); // ready + error，用于页面决定展示什么
+    }
+  }
+
+  run();
+
+  return () => {
+    cancelled = true;
+  };
+}, [reloadVersion]);
+
+
+关键点：
+
+✅ 依赖只用 reloadVersion，不再依赖 accessToken / oauthCallbackProcessed，避免状态互相咬死
+
+✅ effect 内部始终通过 bootstrapTokenFromUrlAndStorage() 获取 token，从持久化存储读取
+
+✅ logoutUser() / OAuth 回调后，只要调用一次 setReloadVersion(v => v + 1)，就能确保完整重新跑一遍
+
+3.4 退出登录逻辑（Auth 模块）
+
+统一提供一个 logoutUser()：
+
+function logoutUser() {
+  window.localStorage.removeItem('goodpick_access_token');
+  setAccessToken(null);
+  setCurrentUser(null);
+
+  // 触发完整的重新加载（变成匿名态）
+  setReloadVersion(v => v + 1);
+}
+
+
+页面不允许直接改 accessToken / currentUser，只能通过 Auth 模块导出的 API 来改。
+
+四、活动详情页 CTA 按钮逻辑重构
+
+在活动详情页组件（含「立即领取 / 用 LINE 一键领取 / 查看我的优惠券」按钮的页面），做以下改造：
+
+引入 Auth 模块
+
+const { authPhase, currentUser } = useAuth(); // 名字自定，但必须用上面统一的 Auth 模块
+
+
+引入当前活动 & 当前用户优惠券数据（如果已有就复用）：
+
+活动详情：GET /api/campaigns/:id
+
+当前用户已领券列表：GET /api/me/coupons（当且仅当 currentUser 存在时才请求）
+
+定义页面态：
+
+const isAuthBooting = authPhase === 'booting';
+const isLoggedIn = !!currentUser;
+const hasCouponForThisCampaign = ... // 根据 /api/me/coupons 的结果判断
+
+
+按以下规则渲染 CTA 按钮（这是关键业务规则）：
+
+if (isAuthBooting) {
+  // 初始加载 / OAuth 回调处理中：只显示一个 Loading 态，不要闪现错误按钮
+  return <PrimaryButton disabled>载入中...</PrimaryButton>;
+}
+
+if (!isLoggedIn) {
+  // 未登录用户：只显示「用 LINE 一键领取」
+  return (
+    <PrimaryButton onClick={handleLoginAndClaim}>
+      用 LINE 一键领取
+    </PrimaryButton>
+  );
+}
+
+// 已登录用户
+if (hasCouponForThisCampaign) {
+  return (
+    <PrimaryButton onClick={goToMyCoupons}>
+      查看我的优惠券
+    </PrimaryButton>
+  );
+}
+
+// 已登录但未领券
+return (
+  <PrimaryButton onClick={handleClaimOnly}>
+    立即领取
+  </PrimaryButton>
+);
+
+
+行为函数约定：
+
+handleLoginAndClaim
+
+未登录 → 调用后端 /api/auth/line/init-oauth（现有逻辑）
+
+成功后跳 LIFF → 回调带 ?token=xxx&autoClaim=true 回到同一活动页
+
+Auth effect 通过 URL token 存储 + reload，当前组件根据 hasCouponForThisCampaign 自动更新为「查看我的优惠券」
+
+handleClaimOnly
+
+直接 POST /api/campaigns/:id/claim，根据结果更新本地 hasCouponForThisCampaign 或重新拉取 /api/me/coupons
+
+成功后按钮变成「查看我的优惠券」
+
+goToMyCoupons
+
+跳转到 /me/coupons 或现有的「我的优惠券」页面
+
+✅ 这样，所有状态切换都由 Auth 模块 + 数据拉取驱动，不再通过一堆本地布尔值猜状态。
+
+五、回归测试清单（请务必手动跑）
+5.1 未登录新用户（从 GoodPick Go OA 菜单进入）
+
+在 LINE 内点击 GoodPick Go OA 菜单进入活动详情页
+
+首屏 CTA 必须是：「用 LINE 一键领取」（不能先出现「立即领取」）
+
+点击「用 LINE 一键领取」
+
+页面进入 LIFF 授权 → 回到详情页
+
+页面最多黑屏一次作为加载过渡，回来后直接看到：
+
+卡券已领取成功状态
+
+CTA 为 「查看我的优惠券」
+
+DeeCard OA 收到欢迎消息（这个已经正常，作为确认）
+
+5.2 已登录且未领券用户
+
+已有 token（从上面的流程回来），清空本地缓存后重新进入活动详情页（或者使用另一个尚未领券的活动）
+
+进入详情页时：
+
+首屏 CTA 必须是：「立即领取」
+
+点击「立即领取」，成功后：
+
+CTA 自动变为 「查看我的优惠券」
+
+不允许再出现「用 LINE 一键领取」
+
+5.3 已登录且已领券用户
+
+使用已领过券的账号再次从菜单进入活动详情页
+
+首屏 CTA 直接是 「查看我的优惠券」，点击后进入我的优惠券列表
+
+六、注意事项
+
+本次改动仅限前端 Auth 状态机 + 活动详情页 CTA 渲染逻辑，不要改动后端 /api/auth/line/*、/api/campaigns/* 的行为
+
+不要再新增临时的布尔字段来“顶住 bug”，统一收敛到：
+
+authPhase / currentUser / accessToken / reloadVersion
+
+请把关键日志保留，方便后续线上排查，例如：
+
+[AUTH] bootstrap start/failed
+
+[AUTH] token from url/localStorage
+
+[CAMPAIGN CTA] state = { isLoggedIn, hasCoupon }

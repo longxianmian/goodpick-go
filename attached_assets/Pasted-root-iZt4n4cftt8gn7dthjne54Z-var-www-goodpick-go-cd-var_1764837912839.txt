@@ -1,0 +1,62 @@
+root@iZt4n4cftt8gn7dthjne54Z:/var/www/goodpick-go# cd /var/www/goodpick-go
+git stash
+git pull origin prod-20251117-line-login-ok
+npm install
+npm run build
+pm2 restart goodpick-go
+Saved working directory and index state WIP on prod-20251117-line-login-ok: ff72fda Add image upload functionality for store profiles
+From https://github.com/longxianmian/goodpick-go
+ * branch            prod-20251117-line-login-ok -> FETCH_HEAD
+Updating ff72fda..35f04ba
+Fast-forward
+ attached_assets/Pasted-ke-Gecko-Chrome-142-0-0-0-Mobile-Safari-537-36-0-goodpi_1764836908410.txt |  55 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ "attached_assets/\346\210\252\345\261\2172025-12-04_15.24.05_1764836649680.png"                  | Bin 0 -> 655229 bytes
+ "attached_assets/\346\210\252\345\261\2172025-12-04_15.25.28_1764836732428.png"                  | Bin 0 -> 476435 bytes
+ "attached_assets/\346\210\252\345\261\2172025-12-04_15.26.51_1764836816782.png"                  | Bin 0 -> 479422 bytes
+ "attached_assets/\346\210\252\345\261\2172025-12-04_15.39.53_1764837597263.png"                  | Bin 0 -> 601111 bytes
+ "attached_assets/\346\210\252\345\261\2172025-12-04_15.41.00_1764837664950.png"                  | Bin 0 -> 925733 bytes
+ package.json                                                                                     |   2 +-
+ server/index.ts                                                                                  |   4 +++-
+ 8 files changed, 59 insertions(+), 2 deletions(-)
+ create mode 100644 attached_assets/Pasted-ke-Gecko-Chrome-142-0-0-0-Mobile-Safari-537-36-0-goodpi_1764836908410.txt
+ create mode 100644 "attached_assets/\346\210\252\345\261\2172025-12-04_15.24.05_1764836649680.png"
+ create mode 100644 "attached_assets/\346\210\252\345\261\2172025-12-04_15.25.28_1764836732428.png"
+ create mode 100644 "attached_assets/\346\210\252\345\261\2172025-12-04_15.26.51_1764836816782.png"
+ create mode 100644 "attached_assets/\346\210\252\345\261\2172025-12-04_15.39.53_1764837597263.png"
+ create mode 100644 "attached_assets/\346\210\252\345\261\2172025-12-04_15.41.00_1764837664950.png"
+
+added 60 packages, removed 41 packages, changed 166 packages, and audited 639 packages in 13s
+
+97 packages are looking for funding
+  run `npm fund` for details
+
+4 vulnerabilities (3 low, 1 high)
+
+To address all issues, run:
+  npm audit fix
+
+Run `npm audit` for details.
+
+> rest-express@1.0.0 build
+> npx vite build && npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+
+failed to load config from /var/www/goodpick-go/vite.config.ts
+error during build:
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vite' imported from /var/www/goodpick-go/node_modules/.vite-temp/vite.config.ts.timestamp-1764837882434-df132fe1e6d62.mjs
+    at packageResolve (node:internal/modules/esm/resolve:873:9)
+    at moduleResolve (node:internal/modules/esm/resolve:946:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:168:49)
+Use --update-env to update environment variables
+[PM2] Applying action restartProcessId on app [goodpick-go](ids: [ 0 ])
+[PM2] [goodpick-go](0) ✓
+┌────┬────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name           │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ goodpick-go    │ default     │ 1.0.0   │ fork    │ 301114   │ 0s     │ 44   │ online    │ 0%       │ 24.8mb   │ root     │ disabled │
+└────┴────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+root@iZt4n4cftt8gn7dthjne54Z:/var/www/goodpick-go# 

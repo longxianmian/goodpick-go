@@ -1,0 +1,165 @@
+《GoodPick Go 活动详情页领取流程重构说明》（给 Replit AI）
+一、背景问题
+
+当前 GoodPick Go H5 活动详情页存在以下问题：
+
+进入详情页时，不区分是否已登录，按钮初始文案是：「立即领取」。
+
+未登录用户点击「立即领取」后：
+
+页面黑屏 ➜ 跳去 LINE 登录 ➜ 再黑屏 ➜ 回到详情页，按钮变成 「用 LINE 一键领取」 或 「查看我的优惠券」。
+
+整个流程中，按钮状态和用户身份状态没有统一的 “状态机” 管理，体验脏乱，难以维护。
+
+需求：
+把活动详情页的领取流程改成基于后端身份识别 + 领券状态的单一状态机，确保 UI 行为稳定可控。
+
+二、统一的状态机设计（前端逻辑）
+1. 页面加载流程
+
+活动详情页组件（例如 CampaignDetail）在加载时按以下顺序：
+
+调用：GET /api/me
+
+200 ⇒ isLoggedIn = true（已登录用户）
+
+401 ⇒ isLoggedIn = false（未登录用户）
+
+调用：GET /api/campaigns/:id
+要求后端在返回中新增一个 myStatus 字段：
+
+// /api/campaigns/:id 返回体中的新增字段示例
+myStatus?: {
+  loggedIn: boolean;     // 后端根据 session 判断
+  hasClaimed: boolean;   // 当前登录用户是否已领过该活动
+};
+
+
+如果未登录，myStatus 可以省略，或者返回 { loggedIn: false, hasClaimed: false }，前端以 loggedIn 为准。
+
+2. 详情页按钮渲染规则
+
+前端根据 isLoggedIn + myStatus，严格按以下规则渲染按钮：
+
+未登录用户（/api/me = 401 或 myStatus.loggedIn = false）
+
+主按钮文案：用 LINE 一键领取
+
+点击行为：
+
+POST /api/auth/line/init-oauth
+  body: { campaignId: <当前活动ID> }
+// 后端返回 LIFF URL，前端 window.location.href 跳转，进入 LINE OAuth
+
+
+❌ 不要在这一步调用 /api/campaigns/:id/claim。
+领券必须放到登录之后。
+
+已登录 & 未领券（/api/me = 200 且 myStatus.hasClaimed = false）
+
+主按钮文案：立即领取
+
+点击行为：
+
+POST /api/campaigns/:id/claim
+  body: { channel: "line_menu" | 其他渠道标记 }
+
+
+接口返回：
+
+200：弹出「领取成功」提示，按钮改成「查看我的优惠券」；
+
+409：提示「您已达到该活动的限领数量」，按钮同样改成「查看我的优惠券」；
+
+其他错误：Toast 错误信息，不跳转。
+
+已登录 & 已领券（myStatus.hasClaimed = true）
+
+主按钮文案：查看我的优惠券
+
+点击行为：
+
+跳转到：/me/coupons 或现有「我的卡券」页面。
+
+三、后端接口调整要求
+1. /api/me
+
+保持现有逻辑即可，前端只要通过 200 / 401 判断是否登录即可。
+
+2. /api/campaigns/:id 增加 myStatus
+
+在获取活动详情时，后端基于当前 session / token 计算并返回：
+
+myStatus: {
+  loggedIn: boolean;   // 是否存在当前用户
+  hasClaimed: boolean; // 当前用户是否在 coupons / campaign_coupons 里已有记录
+}
+
+
+计算逻辑示例（伪代码）：
+
+if (!currentUser) {
+  myStatus = { loggedIn: false, hasClaimed: false };
+} else {
+  const hasClaimed = await db
+    .select()
+    .from(coupons)
+    .where(and(
+      eq(coupons.userId, currentUser.id),
+      eq(coupons.campaignId, campaign.id)
+    ))
+    .limit(1);
+
+  myStatus = {
+    loggedIn: true,
+    hasClaimed: !!hasClaimed
+  };
+}
+
+3. /api/auth/line/init-oauth
+
+保持现有行为（生成 state，存 session，返回 LIFF URL）。
+
+确保 storedOAuthData.campaignId 正常记录，方便回调后自动带 autoClaim=true；
+
+注意：真正的领券动作仍然只由 /api/campaigns/:id/claim 完成，不要在 OAuth 回调里偷偷提前发券，以免前端状态机混乱。
+
+四、前端需要修改的点（清单）
+
+活动详情页组件初始化逻辑：
+
+必须先并行/串行调用 /api/me + /api/campaigns/:id，等状态回来后再渲染按钮。
+
+去掉当前那种：
+
+一进来显示「立即领取」
+
+点了发现没登录 ➜ 黑屏 ➜ 再改成「用 LINE 一键领取」的混乱逻辑。
+
+将按钮渲染改为纯状态机，只依赖：
+
+isLoggedIn
+
+myStatus.hasClaimed
+
+处理好 loading 状态：
+
+在接口未返回前，可以禁用按钮或显示 skeleton，禁止提前点击。
+
+五、验收标准（给工程师自测用）
+
+未登录 + 首次进入：
+
+详情页按钮只显示「用 LINE 一键领取」；
+
+点击 ➜ 弹 LINE 授权 ➜ 授权后回到详情页，按钮变「立即领取」或「查看我的优惠券」（取决于是否自动领券）。
+
+已登录 + 从 GoodPick Go OA 菜单再次进入：
+
+已领券用户：直接显示「查看我的优惠券」，点击进入我的卡券列表；
+
+未领券用户：直接显示「立即领取」，点击即领券，无多余黑屏跳转。
+
+全程不再出现：
+
+先看到“立即领取” ➜ 黑屏 ➜ 变“用 LINE 一键领取” ➜ 再黑屏 的两段式乱跳。

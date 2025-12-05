@@ -1,0 +1,243 @@
+[给 Replit AI] GoodPick Go LINE OAuth init / state 修复说明
+
+环境说明
+
+项目：goodpick-go
+
+分支：backup-20251115-prod
+
+已有前提：
+
+H5 Auth 状态机（AuthContext / CampaignDetail）已经完成 v2 重构，三种按钮状态逻辑正确。
+
+生产环境日志仍有：
+
+State 参数缺失或格式不合法
+
+[OAUTH INIT] body= { state: undefined, campaignId: '1', ... }
+
+POST /api/auth/line/init-oauth 400
+
+本次目标
+
+修好 H5 用的 POST /api/auth/line/init-oauth：
+
+前端 不再需要自己生成 state。
+
+后端：如果前端没传 state，就自己生成 nanoid()，写入 req.session.oauthStates[state]，并返回可用的 redirectUrl。
+
+放宽 /api/auth/line/callback 的 state 校验：
+
+不再要求 64 位十六进制，只要求是字符串，并按 session 里的 state 查找。
+
+前端 H5：
+
+调用 /api/auth/line/init-oauth 时 只传 campaignId（和可选的 returnTo），不再传 state。
+
+使用返回的 redirectUrl 进行跳转。
+
+不要动已重构好的 Auth 状态机；不要改 Staff 相关接口。
+
+一、后端：修复 /api/auth/line/init-oauth
+
+文件：server/routes.ts
+
+搜索：/api/auth/line/init-oauth
+
+找到对应的 app.post("/api/auth/line/init-oauth", ...) 整个 handler。
+
+用下面这一段 完整替换整个 handler（包括开头的 app.post... 到最后的 });）：
+
+// LINE OAuth 初始化（H5 用）
+app.post("/api/auth/line/init-oauth", async (req, res) => {
+  try {
+    const { state: rawState, campaignId, returnTo } = req.body ?? {};
+    const sessionID = (req as any).sessionID;
+
+    if (!campaignId) {
+      console.warn("[OAUTH INIT] missing campaignId", { campaignId, sessionID });
+      return res.status(400).json({
+        success: false,
+        message: "campaignId is required",
+      });
+    }
+
+    if (!LINE_CHANNEL_ID) {
+      console.error("[OAUTH INIT] LINE_CHANNEL_ID not configured");
+      return res.status(500).json({
+        success: false,
+        message: "LINE login not configured",
+      });
+    }
+
+    let state: string;
+    if (typeof rawState === "string" && rawState.length > 0) {
+      state = rawState;
+      console.log("[OAUTH INIT] using client state", { state, campaignId, sessionID });
+    } else {
+      state = nanoid();
+      console.warn("[OAUTH INIT] missing state from client, generated on server", {
+        state,
+        campaignId,
+        sessionID,
+      });
+    }
+
+    if (!req.session) {
+      throw new Error("Session is not initialized");
+    }
+    if (!(req.session as any).oauthStates) {
+      (req.session as any).oauthStates = {};
+    }
+
+    (req.session as any).oauthStates[state] = {
+      campaignId: String(campaignId),
+      returnTo: typeof returnTo === "string" ? returnTo : undefined,
+      timestamp: Date.now(),
+    };
+
+    console.log("[OAUTH INIT] stored state OK", {
+      sessionID,
+      state,
+      oauthStatesKeys: Object.keys((req.session as any).oauthStates),
+    });
+
+    const redirectUri = `${req.protocol}://${req.get("host")}/api/auth/line/callback`;
+    const authUrl = new URL("https://access.line.me/oauth2/v2.1/authorize");
+    authUrl.searchParams.set("response_type", "code");
+    authUrl.searchParams.set("client_id", LINE_CHANNEL_ID);
+    authUrl.searchParams.set("redirect_uri", redirectUri);
+    authUrl.searchParams.set("state", state);
+    authUrl.searchParams.set("scope", "profile openid");
+
+    console.log("[OAUTH INIT] response 200 redirectUrl=", authUrl.toString());
+    return res.json({
+      success: true,
+      redirectUrl: authUrl.toString(),
+    });
+  } catch (err) {
+    console.error("[OAUTH INIT] error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "LINE OAuth init failed",
+    });
+  }
+});
+
+
+要求：
+
+旧的 “state 格式校验 / state 为空就直接 400” 等逻辑全部不要。
+
+只保留上述逻辑。
+
+二、后端：放宽 /api/auth/line/callback 的 state 校验
+
+同文件：server/routes.ts
+
+搜索：app.get('/api/auth/line/callback' 或 app.get("/api/auth/line/callback"
+
+在这个 handler 里，找到对 state 的校验逻辑，比如原来类似：
+
+if (!state || typeof state !== "string" || !/^[0-9a-f]{64}$/.test(state)) {
+  // ...
+}
+
+
+改成 只校验字符串类型，不要强制 64 位十六进制，例如：
+
+const { code, state } = req.query;
+
+if (!code || !state || typeof state !== "string") {
+  console.warn("[OAUTH CB] missing code or state", { code, state });
+  return res.redirect("/?error=missing_params");
+}
+
+// 后面照常用 state 去 req.session.oauthStates[state] 取 storedOAuthData
+
+
+确保使用的是在 init-oauth 里存进去的 (req.session as any).oauthStates[state]。
+
+三、前端：CampaignDetail 调用 init-oauth 逻辑
+
+文件：client/src/pages/user/CampaignDetail.tsx
+
+目标：
+
+前端 不再生成 state；
+
+调用 /api/auth/line/init-oauth 时只传：campaignId 和可选 returnTo；
+
+使用返回的 redirectUrl 字段跳转。
+
+请做以下调整：
+
+搜索：/api/auth/line/init-oauth
+
+找到对应的 fetch / axios 调用。将请求体改成类似：
+
+const res = await fetch("/api/auth/line/init-oauth", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    campaignId: String(campaign.id),
+    // 可选：returnTo: window.location.pathname + window.location.search,
+  }),
+});
+
+
+响应处理改成使用 data.redirectUrl，例如：
+
+const data = await res.json();
+if (!res.ok || !data.success || !data.redirectUrl) {
+  // TODO: 可以按当前项目风格做错误提示
+  throw new Error(data.message || "LINE OAuth init failed");
+}
+
+// 跳转到 LINE OAuth
+window.location.href = data.redirectUrl;
+
+
+删除前端自己生成 state 或把 state 放进 body 的逻辑（如果有的话），保证请求体里不再包含 state。
+
+如果前端之前期望的是 data.liffUrl、data.url 等，请统一改为 data.redirectUrl。
+
+四、保持 Auth 状态机 & Staff 逻辑不动
+
+不要改 AuthContext / useAuth / AuthProvider 中的状态机实现。
+
+不要改 Staff 相关路由（如 /api/auth/line/staff-callback、/api/staff/* 等）。
+
+这次只处理 H5 用户登录 / 领券 OAuth 流程。
+
+五、验证 & 提交
+
+在 Replit 环境完成修改后，请按以下步骤自查并提交到远程分支：
+
+编译检查：
+
+cd ~/workspace
+npm run build
+
+
+简单本地自测（可选）：
+
+启动 dev / preview；
+
+从 H5 活动详情页点击「用 LINE 一键领取」，确认：
+
+后端日志中 POST /api/auth/line/init-oauth 返回 200；
+
+日志中有：
+
+[OAUTH INIT] missing state from client, generated on server（首次）
+
+[OAUTH INIT] stored state OK
+
+[OAUTH INIT] response 200 redirectUrl= ...
+
+提交到 backup-20251115-prod：
+
+git add server/routes.ts client/src/pages/user/CampaignDetail.tsx
+git commit -m "Fix LINE OAuth init state handling (server generates state & redirectUrl)"
+git push origin backup-20251115-prod

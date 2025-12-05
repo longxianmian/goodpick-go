@@ -1,0 +1,138 @@
+# GoodPick / DeeCard OA 活动广播 v1（Step 7）
+
+> 目标：在管理后台里，运营可以对某个活动手动点击一次按钮，
+> 由 DeeCard OA 给所有已绑定会员推送一条「新活动提醒」消息。
+
+---
+
+## 1. 使用到的已有数据表
+
+本功能只基于现有表，不再新增表：
+
+- `campaigns`：活动主表（已有）
+- `campaign_broadcasts`：活动广播任务表（Step 3 已建立）
+- `oa_user_links`：OA 与 LINE 用户绑定表（Step 2 已建立）
+- `users`：平台用户表（已有，含 `preferred_language` 字段）
+
+枚举：
+
+- `broadcast_status`：'pending' | 'sending' | 'done' | 'failed' | 'cancelled'
+- `preferred_language`：'th' | 'en' | 'zh'
+
+环境变量：
+
+- `GOODPICK_MAIN_OA_ID`（已在 Step 5 使用）
+- `LINE_CHANNEL_ACCESS_TOKEN`（Step 6 已使用）
+
+---
+
+## 2. 业务规则（v1 简化版）
+
+1. **谁能触发广播？**
+   - 只允许管理员在「活动详情页」里手动点击按钮触发。
+   - 不做定时任务 / CRON，先实现「点击即发」版本。
+
+2. **发给谁？**
+   - 从 `oa_user_links` 中查出：
+     - `oa_id = GOODPICK_MAIN_OA_ID`
+   - 只要这条 OA 绑定过的用户都算目标（不区分是否已经领过该活动）。
+
+3. **语言规则：**
+   - 先用 `users.preferred_language`；
+   - 没有的话，用 `oa_user_links.initial_language`；
+   - 仍然没有时兜底 `'th'`。
+   - v1 用 **同一条模板，只是语言不同**，不做个性化内容。
+
+4. **消息内容（v1 普通文本即可）：**
+
+   - Thai（`th`）示例：
+
+     > 🎉 มีดีลใหม่จาก DeeCard แล้ว!  
+     > คลิกเพื่อดูรายละเอียดและรับสิทธิ์ของคุณ: \<活动详情页链接\>
+
+   - English（`en`）示例：
+
+     > 🎉 New offer is now available on DeeCard!  
+     > Tap to view details and claim your coupon: \<活动详情页链接\>
+
+   - Chinese（`zh`）示例：
+
+     > 🎉 DeeCard 有新的优惠活动上线啦！  
+     > 点击查看活动详情并领取你的优惠券：\<活动详情页链接\>
+
+   - 其中「活动详情页链接」为 **生产环境 H5 活动详情地址**：
+     - `https://goodpickgo.com/campaign/<campaignId>`（与前端现有路由保持一致）
+
+5. **发送方式：**
+   - v1 为了简单起见，可以使用 **逐个调用 `pushMessage`** 的方式；
+   - 之后再有需要再优化为 `multicast`。
+
+6. **幂等性与状态：**
+   - 每次点击按钮，都新建一条 `campaign_broadcasts` 记录；
+   - 不限制同一个活动被发送多次；
+   - 发送过程中更新：
+     - `totalTargets`
+     - `sentCount`
+     - `failedCount`
+     - `status`
+
+---
+
+## 3. 后端实现
+
+### 3.1 新建服务：`server/services/broadcastService.ts`
+
+功能：
+
+1. `createCampaignBroadcast(campaignId: number, adminId: number, oaId: string): Promise<CampaignBroadcast>`
+   - 在 `campaign_broadcasts` 表新建一条记录：
+     - `campaignId`
+     - `oaId`
+     - `targetType = 'ALL'`
+     - `sendTime = new Date()`（立即发送）
+     - `status = 'pending'`
+     - 计数字段初始化为 0
+     - `createdBy = adminId`
+
+2. `runBroadcastTask(broadcastId: number): Promise<void>`
+   - 核心发送逻辑：
+     1. 读取 `campaign_broadcasts` 记录，若不存在或 `status` ≠ 'pending'，直接返回。
+     2. 查 `oa_user_links`：
+        - `oa_id = broadcast.oaId`
+     3. 统计目标用户数，写入 `totalTargets`。
+     4. 通过 `userId` 关联 `users` 表，拿到 `preferred_language`。
+     5. 对每个用户计算最终语言：
+        - `const lang = user.preferred_language ?? oaUserLink.initial_language ?? 'th'`
+     6. 按 **用户为单位循环**：
+        - 使用 Step 6 的 `lineMessagingService` 新增一个 helper：
+          - `sendCampaignMessage(lineUserId: string, lang: 'th' | 'en' | 'zh', payload: { campaignId: number })`
+        - 调用时传入：
+          - `lineUserId`
+          - `lang`
+          - `campaignId`
+        - 在 `lineMessagingService` 内部拼好文案与链接，调用 LINE Messaging API 的 `pushMessage`。
+     7. 统计成功 / 失败数量，更新：
+        - `sentCount`
+        - `failedCount`
+        - `status`：
+          - 全部成功 → `'done'`
+          - 有失败 → `'failed'`
+     8. 整个过程需要 try/catch：
+        - 发生致命错误时，将 `status` 标记为 `'failed'`，并记录日志。
+
+> 注意：v1 不需要队列 / 后台任务，直接在请求里串行发送即可。
+
+### 3.2 扩展 `server/services/lineMessagingService.ts`
+
+新增函数：
+
+```ts
+export async function sendCampaignMessage(
+  lineUserId: string,
+  lang: 'th' | 'en' | 'zh',
+  payload: { campaignId: number },
+) {
+  // 1. 根据 lang 选择文案模板
+  // 2. 组装活动链接：https://goodpickgo.com/campaign/${payload.campaignId}
+  // 3. 使用 pushMessage(lineUserId, message) 发送
+}

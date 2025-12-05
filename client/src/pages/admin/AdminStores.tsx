@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
-import { Plus, Pencil, Trash2, Search, Shield, QrCode, UserCheck, UserX, Copy, Check } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Shield, QrCode, UserCheck, UserX, Copy, Check, CreditCard } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -716,6 +716,14 @@ export default function AdminStores() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          data-testid={`button-payment-${store.id}`}
+                          onClick={() => window.location.href = `/admin/stores/${store.id}/payment`}
+                        >
+                          <CreditCard className="h-4 w-4" />
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"

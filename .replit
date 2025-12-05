@@ -1,9 +1,9 @@
-modules = ["nodejs-20", "vue-node-20", "web"]
+modules = ["nodejs-20", "web", "postgresql-16"]
 run = "npm run dev"
 hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
-channel = "stable-25_05"
+channel = "stable-24_05"
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -19,8 +19,8 @@ localPort = 33749
 externalPort = 3002
 
 [[ports]]
-localPort = 35489
-externalPort = 8008
+localPort = 34249
+externalPort = 8000
 
 [[ports]]
 localPort = 36923
@@ -31,16 +31,16 @@ localPort = 38379
 externalPort = 5173
 
 [[ports]]
-localPort = 39363
-externalPort = 8000
-
-[[ports]]
 localPort = 40681
 externalPort = 5000
 
 [[ports]]
 localPort = 41731
 externalPort = 3001
+
+[[ports]]
+localPort = 41875
+externalPort = 8008
 
 [[ports]]
 localPort = 45023
@@ -57,6 +57,10 @@ externalPort = 3003
 [[ports]]
 localPort = 46715
 externalPort = 6800
+
+[[ports]]
+localPort = 46811
+externalPort = 8080
 
 [env]
 PORT = "5000"
@@ -84,3 +88,4 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_object_storage:1.0.0", "javascript_database:1.0.0", "javascript_openai_ai_integrations:1.0.0"]
+expertMode = true

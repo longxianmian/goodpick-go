@@ -1,73 +1,70 @@
-# GoodPick Go MVP
+# ShuaShua (刷刷) O2O Platform
 
 ## Overview
-GoodPick Go is a multi-language coupon recommendation platform targeting the Thai/Asian market. It enables consumers to discover and redeem digital coupons primarily through LINE and other social media. The platform supports Consumers, Administrators, and Store Staff, featuring LINE-based authentication, multi-language content (Chinese Simplified, English, Thai), and AI-powered translation. It emphasizes a mobile-first, product-agnostic architecture to streamline coupon distribution and redemption for businesses.
+ShuaShua (刷刷) is a multi-merchant O2O local life platform connecting consumers with local businesses through deal discovery and coupon redemption, primarily via LINE. It supports Consumer, Merchant Portal, and Staff Workstation terminals, features a multi-role authorization system, multi-platform login, and payment-as-membership. The platform is designed for future AI agent integration, aiming to become a comprehensive local life service akin to Meituan.
 
 ## User Preferences
 语言要求: 必须使用中文沟通（用户不懂英文，这是强制要求）
-Preferred communication style: Simple, everyday language in Chinese.
 
 ## System Architecture
 
-### Frontend Architecture
-The frontend is built with React and TypeScript, using Vite, Shadcn/ui (based on Radix UI) with Tailwind CSS for a mobile-first, responsive "New York" design variant. State management relies on React Query, React Context API, and React hooks. Wouter handles client-side routing. Authentication uses JWTs stored in localStorage.
+### Frontend
+Developed with React, TypeScript, and Vite, the frontend uses Shadcn/ui (Radix UI) with Tailwind CSS for a mobile-first "New York" design. State management uses React Query and Context API, Wouter for routing, and JWTs for authentication.
 
-### Backend Architecture
-The backend uses Express.js on Node.js, interacting with a PostgreSQL database via Drizzle ORM. Authentication supports Admin (email/password) and User (LINE ID token) with JWT-based session management and LINE ID token verification. The API is RESTful, organized into admin, user, and authentication routes. The database schema supports multi-language UI content. Key decisions include serverless PostgreSQL with Neon for connection pooling and separate client/server build outputs.
-
-### Security Considerations
-Security features include bcryptjs for password hashing, JWT secrets from environment variables, CORS handling, Zod schema-based input validation, and protected routes with middleware authentication. Staff authorization uses token-based QR code verification and phone number matching.
+### Backend
+The backend is built with Express.js and Node.js, using PostgreSQL via Drizzle ORM. Authentication is JWT-based, supporting Admin and User roles. The API is RESTful, multi-language, and uses Neon for serverless PostgreSQL. Security features include bcryptjs, environment variable-managed JWT secrets, CORS, Zod validation, and token-based QR verification for staff.
 
 ### Key Features
-- **Auto-Translation System**: Utilizes OpenAI GPT-4o-mini for accurate multi-language campaign content generation.
-- **Redemption Code System**: Employs 8-digit numeric codes for secure coupon redemption.
-- **Staff OA**: A dedicated operational area for staff with coupon redemption, personal statistics, and campaign information, all with i18n support.
-- **Admin Dashboard**: Provides comprehensive analytics including monthly overviews, campaign performance, brand, and store data with time-based filtering and i18n.
-- **Store Floor Information**: Detailed indoor location descriptions for improved user navigation.
-- **Dynamic Campaign Form Fields**: Campaign creation fields adapt based on `discountType` for improved UX.
-- **Internationalization (i18n)**: Extensive coverage for Chinese, English, and Thai across UI, forms, and messages.
-- **Thai Localization Optimization**: Enhanced Thai language experience with natural translations, cleaner number formatting, and Buddhist Era calendar dates.
-- **Store City Data Normalization**: Balances data integrity with operational flexibility, using Google Maps for province/city extraction while allowing manual edits.
-- **Smart Language Detection**: A multi-tier system prioritizing URL parameters, user selection (localStorage), browser language detection, and defaulting to Thai.
-- **Video Playback and Thumbnail Fixes**: Implemented video proxy routing for OSS content to ensure playback and correct video poster generation using OSS snapshot API.
-- **QR Code Scanning**: Staff OA includes QR code scanning for coupon redemption via `html5-qrcode`.
-- **Streamlined Staff OA Menu**: Simplified LINE OA bottom menu to a single entry point ("我的工作台") with internal navigation.
-- **Intelligent Coupon Button Display**: Hides the "Claim Coupon" button for users who have already claimed a coupon.
-- **Bottom Navigation Menu**: Fixed bottom navigation for users on campaign details and "My Coupons" pages.
-- **Optimized LIFF Initialization**: LIFF initialization moved to CampaignDetail.tsx for on-demand loading, preventing redundant initialization.
+-   **Multi-Role System**: 7 distinct roles with dynamic navigation and role-specific "Me" pages.
+-   **Internationalization (i18n)**: Multi-language support (Chinese, English, Thai, Indonesian, Vietnamese, Myanmar) with smart language detection.
+-   **Automated Translation**: Uses OpenAI GPT-4o-mini for campaign content.
+-   **Coupon Redemption**: Secure 8-digit codes with staff QR scanning.
+-   **Admin & Merchant Portals**: Dashboards for analytics, campaign, and operations management.
+-   **Dynamic UI/UX**: Adaptive forms, e-commerce style product pages, and Meituan-style store fronts.
+-   **LINE Integration**: LIFF initialization, OAuth, and LINE OA messaging.
+-   **Multi-Platform Login**: Supports LINE, Google, and Apple ID token binding.
+-   **Store City Data Normalization**: Google Maps integration with manual override.
+-   **Short Video System**: "ShuaShua" for short video feed, upload, likes, comments, and categorization.
+-   **User Profile & Social Features**: Public profiles with follow/unfollow, follower counts, and share functionality.
+-   **Rich Text Editor**: Tiptap-based editor for content creation.
+-   **Merchant Store Management**: Single and chain store models, detailed editing, and consumer-facing store fronts.
+-   **Merchant Owner Management**: "MeOwner" page with overview and operations center.
+-   **Digital Agent Marketplace**: AI assistant marketplace for merchants with subscription pricing.
+-   **Merchant Campaign Management**: Full CRUD for store campaigns with secure validation, banner upload, coupon settings, time periods, and quantity limits.
+-   **Merchant-Consumer Chat System**: Real-time messaging with full-screen consumer chat and floating merchant customer service button, including unread counts and conversation lists. Uses `chat_conversations` and `chat_messages` tables with real-time polling.
+-   **Operations Backend**: Platform-level control for global management, including data dashboards, merchant ecosystem management (onboarding, verification), content and activity management (short video and campaign review), user and role management, and system configuration.
+-   **Payment QR Code System**: Enables merchants to accept payments via QR codes, automatically enrolling customers as members. Integrates with multiple Payment Service Providers (PSPs) like Opn Payments and 2C2P through a pluggable architecture, supporting PromptPay, and planned for TrueMoney, Rabbit LINE Pay, credit cards, Alipay, and WeChat Pay. Includes merchant PSP account management (manual ID or connect onboarding) and LINE OA membership binding.
 
 ## External Dependencies
 
 ### Third-Party Services
-- **LINE Platform**: OAuth2, ID token verification, LIFF integration.
-- **OpenAI API**: Automated content translation (`gpt-4o-mini`).
-- **Neon PostgreSQL Database**: Serverless PostgreSQL hosting.
-- **Google Maps API**: Address search and place details.
+-   **LINE Platform**: OAuth2, ID token verification, LIFF integration.
+-   **OpenAI API**: `gpt-4o-mini` for automated content translation.
+-   **Neon PostgreSQL Database**: Serverless PostgreSQL hosting.
+-   **Google Maps API**: Address search and place details.
+-   **阿里云OSS**: Media storage (prodee-h5-assets.oss-ap-southeast-1.aliyuncs.com).
+-   **Opn Payments**: Primary Payment Service Provider (PSP).
+-   **2C2P**: Backup Payment Service Provider (PSP).
 
 ### UI Component Libraries
-- **Radix UI Primitives**: Accessible, unstyled UI components.
-- **Shadcn/ui**: Component library built on Radix UI and Tailwind CSS.
-- **Additional UI Libraries**: cmdk, vaul, embla-carousel-react, react-day-picker, input-otp, recharts, html5-qrcode.
+-   **Radix UI Primitives**: Accessible, unstyled UI components.
+-   **Shadcn/ui**: Component library built on Radix UI and Tailwind CSS.
+-   **Additional UI Libraries**: cmdk, vaul, embla-carousel-react, react-day-picker, input-otp, recharts, html5-qrcode.
+-   **Tiptap**: Rich text editor.
 
 ### Styling and Utilities
-- **Tailwind CSS**: Utility-first styling.
-- **class-variance-authority**: Component variants.
-- **clsx & tailwind-merge**: Conditional CSS class concatenation.
-- **Lucide React**: Icon library.
-- **PostCSS with Autoprefixer**: CSS processing.
+-   **Tailwind CSS**: Utility-first styling.
+-   **class-variance-authority**: Component variants.
+-   **clsx & tailwind-merge**: Conditional CSS class concatenation.
+-   **Lucide React**: Icon library.
 
 ### Form and Validation
-- **react-hook-form**: Form state management.
-- **@hookform/resolvers**: Form validation adapters.
-- **zod**: Schema validation library.
-- **drizzle-zod**: Drizzle ORM schemas with Zod integration.
+-   **react-hook-form**: Form state management.
+-   **@hookform/resolvers**: Form validation adapters.
+-   **zod**: Schema validation library.
+-   **drizzle-zod**: Drizzle ORM schemas with Zod integration.
 
 ### Build and Development Tools
-- **Vite**: Build tool and development server.
-- **esbuild**: Production server bundling.
-- **tsx**: TypeScript execution in development.
-- **TypeScript**: Type safety.
-- **Drizzle Kit**: Database migrations.
-
-### Fonts
-- **Google Fonts**: Architects Daughter, DM Sans, Fira Code, Geist Mono.
+-   **Vite**: Build tool and development server.
+-   **TypeScript**: Type safety.
+-   **Drizzle Kit**: Database migrations.

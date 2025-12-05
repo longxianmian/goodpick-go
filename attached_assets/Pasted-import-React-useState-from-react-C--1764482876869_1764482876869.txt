@@ -1,0 +1,343 @@
+import React, { useState } from "react";
+
+// 刷刷平台 C 端用户「我的」个人中心预览组件
+// 包含：账号信息区 / 会员卡区 / 购物信息区（购物车 / 订单 / 积分/卡券 / 钱包）
+
+export default function ShuaShuaProfilePreview() {
+  const [tab, setTab] = useState<"cart" | "orders" | "points" | "wallet">("cart");
+  const [identity, setIdentity] = useState<"shua" | "discover">("shua");
+
+  const renderTabContent = () => {
+    switch (tab) {
+      case "cart":
+        return (
+          <div className="space-y-3">
+            <div className="text-sm text-gray-500">按商户分组展示待结算商品：</div>
+            {[1, 2].map((store) => (
+              <div
+                key={store}
+                className="bg-white rounded-2xl p-3 shadow-sm space-y-2"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="font-medium text-gray-900">
+                    和牛烧肉屋 Sukhumvit {store}
+                  </div>
+                  <button className="text-xs text-blue-500">进店逛逛</button>
+                </div>
+                {[1, 2].map((item) => (
+                  <div
+                    key={item}
+                    className="flex items-center justify-between py-1"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-10 h-10 rounded-xl bg-gray-100" />
+                      <div>
+                        <div className="text-xs text-gray-900">人气套餐 {item}</div>
+                        <div className="text-[11px] text-gray-400">双人 · 晚市</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-gray-900">฿399</div>
+                      <div className="flex items-center justify-end gap-2 text-[11px] text-gray-400">
+                        <button className="px-1 rounded-full border border-gray-200">
+                          -
+                        </button>
+                        <span>1</span>
+                        <button className="px-1 rounded-full border border-gray-200">
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+      case "orders":
+        return (
+          <div className="space-y-3">
+            <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
+              {["全部", "待付款", "待使用", "已完成", "退款售后"].map((s) => (
+                <div
+                  key={s}
+                  className="px-3 py-1 rounded-full bg-gray-100 text-gray-600 whitespace-nowrap"
+                >
+                  {s}
+                </div>
+              ))}
+            </div>
+            {[1, 2, 3].map((o) => (
+              <div
+                key={o}
+                className="bg-white rounded-2xl p-3 shadow-sm space-y-2"
+              >
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-gray-900">
+                    和牛烧肉屋 Sukhumvit {o}
+                  </span>
+                  <span className="text-orange-500">已完成</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-xl bg-gray-100" />
+                    <div>
+                      <div className="text-xs text-gray-900">下班小聚人气套餐</div>
+                      <div className="text-[11px] text-gray-400">共 3 件商品</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-gray-900">实付 ฿1,288</div>
+                    <div className="text-[11px] text-gray-400">2025-11-28 19:30</div>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 text-[11px] mt-1">
+                  <button className="px-3 py-1 rounded-full border border-gray-200 text-gray-600">
+                    再次购买
+                  </button>
+                  <button className="px-3 py-1 rounded-full border border-gray-200 text-gray-600">
+                    查看详情
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      case "points":
+        return (
+          <div className="space-y-4">
+            {/* 积分总览 */}
+            <div className="bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-2xl p-3 text-white flex justify-between items-center">
+              <div>
+                <div className="text-xs opacity-80">平台积分</div>
+                <div className="text-xl font-semibold">12,680</div>
+              </div>
+              <button className="px-3 py-1 rounded-full bg-white/15 text-xs">
+                积分兑换专区
+              </button>
+            </div>
+
+            {/* 各商户积分 */}
+            <div className="space-y-2">
+              <div className="text-xs text-gray-500">各商户积分</div>
+              {[1, 2, 3].map((s) => (
+                <div
+                  key={s}
+                  className="bg-white rounded-2xl p-3 shadow-sm flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-gray-100" />
+                    <div>
+                      <div className="text-xs text-gray-900">
+                        和牛烧肉屋 Sukhumvit {s}
+                      </div>
+                      <div className="text-[11px] text-gray-400">白金会员 · 双倍积分</div>
+                    </div>
+                  </div>
+                  <div className="text-right text-xs">
+                    <div className="text-gray-900">积分 3,28{s}</div>
+                    <div className="text-[11px] text-emerald-500">查看明细 &gt;</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 卡券列表 */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <div className="text-gray-500">我的卡券</div>
+                <div className="flex gap-2 text-[11px] text-gray-400">
+                  <span className="text-emerald-500">可使用</span>
+                  <span>已使用</span>
+                  <span>已过期</span>
+                </div>
+              </div>
+              {[1, 2].map((c) => (
+                <div
+                  key={c}
+                  className="bg-white rounded-2xl p-3 shadow-sm flex items-center justify-between"
+                >
+                  <div className="space-y-1 text-xs">
+                    <div className="text-gray-900">和牛烧肉屋 下班小聚代金券</div>
+                    <div className="text-[11px] text-orange-500">满 800 减 200</div>
+                    <div className="text-[11px] text-gray-400">适用门店：Sukhumvit {c}</div>
+                  </div>
+                  <div className="text-right text-[11px]">
+                    <div className="text-gray-900">剩余 2 张</div>
+                    <div className="text-gray-400">有效期至 2025-12-31</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      case "wallet":
+
+        return (
+          <div className="space-y-3">
+            <div className="bg-white rounded-2xl p-3 shadow-sm flex items-center justify-between">
+              <div>
+                <div className="text-xs text-gray-500">可用余额</div>
+                <div className="text-xl font-semibold text-gray-900">฿ 528.00</div>
+              </div>
+              <div className="text-right text-xs text-gray-500">
+                <div>红包 / 代金券：3 张</div>
+                <div className="text-emerald-500 mt-1">查看详情 &gt;</div>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl p-3 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs text-gray-900">收支明细</div>
+                <div className="text-[11px] text-gray-400">最近 30 天</div>
+              </div>
+              <div className="space-y-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between text-xs"
+                  >
+                    <div>
+                      <div className="text-gray-900">和牛烧肉屋消费返现</div>
+                      <div className="text-[11px] text-gray-400">2025-11-2{i} 20:15</div>
+                    </div>
+                    <div
+                      className={
+                        i % 2 === 0 ? "text-emerald-500" : "text-gray-400"
+                      }
+                    >
+                      {i % 2 === 0 ? "+ ฿30.00" : "- ฿399.00"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="w-full min-h-screen bg-gray-100 flex justify-center items-start py-4">
+      <div
+        className="w-[449px] h-[866px] bg-gray-50 mx-auto rounded-2xl overflow-hidden shadow-lg flex flex-col"
+        style={{ transform: "scale(0.75)", transformOrigin: "top center" }}
+      >
+        {/* 顶栏 */}
+        <div className="flex items-center justify-between px-4 pt-3 pb-2 bg-white border-b">
+          <div className="text-base font-semibold">我的</div>
+          <button className="text-xs text-gray-500">设置</button>
+        </div>
+
+        {/* 主体可滚动区域 */}
+        <div className="flex-1 overflow-auto px-4 pt-3 pb-24 space-y-4">
+          {/* 账号信息区 */}
+          <div className="bg-white rounded-2xl p-3 flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-gray-200 cursor-pointer" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="text-sm font-medium text-gray-900 cursor-pointer">宝宝龙</div>
+                  <button
+                    className="px-2 py-0.5 rounded-full bg-gray-100 text-[11px] text-gray-600 flex items-center gap-1"
+                    onClick={() =>
+                      setIdentity((prev) => (prev === "shua" ? "discover" : "shua"))
+                    }
+                  >
+                    <span>{identity === "shua" ? "刷刷号" : "发现号"}</span>
+                    <span>▾</span>
+                  </button>
+                </div>
+                <div className="text-[11px] text-gray-400">已绑定 LINE · 已实名</div>
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-1 text-xs">
+              <button className="text-[11px] text-gray-400">退出登录</button>
+            </div>
+          </div>
+
+          {/* 会员卡信息区 */}
+          <div className="bg-white rounded-2xl p-3 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-medium text-gray-900">我的会员卡</div>
+              <button className="text-xs text-gray-500">更多 &gt;</button>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="min-w-[180px] h-28 rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-400 text-white p-3 flex flex-col justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-white/20" />
+                    <div>
+                      <div className="text-xs font-semibold">
+                        和牛烧肉屋 Sukhumvit {i}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-end justify-between text-xs">
+                    <div>
+                      <div className="text-[11px] opacity-80 mb-1">白金会员</div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="opacity-80">积分</span>
+                        <span className="text-lg font-semibold">3,28{i}</span>
+                      </div>
+                    </div>
+                    <div className="text-right opacity-80 text-[11px]">
+                      今日下班小聚首选
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 购物信息区 - 顶部四个按钮 */}
+          <div className="bg-white rounded-2xl p-2 shadow-sm">
+            <div className="flex mb-2 gap-1">
+              {[
+                { key: "cart", label: "购物车" },
+                { key: "orders", label: "订单" },
+                { key: "points", label: "积分/卡券" },
+                { key: "wallet", label: "钱包" },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  className={`flex-1 py-2 rounded-xl text-xs font-medium transition-all ${
+                    tab === item.key
+                      ? "bg-emerald-50 text-emerald-500"
+                      : "text-gray-500"
+                  }`}
+                  onClick={() => setTab(item.key as any)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <div className="border-t border-gray-100 pt-3 text-xs text-gray-900">
+              {renderTabContent()}
+            </div>
+          </div>
+        </div>
+
+        {/* 底部导航 */}
+        <div className="h-16 bg-white border-t flex items-center justify-around text-xs">
+          <div className="flex flex-col items-center gap-0.5 text-gray-400">
+            <div className="text-lg">👁️</div>
+            <div>刷刷</div>
+          </div>
+          <div className="flex flex-col items-center gap-0.5 text-gray-400">
+            <div className="text-lg">✨</div>
+            <div>发现</div>
+          </div>
+          <div className="flex flex-col items-center gap-0.5 text-emerald-500">
+            <div className="text-lg">🙂</div>
+            <div>我的</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

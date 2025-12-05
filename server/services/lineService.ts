@@ -6,6 +6,7 @@ interface LineVerifyResponse {
   picture?: string;
   email?: string;
   phone?: string;
+  language?: string; // Language code from LINE Profile (e.g., "th", "en", "zh-TW")
 }
 
 interface LineProfileResponse {
@@ -46,6 +47,7 @@ export async function verifyLineIdToken(idToken: string): Promise<LineVerifyResp
         picture: response.data.picture,
         email: response.data.email,
         phone: response.data.phone,
+        language: response.data.language, // Extract language from LINE ID token
       };
     }
 

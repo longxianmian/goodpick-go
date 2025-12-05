@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLocation, Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -41,10 +41,11 @@ interface Coupon {
 }
 
 interface MyCouponsProps {
-  hideNavigation?: boolean; // 可选prop：隐藏底部导航
+  hideNavigation?: boolean;
+  [key: string]: any;
 }
 
-export default function MyCoupons({ hideNavigation = false }: MyCouponsProps = {}) {
+export default function MyCoupons({ hideNavigation = false, ...rest }: MyCouponsProps) {
   const { isUserAuthenticated, logoutUser, user, loginUser } = useAuth();
   const { t, language } = useLanguage();
   const [, setLocation] = useLocation();
@@ -143,7 +144,7 @@ export default function MyCoupons({ hideNavigation = false }: MyCouponsProps = {
 
   // Web环境登录（OAuth）
   const handleWebLogin = async () => {
-    const lineChannelId = import.meta.env.VITE_LINE_CHANNEL_ID;
+    const lineChannelId = import.meta.env.VITE_LINE_CHANNEL_ID || '2008410104';
     if (!lineChannelId) {
       toast({
         title: t('common.error'),
@@ -203,7 +204,7 @@ export default function MyCoupons({ hideNavigation = false }: MyCouponsProps = {
 
   if (!isUserAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+      <div className={`flex items-center justify-center p-4 bg-background ${hideNavigation ? 'py-12' : 'min-h-screen'}`}>
         <Card className="max-w-md w-full">
           <CardHeader>
             <CardTitle>{t('myCoupons.loginRequired') || '请先登录'}</CardTitle>
@@ -305,7 +306,8 @@ export default function MyCoupons({ hideNavigation = false }: MyCouponsProps = {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value={activeTab} className="space-y-4 mt-6">
+          {/* 使用 div 替代 TabsContent，因为数据是动态获取的，不需要标签切换隐藏逻辑 */}
+          <div className="space-y-4 mt-6">
             {isLoading ? (
               <>
                 <Skeleton className="h-48 w-full" />
@@ -394,7 +396,7 @@ export default function MyCoupons({ hideNavigation = false }: MyCouponsProps = {
                 );
               })
             )}
-          </TabsContent>
+          </div>
         </Tabs>
 
         {/* 优惠券详情对话框（含二维码） */}

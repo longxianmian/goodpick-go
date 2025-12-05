@@ -6,26 +6,66 @@ interface Admin {
   name: string;
 }
 
+// 用户在某个门店的角色信息
+export interface UserStoreRole {
+  storeId: number;
+  storeName: string;
+  storeImageUrl: string | null;
+  role: 'owner' | 'operator' | 'verifier';
+}
+
+// 用户角色类型（6种角色）
+// consumer: 消费者（默认）
+// owner: 商户老板
+// operator: 运营人员
+// verifier: 核销员
+// sysadmin: 系统管理员
+// creator: 刷刷号（自媒体）
+export type UserRoleType = 'consumer' | 'owner' | 'operator' | 'verifier' | 'sysadmin' | 'creator' | 'member';
+
 interface User {
   id: number;
   lineUserId: string;
   displayName: string;
+  shuaName?: string | null;
+  shuaBio?: string | null;
   avatarUrl: string | null;
   language: string;
+  // 新增角色相关字段
+  primaryRole?: UserRoleType;
+  roles?: UserStoreRole[];
+  hasOwnerRole?: boolean;
+  hasOperatorRole?: boolean;
+  hasVerifierRole?: boolean;
+  hasSysAdminRole?: boolean;
+  hasCreatorRole?: boolean;
+  hasMemberRole?: boolean;
+  // 🔥 刷刷平台 - 测试账号标记
+  isTestAccount?: boolean;
 }
+
+type AuthPhase = 'booting' | 'ready' | 'error';
 
 interface AuthContextType {
   admin: Admin | null;
   user: User | null;
   adminToken: string | null;
   userToken: string | null;
+  authPhase: AuthPhase;
+  authError: string | null;
   loginAdmin: (token: string, admin: Admin) => void;
   loginUser: (token: string, user: User) => void;
   logoutAdmin: () => void;
   logoutUser: () => void;
+  reloadAuth: () => void;
   isAdminAuthenticated: boolean;
   isUserAuthenticated: boolean;
   isLoading: boolean;
+  // 新增角色相关
+  activeRole: UserRoleType;
+  setActiveRole: (role: UserRoleType) => void;
+  userRoles: UserStoreRole[];
+  hasRole: (role: UserRoleType) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,36 +75,169 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [adminToken, setAdminToken] = useState<string | null>(null);
   const [userToken, setUserToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  const [authPhase, setAuthPhase] = useState<AuthPhase>('booting');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [reloadVersion, setReloadVersion] = useState(0);
+  
+  // 角色状态管理
+  const [activeRole, setActiveRoleState] = useState<UserRoleType>('consumer');
+
+  function bootstrapTokenFromUrlAndStorage(): string | null {
+    console.log('[AUTH] bootstrapTokenFromUrlAndStorage 开始');
+    
+    try {
+      const url = new URL(window.location.href);
+      const urlToken = url.searchParams.get('token');
+
+      if (urlToken) {
+        console.log('[AUTH] token from url');
+        localStorage.setItem('userToken', urlToken);
+        setUserToken(urlToken);
+
+        url.searchParams.delete('token');
+        url.searchParams.delete('autoClaim');
+        const cleanUrl = url.pathname + url.search + url.hash;
+        window.history.replaceState(null, '', cleanUrl);
+        return urlToken;
+      }
+
+      const stored = localStorage.getItem('userToken');
+      if (stored) {
+        console.log('[AUTH] token from localStorage');
+        setUserToken(stored);
+        return stored;
+      }
+
+      console.log('[AUTH] no token found');
+      setUserToken(null);
+      return null;
+    } catch (e) {
+      console.error('[AUTH] bootstrapTokenFromUrlAndStorage 失败', e);
+      setUserToken(null);
+      return null;
+    }
+  }
+
+  async function fetchCurrentUser(token: string): Promise<User | null> {
+    try {
+      const res = await fetch('/api/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          console.log('[AUTH] token 失效，清除本地存储');
+          localStorage.removeItem('userToken');
+          localStorage.removeItem('user');
+          setUserToken(null);
+          setUser(null);
+          return null;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (data.success && data.data) {
+        localStorage.setItem('user', JSON.stringify(data.data));
+        return data.data;
+      }
+      
+      return null;
+    } catch (e) {
+      console.error('[AUTH] fetchCurrentUser 失败', e);
+      throw e;
+    }
+  }
 
   useEffect(() => {
-    const initAuth = async () => {
+    let cancelled = false;
+
+    async function run() {
+      console.log('[AUTH] bootstrap start');
+      setAuthPhase('booting');
+      setAuthError(null);
+
       const storedAdminToken = localStorage.getItem('adminToken');
       const storedAdmin = localStorage.getItem('admin');
-      const storedUserToken = localStorage.getItem('userToken');
-      const storedUser = localStorage.getItem('user');
-
       if (storedAdminToken && storedAdmin) {
-        setAdminToken(storedAdminToken);
-        setAdmin(JSON.parse(storedAdmin));
+        try {
+          setAdminToken(storedAdminToken);
+          setAdmin(JSON.parse(storedAdmin));
+        } catch {
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('admin');
+        }
       }
 
-      if (storedUserToken && storedUser) {
-        setUserToken(storedUserToken);
-        setUser(JSON.parse(storedUser));
-        setIsLoading(false);
-        return;
-      }
+      try {
+        const token = bootstrapTokenFromUrlAndStorage();
 
-      // 【禁止自动登录】只从 localStorage 恢复登录状态，不自动发起 LINE 登录
-      // 用户必须主动点击"立即领取"或"我的优惠券"按钮才触发登录
-      
-      setIsLoading(false);
+        if (!token) {
+          console.log('[AUTH] 无 token，匿名用户状态');
+          if (!cancelled) {
+            setUser(null);
+            setAuthPhase('ready');
+          }
+          return;
+        }
+
+        console.log('[AUTH] 尝试用 token 获取用户信息');
+        const me = await fetchCurrentUser(token);
+        if (cancelled) return;
+
+        if (me) {
+          console.log('[AUTH] 用户信息获取成功', me);
+          setUser(me);
+          // 根据用户的主要角色设置activeRole
+          const savedRole = localStorage.getItem('activeRole') as UserRoleType | null;
+          const primaryRole = me.primaryRole || 'consumer';
+          // 如果保存的角色是用户拥有的角色，则使用保存的角色；否则使用主要角色
+          // 🔥 测试账号可以访问所有角色
+          const isTestUser = me.isTestAccount;
+          if (savedRole && (
+              savedRole === 'consumer' || 
+              isTestUser ||
+              (savedRole === 'owner' && me.hasOwnerRole) ||
+              (savedRole === 'operator' && me.hasOperatorRole) ||
+              (savedRole === 'verifier' && me.hasVerifierRole) ||
+              (savedRole === 'sysadmin' && me.hasSysAdminRole) ||
+              (savedRole === 'creator' && me.hasCreatorRole) ||
+              (savedRole === 'member' && me.hasMemberRole))) {
+            setActiveRoleState(savedRole);
+          } else {
+            setActiveRoleState(primaryRole);
+            localStorage.setItem('activeRole', primaryRole);
+          }
+          setAuthPhase('ready');
+        } else {
+          console.log('[AUTH] 用户信息获取失败或 token 无效');
+          setUser(null);
+          setActiveRoleState('consumer');
+          setAuthPhase('ready');
+        }
+      } catch (err) {
+        if (cancelled) return;
+
+        console.error('[AUTH] bootstrap failed', err);
+        setUser(null);
+        setAuthError('auth_bootstrap_failed');
+
+        localStorage.removeItem('userToken');
+        localStorage.removeItem('user');
+        setUserToken(null);
+        setAuthPhase('error');
+      }
+    }
+
+    run();
+
+    return () => {
+      cancelled = true;
     };
-
-    const timer = setTimeout(initAuth, 500);
-    return () => clearTimeout(timer);
-  }, []);
+  }, [reloadVersion]);
 
   const loginAdmin = (token: string, adminData: Admin) => {
     setAdminToken(token);
@@ -74,10 +247,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const loginUser = (token: string, userData: User) => {
+    console.log('[AUTH] loginUser 被调用', userData);
     setUserToken(token);
     setUser(userData);
     localStorage.setItem('userToken', token);
     localStorage.setItem('user', JSON.stringify(userData));
+    
+    setReloadVersion(v => v + 1);
   };
 
   const logoutAdmin = () => {
@@ -88,10 +264,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logoutUser = () => {
-    setUserToken(null);
-    setUser(null);
+    console.log('[AUTH] logoutUser 被调用');
     localStorage.removeItem('userToken');
     localStorage.removeItem('user');
+    setUserToken(null);
+    setUser(null);
+    
+    setReloadVersion(v => v + 1);
+  };
+
+  const reloadAuth = () => {
+    console.log('[AUTH] reloadAuth 被调用');
+    setReloadVersion(v => v + 1);
+  };
+
+  // 设置当前活跃角色
+  const setActiveRole = (role: UserRoleType) => {
+    console.log('[AUTH] setActiveRole 被调用', role);
+    setActiveRoleState(role);
+    localStorage.setItem('activeRole', role);
+  };
+
+  // 获取用户的所有角色列表
+  const userRoles: UserStoreRole[] = user?.roles || [];
+
+  // 检查用户是否拥有某个角色
+  // 🔥 测试账号拥有所有角色权限
+  const hasRole = (role: UserRoleType): boolean => {
+    if (user?.isTestAccount) return true; // 测试账号拥有所有角色
+    if (role === 'consumer') return true; // 所有用户都是消费者
+    if (role === 'owner') return !!user?.hasOwnerRole;
+    if (role === 'operator') return !!user?.hasOperatorRole;
+    if (role === 'verifier') return !!user?.hasVerifierRole;
+    if (role === 'sysadmin') return !!user?.hasSysAdminRole;
+    if (role === 'creator') return !!user?.hasCreatorRole;
+    if (role === 'member') return !!user?.hasMemberRole;
+    return false;
   };
 
   return (
@@ -101,13 +309,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         adminToken,
         userToken,
+        authPhase,
+        authError,
         loginAdmin,
         loginUser,
         logoutAdmin,
         logoutUser,
+        reloadAuth,
         isAdminAuthenticated: !!adminToken,
-        isUserAuthenticated: !!userToken,
-        isLoading,
+        isUserAuthenticated: !!userToken && !!user,
+        isLoading: authPhase === 'booting',
+        // 角色相关
+        activeRole,
+        setActiveRole,
+        userRoles,
+        hasRole,
       }}
     >
       {children}

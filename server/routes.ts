@@ -7,13 +7,19 @@ import jwt from 'jsonwebtoken';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets } from '@shared/schema';
-import { eq, and, desc, sql, inArray, isNotNull } from 'drizzle-orm';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints, chatConversations, chatMessages } from '@shared/schema';
+import { getPaymentProvider } from './services/paymentProvider';
+import QRCode from 'qrcode';
+import { eq, and, desc, sql, inArray, isNotNull, or, gte, gt } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
 import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
 import { translateText } from './services/translationService';
+import { sendWelcomeMessageIfNeeded } from './services/welcomeService';
+import { createCampaignBroadcast, runBroadcastTask } from './services/broadcastService';
+import { mapLineLangToPreferredLang } from './utils/language';
 import type { Admin, User } from '@shared/schema';
 import { nanoid } from 'nanoid';
+import { TEST_ACCOUNTS, isTestAccount } from '@shared/testAccounts';
 
 // Extend express-session types
 declare module 'express-session' {
@@ -38,6 +44,21 @@ function getOssService(): AliOssService {
   return ossService;
 }
 
+// 将HTTP URL转换为HTTPS（解决混合内容安全问题）
+function convertHttpToHttps(url: string | null | undefined): string | null | undefined {
+  if (!url) return url;
+  if (url.startsWith('http://')) {
+    return url.replace('http://', 'https://');
+  }
+  return url;
+}
+
+// 将URL数组中的HTTP转换为HTTPS
+function convertUrlArrayToHttps(urls: string[] | null | undefined): string[] | null | undefined {
+  if (!urls) return urls;
+  return urls.map(url => convertHttpToHttps(url) as string);
+}
+
 // JWT_SECRET must be set in production for security
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
@@ -52,6 +73,13 @@ if (!JWT_SECRET) {
 }
 
 const JWT_SECRET_VALUE = JWT_SECRET || 'change_this_to_strong_secret';
+
+// OA Configuration for messaging system
+const GOODPICK_MAIN_OA_ID = process.env.GOODPICK_MAIN_OA_ID ?? 'GOODPICK_MAIN_OA';
+const DEECARD_MAIN_OA_ID = process.env.DEECARD_MAIN_OA_ID ?? 'DEECARD_MAIN_OA';
+
+// LINE OAuth Configuration
+const LINE_CHANNEL_ID = process.env.LINE_CHANNEL_ID || process.env.LINE_LOGIN_CHANNEL_ID || '';
 
 declare global {
   namespace Express {
@@ -92,6 +120,7 @@ function adminAuthMiddleware(req: Request, res: Response, next: express.NextFunc
 function userAuthMiddleware(req: Request, res: Response, next: express.NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log(`[AUTH] 401 - Missing auth header for ${req.method} ${req.path}`);
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
 
@@ -99,11 +128,13 @@ function userAuthMiddleware(req: Request, res: Response, next: express.NextFunct
   try {
     const decoded = jwt.verify(token, JWT_SECRET_VALUE) as { id: number; lineUserId: string; type: 'user' };
     if (decoded.type !== 'user') {
+      console.log(`[AUTH] 403 - Wrong token type: ${decoded.type} for ${req.method} ${req.path}`);
       return res.status(403).json({ success: false, message: 'Forbidden' });
     }
     req.user = decoded as any;
     next();
   } catch (error) {
+    console.log(`[AUTH] 401 - Invalid token for ${req.method} ${req.path}:`, error);
     return res.status(401).json({ success: false, message: 'Invalid token' });
   }
 }
@@ -291,34 +322,65 @@ function getCampaignTranslatedContent(campaign: any, language: string) {
 }
 
 export function registerRoutes(app: Express): Server {
+  // 告诉 Express：我们跑在反向代理（Nginx）后面，要信任 X-Forwarded-* 头
+  // 这样在 HTTPS + secure cookie 的情况下，才会正确设置 Session Cookie
+  app.set('trust proxy', 1);
+
   // Configure session middleware for OAuth state management
   const MemoryStore = createMemoryStore(session);
+  const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined;
+  const ONE_WEEK_MS = 1000 * 60 * 60 * 24 * 7;
+
   app.use(session({
+    name: 'goodpickgo.sid',  // ✅ 新的 cookie 名，避免和历史 connect.sid 冲突
     cookie: {
-      maxAge: 86400000, // 24 hours
-      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
       httpOnly: true,
-      sameSite: 'lax' // CSRF protection
+      secure: process.env.NODE_ENV === 'production', // 线上必须是 true（HTTPS）
+      sameSite: 'lax', // CSRF protection，当前同域访问足够
+      maxAge: ONE_WEEK_MS, // 一周过期
+      domain: COOKIE_DOMAIN,
     },
     store: new MemoryStore({
-      checkPeriod: 86400000 // prune expired entries every 24h
+      checkPeriod: 86400000, // prune expired entries every 24h
     }),
     secret: process.env.SESSION_SECRET || 'default-session-secret-change-in-production',
     resave: false,
     saveUninitialized: false,
   }));
 
-  // ============ Config Endpoint ============
+     // ============ Config Endpoint ============
   app.get('/api/config', (req: Request, res: Response) => {
     const sessionId = req.headers['x-gpgo-session'] || 'no-session-id';
     const ua = req.headers['user-agent'] || 'no-ua';
-    console.log('[API]', new Date().toISOString(), req.method, req.path, 'session=', sessionId, 'ua=', ua);
-    
+    console.log(
+      '[API]',
+      new Date().toISOString(),
+      req.method,
+      req.path,
+      'session=',
+      sessionId,
+      'ua=',
+      ua
+    );
+
+    // 兼容两种配置方式
+    const liffId =
+      process.env.LIFF_ID ||
+      process.env.VITE_LINE_LIFF_ID_MAIN ||
+      '';
+
+    const lineChannelId =
+      process.env.LINE_CHANNEL_ID ||
+      process.env.LINE_LOGIN_CHANNEL_ID ||
+      '';
+
+    console.log('[API CONFIG]', { liffId, lineChannelId });
+
     res.json({
       success: true,
       data: {
-        liffId: process.env.LIFF_ID || '',
-        lineChannelId: process.env.LINE_CHANNEL_ID || '',
+        liffId,
+        lineChannelId,
       },
     });
   });
@@ -502,65 +564,379 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Store OAuth state for CSRF protection
-  app.post('/api/auth/line/init-oauth', (req: Request, res: Response) => {
-    const { state, campaignId, returnTo } = req.body;
+  // ============ 开发环境测试登录（仅限开发环境 + 测试账号） ============
+  // 安全措施：
+  // 1. 只在非生产环境可用
+  // 2. 只允许预定义的测试账号列表
+  // 3. 所有调用都记录日志
+  if (process.env.NODE_ENV !== 'production') {
+    app.post('/api/auth/dev-login', async (req: Request, res: Response) => {
+      console.warn('[DEV LOGIN] ⚠️ 开发环境测试登录被调用 - 这个端点在生产环境不可用');
+      
+      try {
+        const { lineUserId } = req.body;
+        
+        if (!lineUserId) {
+          return res.status(400).json({ success: false, message: 'lineUserId is required' });
+        }
 
-    if (!state) {
-      return res.status(400).json({ success: false, message: 'State required' });
-    }
+        // 安全检查：只允许预定义的测试账号
+        if (!isTestAccount(lineUserId)) {
+          console.warn(`[DEV LOGIN] 拒绝非测试账号登录尝试: ${lineUserId}`);
+          return res.status(403).json({ success: false, message: 'Only test accounts allowed' });
+        }
 
-    // Validate state format
-    if (typeof state !== 'string' || !/^[0-9a-f]{64}$/i.test(state)) {
-      return res.status(400).json({ success: false, message: 'Invalid state format' });
-    }
+        const testAccount = TEST_ACCOUNTS.find(acc => acc.lineUserId === lineUserId);
+        
+        // 查找或创建测试用户
+        let [existingUser] = await db
+          .select()
+          .from(users)
+          .where(eq(users.lineUserId, lineUserId))
+          .limit(1);
 
-    // Check if session is available
-    if (!req.session) {
-      console.error('Session not available on init-oauth endpoint');
-      return res.status(500).json({ success: false, message: 'Session not initialized' });
-    }
+        if (!existingUser) {
+          [existingUser] = await db
+            .insert(users)
+            .values({
+              lineUserId: lineUserId,
+              displayName: testAccount?.displayName || 'Test User',
+              language: 'zh-cn',
+            })
+            .returning();
+          console.log(`[DEV LOGIN] 创建测试用户: ${existingUser.displayName}`);
+        }
 
-    // Store state in session for CSRF validation
-    if (!req.session.oauthStates) {
-      req.session.oauthStates = {};
-    }
+        const token = jwt.sign(
+          {
+            id: existingUser.id,
+            lineUserId: existingUser.lineUserId,
+            type: 'user' as const,
+          },
+          JWT_SECRET_VALUE,
+          { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
+        );
 
-    req.session.oauthStates[state] = {
-      campaignId,
-      returnTo,
-      timestamp: Date.now(),
-    };
+        console.log(`[DEV LOGIN] ✅ 测试账号登录成功: ${existingUser.displayName} (${existingUser.lineUserId})`);
 
-    res.json({ success: true });
-  });
+        res.json({
+          success: true,
+          token,
+          user: {
+            id: existingUser.id,
+            lineUserId: existingUser.lineUserId,
+            displayName: existingUser.displayName,
+            avatarUrl: existingUser.avatarUrl,
+            language: existingUser.language,
+          },
+        });
+      } catch (error) {
+        console.error('[DEV LOGIN] 登录失败:', error);
+        res.status(500).json({ success: false, message: 'Dev login failed' });
+      }
+    });
+    
+    console.log('📌 开发环境测试登录端点已启用: POST /api/auth/dev-login');
+  }
 
-  // LINE OAuth callback endpoint
-  app.get('/api/auth/line/callback', async (req: Request, res: Response) => {
+  // LINE OAuth 初始化（H5 用）
+
+  // 当前登录用户信息（给前端 AuthContext 用）- 增强版，包含角色信息
+  app.get('/api/me', userAuthMiddleware, async (req: Request, res: Response) => {
     try {
-      const { code, state } = req.query;
-
-      if (!code || !state) {
-        return res.redirect(`/?error=missing_params`);
+      if (!req.user) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
 
-      // Validate state format (should be 64 hex characters for cryptographic nonce)
-      if (typeof state !== 'string' || !/^[0-9a-f]{64}$/i.test(state)) {
-        return res.redirect(`/?error=invalid_state`);
+      const userId = (req.user as any).id;
+
+      // 获取用户基本信息
+      const [user] = await db
+        .select({
+          id: users.id,
+          lineUserId: users.lineUserId,
+          displayName: users.displayName,
+          shuaName: users.shuaName,
+          shuaBio: users.shuaBio,
+          avatarUrl: users.avatarUrl,
+          language: users.language,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      // 获取用户在各门店的角色
+      const userRoles = await db
+        .select({
+          storeId: merchantStaffRoles.storeId,
+          storeName: stores.name,
+          storeImageUrl: stores.imageUrl,
+          role: merchantStaffRoles.role,
+        })
+        .from(merchantStaffRoles)
+        .innerJoin(stores, eq(merchantStaffRoles.storeId, stores.id))
+        .where(
+          and(
+            eq(merchantStaffRoles.userId, userId),
+            eq(merchantStaffRoles.isActive, true),
+            eq(stores.isActive, true)
+          )
+        )
+        .orderBy(desc(merchantStaffRoles.createdAt));
+
+      // 🔥 刷刷平台 - 测试账号检测
+      // 测试账号拥有所有7种账号类型的权限
+      const { isTestAccount } = await import('../shared/testAccounts');
+      const isTestUser = isTestAccount(user.lineUserId);
+      
+      if (isTestUser) {
+        console.log(`[TEST ACCOUNT] 检测到测试账号: ${user.displayName} (${user.lineUserId})`);
+      }
+
+      // 判断主要角色类型：优先级 owner > operator > verifier > consumer
+      // 用户默认都是消费者，如果有其他角色则显示最高优先级角色
+      let primaryRole: 'consumer' | 'owner' | 'operator' | 'verifier' | 'sysadmin' | 'creator' = 'consumer';
+      const roleSet = new Set(userRoles.map(r => r.role));
+      
+      // 测试账号默认显示sysadmin角色
+      if (isTestUser) {
+        primaryRole = 'sysadmin';
+      } else if (roleSet.has('owner')) {
+        primaryRole = 'owner';
+      } else if (roleSet.has('operator')) {
+        primaryRole = 'operator';
+      } else if (roleSet.has('verifier')) {
+        primaryRole = 'verifier';
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          id: user.id,
+          lineUserId: user.lineUserId,
+          displayName: user.displayName,
+          shuaName: user.shuaName,
+          shuaBio: user.shuaBio,
+          avatarUrl: user.avatarUrl,
+          language: user.language,
+          // 主要角色（用于UI切换）
+          primaryRole,
+          // 所有角色列表（用于角色切换）
+          roles: userRoles.map(r => ({
+            storeId: r.storeId,
+            storeName: r.storeName,
+            storeImageUrl: r.storeImageUrl,
+            role: r.role,
+          })),
+          // 是否有各类角色的快速判断
+          // 🔥 测试账号拥有所有角色权限
+          hasOwnerRole: isTestUser || roleSet.has('owner'),
+          hasOperatorRole: isTestUser || roleSet.has('operator'),
+          hasVerifierRole: isTestUser || roleSet.has('verifier'),
+          hasSysAdminRole: isTestUser,
+          hasCreatorRole: isTestUser,
+          hasMemberRole: isTestUser,
+          // 标记是否是测试账号
+          isTestAccount: isTestUser,
+        },
+      });
+    } catch (error) {
+      console.error('[API /api/me] error', error);
+      return res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+  });
+
+  // 刷刷升级 - 获取当前用户在各门店的角色
+  app.get('/api/me/roles', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+
+      const userId = (req.user as any).id;
+
+      // 获取用户基本信息
+      const [user] = await db
+        .select({
+          id: users.id,
+          displayName: users.displayName,
+          avatarUrl: users.avatarUrl,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      // 获取用户在各门店的角色
+      const roles = await db
+        .select({
+          storeId: merchantStaffRoles.storeId,
+          storeName: stores.name,
+          storeImageUrl: stores.imageUrl,
+          role: merchantStaffRoles.role,
+        })
+        .from(merchantStaffRoles)
+        .innerJoin(stores, eq(merchantStaffRoles.storeId, stores.id))
+        .where(
+          and(
+            eq(merchantStaffRoles.userId, userId),
+            eq(merchantStaffRoles.isActive, true),
+            eq(stores.isActive, true)
+          )
+        )
+        .orderBy(desc(merchantStaffRoles.createdAt));
+
+      return res.json({
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            displayName: user.displayName,
+            avatarUrl: user.avatarUrl,
+          },
+          roles: roles.map(r => ({
+            storeId: r.storeId,
+            storeName: r.storeName,
+            storeImageUrl: r.storeImageUrl,
+            role: r.role,
+          })),
+        },
+      });
+    } catch (error) {
+      console.error('[API /api/me/roles] error', error);
+      return res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+  });
+
+  app.post("/api/auth/line/init-oauth", async (req, res) => {
+    try {
+      const { state: rawState, campaignId, returnTo } = req.body ?? {};
+      const sessionID = (req as any).sessionID;
+
+      // campaignId is now optional - if not provided, will redirect to /me after login
+      if (!campaignId) {
+        console.log("[OAUTH INIT] no campaignId provided, will redirect to /me after login");
+      }
+
+      if (!LINE_CHANNEL_ID) {
+        console.error("[OAUTH INIT] LINE_CHANNEL_ID not configured");
+        return res.status(500).json({
+          success: false,
+          message: "LINE login not configured",
+        });
+      }
+
+      let state: string;
+      if (typeof rawState === "string" && rawState.length > 0) {
+        state = rawState;
+        console.log("[OAUTH INIT] using client state", { state, campaignId, sessionID });
+      } else {
+        state = nanoid();
+        console.warn("[OAUTH INIT] missing state from client, generated on server", {
+          state,
+          campaignId,
+          sessionID,
+        });
+      }
+
+      if (!req.session) {
+        throw new Error("Session is not initialized");
+      }
+      if (!(req.session as any).oauthStates) {
+        (req.session as any).oauthStates = {};
+      }
+
+      (req.session as any).oauthStates[state] = {
+        campaignId: campaignId ? String(campaignId) : null,
+        returnTo: typeof returnTo === "string" ? returnTo : (campaignId ? undefined : '/me'),
+        timestamp: Date.now(),
+      };
+
+      console.log("[OAUTH INIT] stored state OK", {
+        sessionID,
+        state,
+        oauthStatesKeys: Object.keys((req.session as any).oauthStates),
+      });
+
+      const redirectUri = `${req.protocol}://${req.get("host")}/api/auth/line/callback`;
+      const authUrl = new URL("https://access.line.me/oauth2/v2.1/authorize");
+      authUrl.searchParams.set("response_type", "code");
+      authUrl.searchParams.set("client_id", LINE_CHANNEL_ID);
+      authUrl.searchParams.set("redirect_uri", redirectUri);
+      authUrl.searchParams.set("state", state);
+      authUrl.searchParams.set("scope", "profile openid");
+
+      console.log("[OAUTH INIT] response 200 redirectUrl=", authUrl.toString());
+      return res.json({
+        success: true,
+        redirectUrl: authUrl.toString(),
+      });
+    } catch (err) {
+      console.error("[OAUTH INIT] error:", err);
+      return res.status(500).json({
+        success: false,
+        message: "LINE OAuth init failed",
+      });
+    }
+  });
+ 
+
+
+  // LINE OAuth callback endpoint
+      // LINE OAuth callback endpoint
+  app.get('/api/auth/line/callback', async (req: Request, res: Response) => {
+    try {
+      console.log('[OAUTH CB] query=', req.query);
+      console.log('[OAUTH CB] cookie=', req.headers.cookie || '');
+      console.log('[OAUTH CB] sessionID=', (req as any).sessionID);
+      console.log(
+        '[OAUTH CB] hasSession=',
+        !!req.session,
+        'oauthStatesKeys=',
+        req.session && req.session.oauthStates
+          ? Object.keys(req.session.oauthStates)
+          : []
+      );
+
+      const { code, state } = req.query;
+
+      if (!code || !state || typeof state !== "string") {
+        console.warn("[OAUTH CB] missing code or state", { code, state });
+        return res.redirect("/?error=missing_params");
+      }
+
+      if (!req.session) {
+        console.error('[OAUTH CB] req.session is undefined');
+        return res.redirect('/?error=session_missing');
       }
 
       // CSRF Protection: Validate state against server-side stored value
       const storedStates = req.session.oauthStates || {};
       const storedOAuthData = storedStates[state];
 
-      if (!storedOAuthData) {
-        console.error('OAuth state not found in session');
+      console.log('[OAUTH CB] storedOAuthData=', storedOAuthData);
+
+      if (!req.session.oauthStates || !storedOAuthData) {
+        console.error('[OAUTH CB] state not found', {
+          state,
+          sessionID: (req as any).sessionID,
+          hasStates: !!req.session.oauthStates,
+          availableStates: req.session.oauthStates ? Object.keys(req.session.oauthStates) : [],
+        });
         return res.redirect(`/?error=csrf_invalid_state`);
       }
 
       // Check timestamp to prevent replay attacks (valid for 5 minutes)
       const fiveMinutes = 5 * 60 * 1000;
       if (Date.now() - storedOAuthData.timestamp > fiveMinutes) {
+        console.warn('[OAUTH CB] oauth state expired, state=', state);
         delete storedStates[state];
         return res.redirect(`/?error=oauth_expired`);
       }
@@ -569,13 +945,14 @@ export function registerRoutes(app: Express): Server {
       delete storedStates[state];
 
       // Build redirect URI (must match what was used in OAuth request)
-      // Force HTTPS for LINE OAuth (req.protocol may return 'http' due to reverse proxy)
       const redirectUri = `https://${req.get('host')}/api/auth/line/callback`;
+      console.log('[OAUTH CB] redirectUri for token exchange=', redirectUri);
 
       // Exchange authorization code for tokens
       const tokens = await exchangeLineAuthCode(code as string, redirectUri);
 
       if (!tokens || !tokens.id_token) {
+        console.error('[OAUTH CB] token_exchange_failed, tokens=', tokens);
         return res.redirect(`/?error=token_exchange_failed`);
       }
 
@@ -583,6 +960,7 @@ export function registerRoutes(app: Express): Server {
       const lineProfile = await verifyLineIdToken(tokens.id_token);
 
       if (!lineProfile) {
+        console.error('[OAUTH CB] invalid id_token');
         return res.redirect(`/?error=invalid_token`);
       }
 
@@ -614,7 +992,125 @@ export function registerRoutes(app: Express): Server {
           .where(eq(users.id, existingUser.id));
       }
 
-      // Generate JWT
+      // Step 5.2-B: Update user's preferred_language if not set
+      const preferredLang = mapLineLangToPreferredLang(lineProfile.language);
+      
+      // Refresh user data to get latest values
+      const [currentUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, existingUser.id))
+        .limit(1);
+
+      if (currentUser && !currentUser.preferredLanguage) {
+        await db
+          .update(users)
+          .set({
+            preferredLanguage: preferredLang,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, existingUser.id));
+        
+        console.log('[OAUTH CB] Set preferred_language for user:', {
+          userId: existingUser.id,
+          preferredLanguage: preferredLang,
+        });
+      }
+
+      // Step 5.3: Upsert oa_user_links (track OA relationship, no welcome message yet)
+      // 产品设计：入口是 GoodPick Go OA，但欢迎消息来自 DeeCard OA
+      const oaId = DEECARD_MAIN_OA_ID;
+      const lineUserId = lineProfile.sub;
+
+      const [existingLink] = await db
+        .select()
+        .from(oaUserLinks)
+        .where(
+          and(
+            eq(oaUserLinks.oaId, oaId),
+            eq(oaUserLinks.lineUserId, lineUserId)
+          )
+        )
+        .limit(1);
+
+      if (!existingLink) {
+        // First time seeing this LINE user for this OA - create new link
+        await db.insert(oaUserLinks).values({
+          oaId,
+          lineUserId,
+          userId: existingUser.id,
+          initialLanguage: preferredLang,
+          welcomeSent: false,
+          welcomeSentAt: null,
+        });
+
+        console.log('[OAUTH CB] Created new oa_user_link:', {
+          oaId,
+          lineUserId,
+          userId: existingUser.id,
+          initialLanguage: preferredLang,
+        });
+      } else if (!existingLink.userId) {
+        // Link exists but userId not set (from follow event?) - update it
+        await db
+          .update(oaUserLinks)
+          .set({
+            userId: existingUser.id,
+            updatedAt: new Date(),
+          })
+          .where(eq(oaUserLinks.id, existingLink.id));
+
+        console.log('[OAUTH CB] Updated oa_user_link with userId:', {
+          linkId: existingLink.id,
+          userId: existingUser.id,
+        });
+      } else {
+        console.log('[OAUTH CB] oa_user_link already exists and complete:', {
+          linkId: existingLink.id,
+          userId: existingLink.userId,
+        });
+      }
+
+      // Step 6: Send welcome message if needed
+      // Re-fetch the link to get the latest state (including initialLanguage)
+      const [latestLink] = await db
+        .select()
+        .from(oaUserLinks)
+        .where(
+          and(
+            eq(oaUserLinks.oaId, oaId),
+            eq(oaUserLinks.lineUserId, lineUserId)
+          )
+        )
+        .limit(1);
+
+      // Re-fetch user to get latest preferredLanguage
+      const [latestUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, existingUser.id))
+        .limit(1);
+
+      if (latestLink && latestUser) {
+        try {
+          await sendWelcomeMessageIfNeeded({
+            user: {
+              id: latestUser.id,
+              preferredLanguage: latestUser.preferredLanguage ?? null,
+            },
+            lineUserId,
+            oaId,
+            initialLanguage: latestLink.initialLanguage,
+          });
+        } catch (error) {
+          // Don't let welcome message failure break the login flow
+          console.error('[OAUTH CB] Welcome message failed, but login continues:', {
+            error: error instanceof Error ? error.message : String(error),
+            userId: latestUser.id,
+          });
+        }
+      }
+
       const token = jwt.sign(
         {
           id: existingUser.id,
@@ -625,19 +1121,21 @@ export function registerRoutes(app: Express): Server {
         { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
       );
 
-      // Redirect based on returnTo or campaignId
       let redirectUrl: string;
       if (storedOAuthData.returnTo) {
-        // Custom return path (e.g., /staff/redeem)
-        redirectUrl = `${storedOAuthData.returnTo}?token=${encodeURIComponent(token)}&firstLogin=true`;
+        redirectUrl = `${storedOAuthData.returnTo}?token=${encodeURIComponent(
+          token
+        )}&firstLogin=true`;
       } else if (storedOAuthData.campaignId) {
-        // Campaign page with auto-claim
-        redirectUrl = `/campaign/${storedOAuthData.campaignId}?token=${encodeURIComponent(token)}&autoClaim=true`;
+        redirectUrl = `/campaign/${storedOAuthData.campaignId}?token=${encodeURIComponent(
+          token
+        )}&autoClaim=true`;
       } else {
-        // Fallback to home
         redirectUrl = `/?token=${encodeURIComponent(token)}`;
       }
-      
+
+      console.log('[OAUTH CB] success, redirectUrl=', redirectUrl);
+
       res.redirect(redirectUrl);
     } catch (error) {
       console.error('LINE OAuth callback error:', error);
@@ -746,6 +1244,16 @@ export function registerRoutes(app: Express): Server {
         })
         .where(eq(staffPresets.id, staffPreset.id));
 
+      // 刷刷升级：同时写入 merchantStaffRoles 表，授予核销员角色
+      await db
+        .insert(merchantStaffRoles)
+        .values({
+          userId: user.id,
+          storeId: staffPreset.storeId,
+          role: 'verifier',
+        })
+        .onConflictDoNothing();
+
       // Generate JWT token for staff
       const token = jwt.sign(
         {
@@ -817,9 +1325,31 @@ export function registerRoutes(app: Express): Server {
         )
         .orderBy(desc(campaigns.startAt));
 
+      // 获取每个活动关联的店铺信息
+      const campaignsWithStores = await Promise.all(
+        activeCampaigns.map(async (campaign) => {
+          const storeList = await db
+            .select({
+              id: stores.id,
+              name: stores.name,
+              imageUrl: stores.imageUrl,
+              city: stores.city,
+              address: stores.address,
+            })
+            .from(stores)
+            .innerJoin(campaignStores, eq(stores.id, campaignStores.storeId))
+            .where(eq(campaignStores.campaignId, campaign.id));
+          
+          return {
+            ...campaign,
+            stores: storeList,
+          };
+        })
+      );
+
       res.json({
         success: true,
-        data: activeCampaigns,
+        data: campaignsWithStores,
       });
     } catch (error) {
       console.error('Get campaigns list error:', error);
@@ -827,7 +1357,114 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.get('/api/campaigns/:id', async (req: Request, res: Response) => {
+  // 公开的商品列表API（发现页使用）
+  app.get('/api/products', async (req: Request, res: Response) => {
+    try {
+      const { limit = 20 } = req.query;
+      const limitNum = Math.min(parseInt(limit as string) || 20, 50);
+
+      const activeProducts = await db
+        .select({
+          id: products.id,
+          storeId: products.storeId,
+          name: products.name,
+          descriptionSource: products.descriptionSource,
+          descriptionZh: products.descriptionZh,
+          descriptionEn: products.descriptionEn,
+          descriptionTh: products.descriptionTh,
+          price: products.price,
+          originalPrice: products.originalPrice,
+          unit: products.unit,
+          coverImage: products.coverImage,
+          status: products.status,
+          isRecommend: products.isRecommend,
+          isNew: products.isNew,
+          isHot: products.isHot,
+          salesCount: products.salesCount,
+        })
+        .from(products)
+        .where(eq(products.status, 'active'))
+        .orderBy(desc(products.salesCount), desc(products.createdAt))
+        .limit(limitNum);
+
+      // 获取每个商品关联的店铺信息
+      const productsWithStores = await Promise.all(
+        activeProducts.map(async (product) => {
+          const [store] = await db
+            .select({
+              id: stores.id,
+              name: stores.name,
+              imageUrl: stores.imageUrl,
+              city: stores.city,
+            })
+            .from(stores)
+            .where(eq(stores.id, product.storeId))
+            .limit(1);
+          
+          return {
+            ...product,
+            store: store || null,
+          };
+        })
+      );
+
+      res.json({
+        success: true,
+        data: productsWithStores,
+      });
+    } catch (error) {
+      console.error('Get products list error:', error);
+      res.status(500).json({ success: false, message: '获取商品列表失败' });
+    }
+  });
+
+  // 公开的商品详情API（消费者端使用）
+  app.get('/api/products/:id', async (req: Request, res: Response) => {
+    try {
+      const productId = parseInt(req.params.id);
+      
+      if (isNaN(productId)) {
+        return res.status(400).json({ success: false, message: '无效的商品ID' });
+      }
+
+      const [product] = await db
+        .select()
+        .from(products)
+        .where(eq(products.id, productId))
+        .limit(1);
+
+      if (!product) {
+        return res.status(404).json({ success: false, message: '商品不存在' });
+      }
+
+      // 获取店铺信息
+      const [store] = await db
+        .select({
+          id: stores.id,
+          name: stores.name,
+          imageUrl: stores.imageUrl,
+          city: stores.city,
+          address: stores.address,
+          phone: stores.phone,
+        })
+        .from(stores)
+        .where(eq(stores.id, product.storeId))
+        .limit(1);
+
+      res.json({
+        success: true,
+        data: {
+          ...product,
+          store: store || null,
+        },
+      });
+    } catch (error) {
+      console.error('Get product detail error:', error);
+      res.status(500).json({ success: false, message: '获取商品详情失败' });
+    }
+  });
+
+      app.get('/api/campaigns/:id', optionalUserAuth, async (req: Request, res: Response) => {
     try {
       const sessionId = req.headers['x-gpgo-session'] || 'no-session-id';
       const ua = req.headers['user-agent'] || 'no-ua';
@@ -943,6 +1580,10 @@ export function registerRoutes(app: Express): Server {
             floorInfo: s.floorInfo,
           })),
           userClaimedCount,
+          myStatus: {
+            loggedIn: !!req.user,
+            hasClaimed: userClaimedCount > 0,
+          },
         },
       });
     } catch (error) {
@@ -1259,6 +1900,16 @@ export function registerRoutes(app: Express): Server {
         })
         .where(eq(staffPresets.id, preset.id))
         .returning();
+
+      // 刷刷升级：同时写入 merchantStaffRoles 表，授予核销员角色
+      await db
+        .insert(merchantStaffRoles)
+        .values({
+          userId: user.id,
+          storeId: preset.storeId,
+          role: 'verifier',
+        })
+        .onConflictDoNothing();
 
       res.json({ 
         success: true, 
@@ -2402,6 +3053,132 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // ============ E2. Admin - Campaign Broadcast ============
+
+  /**
+   * Create and trigger a campaign broadcast
+   * POST /api/admin/campaigns/:id/broadcast
+   * 
+   * Creates a broadcast task and immediately executes it.
+   * Sends campaign message to all OA-linked users.
+   */
+  app.post('/api/admin/campaigns/:id/broadcast', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const admin = req.admin as Admin;
+      const oaId = GOODPICK_MAIN_OA_ID;
+
+      // Validate campaign exists
+      const [campaign] = await db
+        .select()
+        .from(campaigns)
+        .where(eq(campaigns.id, campaignId))
+        .limit(1);
+
+      if (!campaign) {
+        return res.status(404).json({
+          success: false,
+          message: 'Campaign not found',
+        });
+      }
+
+      console.log('[ADMIN BROADCAST] Creating broadcast for campaign:', {
+        campaignId,
+        adminId: admin.id,
+        oaId,
+      });
+
+      // Create broadcast task
+      const broadcast = await createCampaignBroadcast(campaignId, admin.id, oaId);
+
+      // Trigger broadcast execution asynchronously
+      // Don't await - let it run in background
+      runBroadcastTask(broadcast.id).catch(error => {
+        console.error('[ADMIN BROADCAST] Background broadcast task failed:', {
+          broadcastId: broadcast.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+
+      res.json({
+        success: true,
+        message: 'Broadcast task created and started',
+        data: {
+          broadcastId: broadcast.id,
+          campaignId: broadcast.campaignId,
+          status: broadcast.status,
+        },
+      });
+    } catch (error) {
+      console.error('[ADMIN BROADCAST] Error creating broadcast:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to create broadcast',
+      });
+    }
+  });
+
+  /**
+   * Get broadcast history for a campaign
+   * GET /api/admin/campaigns/:id/broadcasts
+   */
+  app.get('/api/admin/campaigns/:id/broadcasts', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+
+      const broadcasts = await db
+        .select()
+        .from(campaignBroadcasts)
+        .where(eq(campaignBroadcasts.campaignId, campaignId))
+        .orderBy(desc(campaignBroadcasts.createdAt));
+
+      res.json({
+        success: true,
+        data: broadcasts,
+      });
+    } catch (error) {
+      console.error('[ADMIN BROADCAST] Error fetching broadcasts:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch broadcast history',
+      });
+    }
+  });
+
+  /**
+   * Get broadcast task status
+   * GET /api/admin/broadcasts/:id
+   */
+  app.get('/api/admin/broadcasts/:id', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const broadcastId = parseInt(req.params.id);
+
+      const [broadcast] = await db
+        .select()
+        .from(campaignBroadcasts)
+        .where(eq(campaignBroadcasts.id, broadcastId))
+        .limit(1);
+
+      if (!broadcast) {
+        return res.status(404).json({
+          success: false,
+          message: 'Broadcast not found',
+        });
+      }
+
+      res.json({
+        success: true,
+        data: broadcast,
+      });
+    } catch (error) {
+      console.error('[ADMIN BROADCAST] Error fetching broadcast:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch broadcast status',
+      });
+    }
+  });
+
   // ============ F. Admin - Coupon Management ============
 
   app.get('/api/admin/coupons', adminAuthMiddleware, async (req: Request, res: Response) => {
@@ -2727,7 +3504,612 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // ============ H. Media Upload ============
+  // ============ H. Payment Config API ============
+
+  // Get store payment config
+  app.get('/api/admin/stores/:id/payment', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      
+      const [config] = await db
+        .select()
+        .from(paymentConfigs)
+        .where(eq(paymentConfigs.storeId, storeId));
+      
+      const [rule] = await db
+        .select()
+        .from(membershipRules)
+        .where(eq(membershipRules.storeId, storeId));
+      
+      res.json({
+        success: true,
+        data: {
+          paymentConfig: config || null,
+          membershipRule: rule || null,
+        },
+      });
+    } catch (error) {
+      console.error('Get payment config error:', error);
+      res.status(500).json({ success: false, message: '获取支付配置失败' });
+    }
+  });
+
+  // Create or update store payment config
+  app.put('/api/admin/stores/:id/payment', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      const { bankName, accountNumber, accountName, promptpayId, qrCodeUrl, isActive } = req.body;
+      
+      const [existing] = await db
+        .select()
+        .from(paymentConfigs)
+        .where(eq(paymentConfigs.storeId, storeId));
+      
+      let config;
+      if (existing) {
+        [config] = await db
+          .update(paymentConfigs)
+          .set({
+            bankName,
+            accountNumber,
+            accountName,
+            promptpayId,
+            qrCodeUrl,
+            isActive: isActive ?? true,
+            updatedAt: new Date(),
+          })
+          .where(eq(paymentConfigs.storeId, storeId))
+          .returning();
+      } else {
+        [config] = await db
+          .insert(paymentConfigs)
+          .values({
+            storeId,
+            provider: 'promptpay',
+            bankName,
+            accountNumber,
+            accountName,
+            promptpayId,
+            qrCodeUrl,
+            isActive: isActive ?? true,
+          })
+          .returning();
+      }
+      
+      res.json({ success: true, data: config });
+    } catch (error) {
+      console.error('Update payment config error:', error);
+      res.status(500).json({ success: false, message: '更新支付配置失败' });
+    }
+  });
+
+  // Update membership rules
+  app.put('/api/admin/stores/:id/membership-rules', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      const { silverThreshold, goldThreshold, platinumThreshold, pointsDivisor, welcomeCampaignId } = req.body;
+      
+      const [existing] = await db
+        .select()
+        .from(membershipRules)
+        .where(eq(membershipRules.storeId, storeId));
+      
+      let rule;
+      if (existing) {
+        [rule] = await db
+          .update(membershipRules)
+          .set({
+            silverThreshold: silverThreshold?.toString(),
+            goldThreshold: goldThreshold?.toString(),
+            platinumThreshold: platinumThreshold?.toString(),
+            pointsDivisor,
+            welcomeCampaignId,
+            updatedAt: new Date(),
+          })
+          .where(eq(membershipRules.storeId, storeId))
+          .returning();
+      } else {
+        [rule] = await db
+          .insert(membershipRules)
+          .values({
+            storeId,
+            silverThreshold: silverThreshold?.toString() || '500',
+            goldThreshold: goldThreshold?.toString() || '2000',
+            platinumThreshold: platinumThreshold?.toString() || '5000',
+            pointsDivisor: pointsDivisor || 10,
+            welcomeCampaignId,
+          })
+          .returning();
+      }
+      
+      res.json({ success: true, data: rule });
+    } catch (error) {
+      console.error('Update membership rules error:', error);
+      res.status(500).json({ success: false, message: '更新会员规则失败' });
+    }
+  });
+
+  // Merchant: Get my stores (stores owned by current user)
+  app.get('/api/stores/my', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ success: false, message: '未登录' });
+      }
+      
+      // Get stores where user is owner or has operator role
+      const ownedStores = await db
+        .select()
+        .from(stores)
+        .where(eq(stores.ownerId, userId))
+        .orderBy(desc(stores.createdAt));
+      
+      // Also get stores where user has operator role
+      const operatorRoles = await db
+        .select({
+          storeId: merchantStaffRoles.storeId,
+        })
+        .from(merchantStaffRoles)
+        .where(
+          and(
+            eq(merchantStaffRoles.userId, userId),
+            eq(merchantStaffRoles.role, 'operator')
+          )
+        );
+      
+      const operatorStoreIds = operatorRoles.map(r => r.storeId).filter((id): id is number => id !== null);
+      
+      let operatorStores: any[] = [];
+      if (operatorStoreIds.length > 0) {
+        operatorStores = await db
+          .select()
+          .from(stores)
+          .where(inArray(stores.id, operatorStoreIds));
+      }
+      
+      // Combine and deduplicate
+      const allStores = [...ownedStores];
+      for (const store of operatorStores) {
+        if (!allStores.find(s => s.id === store.id)) {
+          allStores.push(store);
+        }
+      }
+      
+      res.json({ success: true, data: allStores });
+    } catch (error) {
+      console.error('Get my stores error:', error);
+      res.status(500).json({ success: false, message: '获取店铺列表失败' });
+    }
+  });
+
+  // Public: Get single store details (for store front page)
+  app.get('/api/stores/:id', async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      
+      if (isNaN(storeId)) {
+        return res.status(400).json({ success: false, message: '无效的店铺ID' });
+      }
+      
+      const [store] = await db
+        .select()
+        .from(stores)
+        .where(eq(stores.id, storeId));
+      
+      if (!store) {
+        return res.status(404).json({ success: false, message: '店铺不存在' });
+      }
+      
+      // 安全处理：不返回敏感 Token，只返回是否已配置的标识
+      const safeStore = {
+        ...store,
+        lineOaChannelToken: undefined, // 不返回实际 Token
+        hasLineOaToken: !!store.lineOaChannelToken, // 只返回是否已配置
+      };
+      
+      res.json({ success: true, data: safeStore });
+    } catch (error) {
+      console.error('Get store error:', error);
+      res.status(500).json({ success: false, message: '获取店铺信息失败' });
+    }
+  });
+
+  // Merchant: Create new store
+  app.post('/api/stores', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ success: false, message: '未登录' });
+      }
+
+      const {
+        name,
+        brand,
+        city,
+        address,
+        phone,
+        descriptionZh,
+        descriptionEn,
+        descriptionTh,
+        industryType,
+        businessHours,
+        coverImages,
+        deliveryTime,
+        pickupTime,
+      } = req.body;
+
+      // Validate required fields
+      if (!name || !city || !address) {
+        return res.status(400).json({ 
+          success: false, 
+          message: '店铺名称、城市和地址是必填项' 
+        });
+      }
+
+      // Create store
+      const [newStore] = await db
+        .insert(stores)
+        .values({
+          name,
+          brand: brand || null,
+          city,
+          address,
+          phone: phone || null,
+          descriptionZh: descriptionZh || null,
+          descriptionEn: descriptionEn || null,
+          descriptionTh: descriptionTh || null,
+          industryType: industryType || 'food',
+          businessStatus: 'open',
+          businessHours: businessHours || null,
+          coverImages: coverImages || null,
+          deliveryTime: deliveryTime || null,
+          pickupTime: pickupTime || null,
+          isActive: true,
+        })
+        .returning();
+
+      // Create owner role for this user
+      await db.insert(merchantStaffRoles).values({
+        userId,
+        storeId: newStore.id,
+        role: 'owner',
+        isActive: true,
+      });
+
+      res.json({ 
+        success: true, 
+        data: newStore,
+        message: '门店创建成功'
+      });
+    } catch (error) {
+      console.error('Create store error:', error);
+      res.status(500).json({ success: false, message: '创建门店失败' });
+    }
+  });
+
+  // Merchant: Update store details
+  app.patch('/api/stores/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      if (isNaN(storeId)) {
+        return res.status(400).json({ success: false, message: '无效的店铺ID' });
+      }
+
+      if (!userId) {
+        return res.status(401).json({ success: false, message: '未登录' });
+      }
+
+      // Check if user is owner of this store
+      const [userStaffRole] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          eq(merchantStaffRoles.storeId, storeId),
+          eq(merchantStaffRoles.role, 'owner')
+        ));
+
+      if (!userStaffRole) {
+        return res.status(403).json({ success: false, message: '您没有权限编辑此门店' });
+      }
+
+      const {
+        name,
+        brand,
+        city,
+        address,
+        phone,
+        description,
+        industryType,
+        businessStatus,
+        businessHours,
+        coverImages,
+        deliveryTime,
+        pickupTime,
+        businessLicenseUrl,
+        foodLicenseUrl,
+        imageUrl,
+        lineOaId,
+        lineOaUrl,
+        lineOaChannelToken,
+      } = req.body;
+
+      const updateData: any = { updatedAt: new Date() };
+      
+      if (name !== undefined) updateData.name = name;
+      if (brand !== undefined) updateData.brand = brand;
+      if (city !== undefined) updateData.city = city;
+      if (address !== undefined) updateData.address = address;
+      if (phone !== undefined) updateData.phone = phone;
+      
+      // 自动翻译描述到多语言
+      if (description !== undefined && description.trim()) {
+        updateData.descriptionZh = description;
+        // 异步翻译其他语言（不阻塞主流程）
+        translateText(description, 'zh-cn', 'en-us').then(enText => {
+          db.update(stores).set({ descriptionEn: enText }).where(eq(stores.id, storeId)).execute();
+        }).catch(err => console.error('Auto-translate EN failed:', err));
+        translateText(description, 'zh-cn', 'th-th').then(thText => {
+          db.update(stores).set({ descriptionTh: thText }).where(eq(stores.id, storeId)).execute();
+        }).catch(err => console.error('Auto-translate TH failed:', err));
+      }
+      
+      if (industryType !== undefined) updateData.industryType = industryType;
+      if (businessStatus !== undefined) updateData.businessStatus = businessStatus;
+      if (businessHours !== undefined) updateData.businessHours = businessHours;
+      if (coverImages !== undefined) updateData.coverImages = coverImages;
+      if (deliveryTime !== undefined) updateData.deliveryTime = deliveryTime;
+      if (pickupTime !== undefined) updateData.pickupTime = pickupTime;
+      if (businessLicenseUrl !== undefined) updateData.businessLicenseUrl = businessLicenseUrl;
+      if (foodLicenseUrl !== undefined) updateData.foodLicenseUrl = foodLicenseUrl;
+      if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+      
+      // LINE OA 配置
+      if (lineOaId !== undefined) updateData.lineOaId = lineOaId;
+      if (lineOaUrl !== undefined) updateData.lineOaUrl = lineOaUrl;
+      // Token 只有在有值时才更新（前端只在用户输入新值时才发送）
+      if (lineOaChannelToken !== undefined && lineOaChannelToken.trim()) {
+        updateData.lineOaChannelToken = lineOaChannelToken;
+      }
+
+      const [updatedStore] = await db
+        .update(stores)
+        .set(updateData)
+        .where(eq(stores.id, storeId))
+        .returning();
+
+      if (!updatedStore) {
+        return res.status(404).json({ success: false, message: '门店不存在' });
+      }
+
+      // 安全处理：不返回敏感 Token
+      const safeStore = {
+        ...updatedStore,
+        lineOaChannelToken: undefined,
+        hasLineOaToken: !!updatedStore.lineOaChannelToken,
+      };
+
+      res.json({ success: true, message: '门店信息已更新', data: safeStore });
+    } catch (error) {
+      console.error('Update store error:', error);
+      res.status(500).json({ success: false, message: '更新门店信息失败' });
+    }
+  });
+
+  // Generate store payment QR code page URL
+  app.get('/api/stores/:id/pay', async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      
+      const [store] = await db
+        .select()
+        .from(stores)
+        .where(eq(stores.id, storeId));
+      
+      if (!store) {
+        return res.status(404).json({ success: false, message: '门店不存在' });
+      }
+      
+      const [config] = await db
+        .select()
+        .from(paymentConfigs)
+        .where(eq(paymentConfigs.storeId, storeId));
+      
+      res.json({
+        success: true,
+        data: {
+          store: {
+            id: store.id,
+            name: store.name,
+            brand: store.brand,
+            imageUrl: store.imageUrl,
+          },
+          paymentConfig: config ? {
+            provider: config.provider,
+            bankName: config.bankName,
+            accountName: config.accountName,
+            promptpayId: config.promptpayId,
+            qrCodeUrl: config.qrCodeUrl,
+            isActive: config.isActive,
+          } : null,
+        },
+      });
+    } catch (error) {
+      console.error('Get store payment info error:', error);
+      res.status(500).json({ success: false, message: '获取门店支付信息失败' });
+    }
+  });
+
+  // Payment callback webhook (for future payment provider integration)
+  app.post('/api/webhooks/payment/:provider', async (req: Request, res: Response) => {
+    try {
+      const provider = req.params.provider;
+      console.log(`[PAYMENT WEBHOOK] Received from ${provider}:`, JSON.stringify(req.body));
+      
+      // TODO: Implement actual payment provider verification
+      // For now, just log and acknowledge
+      
+      res.json({ success: true, message: 'Webhook received' });
+    } catch (error) {
+      console.error('Payment webhook error:', error);
+      res.status(500).json({ success: false, message: 'Webhook processing failed' });
+    }
+  });
+
+  // Record payment and create membership
+  app.post('/api/stores/:id/payment-complete', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      const userId = (req.user as any).id;
+      const { amount, providerTxnId } = req.body;
+      
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ success: false, message: '金额无效' });
+      }
+      
+      // Create payment transaction record
+      const [transaction] = await db
+        .insert(paymentTransactions)
+        .values({
+          storeId,
+          userId,
+          provider: 'promptpay',
+          providerTxnId: providerTxnId || `manual_${Date.now()}`,
+          amount: amount.toString(),
+          status: 'paid',
+          paidAt: new Date(),
+        })
+        .returning();
+      
+      // Get membership rules
+      const [rule] = await db
+        .select()
+        .from(membershipRules)
+        .where(eq(membershipRules.storeId, storeId));
+      
+      const pointsDivisor = rule?.pointsDivisor || 10;
+      const earnedPoints = Math.floor(amount / pointsDivisor);
+      
+      // Update or create membership
+      const [existingMembership] = await db
+        .select()
+        .from(userStoreMemberships)
+        .where(and(
+          eq(userStoreMemberships.userId, userId),
+          eq(userStoreMemberships.storeId, storeId)
+        ));
+      
+      let membership;
+      if (existingMembership) {
+        const newTotalAmount = parseFloat(existingMembership.totalAmount || '0') + amount;
+        const newPoints = (existingMembership.points || 0) + earnedPoints;
+        const newVisitCount = (existingMembership.visitCount || 0) + 1;
+        
+        // Calculate new tier
+        let newTier: 'basic' | 'silver' | 'gold' | 'platinum' = 'basic';
+        const silverThreshold = parseFloat(rule?.silverThreshold || '500');
+        const goldThreshold = parseFloat(rule?.goldThreshold || '2000');
+        const platinumThreshold = parseFloat(rule?.platinumThreshold || '5000');
+        
+        if (newTotalAmount >= platinumThreshold) newTier = 'platinum';
+        else if (newTotalAmount >= goldThreshold) newTier = 'gold';
+        else if (newTotalAmount >= silverThreshold) newTier = 'silver';
+        
+        [membership] = await db
+          .update(userStoreMemberships)
+          .set({
+            totalAmount: newTotalAmount.toString(),
+            points: newPoints,
+            visitCount: newVisitCount,
+            tier: newTier,
+            lastVisitAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(userStoreMemberships.id, existingMembership.id))
+          .returning();
+      } else {
+        // Create new membership
+        let tier: 'basic' | 'silver' | 'gold' | 'platinum' = 'basic';
+        const silverThreshold = parseFloat(rule?.silverThreshold || '500');
+        
+        if (amount >= silverThreshold) tier = 'silver';
+        
+        [membership] = await db
+          .insert(userStoreMemberships)
+          .values({
+            userId,
+            storeId,
+            tier,
+            points: earnedPoints,
+            totalAmount: amount.toString(),
+            visitCount: 1,
+            lastVisitAt: new Date(),
+            joinedAt: new Date(),
+          })
+          .returning();
+      }
+      
+      // Get store info for response
+      const [store] = await db
+        .select()
+        .from(stores)
+        .where(eq(stores.id, storeId));
+      
+      res.json({
+        success: true,
+        data: {
+          transaction,
+          membership,
+          store: {
+            id: store.id,
+            name: store.name,
+            brand: store.brand,
+          },
+          earnedPoints,
+        },
+      });
+    } catch (error) {
+      console.error('Payment complete error:', error);
+      res.status(500).json({ success: false, message: '处理支付失败' });
+    }
+  });
+
+  // Get user's memberships
+  app.get('/api/me/memberships', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.user as any).id;
+      
+      const memberships = await db
+        .select({
+          id: userStoreMemberships.id,
+          tier: userStoreMemberships.tier,
+          points: userStoreMemberships.points,
+          totalAmount: userStoreMemberships.totalAmount,
+          visitCount: userStoreMemberships.visitCount,
+          lastVisitAt: userStoreMemberships.lastVisitAt,
+          joinedAt: userStoreMemberships.joinedAt,
+          storeId: stores.id,
+          storeName: stores.name,
+          storeBrand: stores.brand,
+          storeImageUrl: stores.imageUrl,
+        })
+        .from(userStoreMemberships)
+        .innerJoin(stores, eq(userStoreMemberships.storeId, stores.id))
+        .where(eq(userStoreMemberships.userId, userId))
+        .orderBy(desc(userStoreMemberships.lastVisitAt));
+      
+      res.json({ success: true, data: memberships });
+    } catch (error) {
+      console.error('Get memberships error:', error);
+      res.status(500).json({ success: false, message: '获取会员信息失败' });
+    }
+  });
+
+  // ============ I. Media Upload ============
 
   app.post('/api/admin/upload', adminAuthMiddleware, upload.single('file'), async (req: Request, res: Response) => {
     try {
@@ -2766,6 +4148,4193 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Upload file error:', error);
       res.status(500).json({ success: false, message: 'Failed to upload file' });
+    }
+  });
+
+  // 用户媒体上传 API
+  app.post('/api/user/upload', userAuthMiddleware, upload.single('file'), async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No file uploaded' });
+      }
+
+      const userId = req.user!.id;
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(2, 8);
+      const ext = req.file.originalname.split('.').pop();
+      const objectName = `user/${userId}/${timestamp}-${randomStr}.${ext}`;
+
+      const fileUrl = await getOssService().uploadFile(
+        objectName,
+        req.file.buffer,
+        req.file.mimetype
+      );
+
+      const fileType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
+
+      await db.insert(mediaFiles).values({
+        fileName: req.file.originalname,
+        fileUrl,
+        fileType,
+        fileSize: req.file.size,
+        uploadedBy: userId,
+        isPublic: true,
+      });
+
+      res.json({
+        success: true,
+        fileUrl,
+        fileType,
+        fileSize: req.file.size,
+      });
+    } catch (error) {
+      console.error('User upload file error:', error);
+      res.status(500).json({ success: false, message: 'Failed to upload file' });
+    }
+  });
+
+  // 通用图片上传 API (商户商品图片等)
+  app.post('/api/upload/image', userAuthMiddleware, upload.single('file'), async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No file uploaded' });
+      }
+
+      if (!req.file.mimetype.startsWith('image/')) {
+        return res.status(400).json({ success: false, message: 'Only images are allowed' });
+      }
+
+      const userId = req.user!.id;
+      const folder = req.body.folder || 'images';
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(2, 8);
+      const ext = req.file.originalname.split('.').pop();
+      const objectName = `${folder}/${userId}/${timestamp}-${randomStr}.${ext}`;
+
+      const fileUrl = await getOssService().uploadFile(
+        objectName,
+        req.file.buffer,
+        req.file.mimetype
+      );
+
+      await db.insert(mediaFiles).values({
+        fileName: req.file.originalname,
+        fileUrl,
+        fileType: 'image',
+        fileSize: req.file.size,
+        uploadedBy: userId,
+        isPublic: true,
+      });
+
+      res.json({
+        success: true,
+        url: fileUrl,
+        fileType: 'image',
+        fileSize: req.file.size,
+      });
+    } catch (error) {
+      console.error('Image upload error:', error);
+      res.status(500).json({ success: false, message: 'Failed to upload image' });
+    }
+  });
+
+  // ============ J. 刷刷号创作者 API ============
+
+  // 将creator content转换为驼峰格式
+  function formatCreatorContent(content: any) {
+    return {
+      id: content.id,
+      creatorUserId: content.creatorUserId,
+      title: content.title,
+      description: content.description,
+      contentType: content.contentType,
+      mediaUrls: content.mediaUrls,
+      coverImageUrl: content.coverImageUrl,
+      status: content.status,
+      category: content.category,
+      viewCount: content.viewCount,
+      likeCount: content.likeCount,
+      commentCount: content.commentCount,
+      shareCount: content.shareCount,
+      createdAt: content.createdAt,
+      updatedAt: content.updatedAt,
+    };
+  }
+
+  // 获取创作者内容列表
+  app.get('/api/creator/contents', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const status = req.query.status as string || undefined;
+      
+      let query = db
+        .select()
+        .from(creatorContents)
+        .where(eq(creatorContents.creatorUserId, userId));
+      
+      if (status && (status === 'draft' || status === 'published')) {
+        query = db
+          .select()
+          .from(creatorContents)
+          .where(and(
+            eq(creatorContents.creatorUserId, userId),
+            eq(creatorContents.status, status)
+          ));
+      }
+      
+      const contents = await query.orderBy(desc(creatorContents.updatedAt));
+      
+      res.json({ success: true, data: contents.map(formatCreatorContent) });
+    } catch (error) {
+      console.error('Get creator contents error:', error);
+      res.status(500).json({ success: false, message: '获取内容列表失败' });
+    }
+  });
+
+  // 获取单个内容详情
+  app.get('/api/creator/contents/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const contentId = parseInt(req.params.id);
+      
+      const [content] = await db
+        .select()
+        .from(creatorContents)
+        .where(and(
+          eq(creatorContents.id, contentId),
+          eq(creatorContents.creatorUserId, userId)
+        ))
+        .limit(1);
+      
+      if (!content) {
+        return res.status(404).json({ success: false, message: '内容不存在' });
+      }
+      
+      // 获取绑定的推广信息
+      const bindings = await db
+        .select({
+          binding: promotionBindings,
+          campaign: campaigns,
+          store: stores,
+        })
+        .from(promotionBindings)
+        .leftJoin(campaigns, eq(promotionBindings.campaignId, campaigns.id))
+        .leftJoin(stores, eq(promotionBindings.storeId, stores.id))
+        .where(eq(promotionBindings.contentId, contentId));
+      
+      res.json({ 
+        success: true, 
+        data: { 
+          ...formatCreatorContent(content), 
+          promotionBindings: bindings 
+        } 
+      });
+    } catch (error) {
+      console.error('Get creator content error:', error);
+      res.status(500).json({ success: false, message: '获取内容详情失败' });
+    }
+  });
+
+  // 创建新内容
+  app.post('/api/creator/contents', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { contentType, category, title, description, mediaUrls, coverImageUrl, status } = req.body;
+      
+      const [newContent] = await db
+        .insert(creatorContents)
+        .values({
+          creatorUserId: userId,
+          contentType: contentType || 'video',
+          category: category || null,
+          title,
+          description,
+          mediaUrls: mediaUrls || [],
+          coverImageUrl,
+          status: status || 'draft',
+          publishedAt: status === 'published' ? new Date() : null,
+        })
+        .returning();
+      
+      // 如果直接发布，同步到short_videos表供刷刷首页feed显示
+      if (status === 'published' && mediaUrls?.length > 0) {
+        const finalContentType = contentType || 'video';
+        
+        if (finalContentType === 'video') {
+          // 视频类型
+          const videoUrl = mediaUrls.find((url: string) => url.match(/\.(mp4|mov|webm|m3u8)$/i)) || mediaUrls[0];
+          await db.insert(shortVideos).values({
+            creatorUserId: userId,
+            contentType: 'video',
+            sourceContentId: newContent.id,
+            videoUrl: videoUrl,
+            coverImageUrl: coverImageUrl || null,
+            thumbnailUrl: coverImageUrl || null,
+            title: title,
+            description: description || null,
+            category: category || null,
+            status: 'ready',
+            isPublic: true,
+            publishedAt: new Date(),
+          });
+          console.log(`[SYNC] 已同步创作者视频 #${newContent.id} 到Feed (分类: ${category || '无'})`);
+        } else if (finalContentType === 'article') {
+          // 图文日记类型
+          await db.insert(shortVideos).values({
+            creatorUserId: userId,
+            contentType: 'article',
+            sourceContentId: newContent.id,
+            videoUrl: null,
+            coverImageUrl: coverImageUrl || mediaUrls[0] || null,  // 优先使用封面图，否则用第一张图
+            thumbnailUrl: coverImageUrl || mediaUrls[0] || null,
+            mediaUrls: mediaUrls,
+            title: title,
+            description: description || null,
+            category: category || null,
+            status: 'ready',
+            isPublic: true,
+            publishedAt: new Date(),
+          });
+          console.log(`[SYNC] 已同步创作者图文 #${newContent.id} 到Feed (分类: ${category || '无'})`);
+        }
+      }
+      
+      res.json({ success: true, data: newContent });
+    } catch (error) {
+      console.error('Create creator content error:', error);
+      res.status(500).json({ success: false, message: '创建内容失败' });
+    }
+  });
+
+  // 更新内容
+  app.put('/api/creator/contents/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const contentId = parseInt(req.params.id);
+      const { contentType, category, title, description, mediaUrls, coverImageUrl, status } = req.body;
+      
+      // 验证内容所有权
+      const [existing] = await db
+        .select()
+        .from(creatorContents)
+        .where(and(
+          eq(creatorContents.id, contentId),
+          eq(creatorContents.creatorUserId, userId)
+        ))
+        .limit(1);
+      
+      if (!existing) {
+        return res.status(404).json({ success: false, message: '内容不存在' });
+      }
+      
+      const updateData: any = {
+        updatedAt: new Date(),
+      };
+      
+      if (contentType) updateData.contentType = contentType;
+      if (category !== undefined) updateData.category = category;
+      if (title !== undefined) updateData.title = title;
+      if (description !== undefined) updateData.description = description;
+      if (mediaUrls !== undefined) updateData.mediaUrls = mediaUrls;
+      if (coverImageUrl !== undefined) updateData.coverImageUrl = coverImageUrl;
+      
+      const isNewlyPublished = status === 'published' && existing.status !== 'published';
+      if (status) {
+        updateData.status = status;
+        if (isNewlyPublished) {
+          updateData.publishedAt = new Date();
+        }
+      }
+      
+      const [updated] = await db
+        .update(creatorContents)
+        .set(updateData)
+        .where(eq(creatorContents.id, contentId))
+        .returning();
+      
+      // 如果刚刚发布，同步到short_videos表供刷刷首页feed显示
+      const finalMediaUrls = mediaUrls !== undefined ? mediaUrls : existing.mediaUrls;
+      const finalContentType = contentType || existing.contentType;
+      const finalTitle = title !== undefined ? title : existing.title;
+      const finalDescription = description !== undefined ? description : existing.description;
+      const finalCoverImageUrl = coverImageUrl !== undefined ? coverImageUrl : existing.coverImageUrl;
+      const finalCategory = category !== undefined ? category : existing.category;
+      
+      if (isNewlyPublished && finalMediaUrls?.length > 0) {
+        if (finalContentType === 'video') {
+          // 视频类型
+          const videoUrl = finalMediaUrls.find((url: string) => url.match(/\.(mp4|mov|webm|m3u8)$/i)) || finalMediaUrls[0];
+          await db.insert(shortVideos).values({
+            creatorUserId: userId,
+            contentType: 'video',
+            sourceContentId: contentId,
+            videoUrl: videoUrl,
+            coverImageUrl: finalCoverImageUrl || null,
+            thumbnailUrl: finalCoverImageUrl || null,
+            title: finalTitle,
+            description: finalDescription || null,
+            category: finalCategory || null,
+            status: 'ready',
+            isPublic: true,
+            publishedAt: new Date(),
+          });
+          console.log(`[SYNC] 已同步创作者视频 #${contentId} 到Feed (分类: ${finalCategory || '无'})`);
+        } else if (finalContentType === 'article') {
+          // 图文日记类型
+          await db.insert(shortVideos).values({
+            creatorUserId: userId,
+            contentType: 'article',
+            sourceContentId: contentId,
+            videoUrl: null,
+            coverImageUrl: finalCoverImageUrl || finalMediaUrls[0] || null,  // 优先使用封面图，否则用第一张图
+            thumbnailUrl: finalCoverImageUrl || finalMediaUrls[0] || null,
+            mediaUrls: finalMediaUrls,
+            title: finalTitle,
+            description: finalDescription || null,
+            category: finalCategory || null,
+            status: 'ready',
+            isPublic: true,
+            publishedAt: new Date(),
+          });
+          console.log(`[SYNC] 已同步创作者图文 #${contentId} 到Feed (分类: ${finalCategory || '无'})`);
+        }
+      }
+      
+      res.json({ success: true, data: updated });
+    } catch (error) {
+      console.error('Update creator content error:', error);
+      res.status(500).json({ success: false, message: '更新内容失败' });
+    }
+  });
+
+  // 删除内容
+  app.delete('/api/creator/contents/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const contentId = parseInt(req.params.id);
+      
+      const [deleted] = await db
+        .delete(creatorContents)
+        .where(and(
+          eq(creatorContents.id, contentId),
+          eq(creatorContents.creatorUserId, userId)
+        ))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ success: false, message: '内容不存在' });
+      }
+      
+      res.json({ success: true, message: '删除成功' });
+    } catch (error) {
+      console.error('Delete creator content error:', error);
+      res.status(500).json({ success: false, message: '删除内容失败' });
+    }
+  });
+
+  // 获取可用的推广项目（卡券/活动）
+  app.get('/api/creator/available-promotions', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const now = new Date();
+      
+      // 获取所有活跃的活动
+      const activeCampaigns = await db
+        .select({
+          id: campaigns.id,
+          title: campaigns.titleSource,
+          titleZh: campaigns.titleZh,
+          titleEn: campaigns.titleEn,
+          titleTh: campaigns.titleTh,
+          bannerImageUrl: campaigns.bannerImageUrl,
+          couponValue: campaigns.couponValue,
+          discountType: campaigns.discountType,
+          endAt: campaigns.endAt,
+        })
+        .from(campaigns)
+        .where(
+          and(
+            eq(campaigns.isActive, true),
+            sql`${campaigns.startAt} <= ${now}`,
+            sql`${campaigns.endAt} >= ${now}`
+          )
+        )
+        .orderBy(desc(campaigns.startAt));
+      
+      // 获取活动关联的门店
+      const campaignIds = activeCampaigns.map(c => c.id);
+      const storeLinks = campaignIds.length > 0 
+        ? await db
+            .select({
+              campaignId: campaignStores.campaignId,
+              storeId: campaignStores.storeId,
+              storeName: stores.name,
+            })
+            .from(campaignStores)
+            .innerJoin(stores, eq(campaignStores.storeId, stores.id))
+            .where(inArray(campaignStores.campaignId, campaignIds))
+        : [];
+      
+      // 组合数据，添加默认计费模式
+      const promotions = activeCampaigns.map(campaign => {
+        const storeLink = storeLinks.find(s => s.campaignId === campaign.id);
+        return {
+          id: campaign.id,
+          type: 'campaign' as const,
+          title: campaign.titleZh || campaign.title,
+          merchantName: storeLink?.storeName || '未知商户',
+          storeId: storeLink?.storeId,
+          bannerImageUrl: campaign.bannerImageUrl,
+          couponValue: campaign.couponValue,
+          discountType: campaign.discountType,
+          endAt: campaign.endAt,
+          // 默认计费模式，实际可由商户配置
+          billingMode: 'cpc' as const,
+          price: 0.5, // 默认单价 $0.5/点击
+        };
+      });
+      
+      res.json({ success: true, data: promotions });
+    } catch (error) {
+      console.error('Get available promotions error:', error);
+      res.status(500).json({ success: false, message: '获取推广项目失败' });
+    }
+  });
+
+  // 绑定推广到内容
+  app.post('/api/creator/contents/:id/bind-promotion', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const contentId = parseInt(req.params.id);
+      const { promotionType, campaignId, storeId, billingMode, price } = req.body;
+      
+      // 验证内容所有权
+      const [content] = await db
+        .select()
+        .from(creatorContents)
+        .where(and(
+          eq(creatorContents.id, contentId),
+          eq(creatorContents.creatorUserId, userId)
+        ))
+        .limit(1);
+      
+      if (!content) {
+        return res.status(404).json({ success: false, message: '内容不存在' });
+      }
+      
+      // 创建绑定
+      const [binding] = await db
+        .insert(promotionBindings)
+        .values({
+          contentId,
+          promotionType: promotionType || 'campaign',
+          campaignId,
+          storeId,
+          billingMode: billingMode || 'cpc',
+          price: price || '0.5',
+          platformFeeRate: '0.30',
+        })
+        .returning();
+      
+      res.json({ success: true, data: binding });
+    } catch (error) {
+      console.error('Bind promotion error:', error);
+      res.status(500).json({ success: false, message: '绑定推广失败' });
+    }
+  });
+
+  // 解除推广绑定
+  app.delete('/api/creator/bindings/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const bindingId = parseInt(req.params.id);
+      
+      // 验证绑定属于该创作者的内容
+      const [binding] = await db
+        .select({
+          binding: promotionBindings,
+          content: creatorContents,
+        })
+        .from(promotionBindings)
+        .innerJoin(creatorContents, eq(promotionBindings.contentId, creatorContents.id))
+        .where(and(
+          eq(promotionBindings.id, bindingId),
+          eq(creatorContents.creatorUserId, userId)
+        ))
+        .limit(1);
+      
+      if (!binding) {
+        return res.status(404).json({ success: false, message: '绑定不存在' });
+      }
+      
+      await db
+        .delete(promotionBindings)
+        .where(eq(promotionBindings.id, bindingId));
+      
+      res.json({ success: true, message: '解除绑定成功' });
+    } catch (error) {
+      console.error('Unbind promotion error:', error);
+      res.status(500).json({ success: false, message: '解除绑定失败' });
+    }
+  });
+
+  // 获取创作者收益统计
+  app.get('/api/creator/earnings', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      
+      // 获取总收益
+      const [totalEarnings] = await db
+        .select({
+          totalGross: sql<string>`COALESCE(SUM(${promotionEarnings.grossAmount}), 0)`,
+          totalPlatformFee: sql<string>`COALESCE(SUM(${promotionEarnings.platformFee}), 0)`,
+          totalCreatorEarning: sql<string>`COALESCE(SUM(${promotionEarnings.creatorEarning}), 0)`,
+        })
+        .from(promotionEarnings)
+        .where(eq(promotionEarnings.creatorUserId, userId));
+      
+      // 获取最近的收益记录
+      const recentEarnings = await db
+        .select()
+        .from(promotionEarnings)
+        .where(eq(promotionEarnings.creatorUserId, userId))
+        .orderBy(desc(promotionEarnings.createdAt))
+        .limit(20);
+      
+      res.json({
+        success: true,
+        data: {
+          summary: {
+            totalGross: parseFloat(totalEarnings?.totalGross || '0'),
+            totalPlatformFee: parseFloat(totalEarnings?.totalPlatformFee || '0'),
+            totalCreatorEarning: parseFloat(totalEarnings?.totalCreatorEarning || '0'),
+          },
+          recentEarnings,
+        },
+      });
+    } catch (error) {
+      console.error('Get creator earnings error:', error);
+      res.status(500).json({ success: false, message: '获取收益统计失败' });
+    }
+  });
+
+  // 获取创作者统计数据
+  app.get('/api/creator/stats', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      
+      // 内容统计
+      const [contentStats] = await db
+        .select({
+          totalContents: sql<number>`COUNT(*)`,
+          publishedContents: sql<number>`SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END)`,
+          draftContents: sql<number>`SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END)`,
+          totalViews: sql<number>`COALESCE(SUM(view_count), 0)`,
+          totalLikes: sql<number>`COALESCE(SUM(like_count), 0)`,
+        })
+        .from(creatorContents)
+        .where(eq(creatorContents.creatorUserId, userId));
+      
+      // 收益统计
+      const [earningStats] = await db
+        .select({
+          totalEarning: sql<string>`COALESCE(SUM(${promotionEarnings.creatorEarning}), 0)`,
+        })
+        .from(promotionEarnings)
+        .where(eq(promotionEarnings.creatorUserId, userId));
+      
+      res.json({
+        success: true,
+        data: {
+          contents: {
+            total: Number(contentStats?.totalContents || 0),
+            published: Number(contentStats?.publishedContents || 0),
+            drafts: Number(contentStats?.draftContents || 0),
+          },
+          engagement: {
+            views: Number(contentStats?.totalViews || 0),
+            likes: Number(contentStats?.totalLikes || 0),
+          },
+          earnings: {
+            total: parseFloat(earningStats?.totalEarning || '0'),
+          },
+        },
+      });
+    } catch (error) {
+      console.error('Get creator stats error:', error);
+      res.status(500).json({ success: false, message: '获取统计数据失败' });
+    }
+  });
+
+  // 获取创作者详细分析数据（时间维度统计）
+  app.get('/api/creator/analytics', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      // 获取创作者所有内容
+      const allContents = await db
+        .select()
+        .from(creatorContents)
+        .where(eq(creatorContents.creatorUserId, userId));
+      
+      // 总体统计
+      const totalViews = allContents.reduce((sum, c) => sum + (c.viewCount || 0), 0);
+      const totalLikes = allContents.reduce((sum, c) => sum + (c.likeCount || 0), 0);
+      const totalShares = allContents.reduce((sum, c) => sum + (c.shareCount || 0), 0);
+      const publishedContents = allContents.filter(c => c.status === 'published');
+      
+      // 粉丝统计
+      const [followerStats] = await db
+        .select({
+          totalFollowers: sql<number>`COUNT(*)`,
+        })
+        .from(userFollows)
+        .where(eq(userFollows.followingId, userId));
+      
+      const [followingStats] = await db
+        .select({
+          totalFollowing: sql<number>`COUNT(*)`,
+        })
+        .from(userFollows)
+        .where(eq(userFollows.followerId, userId));
+      
+      // 7天内新增粉丝
+      const [newFollowers7d] = await db
+        .select({
+          count: sql<number>`COUNT(*)`,
+        })
+        .from(userFollows)
+        .where(
+          and(
+            eq(userFollows.followingId, userId),
+            gte(userFollows.createdAt, sevenDaysAgo)
+          )
+        );
+      
+      // 评论统计（使用短视频评论表）
+      const contentIds = publishedContents.map(c => c.id);
+      let totalComments = 0;
+      if (contentIds.length > 0) {
+        const [commentStats] = await db
+          .select({
+            count: sql<number>`COUNT(*)`,
+          })
+          .from(shortVideoComments)
+          .where(inArray(shortVideoComments.videoId, contentIds));
+        totalComments = Number(commentStats?.count || 0);
+      }
+      
+      // 收益统计
+      const [earningStats] = await db
+        .select({
+          totalEarning: sql<string>`COALESCE(SUM(${promotionEarnings.creatorEarning}), 0)`,
+        })
+        .from(promotionEarnings)
+        .where(eq(promotionEarnings.creatorUserId, userId));
+      
+      // 7天收益
+      const [earning7d] = await db
+        .select({
+          total: sql<string>`COALESCE(SUM(${promotionEarnings.creatorEarning}), 0)`,
+        })
+        .from(promotionEarnings)
+        .where(
+          and(
+            eq(promotionEarnings.creatorUserId, userId),
+            gte(promotionEarnings.createdAt, sevenDaysAgo)
+          )
+        );
+      
+      // 30天收益
+      const [earning30d] = await db
+        .select({
+          total: sql<string>`COALESCE(SUM(${promotionEarnings.creatorEarning}), 0)`,
+        })
+        .from(promotionEarnings)
+        .where(
+          and(
+            eq(promotionEarnings.creatorUserId, userId),
+            gte(promotionEarnings.createdAt, thirtyDaysAgo)
+          )
+        );
+      
+      // 生成过去7天的趋势数据（简化版，基于内容创建时间）
+      const trendData: Array<{ date: string; views: number; likes: number; followers: number }> = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        // 简化的趋势数据 - 基于当天发布的内容
+        const dayContents = publishedContents.filter(c => {
+          const pubDate = c.publishedAt || c.createdAt;
+          return pubDate && pubDate.toISOString().split('T')[0] === dateStr;
+        });
+        
+        trendData.push({
+          date: dateStr,
+          views: dayContents.reduce((sum, c) => sum + (c.viewCount || 0), 0),
+          likes: dayContents.reduce((sum, c) => sum + (c.likeCount || 0), 0),
+          followers: 0, // 简化处理
+        });
+      }
+      
+      // 内容分类统计
+      const categoryStats: Record<string, { count: number; views: number; likes: number }> = {};
+      publishedContents.forEach(c => {
+        const cat = c.category || 'other';
+        if (!categoryStats[cat]) {
+          categoryStats[cat] = { count: 0, views: 0, likes: 0 };
+        }
+        categoryStats[cat].count++;
+        categoryStats[cat].views += c.viewCount || 0;
+        categoryStats[cat].likes += c.likeCount || 0;
+      });
+      
+      // 热门内容（按播放量排序）
+      const topContents = [...publishedContents]
+        .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
+        .slice(0, 5)
+        .map(c => ({
+          id: c.id,
+          title: c.title,
+          contentType: c.contentType,
+          coverImageUrl: c.coverImageUrl,
+          viewCount: c.viewCount || 0,
+          likeCount: c.likeCount || 0,
+          shareCount: c.shareCount || 0,
+        }));
+      
+      res.json({
+        success: true,
+        data: {
+          overview: {
+            totalViews,
+            totalLikes,
+            totalShares,
+            totalComments,
+            totalContents: publishedContents.length,
+            totalFollowers: Number(followerStats?.totalFollowers || 0),
+            totalFollowing: Number(followingStats?.totalFollowing || 0),
+            newFollowers7d: Number(newFollowers7d?.count || 0),
+          },
+          earnings: {
+            total: parseFloat(earningStats?.totalEarning || '0'),
+            last7Days: parseFloat(earning7d?.total || '0'),
+            last30Days: parseFloat(earning30d?.total || '0'),
+          },
+          trend: trendData,
+          categoryStats,
+          topContents,
+        },
+      });
+    } catch (error) {
+      console.error('Get creator analytics error:', error);
+      res.status(500).json({ success: false, message: '获取分析数据失败' });
+    }
+  });
+
+  // 更新刷刷号资料 (名称、简介)
+  app.patch('/api/creator/profile', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { shuaName, shuaBio } = req.body;
+      
+      const updateData: any = {};
+      if (shuaName !== undefined) {
+        updateData.shuaName = shuaName.trim() || null;
+      }
+      if (shuaBio !== undefined) {
+        updateData.shuaBio = shuaBio.trim() || null;
+      }
+      
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ success: false, message: '没有要更新的内容' });
+      }
+      
+      updateData.updatedAt = new Date();
+      
+      const [updated] = await db
+        .update(users)
+        .set(updateData)
+        .where(eq(users.id, userId))
+        .returning();
+      
+      res.json({
+        success: true,
+        data: {
+          id: updated.id,
+          shuaName: updated.shuaName,
+          shuaBio: updated.shuaBio,
+          displayName: updated.displayName,
+        },
+      });
+    } catch (error) {
+      console.error('Update creator profile error:', error);
+      res.status(500).json({ success: false, message: '更新刷刷号资料失败' });
+    }
+  });
+
+  // ============================================
+  // 用户公开信息 API
+  // ============================================
+  
+  // 获取用户公开资料
+  app.get('/api/users/:id/profile', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ success: false, message: '无效的用户ID' });
+      }
+      
+      const [user] = await db
+        .select({
+          id: users.id,
+          displayName: users.displayName,
+          shuaName: users.shuaName,
+          shuaBio: users.shuaBio,
+          avatarUrl: users.avatarUrl,
+        })
+        .from(users)
+        .where(eq(users.id, userId));
+      
+      if (!user) {
+        return res.status(404).json({ success: false, message: '用户不存在' });
+      }
+      
+      res.json({ success: true, data: user });
+    } catch (error) {
+      console.error('Get user profile error:', error);
+      res.status(500).json({ success: false, message: '获取用户资料失败' });
+    }
+  });
+  
+  // 获取用户公开发布的内容
+  app.get('/api/users/:id/contents', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ success: false, message: '无效的用户ID' });
+      }
+      
+      // 从 shortVideos 表获取用户发布的内容
+      const userContents = await db
+        .select({
+          id: shortVideos.id,
+          title: shortVideos.title,
+          contentType: shortVideos.contentType,
+          mediaUrls: shortVideos.mediaUrls,
+          coverImageUrl: shortVideos.coverImageUrl,
+          viewCount: shortVideos.viewCount,
+          likeCount: shortVideos.likeCount,
+        })
+        .from(shortVideos)
+        .where(and(
+          eq(shortVideos.creatorUserId, userId),
+          eq(shortVideos.status, 'ready'),
+          eq(shortVideos.isPublic, true)
+        ))
+        .orderBy(desc(shortVideos.createdAt));
+      
+      res.json({ success: true, data: userContents });
+    } catch (error) {
+      console.error('Get user contents error:', error);
+      res.status(500).json({ success: false, message: '获取用户内容失败' });
+    }
+  });
+
+  // 获取用户统计数据（关注数、粉丝数、作品统计）
+  app.get('/api/users/:id/stats', optionalUserAuth, async (req: Request, res: Response) => {
+    try {
+      const targetUserId = parseInt(req.params.id);
+      const currentUserId = req.user?.id;
+      
+      if (isNaN(targetUserId)) {
+        return res.status(400).json({ success: false, message: '无效的用户ID' });
+      }
+
+      // 获取关注数（该用户关注了多少人）
+      const [followingCount] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(userFollows)
+        .where(eq(userFollows.followerId, targetUserId));
+
+      // 获取粉丝数（多少人关注了该用户）
+      const [followerCount] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(userFollows)
+        .where(eq(userFollows.followingId, targetUserId));
+
+      // 获取作品统计
+      const [worksStats] = await db
+        .select({
+          worksCount: sql<number>`count(*)::int`,
+          totalLikes: sql<number>`coalesce(sum(${shortVideos.likeCount}), 0)::int`,
+          totalViews: sql<number>`coalesce(sum(${shortVideos.viewCount}), 0)::int`,
+        })
+        .from(shortVideos)
+        .where(and(
+          eq(shortVideos.creatorUserId, targetUserId),
+          eq(shortVideos.status, 'ready'),
+          eq(shortVideos.isPublic, true)
+        ));
+
+      // 检查当前用户是否关注了目标用户
+      let isFollowing = false;
+      if (currentUserId && currentUserId !== targetUserId) {
+        const [followRecord] = await db
+          .select()
+          .from(userFollows)
+          .where(and(
+            eq(userFollows.followerId, currentUserId),
+            eq(userFollows.followingId, targetUserId)
+          ));
+        isFollowing = !!followRecord;
+      }
+
+      res.json({
+        success: true,
+        data: {
+          followingCount: followingCount?.count || 0,
+          followerCount: followerCount?.count || 0,
+          worksCount: worksStats?.worksCount || 0,
+          totalLikes: worksStats?.totalLikes || 0,
+          totalViews: worksStats?.totalViews || 0,
+          isFollowing,
+          isSelf: currentUserId === targetUserId,
+        },
+      });
+    } catch (error) {
+      console.error('Get user stats error:', error);
+      res.status(500).json({ success: false, message: '获取用户统计失败' });
+    }
+  });
+
+  // 关注/取消关注用户
+  app.post('/api/users/:id/follow', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const targetUserId = parseInt(req.params.id);
+      const currentUserId = req.user!.id;
+
+      if (isNaN(targetUserId)) {
+        return res.status(400).json({ success: false, message: '无效的用户ID' });
+      }
+
+      if (currentUserId === targetUserId) {
+        return res.status(400).json({ success: false, message: '不能关注自己' });
+      }
+
+      // 检查目标用户是否存在
+      const [targetUser] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, targetUserId));
+
+      if (!targetUser) {
+        return res.status(404).json({ success: false, message: '用户不存在' });
+      }
+
+      // 检查是否已关注
+      const [existingFollow] = await db
+        .select()
+        .from(userFollows)
+        .where(and(
+          eq(userFollows.followerId, currentUserId),
+          eq(userFollows.followingId, targetUserId)
+        ));
+
+      if (existingFollow) {
+        // 取消关注
+        await db
+          .delete(userFollows)
+          .where(eq(userFollows.id, existingFollow.id));
+
+        res.json({ success: true, following: false, message: '已取消关注' });
+      } else {
+        // 添加关注
+        await db.insert(userFollows).values({
+          followerId: currentUserId,
+          followingId: targetUserId,
+        });
+
+        res.json({ success: true, following: true, message: '关注成功' });
+      }
+    } catch (error) {
+      console.error('Follow user error:', error);
+      res.status(500).json({ success: false, message: '操作失败' });
+    }
+  });
+
+  // 获取用户的关注列表
+  app.get('/api/users/:id/following', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+      const offset = (page - 1) * limit;
+
+      if (isNaN(userId)) {
+        return res.status(400).json({ success: false, message: '无效的用户ID' });
+      }
+
+      const followingList = await db
+        .select({
+          id: users.id,
+          displayName: users.displayName,
+          shuaName: users.shuaName,
+          avatarUrl: users.avatarUrl,
+          followedAt: userFollows.createdAt,
+        })
+        .from(userFollows)
+        .innerJoin(users, eq(userFollows.followingId, users.id))
+        .where(eq(userFollows.followerId, userId))
+        .orderBy(desc(userFollows.createdAt))
+        .offset(offset)
+        .limit(limit);
+
+      res.json({ success: true, data: followingList });
+    } catch (error) {
+      console.error('Get following list error:', error);
+      res.status(500).json({ success: false, message: '获取关注列表失败' });
+    }
+  });
+
+  // 获取用户的粉丝列表
+  app.get('/api/users/:id/followers', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+      const offset = (page - 1) * limit;
+
+      if (isNaN(userId)) {
+        return res.status(400).json({ success: false, message: '无效的用户ID' });
+      }
+
+      const followersList = await db
+        .select({
+          id: users.id,
+          displayName: users.displayName,
+          shuaName: users.shuaName,
+          avatarUrl: users.avatarUrl,
+          followedAt: userFollows.createdAt,
+        })
+        .from(userFollows)
+        .innerJoin(users, eq(userFollows.followerId, users.id))
+        .where(eq(userFollows.followingId, userId))
+        .orderBy(desc(userFollows.createdAt))
+        .offset(offset)
+        .limit(limit);
+
+      res.json({ success: true, data: followersList });
+    } catch (error) {
+      console.error('Get followers list error:', error);
+      res.status(500).json({ success: false, message: '获取粉丝列表失败' });
+    }
+  });
+
+  // ============================================
+  // 抖音式短视频系统 API
+  // ============================================
+
+  // 获取短视频流（游标分页，用于无限滚动）
+  app.get('/api/short-videos/feed', optionalUserAuth, async (req: Request, res: Response) => {
+    try {
+      const cursor = req.query.cursor ? parseInt(req.query.cursor as string) : 0;
+      const limit = Math.min(parseInt(req.query.limit as string) || 10, 20);
+      const category = req.query.category as string | undefined;
+      const userId = req.user?.id;
+
+      // 构建筛选条件
+      const conditions = [
+        eq(shortVideos.status, 'ready'),
+        eq(shortVideos.isPublic, true)
+      ];
+      
+      // 如果指定了分类且不是 'all'，则添加分类筛选
+      if (category && category !== 'all') {
+        conditions.push(eq(shortVideos.category, category));
+      }
+
+      // 获取公开且已就绪的内容（视频和图文）
+      const videos = await db
+        .select({
+          id: shortVideos.id,
+          contentType: shortVideos.contentType,  // 内容类型：video或article
+          sourceContentId: shortVideos.sourceContentId,
+          videoUrl: shortVideos.videoUrl,
+          hlsUrl: shortVideos.hlsUrl,
+          coverImageUrl: shortVideos.coverImageUrl,
+          thumbnailUrl: shortVideos.thumbnailUrl,
+          mediaUrls: shortVideos.mediaUrls,  // 图文的多张图片
+          duration: shortVideos.duration,
+          title: shortVideos.title,
+          description: shortVideos.description,
+          category: shortVideos.category,
+          hashtags: shortVideos.hashtags,
+          locationName: shortVideos.locationName,
+          viewCount: shortVideos.viewCount,
+          likeCount: shortVideos.likeCount,
+          commentCount: shortVideos.commentCount,
+          shareCount: shortVideos.shareCount,
+          createdAt: shortVideos.createdAt,
+          creatorUserId: shortVideos.creatorUserId,
+          storeId: shortVideos.storeId,
+          campaignId: shortVideos.campaignId,
+          creatorShuaName: users.shuaName,
+          creatorDisplayName: users.displayName,
+          creatorAvatar: users.avatarUrl,
+        })
+        .from(shortVideos)
+        .leftJoin(users, eq(shortVideos.creatorUserId, users.id))
+        .where(and(...conditions))
+        .orderBy(desc(shortVideos.publishedAt))
+        .offset(cursor)
+        .limit(limit + 1);
+
+      const hasMore = videos.length > limit;
+      const items = hasMore ? videos.slice(0, limit) : videos;
+
+      // 如果用户已登录，检查每个视频是否已点赞
+      let likedVideoIds: number[] = [];
+      if (userId && items.length > 0) {
+        const videoIds = items.map(v => v.id);
+        const likes = await db
+          .select({ videoId: shortVideoLikes.videoId })
+          .from(shortVideoLikes)
+          .where(and(
+            inArray(shortVideoLikes.videoId, videoIds),
+            eq(shortVideoLikes.userId, userId)
+          ));
+        likedVideoIds = likes.map(l => l.videoId);
+      }
+
+      res.json({
+        success: true,
+        data: {
+          items: items.map(v => ({
+            ...v,
+            creatorName: v.creatorShuaName || v.creatorDisplayName || '匿名用户',
+            videoUrl: convertHttpToHttps(v.videoUrl),
+            hlsUrl: convertHttpToHttps(v.hlsUrl),
+            coverImageUrl: convertHttpToHttps(v.coverImageUrl),
+            thumbnailUrl: convertHttpToHttps(v.thumbnailUrl),
+            mediaUrls: convertUrlArrayToHttps(v.mediaUrls),
+            creatorAvatar: convertHttpToHttps(v.creatorAvatar),
+            isLiked: likedVideoIds.includes(v.id),
+          })),
+          nextCursor: hasMore ? cursor + limit : null,
+          hasMore,
+        },
+      });
+    } catch (error) {
+      console.error('Get short videos feed error:', error);
+      res.status(500).json({ success: false, message: '获取视频流失败' });
+    }
+  });
+
+  // 获取单个短视频详情
+  app.get('/api/short-videos/:id', optionalUserAuth, async (req: Request, res: Response) => {
+    try {
+      const videoId = parseInt(req.params.id);
+      const userId = req.user?.id;
+
+      const [video] = await db
+        .select({
+          id: shortVideos.id,
+          contentType: shortVideos.contentType,
+          videoUrl: shortVideos.videoUrl,
+          hlsUrl: shortVideos.hlsUrl,
+          coverImageUrl: shortVideos.coverImageUrl,
+          mediaUrls: shortVideos.mediaUrls,
+          duration: shortVideos.duration,
+          title: shortVideos.title,
+          description: shortVideos.description,
+          hashtags: shortVideos.hashtags,
+          locationName: shortVideos.locationName,
+          viewCount: shortVideos.viewCount,
+          likeCount: shortVideos.likeCount,
+          commentCount: shortVideos.commentCount,
+          shareCount: shortVideos.shareCount,
+          createdAt: shortVideos.createdAt,
+          creatorUserId: shortVideos.creatorUserId,
+          storeId: shortVideos.storeId,
+          campaignId: shortVideos.campaignId,
+          creatorShuaName: users.shuaName,
+          creatorDisplayName: users.displayName,
+          creatorAvatar: users.avatarUrl,
+        })
+        .from(shortVideos)
+        .leftJoin(users, eq(shortVideos.creatorUserId, users.id))
+        .where(eq(shortVideos.id, videoId));
+
+      if (!video) {
+        return res.status(404).json({ success: false, message: '视频不存在' });
+      }
+
+      // 增加观看次数
+      await db
+        .update(shortVideos)
+        .set({ viewCount: sql`${shortVideos.viewCount} + 1` })
+        .where(eq(shortVideos.id, videoId));
+
+      // 检查是否已点赞
+      let isLiked = false;
+      if (userId) {
+        const [like] = await db
+          .select()
+          .from(shortVideoLikes)
+          .where(and(
+            eq(shortVideoLikes.videoId, videoId),
+            eq(shortVideoLikes.userId, userId)
+          ));
+        isLiked = !!like;
+      }
+
+      res.json({
+        success: true,
+        data: { 
+          ...video, 
+          creatorName: video.creatorShuaName || video.creatorDisplayName || '匿名用户',
+          videoUrl: convertHttpToHttps(video.videoUrl),
+          hlsUrl: convertHttpToHttps(video.hlsUrl),
+          coverImageUrl: convertHttpToHttps(video.coverImageUrl),
+          mediaUrls: convertUrlArrayToHttps(video.mediaUrls),
+          creatorAvatar: convertHttpToHttps(video.creatorAvatar),
+          isLiked 
+        },
+      });
+    } catch (error) {
+      console.error('Get short video detail error:', error);
+      res.status(500).json({ success: false, message: '获取视频详情失败' });
+    }
+  });
+
+  // 上传短视频
+  app.post('/api/short-videos', userAuthMiddleware, upload.fields([
+    { name: 'video', maxCount: 1 },
+    { name: 'cover', maxCount: 1 },
+    { name: 'thumbnail', maxCount: 1 },
+  ]), async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const files = req.files as { [key: string]: Express.Multer.File[] };
+      
+      if (!files.video || !files.video[0]) {
+        return res.status(400).json({ success: false, message: '请上传视频文件' });
+      }
+
+      const videoFile = files.video[0];
+      const coverFile = files.cover?.[0];
+      const thumbnailFile = files.thumbnail?.[0];
+
+      const timestamp = Date.now();
+      const randomStr = nanoid(8);
+
+      // 上传视频
+      const videoExt = videoFile.originalname.split('.').pop();
+      const videoObjectName = `short-videos/${userId}/${timestamp}-${randomStr}.${videoExt}`;
+      const videoUrl = await getOssService().uploadFile(
+        videoObjectName,
+        videoFile.buffer,
+        videoFile.mimetype
+      );
+
+      // 上传封面图（如果有）
+      let coverImageUrl: string | undefined;
+      if (coverFile) {
+        const coverExt = coverFile.originalname.split('.').pop();
+        const coverObjectName = `short-videos/${userId}/${timestamp}-${randomStr}-cover.${coverExt}`;
+        coverImageUrl = await getOssService().uploadFile(
+          coverObjectName,
+          coverFile.buffer,
+          coverFile.mimetype
+        );
+      }
+
+      // 上传缩略图（如果有）
+      let thumbnailUrl: string | undefined;
+      if (thumbnailFile) {
+        const thumbExt = thumbnailFile.originalname.split('.').pop();
+        const thumbObjectName = `short-videos/${userId}/${timestamp}-${randomStr}-thumb.${thumbExt}`;
+        thumbnailUrl = await getOssService().uploadFile(
+          thumbObjectName,
+          thumbnailFile.buffer,
+          thumbnailFile.mimetype
+        );
+      }
+
+      // 解析请求体
+      const { title, description, hashtags, locationName, storeId, campaignId, isPublic } = req.body;
+
+      // 创建短视频记录
+      const [newVideo] = await db.insert(shortVideos).values({
+        creatorUserId: userId,
+        videoUrl,
+        coverImageUrl,
+        thumbnailUrl,
+        title: title || null,
+        description: description || null,
+        hashtags: hashtags ? JSON.parse(hashtags) : null,
+        locationName: locationName || null,
+        storeId: storeId ? parseInt(storeId) : null,
+        campaignId: campaignId ? parseInt(campaignId) : null,
+        status: 'ready', // 临时直接设为ready，后续接入MPS转码后改为processing
+        isPublic: isPublic !== 'false',
+        publishedAt: new Date(),
+        fileSize: videoFile.size,
+      }).returning();
+
+      res.json({
+        success: true,
+        data: newVideo,
+      });
+    } catch (error) {
+      console.error('Upload short video error:', error);
+      res.status(500).json({ success: false, message: '上传视频失败' });
+    }
+  });
+
+  // 点赞/取消点赞短视频
+  app.post('/api/short-videos/:id/like', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const videoId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      // 检查是否已点赞
+      const [existingLike] = await db
+        .select()
+        .from(shortVideoLikes)
+        .where(and(
+          eq(shortVideoLikes.videoId, videoId),
+          eq(shortVideoLikes.userId, userId)
+        ));
+
+      if (existingLike) {
+        // 取消点赞
+        await db
+          .delete(shortVideoLikes)
+          .where(eq(shortVideoLikes.id, existingLike.id));
+        
+        await db
+          .update(shortVideos)
+          .set({ likeCount: sql`GREATEST(${shortVideos.likeCount} - 1, 0)` })
+          .where(eq(shortVideos.id, videoId));
+
+        res.json({ success: true, liked: false });
+      } else {
+        // 添加点赞
+        await db.insert(shortVideoLikes).values({
+          videoId,
+          userId,
+        });
+
+        await db
+          .update(shortVideos)
+          .set({ likeCount: sql`${shortVideos.likeCount} + 1` })
+          .where(eq(shortVideos.id, videoId));
+
+        res.json({ success: true, liked: true });
+      }
+    } catch (error) {
+      console.error('Like short video error:', error);
+      res.status(500).json({ success: false, message: '操作失败' });
+    }
+  });
+
+  // 获取短视频评论（支持嵌套回复结构）
+  app.get('/api/short-videos/:id/comments', optionalUserAuth, async (req: Request, res: Response) => {
+    try {
+      const videoId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      const cursor = req.query.cursor ? parseInt(req.query.cursor as string) : 0;
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+
+      // 获取所有评论（包括回复）
+      const allComments = await db
+        .select({
+          id: shortVideoComments.id,
+          content: shortVideoComments.content,
+          likeCount: shortVideoComments.likeCount,
+          createdAt: shortVideoComments.createdAt,
+          parentId: shortVideoComments.parentId,
+          userId: shortVideoComments.userId,
+          userName: sql<string>`COALESCE(${users.shuaName}, ${users.displayName}, '匿名用户')`,
+          userAvatar: users.avatarUrl,
+        })
+        .from(shortVideoComments)
+        .leftJoin(users, eq(shortVideoComments.userId, users.id))
+        .where(eq(shortVideoComments.videoId, videoId))
+        .orderBy(desc(shortVideoComments.createdAt));
+
+      // 检查用户点赞状态
+      let likedCommentIds: number[] = [];
+      if (userId) {
+        const likes = await db
+          .select({ commentId: shortVideoCommentLikes.commentId })
+          .from(shortVideoCommentLikes)
+          .where(eq(shortVideoCommentLikes.userId, userId));
+        likedCommentIds = likes.map(l => l.commentId);
+      }
+
+      // 分离顶层评论和回复
+      const topLevelComments = allComments.filter(c => !c.parentId);
+      const replies = allComments.filter(c => c.parentId);
+
+      // 构建嵌套结构
+      const commentsWithReplies = topLevelComments.map(comment => ({
+        ...comment,
+        userAvatar: convertHttpToHttps(comment.userAvatar),
+        isLiked: likedCommentIds.includes(comment.id),
+        replies: replies
+          .filter(r => r.parentId === comment.id)
+          .map(r => ({
+            ...r,
+            userAvatar: convertHttpToHttps(r.userAvatar),
+            isLiked: likedCommentIds.includes(r.id),
+          }))
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+        replyCount: replies.filter(r => r.parentId === comment.id).length,
+      }));
+
+      // 分页处理（只对顶层评论分页）
+      const hasMore = commentsWithReplies.length > cursor + limit;
+      const items = commentsWithReplies.slice(cursor, cursor + limit);
+
+      res.json({
+        success: true,
+        data: {
+          items,
+          nextCursor: hasMore ? cursor + limit : null,
+          hasMore,
+        },
+      });
+    } catch (error) {
+      console.error('Get short video comments error:', error);
+      res.status(500).json({ success: false, message: '获取评论失败' });
+    }
+  });
+
+  // 发表评论
+  app.post('/api/short-videos/:id/comments', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const videoId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      const { content, parentId } = req.body;
+
+      if (!content || content.trim().length === 0) {
+        return res.status(400).json({ success: false, message: '评论内容不能为空' });
+      }
+
+      const [newComment] = await db.insert(shortVideoComments).values({
+        videoId,
+        userId,
+        content: content.trim(),
+        parentId: parentId ? parseInt(parentId) : null,
+      }).returning();
+
+      // 更新评论计数
+      await db
+        .update(shortVideos)
+        .set({ commentCount: sql`${shortVideos.commentCount} + 1` })
+        .where(eq(shortVideos.id, videoId));
+
+      // 获取用户信息
+      const [user] = await db
+        .select({ 
+          displayName: users.displayName, 
+          shuaName: users.shuaName,
+          avatarUrl: users.avatarUrl 
+        })
+        .from(users)
+        .where(eq(users.id, userId));
+
+      res.json({
+        success: true,
+        data: {
+          ...newComment,
+          userName: user?.shuaName || user?.displayName || '匿名用户',
+          userAvatar: convertHttpToHttps(user?.avatarUrl),
+        },
+      });
+    } catch (error) {
+      console.error('Post short video comment error:', error);
+      res.status(500).json({ success: false, message: '发表评论失败' });
+    }
+  });
+
+  // 评论点赞/取消点赞
+  app.post('/api/short-videos/comments/:id/like', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const commentId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      // 检查评论是否存在
+      const [comment] = await db
+        .select()
+        .from(shortVideoComments)
+        .where(eq(shortVideoComments.id, commentId));
+
+      if (!comment) {
+        return res.status(404).json({ success: false, message: '评论不存在' });
+      }
+
+      // 检查是否已点赞
+      const [existingLike] = await db
+        .select()
+        .from(shortVideoCommentLikes)
+        .where(and(
+          eq(shortVideoCommentLikes.commentId, commentId),
+          eq(shortVideoCommentLikes.userId, userId)
+        ));
+
+      if (existingLike) {
+        // 取消点赞
+        await db
+          .delete(shortVideoCommentLikes)
+          .where(eq(shortVideoCommentLikes.id, existingLike.id));
+        
+        await db
+          .update(shortVideoComments)
+          .set({ likeCount: sql`GREATEST(${shortVideoComments.likeCount} - 1, 0)` })
+          .where(eq(shortVideoComments.id, commentId));
+
+        res.json({ success: true, liked: false });
+      } else {
+        // 添加点赞
+        await db.insert(shortVideoCommentLikes).values({
+          commentId,
+          userId,
+        });
+
+        await db
+          .update(shortVideoComments)
+          .set({ likeCount: sql`${shortVideoComments.likeCount} + 1` })
+          .where(eq(shortVideoComments.id, commentId));
+
+        res.json({ success: true, liked: true });
+      }
+    } catch (error) {
+      console.error('Like comment error:', error);
+      res.status(500).json({ success: false, message: '操作失败' });
+    }
+  });
+
+  // 获取创作者的短视频列表
+  app.get('/api/creator/short-videos', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const status = req.query.status as string || undefined;
+
+      let query = db
+        .select()
+        .from(shortVideos)
+        .where(eq(shortVideos.creatorUserId, userId))
+        .orderBy(desc(shortVideos.createdAt));
+
+      if (status) {
+        query = db
+          .select()
+          .from(shortVideos)
+          .where(and(
+            eq(shortVideos.creatorUserId, userId),
+            eq(shortVideos.status, status as any)
+          ))
+          .orderBy(desc(shortVideos.createdAt));
+      }
+
+      const videos = await query;
+
+      res.json({
+        success: true,
+        data: videos,
+      });
+    } catch (error) {
+      console.error('Get creator short videos error:', error);
+      res.status(500).json({ success: false, message: '获取视频列表失败' });
+    }
+  });
+
+  // 删除短视频
+  app.delete('/api/short-videos/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const videoId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      // 验证所有权
+      const [video] = await db
+        .select()
+        .from(shortVideos)
+        .where(and(
+          eq(shortVideos.id, videoId),
+          eq(shortVideos.creatorUserId, userId)
+        ));
+
+      if (!video) {
+        return res.status(404).json({ success: false, message: '视频不存在或无权限删除' });
+      }
+
+      // 软删除：更新状态为deleted
+      await db
+        .update(shortVideos)
+        .set({ status: 'deleted', isPublic: false })
+        .where(eq(shortVideos.id, videoId));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Delete short video error:', error);
+      res.status(500).json({ success: false, message: '删除视频失败' });
+    }
+  });
+
+  // ========== 商品管理 API ==========
+
+  // 获取门店商品分类列表
+  app.get('/api/stores/:storeId/product-categories', async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      
+      const categories = await db
+        .select()
+        .from(productCategories)
+        .where(and(
+          eq(productCategories.storeId, storeId),
+          eq(productCategories.isActive, true)
+        ))
+        .orderBy(productCategories.sortOrder);
+
+      res.json({ success: true, data: categories });
+    } catch (error) {
+      console.error('Get product categories error:', error);
+      res.status(500).json({ success: false, message: '获取商品分类失败' });
+    }
+  });
+
+  // 创建商品分类
+  app.post('/api/stores/:storeId/product-categories', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const userId = req.user?.id;
+      
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      const { nameSource, sortOrder } = req.body;
+
+      const [category] = await db
+        .insert(productCategories)
+        .values({
+          storeId,
+          nameSource,
+          nameZh: nameSource,
+          sortOrder: sortOrder || 0,
+        })
+        .returning();
+
+      // 异步翻译
+      translateText(nameSource, 'zh-cn', 'en-us').then(enText => {
+        db.update(productCategories).set({ nameEn: enText }).where(eq(productCategories.id, category.id)).execute();
+      }).catch(err => console.error('Translate category EN failed:', err));
+      translateText(nameSource, 'zh-cn', 'th-th').then(thText => {
+        db.update(productCategories).set({ nameTh: thText }).where(eq(productCategories.id, category.id)).execute();
+      }).catch(err => console.error('Translate category TH failed:', err));
+
+      res.json({ success: true, data: category });
+    } catch (error) {
+      console.error('Create product category error:', error);
+      res.status(500).json({ success: false, message: '创建分类失败' });
+    }
+  });
+
+  // 更新商品分类
+  app.patch('/api/stores/:storeId/product-categories/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const categoryId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      const { nameSource, sortOrder, isActive } = req.body;
+      const updateData: any = { updatedAt: new Date() };
+      
+      if (nameSource !== undefined) {
+        updateData.nameSource = nameSource;
+        updateData.nameZh = nameSource;
+        // 异步翻译
+        translateText(nameSource, 'zh-cn', 'en-us').then(enText => {
+          db.update(productCategories).set({ nameEn: enText }).where(eq(productCategories.id, categoryId)).execute();
+        }).catch(err => console.error('Translate category EN failed:', err));
+        translateText(nameSource, 'zh-cn', 'th-th').then(thText => {
+          db.update(productCategories).set({ nameTh: thText }).where(eq(productCategories.id, categoryId)).execute();
+        }).catch(err => console.error('Translate category TH failed:', err));
+      }
+      if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
+      if (isActive !== undefined) updateData.isActive = isActive;
+
+      const [category] = await db
+        .update(productCategories)
+        .set(updateData)
+        .where(and(
+          eq(productCategories.id, categoryId),
+          eq(productCategories.storeId, storeId)
+        ))
+        .returning();
+
+      res.json({ success: true, data: category });
+    } catch (error) {
+      console.error('Update product category error:', error);
+      res.status(500).json({ success: false, message: '更新分类失败' });
+    }
+  });
+
+  // 删除商品分类
+  app.delete('/api/stores/:storeId/product-categories/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const categoryId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      // 软删除
+      await db
+        .update(productCategories)
+        .set({ isActive: false })
+        .where(and(
+          eq(productCategories.id, categoryId),
+          eq(productCategories.storeId, storeId)
+        ));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Delete product category error:', error);
+      res.status(500).json({ success: false, message: '删除分类失败' });
+    }
+  });
+
+  // 获取门店商品列表
+  app.get('/api/stores/:storeId/products', async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const { status, categoryId, search } = req.query;
+      
+      let query = db
+        .select()
+        .from(products)
+        .where(eq(products.storeId, storeId))
+        .orderBy(products.sortOrder, desc(products.createdAt));
+
+      const productList = await query;
+      
+      // 过滤
+      let filtered = productList;
+      if (status) {
+        filtered = filtered.filter(p => p.status === status);
+      }
+      if (categoryId) {
+        filtered = filtered.filter(p => p.categoryId === parseInt(categoryId as string));
+      }
+      if (search) {
+        const searchLower = (search as string).toLowerCase();
+        filtered = filtered.filter(p => 
+          p.name.toLowerCase().includes(searchLower) ||
+          p.sku?.toLowerCase().includes(searchLower)
+        );
+      }
+
+      res.json({ success: true, data: filtered });
+    } catch (error) {
+      console.error('Get products error:', error);
+      res.status(500).json({ success: false, message: '获取商品列表失败' });
+    }
+  });
+
+  // 获取单个商品详情
+  app.get('/api/stores/:storeId/products/:id', async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const productId = parseInt(req.params.id);
+      
+      const [product] = await db
+        .select()
+        .from(products)
+        .where(and(
+          eq(products.id, productId),
+          eq(products.storeId, storeId)
+        ));
+
+      if (!product) {
+        return res.status(404).json({ success: false, message: '商品不存在' });
+      }
+
+      res.json({ success: true, data: product });
+    } catch (error) {
+      console.error('Get product error:', error);
+      res.status(500).json({ success: false, message: '获取商品详情失败' });
+    }
+  });
+
+  // 创建商品
+  app.post('/api/stores/:storeId/products', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const userId = req.user?.id;
+      
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      const {
+        name,
+        categoryId,
+        sku,
+        description,
+        price,
+        originalPrice,
+        unit,
+        inventory,
+        coverImage,
+        gallery,
+        status,
+        isRecommend,
+        isNew,
+        isHot,
+        minPurchaseQty,
+        maxPurchaseQty,
+        dailyLimit,
+        isAvailableForDelivery,
+        isAvailableForPickup,
+        prepTimeMinutes,
+        sortOrder,
+      } = req.body;
+
+      const [product] = await db
+        .insert(products)
+        .values({
+          storeId,
+          name,
+          categoryId: categoryId || null,
+          sku: sku || null,
+          descriptionSource: description || null,
+          descriptionZh: description || null,
+          price,
+          originalPrice: originalPrice || null,
+          unit: unit || '份',
+          inventory: inventory || 0,
+          coverImage: coverImage || null,
+          gallery: gallery || null,
+          status: status || 'draft',
+          isRecommend: isRecommend || false,
+          isNew: isNew || false,
+          isHot: isHot || false,
+          minPurchaseQty: minPurchaseQty || 1,
+          maxPurchaseQty: maxPurchaseQty || null,
+          dailyLimit: dailyLimit || null,
+          isAvailableForDelivery: isAvailableForDelivery !== false,
+          isAvailableForPickup: isAvailableForPickup !== false,
+          prepTimeMinutes: prepTimeMinutes || 15,
+          sortOrder: sortOrder || 0,
+        })
+        .returning();
+
+      // 异步翻译描述
+      if (description) {
+        translateText(description, 'zh-cn', 'en-us').then(enText => {
+          db.update(products).set({ descriptionEn: enText }).where(eq(products.id, product.id)).execute();
+        }).catch(err => console.error('Translate product EN failed:', err));
+        translateText(description, 'zh-cn', 'th-th').then(thText => {
+          db.update(products).set({ descriptionTh: thText }).where(eq(products.id, product.id)).execute();
+        }).catch(err => console.error('Translate product TH failed:', err));
+      }
+
+      res.json({ success: true, data: product, message: '商品创建成功' });
+    } catch (error) {
+      console.error('Create product error:', error);
+      res.status(500).json({ success: false, message: '创建商品失败' });
+    }
+  });
+
+  // 更新商品
+  app.patch('/api/stores/:storeId/products/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const productId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      const {
+        name,
+        categoryId,
+        sku,
+        description,
+        price,
+        originalPrice,
+        unit,
+        inventory,
+        coverImage,
+        gallery,
+        status,
+        isRecommend,
+        isNew,
+        isHot,
+        minPurchaseQty,
+        maxPurchaseQty,
+        dailyLimit,
+        isAvailableForDelivery,
+        isAvailableForPickup,
+        prepTimeMinutes,
+        sortOrder,
+      } = req.body;
+
+      const updateData: any = { updatedAt: new Date() };
+      
+      if (name !== undefined) updateData.name = name;
+      if (categoryId !== undefined) updateData.categoryId = categoryId;
+      if (sku !== undefined) updateData.sku = sku;
+      if (description !== undefined) {
+        updateData.descriptionSource = description;
+        updateData.descriptionZh = description;
+        // 异步翻译
+        translateText(description, 'zh-cn', 'en-us').then(enText => {
+          db.update(products).set({ descriptionEn: enText }).where(eq(products.id, productId)).execute();
+        }).catch(err => console.error('Translate product EN failed:', err));
+        translateText(description, 'zh-cn', 'th-th').then(thText => {
+          db.update(products).set({ descriptionTh: thText }).where(eq(products.id, productId)).execute();
+        }).catch(err => console.error('Translate product TH failed:', err));
+      }
+      if (price !== undefined) updateData.price = price;
+      if (originalPrice !== undefined) updateData.originalPrice = originalPrice;
+      if (unit !== undefined) updateData.unit = unit;
+      if (inventory !== undefined) updateData.inventory = inventory;
+      if (coverImage !== undefined) updateData.coverImage = coverImage;
+      if (gallery !== undefined) updateData.gallery = gallery;
+      if (status !== undefined) updateData.status = status;
+      if (isRecommend !== undefined) updateData.isRecommend = isRecommend;
+      if (isNew !== undefined) updateData.isNew = isNew;
+      if (isHot !== undefined) updateData.isHot = isHot;
+      if (minPurchaseQty !== undefined) updateData.minPurchaseQty = minPurchaseQty;
+      if (maxPurchaseQty !== undefined) updateData.maxPurchaseQty = maxPurchaseQty;
+      if (dailyLimit !== undefined) updateData.dailyLimit = dailyLimit;
+      if (isAvailableForDelivery !== undefined) updateData.isAvailableForDelivery = isAvailableForDelivery;
+      if (isAvailableForPickup !== undefined) updateData.isAvailableForPickup = isAvailableForPickup;
+      if (prepTimeMinutes !== undefined) updateData.prepTimeMinutes = prepTimeMinutes;
+      if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
+
+      const [product] = await db
+        .update(products)
+        .set(updateData)
+        .where(and(
+          eq(products.id, productId),
+          eq(products.storeId, storeId)
+        ))
+        .returning();
+
+      if (!product) {
+        return res.status(404).json({ success: false, message: '商品不存在' });
+      }
+
+      res.json({ success: true, data: product, message: '商品更新成功' });
+    } catch (error) {
+      console.error('Update product error:', error);
+      res.status(500).json({ success: false, message: '更新商品失败' });
+    }
+  });
+
+  // 批量更新商品状态（上架/下架）
+  app.post('/api/stores/:storeId/products/batch-status', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const userId = req.user?.id;
+      
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      const { productIds, status } = req.body;
+      
+      if (!productIds?.length || !status) {
+        return res.status(400).json({ success: false, message: '参数错误' });
+      }
+
+      await db
+        .update(products)
+        .set({ status, updatedAt: new Date() })
+        .where(and(
+          inArray(products.id, productIds),
+          eq(products.storeId, storeId)
+        ));
+
+      res.json({ success: true, message: '批量更新成功' });
+    } catch (error) {
+      console.error('Batch update products status error:', error);
+      res.status(500).json({ success: false, message: '批量更新失败' });
+    }
+  });
+
+  // 更新商品库存
+  app.patch('/api/stores/:storeId/products/:id/inventory', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const productId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      const { inventory } = req.body;
+      
+      const [product] = await db
+        .update(products)
+        .set({ inventory, updatedAt: new Date() })
+        .where(and(
+          eq(products.id, productId),
+          eq(products.storeId, storeId)
+        ))
+        .returning();
+
+      if (!product) {
+        return res.status(404).json({ success: false, message: '商品不存在' });
+      }
+
+      res.json({ success: true, data: product });
+    } catch (error) {
+      console.error('Update product inventory error:', error);
+      res.status(500).json({ success: false, message: '更新库存失败' });
+    }
+  });
+
+  // 删除商品（软删除 - 设为inactive）
+  app.delete('/api/stores/:storeId/products/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const productId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      await db
+        .update(products)
+        .set({ status: 'inactive' })
+        .where(and(
+          eq(products.id, productId),
+          eq(products.storeId, storeId)
+        ));
+
+      res.json({ success: true, message: '商品已删除' });
+    } catch (error) {
+      console.error('Delete product error:', error);
+      res.status(500).json({ success: false, message: '删除商品失败' });
+    }
+  });
+
+  // ============ 商户店铺活动管理 API ============
+
+  // 获取店铺活动列表 (需要验证用户对店铺的权限)
+  app.get('/api/stores/:storeId/campaigns', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const userId = req.user?.id;
+      const { status } = req.query;
+      const now = new Date();
+
+      // 验证用户对该店铺的权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限访问该店铺活动' });
+      }
+
+      // 获取与该店铺关联的活动
+      const storeCampaigns = await db
+        .select({
+          id: campaigns.id,
+          titleSource: campaigns.titleSource,
+          titleZh: campaigns.titleZh,
+          titleEn: campaigns.titleEn,
+          titleTh: campaigns.titleTh,
+          descriptionSource: campaigns.descriptionSource,
+          descriptionZh: campaigns.descriptionZh,
+          bannerImageUrl: campaigns.bannerImageUrl,
+          couponValue: campaigns.couponValue,
+          discountType: campaigns.discountType,
+          originalPrice: campaigns.originalPrice,
+          startAt: campaigns.startAt,
+          endAt: campaigns.endAt,
+          maxTotal: campaigns.maxTotal,
+          currentClaimed: campaigns.currentClaimed,
+          isActive: campaigns.isActive,
+          createdAt: campaigns.createdAt,
+        })
+        .from(campaigns)
+        .innerJoin(campaignStores, eq(campaigns.id, campaignStores.campaignId))
+        .where(eq(campaignStores.storeId, storeId))
+        .orderBy(desc(campaigns.createdAt));
+
+      // 计算活动状态
+      const campaignsWithStatus = storeCampaigns.map(c => {
+        let computedStatus = 'inactive';
+        if (c.isActive) {
+          if (now < new Date(c.startAt)) {
+            computedStatus = 'scheduled';
+          } else if (now > new Date(c.endAt)) {
+            computedStatus = 'ended';
+          } else {
+            computedStatus = 'active';
+          }
+        }
+        return { ...c, status: computedStatus };
+      });
+
+      // 状态过滤
+      let filtered = campaignsWithStatus;
+      if (status) {
+        filtered = filtered.filter(c => c.status === status);
+      }
+
+      res.json({ success: true, data: filtered });
+    } catch (error) {
+      console.error('Get store campaigns error:', error);
+      res.status(500).json({ success: false, message: '获取活动列表失败' });
+    }
+  });
+
+  // 获取单个活动详情 (需要验证用户对店铺的权限)
+  app.get('/api/stores/:storeId/campaigns/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const campaignId = parseInt(req.params.id);
+      const userId = req.user?.id;
+
+      // 验证用户对该店铺的权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限访问该店铺活动' });
+      }
+
+      const [campaign] = await db
+        .select({
+          id: campaigns.id,
+          titleSourceLang: campaigns.titleSourceLang,
+          titleSource: campaigns.titleSource,
+          titleZh: campaigns.titleZh,
+          titleEn: campaigns.titleEn,
+          titleTh: campaigns.titleTh,
+          descriptionSourceLang: campaigns.descriptionSourceLang,
+          descriptionSource: campaigns.descriptionSource,
+          descriptionZh: campaigns.descriptionZh,
+          descriptionEn: campaigns.descriptionEn,
+          descriptionTh: campaigns.descriptionTh,
+          bannerImageUrl: campaigns.bannerImageUrl,
+          mediaUrls: campaigns.mediaUrls,
+          couponValue: campaigns.couponValue,
+          discountType: campaigns.discountType,
+          originalPrice: campaigns.originalPrice,
+          startAt: campaigns.startAt,
+          endAt: campaigns.endAt,
+          maxPerUser: campaigns.maxPerUser,
+          maxTotal: campaigns.maxTotal,
+          currentClaimed: campaigns.currentClaimed,
+          isActive: campaigns.isActive,
+          createdAt: campaigns.createdAt,
+        })
+        .from(campaigns)
+        .innerJoin(campaignStores, eq(campaigns.id, campaignStores.campaignId))
+        .where(and(
+          eq(campaignStores.storeId, storeId),
+          eq(campaigns.id, campaignId)
+        ));
+
+      if (!campaign) {
+        return res.status(404).json({ success: false, message: '活动不存在' });
+      }
+
+      res.json({ success: true, data: campaign });
+    } catch (error) {
+      console.error('Get store campaign error:', error);
+      res.status(500).json({ success: false, message: '获取活动详情失败' });
+    }
+  });
+
+  // 创建店铺活动
+  app.post('/api/stores/:storeId/campaigns', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const userId = req.user?.id;
+
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      const {
+        titleSource,
+        descriptionSource,
+        bannerImageUrl,
+        mediaUrls,
+        couponValue,
+        discountType,
+        originalPrice,
+        startAt,
+        endAt,
+        maxPerUser,
+        maxTotal,
+      } = req.body;
+
+      if (!titleSource || !descriptionSource || !couponValue || !discountType || !startAt || !endAt) {
+        return res.status(400).json({ success: false, message: '请填写必填字段' });
+      }
+
+      // 翻译内容
+      const translations = await translateCampaignContent(
+        'zh-cn',
+        titleSource,
+        descriptionSource,
+        undefined,
+        undefined
+      );
+
+      const [newCampaign] = await db
+        .insert(campaigns)
+        .values({
+          titleSourceLang: 'zh-cn',
+          titleSource,
+          titleZh: titleSource,
+          titleEn: translations.titleEn,
+          titleTh: translations.titleTh,
+          descriptionSourceLang: 'zh-cn',
+          descriptionSource,
+          descriptionZh: descriptionSource,
+          descriptionEn: translations.descriptionEn,
+          descriptionTh: translations.descriptionTh,
+          bannerImageUrl,
+          mediaUrls,
+          couponValue,
+          discountType,
+          originalPrice: originalPrice || null,
+          startAt: new Date(startAt),
+          endAt: new Date(endAt),
+          maxPerUser: maxPerUser || 1,
+          maxTotal: maxTotal || null,
+          isActive: true,
+        })
+        .returning();
+
+      // 关联店铺
+      await db.insert(campaignStores).values({
+        campaignId: newCampaign.id,
+        storeId,
+      });
+
+      res.json({ success: true, data: newCampaign, message: '活动创建成功' });
+    } catch (error) {
+      console.error('Create store campaign error:', error);
+      res.status(500).json({ success: false, message: '创建活动失败' });
+    }
+  });
+
+  // 更新店铺活动
+  app.patch('/api/stores/:storeId/campaigns/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const campaignId = parseInt(req.params.id);
+      const userId = req.user?.id;
+
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      // 验证活动属于该店铺
+      const [campaignStore] = await db
+        .select()
+        .from(campaignStores)
+        .where(and(
+          eq(campaignStores.campaignId, campaignId),
+          eq(campaignStores.storeId, storeId)
+        ));
+
+      if (!campaignStore) {
+        return res.status(404).json({ success: false, message: '活动不存在' });
+      }
+
+      const {
+        titleSource,
+        descriptionSource,
+        bannerImageUrl,
+        mediaUrls,
+        couponValue,
+        discountType,
+        originalPrice,
+        startAt,
+        endAt,
+        maxPerUser,
+        maxTotal,
+        isActive,
+      } = req.body;
+
+      const updateData: any = { updatedAt: new Date() };
+
+      if (titleSource !== undefined) {
+        updateData.titleSource = titleSource;
+        updateData.titleZh = titleSource;
+        // 异步翻译
+        translateText(titleSource, 'zh-cn', 'en-us').then(text => {
+          db.update(campaigns).set({ titleEn: text }).where(eq(campaigns.id, campaignId)).execute();
+        }).catch(err => console.error('Translate campaign title EN failed:', err));
+        translateText(titleSource, 'zh-cn', 'th-th').then(text => {
+          db.update(campaigns).set({ titleTh: text }).where(eq(campaigns.id, campaignId)).execute();
+        }).catch(err => console.error('Translate campaign title TH failed:', err));
+      }
+
+      if (descriptionSource !== undefined) {
+        updateData.descriptionSource = descriptionSource;
+        updateData.descriptionZh = descriptionSource;
+        translateText(descriptionSource, 'zh-cn', 'en-us').then(text => {
+          db.update(campaigns).set({ descriptionEn: text }).where(eq(campaigns.id, campaignId)).execute();
+        }).catch(err => console.error('Translate campaign desc EN failed:', err));
+        translateText(descriptionSource, 'zh-cn', 'th-th').then(text => {
+          db.update(campaigns).set({ descriptionTh: text }).where(eq(campaigns.id, campaignId)).execute();
+        }).catch(err => console.error('Translate campaign desc TH failed:', err));
+      }
+
+      if (bannerImageUrl !== undefined) updateData.bannerImageUrl = bannerImageUrl;
+      if (mediaUrls !== undefined) updateData.mediaUrls = mediaUrls;
+      if (couponValue !== undefined) updateData.couponValue = couponValue;
+      if (discountType !== undefined) updateData.discountType = discountType;
+      if (originalPrice !== undefined) updateData.originalPrice = originalPrice;
+      if (startAt) updateData.startAt = new Date(startAt);
+      if (endAt) updateData.endAt = new Date(endAt);
+      if (maxPerUser !== undefined) updateData.maxPerUser = maxPerUser;
+      if (maxTotal !== undefined) updateData.maxTotal = maxTotal;
+      if (isActive !== undefined) updateData.isActive = isActive;
+
+      const [updatedCampaign] = await db
+        .update(campaigns)
+        .set(updateData)
+        .where(eq(campaigns.id, campaignId))
+        .returning();
+
+      res.json({ success: true, data: updatedCampaign, message: '活动更新成功' });
+    } catch (error) {
+      console.error('Update store campaign error:', error);
+      res.status(500).json({ success: false, message: '更新活动失败' });
+    }
+  });
+
+  // 删除店铺活动
+  app.delete('/api/stores/:storeId/campaigns/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.storeId);
+      const campaignId = parseInt(req.params.id);
+      const userId = req.user?.id;
+
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId!),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: '无权限操作' });
+      }
+
+      // 验证活动属于该店铺
+      const [campaignStore] = await db
+        .select()
+        .from(campaignStores)
+        .where(and(
+          eq(campaignStores.campaignId, campaignId),
+          eq(campaignStores.storeId, storeId)
+        ));
+
+      if (!campaignStore) {
+        return res.status(404).json({ success: false, message: '活动不存在' });
+      }
+
+      // 软删除 - 设为不活跃
+      await db
+        .update(campaigns)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(eq(campaigns.id, campaignId));
+
+      res.json({ success: true, message: '活动已删除' });
+    } catch (error) {
+      console.error('Delete store campaign error:', error);
+      res.status(500).json({ success: false, message: '删除活动失败' });
+    }
+  });
+
+  // ============ 收款二维码功能 API ============
+
+  // 获取可用的 PSP 列表
+  app.get('/api/psp-providers', async (req: Request, res: Response) => {
+    try {
+      const providers = await db
+        .select()
+        .from(pspProviders)
+        .where(eq(pspProviders.status, 'active'));
+
+      res.json({ success: true, data: providers });
+    } catch (error) {
+      console.error('Get PSP providers error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get PSP providers' });
+    }
+  });
+
+  // 获取商户 PSP 账户配置
+  app.get('/api/merchant/psp-accounts', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+
+      // 获取用户管理的门店
+      const userRoles = await db
+        .select({ storeId: merchantStaffRoles.storeId })
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator']),
+          eq(merchantStaffRoles.isActive, true)
+        ));
+
+      const storeIds = userRoles.map(r => r.storeId);
+
+      if (storeIds.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      // 获取 PSP 账户
+      const accounts = await db
+        .select({
+          id: merchantPspAccounts.id,
+          storeId: merchantPspAccounts.storeId,
+          storeName: stores.name,
+          pspCode: merchantPspAccounts.pspCode,
+          onboardingMode: merchantPspAccounts.onboardingMode,
+          onboardingStatus: merchantPspAccounts.onboardingStatus,
+          settlementBankName: merchantPspAccounts.settlementBankName,
+          settlementAccountNumber: merchantPspAccounts.settlementAccountNumber,
+          status: merchantPspAccounts.status,
+          createdAt: merchantPspAccounts.createdAt,
+        })
+        .from(merchantPspAccounts)
+        .innerJoin(stores, eq(merchantPspAccounts.storeId, stores.id))
+        .where(inArray(merchantPspAccounts.storeId, storeIds));
+
+      // 脱敏账号显示
+      const maskedAccounts = accounts.map(a => ({
+        ...a,
+        settlementAccountNumber: a.settlementAccountNumber 
+          ? '****' + a.settlementAccountNumber.slice(-4) 
+          : null,
+      }));
+
+      res.json({ success: true, data: maskedAccounts });
+    } catch (error) {
+      console.error('Get merchant PSP accounts error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get PSP accounts' });
+    }
+  });
+
+  // 创建/更新商户 PSP 账户配置
+  app.post('/api/merchant/psp-accounts', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+
+      const {
+        storeId,
+        pspCode,
+        onboardingMode = 'manual_id',
+        providerMerchantRef,
+        settlementBankName,
+        settlementBankCode,
+        settlementAccountName,
+        settlementAccountNumber,
+        settlementBranch,
+        idCardUrl,
+        companyRegistrationUrl,
+        businessLicenseUrl,
+      } = req.body;
+
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator']),
+          eq(merchantStaffRoles.isActive, true)
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: 'No permission for this store' });
+      }
+
+      // 检查是否已有配置
+      const [existingAccount] = await db
+        .select()
+        .from(merchantPspAccounts)
+        .where(eq(merchantPspAccounts.storeId, storeId));
+
+      if (existingAccount) {
+        // 更新现有配置
+        const [updated] = await db
+          .update(merchantPspAccounts)
+          .set({
+            pspCode,
+            onboardingMode,
+            providerMerchantRef,
+            onboardingStatus: onboardingMode === 'manual_id' && providerMerchantRef ? 'completed' : 'not_started',
+            settlementBankName,
+            settlementBankCode,
+            settlementAccountName,
+            settlementAccountNumber,
+            settlementBranch,
+            idCardUrl,
+            companyRegistrationUrl,
+            businessLicenseUrl,
+            status: onboardingMode === 'manual_id' && providerMerchantRef ? 'active' : 'pending_review',
+            updatedAt: new Date(),
+          })
+          .where(eq(merchantPspAccounts.id, existingAccount.id))
+          .returning();
+
+        res.json({ success: true, data: updated, message: 'PSP account updated' });
+      } else {
+        // 创建新配置
+        const [created] = await db
+          .insert(merchantPspAccounts)
+          .values({
+            storeId,
+            pspCode,
+            onboardingMode,
+            providerMerchantRef,
+            onboardingStatus: onboardingMode === 'manual_id' && providerMerchantRef ? 'completed' : 'not_started',
+            settlementBankName,
+            settlementBankCode,
+            settlementAccountName,
+            settlementAccountNumber,
+            settlementBranch,
+            idCardUrl,
+            companyRegistrationUrl,
+            businessLicenseUrl,
+            currency: 'THB',
+            status: onboardingMode === 'manual_id' && providerMerchantRef ? 'active' : 'pending_review',
+          })
+          .returning();
+
+        res.json({ success: true, data: created, message: 'PSP account created' });
+      }
+    } catch (error) {
+      console.error('Create/update merchant PSP account error:', error);
+      res.status(500).json({ success: false, message: 'Failed to save PSP account' });
+    }
+  });
+
+  // 生成门店收款二维码
+  app.post('/api/merchant/qr-codes', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+
+      const { storeId } = req.body;
+
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator']),
+          eq(merchantStaffRoles.isActive, true)
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: 'No permission for this store' });
+      }
+
+      // 检查是否已有 PSP 账户配置
+      const [pspAccount] = await db
+        .select()
+        .from(merchantPspAccounts)
+        .where(and(
+          eq(merchantPspAccounts.storeId, storeId),
+          eq(merchantPspAccounts.status, 'active')
+        ));
+
+      if (!pspAccount) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Please configure and activate PSP account first' 
+        });
+      }
+
+      // 检查是否已有二维码
+      const [existingQr] = await db
+        .select()
+        .from(storeQrCodes)
+        .where(and(
+          eq(storeQrCodes.storeId, storeId),
+          eq(storeQrCodes.status, 'active')
+        ));
+
+      if (existingQr) {
+        return res.json({ 
+          success: true, 
+          data: existingQr, 
+          message: 'QR code already exists' 
+        });
+      }
+
+      // 生成新二维码
+      const qrToken = nanoid(12);
+      const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
+      const qrPayload = `${baseUrl}/p/${qrToken}`;
+
+      // 生成二维码图片 (Data URL)
+      const qrImageDataUrl = await QRCode.toDataURL(qrPayload, {
+        width: 512,
+        margin: 2,
+        color: { dark: '#000000', light: '#FFFFFF' }
+      });
+
+      // 保存到数据库
+      const [qrCode] = await db
+        .insert(storeQrCodes)
+        .values({
+          storeId,
+          qrType: 'h5_pay_entry',
+          qrPayload,
+          qrToken,
+          qrImageUrl: qrImageDataUrl,
+          status: 'active',
+        })
+        .returning();
+
+      res.json({ success: true, data: qrCode });
+    } catch (error) {
+      console.error('Generate store QR code error:', error);
+      res.status(500).json({ success: false, message: 'Failed to generate QR code' });
+    }
+  });
+
+  // 获取门店二维码列表
+  app.get('/api/merchant/qr-codes/:storeId', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      const storeId = parseInt(req.params.storeId);
+
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+
+      // 验证权限
+      const [role] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          eq(merchantStaffRoles.storeId, storeId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator']),
+          eq(merchantStaffRoles.isActive, true)
+        ));
+
+      if (!role) {
+        return res.status(403).json({ success: false, message: 'No permission for this store' });
+      }
+
+      const qrCodes = await db
+        .select()
+        .from(storeQrCodes)
+        .where(eq(storeQrCodes.storeId, storeId))
+        .orderBy(desc(storeQrCodes.createdAt));
+
+      res.json({ success: true, data: qrCodes });
+    } catch (error) {
+      console.error('Get store QR codes error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get QR codes' });
+    }
+  });
+
+  // H5 支付入口 - 获取二维码元数据
+  app.get('/api/payments/qrcode/meta', async (req: Request, res: Response) => {
+    try {
+      const { qr_token } = req.query;
+
+      if (!qr_token || typeof qr_token !== 'string') {
+        return res.status(400).json({ success: false, message: 'Missing qr_token' });
+      }
+
+      // 查询二维码和关联门店
+      const [qrCode] = await db
+        .select({
+          id: storeQrCodes.id,
+          storeId: storeQrCodes.storeId,
+          qrToken: storeQrCodes.qrToken,
+          status: storeQrCodes.status,
+          storeName: stores.name,
+          storeAddress: stores.address,
+          storeImageUrl: stores.imageUrl,
+        })
+        .from(storeQrCodes)
+        .innerJoin(stores, eq(storeQrCodes.storeId, stores.id))
+        .where(eq(storeQrCodes.qrToken, qr_token));
+
+      if (!qrCode || qrCode.status !== 'active') {
+        return res.status(404).json({ success: false, message: 'QR code not found or disabled' });
+      }
+
+      // 获取该门店的 PSP 配置
+      const [pspAccount] = await db
+        .select({
+          pspCode: merchantPspAccounts.pspCode,
+        })
+        .from(merchantPspAccounts)
+        .where(and(
+          eq(merchantPspAccounts.storeId, qrCode.storeId),
+          eq(merchantPspAccounts.status, 'active')
+        ));
+
+      // 获取 PSP 显示名称（从 Provider 获取，不写死）
+      let pspDisplayName = 'Payment Service';
+      if (pspAccount?.pspCode) {
+        const provider = getPaymentProvider(pspAccount.pspCode);
+        if (provider) {
+          pspDisplayName = provider.displayName;
+        }
+      }
+
+      res.json({
+        success: true,
+        data: {
+          qrCodeId: qrCode.id,
+          storeId: qrCode.storeId,
+          storeName: qrCode.storeName,
+          storeAddress: qrCode.storeAddress,
+          storeImageUrl: convertHttpToHttps(qrCode.storeImageUrl),
+          currency: 'THB',
+          pspDisplayName,  // PSP 显示名称从后端传
+        }
+      });
+    } catch (error) {
+      console.error('Get QR code meta error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get QR code info' });
+    }
+  });
+
+  // 获取用户在指定门店可用的优惠券（安全：从 qr_token 解析 store_id）
+  app.get('/api/payments/qrcode/available-coupons', async (req: Request, res: Response) => {
+    try {
+      const { store_id } = req.query;
+      
+      // 从 JWT token 获取用户信息
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith('Bearer ')) {
+        return res.json({ success: true, data: [] }); // 未登录返回空列表
+      }
+      
+      const token = authHeader.slice(7);
+      let userId: number;
+      
+      try {
+        const jwtSecret = process.env.JWT_SECRET || 'dev-secret-key';
+        const decoded = jwt.verify(token, jwtSecret) as any;
+        userId = decoded.userId;
+      } catch (err) {
+        return res.json({ success: true, data: [] }); // Token 无效返回空列表
+      }
+      
+      if (!store_id || typeof store_id !== 'string') {
+        return res.status(400).json({ success: false, message: 'Missing store_id' });
+      }
+      
+      const storeIdNum = parseInt(store_id);
+      
+      // 查询用户可用的优惠券（未使用、未过期，且该券的活动关联了此门店）
+      const now = new Date();
+      
+      const availableCoupons = await db
+        .select({
+          id: coupons.id,
+          code: coupons.code,
+          status: coupons.status,
+          issuedAt: coupons.issuedAt,
+          expiredAt: coupons.expiredAt,
+          campaignId: coupons.campaignId,
+          campaignTitle: campaigns.titleSource,
+          campaignTitleZh: campaigns.titleZh,
+          campaignTitleEn: campaigns.titleEn,
+          couponValue: campaigns.couponValue,
+          discountType: campaigns.discountType,
+        })
+        .from(coupons)
+        .innerJoin(campaigns, eq(coupons.campaignId, campaigns.id))
+        .innerJoin(campaignStores, eq(campaigns.id, campaignStores.campaignId))
+        .where(and(
+          eq(coupons.userId, userId),
+          eq(coupons.status, 'unused'),
+          gt(coupons.expiredAt, now),
+          eq(campaignStores.storeId, storeIdNum),
+          eq(campaigns.isActive, true)
+        ))
+        .orderBy(desc(coupons.issuedAt));
+      
+      res.json({ 
+        success: true, 
+        data: availableCoupons.map(c => ({
+          id: c.id,
+          code: c.code,
+          campaignId: c.campaignId,
+          campaignTitle: c.campaignTitleZh || c.campaignTitleEn || c.campaignTitle,
+          couponValue: c.couponValue,
+          discountType: c.discountType,
+          expiredAt: c.expiredAt,
+        }))
+      });
+    } catch (error) {
+      console.error('Get available coupons error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get coupons' });
+    }
+  });
+
+  // 创建支付订单
+  app.post('/api/payments/qrcode/create', async (req: Request, res: Response) => {
+    try {
+      const { qr_token, amount, currency = 'THB', line_user_id, user_id, coupon_id, discount_amount } = req.body;
+
+      if (!qr_token || !amount) {
+        return res.status(400).json({ success: false, message: 'Missing required fields' });
+      }
+
+      // 安全验证: 如果提供了 line_user_id/user_id，必须验证 JWT Token 以防冒充
+      let verifiedLineUserId: string | null = null;
+      let verifiedUserId: number | null = null;
+      
+      if (line_user_id || user_id || coupon_id) {
+        // 安全检查：如果没有配置 JWT_SECRET，拒绝处理用户身份
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+          console.warn('[Security] JWT_SECRET not configured, rejecting user identity in payment');
+          return res.status(500).json({ 
+            success: false, 
+            message: 'Server security configuration error' 
+          });
+        }
+        
+        const authHeader = req.headers.authorization;
+        if (!authHeader?.startsWith('Bearer ')) {
+          return res.status(401).json({ 
+            success: false, 
+            message: 'Authentication required when providing user identity' 
+          });
+        }
+        
+        const token = authHeader.slice(7);
+        try {
+          const decoded = jwt.verify(token, jwtSecret) as any;
+          
+          // 验证 token 中的用户身份与提交的一致
+          if (line_user_id && decoded.lineUserId !== line_user_id) {
+            return res.status(403).json({ 
+              success: false, 
+              message: 'LINE user identity mismatch' 
+            });
+          }
+          if (user_id && decoded.userId !== user_id) {
+            return res.status(403).json({ 
+              success: false, 
+              message: 'User identity mismatch' 
+            });
+          }
+          
+          verifiedLineUserId = decoded.lineUserId || null;
+          verifiedUserId = decoded.userId || null;
+        } catch (jwtError) {
+          return res.status(401).json({ 
+            success: false, 
+            message: 'Invalid authentication token' 
+          });
+        }
+      }
+
+      // 查询二维码和 PSP 账户
+      const [qrCode] = await db
+        .select({
+          id: storeQrCodes.id,
+          storeId: storeQrCodes.storeId,
+          status: storeQrCodes.status,
+        })
+        .from(storeQrCodes)
+        .where(eq(storeQrCodes.qrToken, qr_token));
+
+      if (!qrCode || qrCode.status !== 'active') {
+        return res.status(404).json({ success: false, message: 'QR code not found or disabled' });
+      }
+
+      // 获取 PSP 配置
+      const [pspAccount] = await db
+        .select()
+        .from(merchantPspAccounts)
+        .where(and(
+          eq(merchantPspAccounts.storeId, qrCode.storeId),
+          eq(merchantPspAccounts.status, 'active')
+        ));
+
+      if (!pspAccount) {
+        return res.status(400).json({ success: false, message: 'Store payment not configured' });
+      }
+
+      const provider = getPaymentProvider(pspAccount.pspCode);
+      if (!provider) {
+        return res.status(500).json({ success: false, message: 'PSP provider not available' });
+      }
+
+      // 优惠券验证
+      let validatedCouponId: number | null = null;
+      let validatedDiscountAmount: string | null = null;
+      let originalAmount: string | null = null;
+      
+      if (coupon_id && verifiedUserId) {
+        const now = new Date();
+        
+        const [coupon] = await db
+          .select({
+            id: coupons.id,
+            userId: coupons.userId,
+            campaignId: coupons.campaignId,
+            status: coupons.status,
+            expiredAt: coupons.expiredAt,
+            couponValue: campaigns.couponValue,
+            discountType: campaigns.discountType,
+          })
+          .from(coupons)
+          .innerJoin(campaigns, eq(coupons.campaignId, campaigns.id))
+          .innerJoin(campaignStores, eq(campaigns.id, campaignStores.campaignId))
+          .where(and(
+            eq(coupons.id, coupon_id),
+            eq(coupons.userId, verifiedUserId),
+            eq(coupons.status, 'unused'),
+            gt(coupons.expiredAt, now),
+            eq(campaignStores.storeId, qrCode.storeId),
+            eq(campaigns.isActive, true)
+          ));
+        
+        if (!coupon) {
+          return res.status(400).json({ success: false, message: 'Invalid or expired coupon' });
+        }
+        
+        const couponValue = parseFloat(coupon.couponValue || '0');
+        let expectedDiscount = 0;
+        
+        if (coupon.discountType === 'percent') {
+          expectedDiscount = (parseFloat(amount) + parseFloat(discount_amount || '0')) * (couponValue / 100);
+        } else {
+          expectedDiscount = Math.min(couponValue, parseFloat(amount) + parseFloat(discount_amount || '0'));
+        }
+        
+        expectedDiscount = Math.round(expectedDiscount * 100) / 100;
+        const clientDiscount = parseFloat(discount_amount || '0');
+        
+        if (Math.abs(expectedDiscount - clientDiscount) > 0.01) {
+          return res.status(400).json({ success: false, message: 'Discount amount mismatch' });
+        }
+        
+        validatedCouponId = coupon.id;
+        validatedDiscountAmount = clientDiscount.toFixed(2);
+        originalAmount = (parseFloat(amount) + clientDiscount).toFixed(2);
+      }
+
+      // 创建支付记录
+      const orderId = `pay_${nanoid(16)}`;
+      const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
+      const returnUrl = `${baseUrl}/success/${orderId}`;
+      const webhookUrl = `${baseUrl}/api/payments/webhook/${pspAccount.pspCode}`;
+
+      // 调用 PSP 创建订单（金额保持泰铢小数形式，Provider 内部处理单位转换）
+      const chargeResult = await provider.createCharge({
+        amount: parseFloat(amount),
+        currency,
+        storeId: qrCode.storeId,
+        orderId,
+        paymentMethod: 'promptpay',  // V1 固定为 PromptPay
+        returnUrl,
+        webhookUrl,
+        description: `Payment for store #${qrCode.storeId}`,
+        providerMerchantRef: pspAccount.providerMerchantRef || undefined,
+      });
+
+      if (!chargeResult.success) {
+        return res.status(500).json({ success: false, message: chargeResult.error || 'Failed to create charge' });
+      }
+
+      // 保存支付记录（包含 orderId 和验证后的用户信息用于自动积分）
+      const [payment] = await db
+        .insert(qrPayments)
+        .values({
+          storeId: qrCode.storeId,
+          qrCodeId: qrCode.id,
+          orderId,  // 保存订单号用于前端查询
+          lineUserId: verifiedLineUserId,  // 使用验证后的 LINE 用户 ID，防止冒充
+          userId: verifiedUserId,
+          pspCode: pspAccount.pspCode,
+          pspPaymentId: chargeResult.pspPaymentId,
+          amount: amount.toString(),
+          originalAmount: originalAmount,
+          couponId: validatedCouponId,
+          discountAmount: validatedDiscountAmount,
+          currency,
+          paymentMethod: 'promptpay',
+          status: 'pending',
+          redirectUrl: chargeResult.redirectUrl,
+        })
+        .returning();
+
+      res.json({
+        success: true,
+        data: {
+          payment_id: orderId,
+          redirect_url: chargeResult.redirectUrl,
+        }
+      });
+    } catch (error) {
+      console.error('Create payment error:', error);
+      res.status(500).json({ success: false, message: 'Failed to create payment' });
+    }
+  });
+
+  // 查询支付状态
+  app.get('/api/payments/:paymentId', async (req: Request, res: Response) => {
+    try {
+      const { paymentId } = req.params;
+
+      // 优先用 orderId 查询，如果没有再用 pspPaymentId 兜底
+      const [payment] = await db
+        .select({
+          id: qrPayments.id,
+          storeId: qrPayments.storeId,
+          orderId: qrPayments.orderId,
+          lineUserId: qrPayments.lineUserId,
+          autoPointsGranted: qrPayments.autoPointsGranted,
+          amount: qrPayments.amount,
+          currency: qrPayments.currency,
+          status: qrPayments.status,
+          paidAt: qrPayments.paidAt,
+          createdAt: qrPayments.createdAt,
+          storeName: stores.name,
+          lineOaUrl: stores.lineOaUrl,
+          lineOaId: stores.lineOaId,
+        })
+        .from(qrPayments)
+        .innerJoin(stores, eq(qrPayments.storeId, stores.id))
+        .where(or(eq(qrPayments.orderId, paymentId), eq(qrPayments.pspPaymentId, paymentId)))
+        .limit(1);
+
+      if (!payment) {
+        return res.status(404).json({ success: false, message: 'Payment not found' });
+      }
+
+      // 查询关联积分
+      const [points] = await db
+        .select()
+        .from(paymentPoints)
+        .where(eq(paymentPoints.paymentId, payment.id));
+
+      res.json({
+        success: true,
+        data: {
+          ...payment,
+          points: points?.points || 0,
+          pointsStatus: points?.status || 'unclaimed',
+          autoPointsGranted: payment.autoPointsGranted || false,
+          lineOaUrl: payment.lineOaUrl || null,
+          lineOaId: payment.lineOaId || null,
+        }
+      });
+    } catch (error) {
+      console.error('Get payment error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get payment' });
+    }
+  });
+
+  // Webhook: Opn 支付回调
+  app.post('/api/payments/webhook/opn', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
+    try {
+      const rawBody = req.body.toString();
+      const headers = req.headers as Record<string, string>;
+
+      const provider = getPaymentProvider('opn');
+      if (!provider) {
+        return res.status(500).json({ success: false, message: 'Provider not configured' });
+      }
+
+      // 验证签名
+      if (!provider.verifyPaymentWebhookSignature(rawBody, headers)) {
+        console.warn('[Webhook/opn] Invalid signature');
+        return res.status(401).json({ success: false, message: 'Invalid signature' });
+      }
+
+      // 解析数据
+      const payload = provider.parsePaymentWebhook(rawBody);
+      if (!payload) {
+        return res.status(400).json({ success: false, message: 'Invalid payload' });
+      }
+
+      console.log('[Webhook/opn] Received:', { 
+        pspPaymentId: payload.pspPaymentId, 
+        status: payload.status 
+      });
+
+      // 更新支付记录（幂等）
+      const [payment] = await db
+        .select()
+        .from(qrPayments)
+        .where(eq(qrPayments.pspPaymentId, payload.pspPaymentId));
+
+      if (!payment) {
+        console.warn('[Webhook/opn] Payment not found:', payload.pspPaymentId);
+        return res.json({ success: true, message: 'Payment not found, ignored' });
+      }
+
+      if (payment.status === 'paid') {
+        return res.json({ success: true, message: 'Already processed' });
+      }
+
+      // 更新状态
+      await db
+        .update(qrPayments)
+        .set({
+          status: payload.status,
+          paidAt: payload.paidAt || new Date(),
+          rawPayload: JSON.stringify(payload.rawData),
+          updatedAt: new Date(),
+        })
+        .where(eq(qrPayments.id, payment.id));
+
+      // 如果支付成功，创建积分记录并自动发放
+      if (payload.status === 'paid') {
+        const pointsAmount = Math.floor(payload.amount); // 1 THB = 1 积分
+
+        // 检查用户是否已登录（有 lineUserId）
+        const hasUser = !!payment.lineUserId;
+
+        await db
+          .insert(paymentPoints)
+          .values({
+            paymentId: payment.id,
+            points: pointsAmount,
+            lineUserId: payment.lineUserId || null,
+            memberId: payment.userId || null,
+            // 有用户信息则自动认领，无则待认领
+            status: hasUser ? 'claimed' : 'unclaimed',
+            claimedAt: hasUser ? new Date() : null,
+          });
+
+        // 如果使用了优惠券，标记为已使用
+        if (payment.couponId) {
+          await db
+            .update(coupons)
+            .set({
+              status: 'used',
+              usedAt: new Date(),
+            })
+            .where(eq(coupons.id, payment.couponId));
+          console.log('[Webhook/opn] Coupon marked as used:', payment.couponId);
+        }
+
+        console.log('[Webhook/opn] Points created:', { 
+          paymentId: payment.id, 
+          points: pointsAmount,
+          autoGranted: hasUser,
+        });
+
+        // 如果有用户信息，标记自动发放并尝试发送 LINE 消息
+        if (hasUser) {
+          await db
+            .update(qrPayments)
+            .set({ autoPointsGranted: true })
+            .where(eq(qrPayments.id, payment.id));
+
+          // 尝试发送 LINE 消息（异步，不阻塞响应）
+          // 注意：直接从数据库查询 Token，不通过 API（API 会脱敏）
+          (async () => {
+            try {
+              const [storeWithToken] = await db
+                .select({
+                  name: stores.name,
+                  lineOaChannelToken: stores.lineOaChannelToken,
+                })
+                .from(stores)
+                .where(eq(stores.id, payment.storeId));
+
+              if (storeWithToken?.lineOaChannelToken && payment.lineUserId) {
+                const { sendPaymentNotification } = await import('./services/lineMessagingService');
+                await sendPaymentNotification(
+                  storeWithToken.lineOaChannelToken,  // 直接从 DB 获取真实 Token
+                  payment.lineUserId,
+                  storeWithToken.name,
+                  parseFloat(payment.amount),
+                  pointsAmount
+                );
+                console.log('[Webhook/opn] LINE message sent to:', payment.lineUserId);
+              }
+            } catch (msgError) {
+              console.error('[Webhook/opn] Failed to send LINE message:', msgError);
+            }
+          })();
+        }
+      }
+
+      res.json({ success: true, message: 'Webhook processed' });
+    } catch (error) {
+      console.error('Webhook/opn error:', error);
+      res.status(500).json({ success: false, message: 'Webhook processing failed' });
+    }
+  });
+
+  // Webhook: 2C2P 支付回调
+  app.post('/api/payments/webhook/two_c2p', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
+    try {
+      const rawBody = req.body.toString();
+      const headers = req.headers as Record<string, string>;
+
+      const provider = getPaymentProvider('two_c2p');
+      if (!provider) {
+        return res.status(500).json({ success: false, message: 'Provider not configured' });
+      }
+
+      if (!provider.verifyPaymentWebhookSignature(rawBody, headers)) {
+        console.warn('[Webhook/2c2p] Invalid signature');
+        return res.status(401).json({ success: false, message: 'Invalid signature' });
+      }
+
+      const payload = provider.parsePaymentWebhook(rawBody);
+      if (!payload) {
+        return res.status(400).json({ success: false, message: 'Invalid payload' });
+      }
+
+      console.log('[Webhook/2c2p] Received:', { 
+        pspPaymentId: payload.pspPaymentId, 
+        status: payload.status 
+      });
+
+      const [payment] = await db
+        .select()
+        .from(qrPayments)
+        .where(eq(qrPayments.pspPaymentId, payload.pspPaymentId));
+
+      if (!payment) {
+        console.warn('[Webhook/2c2p] Payment not found:', payload.pspPaymentId);
+        return res.json({ success: true, message: 'Payment not found, ignored' });
+      }
+
+      if (payment.status === 'paid') {
+        return res.json({ success: true, message: 'Already processed' });
+      }
+
+      await db
+        .update(qrPayments)
+        .set({
+          status: payload.status,
+          paidAt: payload.paidAt || new Date(),
+          rawPayload: JSON.stringify(payload.rawData),
+          updatedAt: new Date(),
+        })
+        .where(eq(qrPayments.id, payment.id));
+
+      // 如果支付成功，创建积分记录并自动发放
+      if (payload.status === 'paid') {
+        const pointsAmount = Math.floor(payload.amount);
+        const hasUser = !!payment.lineUserId;
+
+        await db
+          .insert(paymentPoints)
+          .values({
+            paymentId: payment.id,
+            points: pointsAmount,
+            lineUserId: payment.lineUserId || null,
+            memberId: payment.userId || null,
+            status: hasUser ? 'claimed' : 'unclaimed',
+            claimedAt: hasUser ? new Date() : null,
+          });
+
+        // 如果使用了优惠券，标记为已使用
+        if (payment.couponId) {
+          await db
+            .update(coupons)
+            .set({
+              status: 'used',
+              usedAt: new Date(),
+            })
+            .where(eq(coupons.id, payment.couponId));
+          console.log('[Webhook/2c2p] Coupon marked as used:', payment.couponId);
+        }
+
+        console.log('[Webhook/2c2p] Points created:', { 
+          paymentId: payment.id, 
+          points: pointsAmount,
+          autoGranted: hasUser,
+        });
+
+        // 如果有用户信息，标记自动发放并尝试发送 LINE 消息
+        if (hasUser) {
+          await db
+            .update(qrPayments)
+            .set({ autoPointsGranted: true })
+            .where(eq(qrPayments.id, payment.id));
+
+          // 直接从数据库查询 Token，不通过 API（API 会脱敏）
+          (async () => {
+            try {
+              const [storeWithToken] = await db
+                .select({
+                  name: stores.name,
+                  lineOaChannelToken: stores.lineOaChannelToken,
+                })
+                .from(stores)
+                .where(eq(stores.id, payment.storeId));
+
+              if (storeWithToken?.lineOaChannelToken && payment.lineUserId) {
+                const { sendPaymentNotification } = await import('./services/lineMessagingService');
+                await sendPaymentNotification(
+                  storeWithToken.lineOaChannelToken,
+                  payment.lineUserId,
+                  storeWithToken.name,
+                  parseFloat(payment.amount),
+                  pointsAmount
+                );
+                console.log('[Webhook/2c2p] LINE message sent to:', payment.lineUserId);
+              }
+            } catch (msgError) {
+              console.error('[Webhook/2c2p] Failed to send LINE message:', msgError);
+            }
+          })();
+        }
+      }
+
+      res.json({ success: true, message: 'Webhook processed' });
+    } catch (error) {
+      console.error('Webhook/2c2p error:', error);
+      res.status(500).json({ success: false, message: 'Webhook processing failed' });
+    }
+  });
+
+  // Mock Webhook - 仅开发环境，用于测试支付成功流程
+  app.post('/api/payments/mock-complete', async (req: Request, res: Response) => {
+    // 仅开发环境可用
+    if (process.env.NODE_ENV !== 'development') {
+      return res.status(403).json({ success: false, message: 'Not available in production' });
+    }
+
+    try {
+      const { payment_id } = req.body;
+
+      if (!payment_id) {
+        return res.status(400).json({ success: false, message: 'Missing payment_id' });
+      }
+
+      // 查找支付记录（优先用 orderId，兼容 pspPaymentId）
+      const [payment] = await db
+        .select()
+        .from(qrPayments)
+        .where(or(eq(qrPayments.orderId, payment_id), eq(qrPayments.pspPaymentId, payment_id)));
+
+      if (!payment) {
+        console.log('[Mock Complete] Payment not found for id:', payment_id);
+        return res.status(404).json({ success: false, message: 'Payment not found' });
+      }
+
+      if (payment.status === 'paid') {
+        return res.json({ success: true, message: 'Already completed', data: { paymentId: payment.id } });
+      }
+
+      // 更新状态为已支付
+      await db
+        .update(qrPayments)
+        .set({
+          status: 'paid',
+          paidAt: new Date(),
+          rawPayload: JSON.stringify({ mock: true, completedAt: new Date().toISOString() }),
+          updatedAt: new Date(),
+        })
+        .where(eq(qrPayments.id, payment.id));
+
+      // 检查是否已有积分记录（幂等性）
+      const [existingPoints] = await db
+        .select()
+        .from(paymentPoints)
+        .where(eq(paymentPoints.paymentId, payment.id));
+
+      let pointsAmount = Math.floor(parseFloat(payment.amount));
+      const hasUser = !!payment.lineUserId;
+      
+      if (!existingPoints) {
+        // 创建积分记录（有用户信息则自动认领）
+        await db
+          .insert(paymentPoints)
+          .values({
+            paymentId: payment.id,
+            points: pointsAmount,
+            lineUserId: payment.lineUserId || null,
+            memberId: payment.userId || null,
+            status: hasUser ? 'claimed' : 'unclaimed',
+            claimedAt: hasUser ? new Date() : null,
+          });
+
+        console.log('[Mock Webhook] Payment completed & points created:', { 
+          paymentId: payment.id, 
+          pspPaymentId: payment_id,
+          points: pointsAmount,
+          autoGranted: hasUser,
+        });
+
+        // 如果有用户信息，标记自动发放并尝试发送 LINE 消息
+        if (hasUser) {
+          await db
+            .update(qrPayments)
+            .set({ autoPointsGranted: true })
+            .where(eq(qrPayments.id, payment.id));
+
+          // 直接从数据库查询 Token（API 会脱敏，webhook 需要真实 Token）
+          (async () => {
+            try {
+              const [storeWithToken] = await db
+                .select({
+                  name: stores.name,
+                  lineOaChannelToken: stores.lineOaChannelToken,
+                })
+                .from(stores)
+                .where(eq(stores.id, payment.storeId));
+
+              if (storeWithToken?.lineOaChannelToken && payment.lineUserId) {
+                const { sendPaymentNotification } = await import('./services/lineMessagingService');
+                await sendPaymentNotification(
+                  storeWithToken.lineOaChannelToken,
+                  payment.lineUserId,
+                  storeWithToken.name,
+                  parseFloat(payment.amount),
+                  pointsAmount
+                );
+                console.log('[Mock Webhook] LINE message sent to:', payment.lineUserId);
+              }
+            } catch (msgError) {
+              console.error('[Mock Webhook] Failed to send LINE message:', msgError);
+            }
+          })();
+        }
+      } else {
+        pointsAmount = existingPoints.points;
+        console.log('[Mock Webhook] Payment completed, points already exist:', { 
+          paymentId: payment.id, 
+          existingPoints: pointsAmount 
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Payment mock-completed', 
+        data: { 
+          paymentId: payment.id,
+          points: pointsAmount,
+          autoGranted: hasUser && !existingPoints,
+        } 
+      });
+    } catch (error) {
+      console.error('Mock complete error:', error);
+      res.status(500).json({ success: false, message: 'Mock complete failed' });
+    }
+  });
+
+  // 积分认领 API（支付即会员核心功能）
+  app.post('/api/points/claim', async (req: Request, res: Response) => {
+    try {
+      const { payment_id, line_user_id } = req.body;
+
+      if (!payment_id || !line_user_id) {
+        return res.status(400).json({ success: false, message: 'Missing required fields' });
+      }
+
+      // 查询支付记录（优先用 orderId，兼容 pspPaymentId）
+      const [payment] = await db
+        .select()
+        .from(qrPayments)
+        .where(or(eq(qrPayments.orderId, payment_id), eq(qrPayments.pspPaymentId, payment_id)));
+
+      if (!payment || payment.status !== 'paid') {
+        return res.status(404).json({ success: false, message: 'Payment not found or not paid' });
+      }
+
+      // 查询积分记录
+      const [points] = await db
+        .select()
+        .from(paymentPoints)
+        .where(eq(paymentPoints.paymentId, payment.id));
+
+      if (!points) {
+        return res.status(404).json({ success: false, message: 'Points not found' });
+      }
+
+      // 查询门店信息（获取 LINE OA 配置）
+      const [store] = await db
+        .select()
+        .from(stores)
+        .where(eq(stores.id, payment.storeId));
+
+      // 检查 LINE OA 配置是否完整（用于返回跳转 URL）
+      const hasCompleteLineOaConfig = store?.lineOaUrl && store?.lineOaChannelToken;
+      
+      if (points.status === 'claimed') {
+        // 已领取，直接返回（仅当配置完整时返回 LINE OA URL）
+        return res.json({ 
+          success: true, 
+          message: 'Points already claimed', 
+          data: {
+            ...points,
+            lineOaUrl: hasCompleteLineOaConfig ? store.lineOaUrl : null,
+          }
+        });
+      }
+
+      // 查找或创建用户
+      let [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.lineUserId, line_user_id));
+
+      if (!user) {
+        [user] = await db
+          .insert(users)
+          .values({
+            lineUserId: line_user_id,
+            displayName: 'LINE User',
+            language: 'th-th',
+          })
+          .returning();
+      }
+
+      // 更新积分记录
+      const [updatedPoints] = await db
+        .update(paymentPoints)
+        .set({
+          memberId: user.id,
+          lineUserId: line_user_id,
+          status: 'claimed',
+          claimedAt: new Date(),
+        })
+        .where(eq(paymentPoints.id, points.id))
+        .returning();
+
+      // 注意：hasCompleteLineOaConfig 在上面已经定义
+      const hasValidLineOaConfig = hasCompleteLineOaConfig;
+      
+      // 发送 LINE 消息通知（仅当配置完整时）
+      let lineMessageSent = false;
+      if (hasValidLineOaConfig && store.lineOaChannelToken) {
+        try {
+          const amount = parseFloat(payment.amount).toFixed(2);
+          const pointsEarned = updatedPoints.points;
+          const storeName = store.name;
+          
+          // 多语言消息模板
+          const message = {
+            type: 'text',
+            text: `🎉 感谢您在「${storeName}」消费了 ${amount} THB！\n\n` +
+                  `✨ 您的 ${pointsEarned} 积分已存入您的积分卡包！\n\n` +
+                  `📱 随时在刷刷App查看您的会员权益～`,
+          };
+
+          // 使用商户自己的 Channel Token 发送
+          const response = await fetch('https://api.line.me/v2/bot/message/push', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${store.lineOaChannelToken}`,
+            },
+            body: JSON.stringify({
+              to: line_user_id,
+              messages: [message],
+            }),
+          });
+
+          if (response.ok) {
+            lineMessageSent = true;
+            console.log('[Points/Claim] LINE message sent:', { 
+              storeId: store.id, 
+              userId: line_user_id.substring(0, 8) + '...',
+              points: pointsEarned,
+            });
+          } else {
+            const errorText = await response.text();
+            console.warn('[Points/Claim] LINE message failed:', { 
+              status: response.status, 
+              error: errorText.substring(0, 100),
+            });
+          }
+        } catch (lineError) {
+          console.error('[Points/Claim] LINE API error:', lineError);
+          // 不影响积分领取流程，继续返回成功
+        }
+      } else if (store?.lineOaUrl && !store?.lineOaChannelToken) {
+        // 只配置了 URL 没配置 Token - 记录警告
+        console.warn('[Points/Claim] Store has lineOaUrl but no channelToken:', { storeId: store.id });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          points: updatedPoints.points,
+          status: 'claimed',
+          memberId: user.id,
+          // 只有配置了完整 LINE OA 才返回跳转 URL
+          lineOaUrl: hasValidLineOaConfig ? store.lineOaUrl : null,
+          lineMessageSent,
+        },
+        message: 'Points claimed successfully'
+      });
+    } catch (error) {
+      console.error('Claim points error:', error);
+      res.status(500).json({ success: false, message: 'Failed to claim points' });
+    }
+  });
+
+  // 初始化 PSP Providers（开发用，只运行一次）
+  app.post('/api/admin/init-psp-providers', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      // 检查是否已有数据
+      const existing = await db.select().from(pspProviders);
+      if (existing.length > 0) {
+        return res.json({ success: true, message: 'PSP providers already initialized', data: existing });
+      }
+
+      // 插入默认 PSP
+      const providers = await db
+        .insert(pspProviders)
+        .values([
+          { code: 'opn', name: 'Opn Thailand', status: 'active' },
+          { code: '2c2p', name: '2C2P Thailand', status: 'active' },
+        ])
+        .returning();
+
+      res.json({ success: true, message: 'PSP providers initialized', data: providers });
+    } catch (error) {
+      console.error('Init PSP providers error:', error);
+      res.status(500).json({ success: false, message: 'Failed to init PSP providers' });
+    }
+  });
+
+  // ============ 聊天功能 API ============
+
+  // 消费者端：创建或获取与门店的会话
+  app.post('/api/chat/conversations', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const consumerId = req.user!.id;
+      const { storeId } = req.body;
+
+      if (!storeId) {
+        return res.status(400).json({ success: false, message: 'Store ID is required' });
+      }
+
+      // 检查门店是否存在
+      const [store] = await db.select().from(stores).where(eq(stores.id, storeId));
+      if (!store) {
+        return res.status(404).json({ success: false, message: 'Store not found' });
+      }
+
+      // 查找已有会话或创建新会话
+      let [conversation] = await db
+        .select()
+        .from(chatConversations)
+        .where(and(
+          eq(chatConversations.storeId, storeId),
+          eq(chatConversations.consumerId, consumerId)
+        ));
+
+      if (!conversation) {
+        [conversation] = await db
+          .insert(chatConversations)
+          .values({
+            storeId,
+            consumerId,
+            status: 'active',
+          })
+          .returning();
+      }
+
+      res.json({
+        success: true,
+        data: {
+          id: conversation.id,
+          storeId: conversation.storeId,
+          storeName: store.name,
+          storeImageUrl: store.imageUrl,
+          status: conversation.status,
+          lastMessagePreview: conversation.lastMessagePreview,
+          lastMessageAt: conversation.lastMessageAt,
+          unreadCount: conversation.unreadCountConsumer,
+        },
+      });
+    } catch (error) {
+      console.error('Create conversation error:', error);
+      res.status(500).json({ success: false, message: 'Failed to create conversation' });
+    }
+  });
+
+  // 消费者端：获取自己的会话列表
+  app.get('/api/chat/my-conversations', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const consumerId = req.user!.id;
+
+      const conversations = await db
+        .select({
+          id: chatConversations.id,
+          storeId: chatConversations.storeId,
+          storeName: stores.name,
+          storeImageUrl: stores.imageUrl,
+          lastMessagePreview: chatConversations.lastMessagePreview,
+          lastMessageAt: chatConversations.lastMessageAt,
+          unreadCount: chatConversations.unreadCountConsumer,
+          status: chatConversations.status,
+        })
+        .from(chatConversations)
+        .innerJoin(stores, eq(chatConversations.storeId, stores.id))
+        .where(eq(chatConversations.consumerId, consumerId))
+        .orderBy(desc(chatConversations.lastMessageAt));
+
+      res.json({ success: true, data: conversations });
+    } catch (error) {
+      console.error('Get my conversations error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get conversations' });
+    }
+  });
+
+  // 商户端：获取门店的会话列表
+  app.get('/api/chat/store/:storeId/conversations', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const storeId = parseInt(req.params.storeId);
+
+      // 验证用户是否是该门店的owner或operator
+      const [staff] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.storeId, storeId),
+          eq(merchantStaffRoles.userId, userId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!staff) {
+        return res.status(403).json({ success: false, message: 'No permission to access this store' });
+      }
+
+      const conversations = await db
+        .select({
+          id: chatConversations.id,
+          consumerId: chatConversations.consumerId,
+          consumerName: users.displayName,
+          consumerShuaName: users.shuaName,
+          consumerAvatar: users.avatarUrl,
+          lastMessagePreview: chatConversations.lastMessagePreview,
+          lastMessageAt: chatConversations.lastMessageAt,
+          unreadCount: chatConversations.unreadCountMerchant,
+          status: chatConversations.status,
+        })
+        .from(chatConversations)
+        .innerJoin(users, eq(chatConversations.consumerId, users.id))
+        .where(eq(chatConversations.storeId, storeId))
+        .orderBy(desc(chatConversations.lastMessageAt));
+
+      res.json({ success: true, data: conversations });
+    } catch (error) {
+      console.error('Get store conversations error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get conversations' });
+    }
+  });
+
+  // 商户端：获取所有门店的未读消息总数
+  app.get('/api/chat/merchant/unread-count', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+
+      // 获取用户管理的所有门店
+      const staffRoles = await db
+        .select({ storeId: merchantStaffRoles.storeId })
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      const storeIds = staffRoles.map(s => s.storeId);
+      
+      if (storeIds.length === 0) {
+        return res.json({ success: true, data: { totalUnread: 0, stores: [] } });
+      }
+
+      // 统计每个门店的未读消息
+      const storeUnreads = await db
+        .select({
+          storeId: chatConversations.storeId,
+          storeName: stores.name,
+          unreadCount: sql<number>`SUM(${chatConversations.unreadCountMerchant})::int`,
+        })
+        .from(chatConversations)
+        .innerJoin(stores, eq(chatConversations.storeId, stores.id))
+        .where(inArray(chatConversations.storeId, storeIds))
+        .groupBy(chatConversations.storeId, stores.name);
+
+      const totalUnread = storeUnreads.reduce((sum, s) => sum + (s.unreadCount || 0), 0);
+
+      res.json({
+        success: true,
+        data: {
+          totalUnread,
+          stores: storeUnreads,
+        },
+      });
+    } catch (error) {
+      console.error('Get merchant unread count error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get unread count' });
+    }
+  });
+
+  // 发送消息
+  app.post('/api/chat/conversations/:conversationId/messages', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const conversationId = parseInt(req.params.conversationId);
+      const { content, messageType = 'text', imageUrl } = req.body;
+
+      if (!content) {
+        return res.status(400).json({ success: false, message: 'Message content is required' });
+      }
+
+      // 获取会话信息
+      const [conversation] = await db
+        .select()
+        .from(chatConversations)
+        .where(eq(chatConversations.id, conversationId));
+
+      if (!conversation) {
+        return res.status(404).json({ success: false, message: 'Conversation not found' });
+      }
+
+      // 判断发送者身份
+      let senderType: 'consumer' | 'merchant' = 'consumer';
+      
+      if (conversation.consumerId === userId) {
+        senderType = 'consumer';
+      } else {
+        // 检查是否是商户
+        const [staff] = await db
+          .select()
+          .from(merchantStaffRoles)
+          .where(and(
+            eq(merchantStaffRoles.storeId, conversation.storeId),
+            eq(merchantStaffRoles.userId, userId),
+            inArray(merchantStaffRoles.role, ['owner', 'operator'])
+          ));
+        
+        if (staff) {
+          senderType = 'merchant';
+        } else {
+          return res.status(403).json({ success: false, message: 'No permission to send message' });
+        }
+      }
+
+      // 插入消息
+      const [message] = await db
+        .insert(chatMessages)
+        .values({
+          conversationId,
+          senderType,
+          senderId: userId,
+          messageType,
+          content,
+          imageUrl,
+          isReadByMerchant: senderType === 'merchant',
+          isReadByConsumer: senderType === 'consumer',
+        })
+        .returning();
+
+      // 更新会话的最后消息预览和时间
+      const preview = content.length > 50 ? content.substring(0, 50) + '...' : content;
+      const updateData: any = {
+        lastMessagePreview: preview,
+        lastMessageAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // 增加对方的未读计数
+      if (senderType === 'consumer') {
+        updateData.unreadCountMerchant = sql`${chatConversations.unreadCountMerchant} + 1`;
+      } else {
+        updateData.unreadCountConsumer = sql`${chatConversations.unreadCountConsumer} + 1`;
+      }
+
+      await db
+        .update(chatConversations)
+        .set(updateData)
+        .where(eq(chatConversations.id, conversationId));
+
+      res.json({
+        success: true,
+        data: {
+          id: message.id,
+          conversationId: message.conversationId,
+          senderType: message.senderType,
+          senderId: message.senderId,
+          messageType: message.messageType,
+          content: message.content,
+          imageUrl: message.imageUrl,
+          createdAt: message.createdAt,
+        },
+      });
+    } catch (error) {
+      console.error('Send message error:', error);
+      res.status(500).json({ success: false, message: 'Failed to send message' });
+    }
+  });
+
+  // 获取会话消息列表
+  app.get('/api/chat/conversations/:conversationId/messages', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const conversationId = parseInt(req.params.conversationId);
+      const limit = parseInt(req.query.limit as string) || 50;
+      const before = req.query.before ? parseInt(req.query.before as string) : undefined;
+
+      // 获取会话信息
+      const [conversation] = await db
+        .select()
+        .from(chatConversations)
+        .where(eq(chatConversations.id, conversationId));
+
+      if (!conversation) {
+        return res.status(404).json({ success: false, message: 'Conversation not found' });
+      }
+
+      // 验证访问权限
+      let isConsumer = conversation.consumerId === userId;
+      let isMerchant = false;
+      
+      if (!isConsumer) {
+        const [staff] = await db
+          .select()
+          .from(merchantStaffRoles)
+          .where(and(
+            eq(merchantStaffRoles.storeId, conversation.storeId),
+            eq(merchantStaffRoles.userId, userId),
+            inArray(merchantStaffRoles.role, ['owner', 'operator'])
+          ));
+        
+        if (staff) {
+          isMerchant = true;
+        }
+      }
+
+      if (!isConsumer && !isMerchant) {
+        return res.status(403).json({ success: false, message: 'No permission to view messages' });
+      }
+
+      // 获取消息
+      let query = db
+        .select({
+          id: chatMessages.id,
+          conversationId: chatMessages.conversationId,
+          senderType: chatMessages.senderType,
+          senderId: chatMessages.senderId,
+          messageType: chatMessages.messageType,
+          content: chatMessages.content,
+          imageUrl: chatMessages.imageUrl,
+          createdAt: chatMessages.createdAt,
+        })
+        .from(chatMessages)
+        .where(
+          before
+            ? and(eq(chatMessages.conversationId, conversationId), sql`${chatMessages.id} < ${before}`)
+            : eq(chatMessages.conversationId, conversationId)
+        )
+        .orderBy(desc(chatMessages.id))
+        .limit(limit);
+
+      const messages = await query;
+
+      // 标记消息为已读并重置未读计数
+      if (isConsumer) {
+        await db
+          .update(chatMessages)
+          .set({ isReadByConsumer: true })
+          .where(and(
+            eq(chatMessages.conversationId, conversationId),
+            eq(chatMessages.isReadByConsumer, false)
+          ));
+        await db
+          .update(chatConversations)
+          .set({ unreadCountConsumer: 0 })
+          .where(eq(chatConversations.id, conversationId));
+      } else {
+        await db
+          .update(chatMessages)
+          .set({ isReadByMerchant: true })
+          .where(and(
+            eq(chatMessages.conversationId, conversationId),
+            eq(chatMessages.isReadByMerchant, false)
+          ));
+        await db
+          .update(chatConversations)
+          .set({ unreadCountMerchant: 0 })
+          .where(eq(chatConversations.id, conversationId));
+      }
+
+      res.json({
+        success: true,
+        data: messages.reverse(), // 返回按时间正序
+      });
+    } catch (error) {
+      console.error('Get messages error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get messages' });
     }
   });
 
