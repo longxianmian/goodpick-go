@@ -2,8 +2,6 @@ import { useState, useRef, useCallback, useEffect, type MouseEvent } from 'react
 import { 
   Play, 
   Pause, 
-  Volume2, 
-  VolumeX, 
   Maximize, 
   Minimize,
   RotateCcw
@@ -100,14 +98,6 @@ export function VideoPlayer({
     }
   }, [isPlaying, isEnded]);
 
-  const toggleMute = useCallback((e: MouseEvent) => {
-    e.stopPropagation();
-    const video = videoRef.current;
-    if (!video) return;
-    
-    video.muted = !video.muted;
-    setIsMuted(!isMuted);
-  }, [isMuted]);
 
   const toggleFullscreen = useCallback(async (e: MouseEvent) => {
     e.stopPropagation();
@@ -321,18 +311,6 @@ export function VideoPlayer({
                 <Pause className="w-5 h-5" />
               ) : (
                 <Play className="w-5 h-5" />
-              )}
-            </button>
-
-            <button
-              onClick={toggleMute}
-              className="text-white"
-              data-testid="button-mute"
-            >
-              {isMuted ? (
-                <VolumeX className="w-5 h-5" />
-              ) : (
-                <Volume2 className="w-5 h-5" />
               )}
             </button>
 
