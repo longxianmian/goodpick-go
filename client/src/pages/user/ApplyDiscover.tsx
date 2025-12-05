@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,7 +14,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, Store, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { ChevronLeft, Store, Clock, CheckCircle, XCircle, Loader2, MapPin, Search } from 'lucide-react';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { PageTransition } from '@/components/ui/page-transition';
@@ -41,20 +44,32 @@ const STORE_CATEGORIES = [
   { value: 'other', labelKey: 'category.other' },
 ];
 
-const CITIES = [
-  { value: 'Bangkok', labelKey: 'city.bangkok' },
-  { value: 'Phuket', labelKey: 'city.phuket' },
-  { value: 'Chiang Mai', labelKey: 'city.chiangMai' },
-  { value: 'Pattaya', labelKey: 'city.pattaya' },
-  { value: 'Krabi', labelKey: 'city.krabi' },
-  { value: 'Other', labelKey: 'city.other' },
-];
+interface PlacePrediction {
+  place_id: string;
+  description: string;
+  structured_formatting: {
+    main_text: string;
+    secondary_text: string;
+  };
+}
+
+interface PlaceDetails {
+  name: string;
+  address: string;
+  city: string;
+  country: string;
+  latitude: number;
+  longitude: number;
+}
 
 const formSchema = z.object({
   storeName: z.string().min(2, { message: '店铺名称至少2个字符' }),
   storeCategory: z.string().min(1, { message: '请选择店铺类目' }),
-  storeCity: z.string().min(1, { message: '请选择所在城市' }),
+  storeCity: z.string().min(1, { message: '请输入或选择城市' }),
+  storeCountry: z.string().optional(),
   storeAddress: z.string().min(5, { message: '请输入详细地址' }),
+  storeLat: z.number().optional(),
+  storeLng: z.number().optional(),
   contactName: z.string().min(2, { message: '请输入联系人姓名' }),
   contactPhone: z.string().min(8, { message: '请输入有效电话号码' }),
   brandName: z.string().optional(),
@@ -80,9 +95,15 @@ interface ApplicationStatus {
 
 export default function ApplyDiscover() {
   const [, setLocation] = useLocation();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  const [addressSearch, setAddressSearch] = useState('');
+  const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [addressPopoverOpen, setAddressPopoverOpen] = useState(false);
+  const [selectedPlace, setSelectedPlace] = useState<PlaceDetails | null>(null);
 
   const { data: statusResponse, isLoading: statusLoading } = useQuery<{ success: boolean; data: ApplicationStatus }>({
     queryKey: ['/api/me/application-status'],
@@ -94,14 +115,103 @@ export default function ApplyDiscover() {
     defaultValues: {
       storeName: '',
       storeCategory: '',
-      storeCity: 'Bangkok',
+      storeCity: '',
+      storeCountry: '',
       storeAddress: '',
+      storeLat: undefined,
+      storeLng: undefined,
       contactName: user?.displayName || '',
       contactPhone: '',
       brandName: '',
       description: '',
     },
   });
+
+  const searchPlaces = useCallback(async (input: string) => {
+    if (input.length < 2) {
+      setPredictions([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const langMap: Record<string, string> = {
+        'zh-cn': 'zh-CN',
+        'zh-tw': 'zh-TW',
+        'en': 'en',
+        'th': 'th',
+        'vi': 'vi',
+        'id': 'id',
+        'my': 'my',
+      };
+      const apiLang = langMap[language] || 'en';
+      
+      const response = await fetch(`/api/places/autocomplete?input=${encodeURIComponent(input)}&language=${apiLang}`, {
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      const data = await response.json();
+      
+      if (data.success && data.predictions) {
+        setPredictions(data.predictions);
+      } else {
+        setPredictions([]);
+      }
+    } catch (error) {
+      console.error('Places search error:', error);
+      setPredictions([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [language]);
+
+  const selectPlace = useCallback(async (prediction: PlacePrediction) => {
+    try {
+      setIsSearching(true);
+      const langMap: Record<string, string> = {
+        'zh-cn': 'zh-CN',
+        'zh-tw': 'zh-TW',
+        'en': 'en',
+        'th': 'th',
+        'vi': 'vi',
+        'id': 'id',
+        'my': 'my',
+      };
+      const apiLang = langMap[language] || 'en';
+      
+      const response = await fetch(`/api/places/details/${prediction.place_id}?language=${apiLang}`, {
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      const data = await response.json();
+      
+      if (data.success && data.place) {
+        const place = data.place;
+        setSelectedPlace(place);
+        form.setValue('storeCity', place.city || '');
+        form.setValue('storeCountry', place.country || '');
+        form.setValue('storeAddress', place.address || '');
+        form.setValue('storeLat', place.latitude);
+        form.setValue('storeLng', place.longitude);
+        setAddressSearch(prediction.description);
+        setAddressPopoverOpen(false);
+        
+        toast({
+          title: t('application.addressSelected'),
+          description: `${place.city}, ${place.country}`,
+        });
+      }
+    } catch (error) {
+      console.error('Place details error:', error);
+      toast({
+        variant: 'destructive',
+        title: t('common.error'),
+        description: t('application.addressSelectFailed'),
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  }, [language, form, t, toast]);
 
   const submitMutation = useMutation({
     mutationFn: async (values: FormValues) => {
@@ -377,30 +487,112 @@ export default function ApplyDiscover() {
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="storeCity"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('application.storeCity')} *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-city">
-                              <SelectValue placeholder={t('application.selectCity')} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {CITIES.map((city) => (
-                              <SelectItem key={city.value} value={city.value}>
-                                {t(city.labelKey)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <FormItem>
+                    <FormLabel>{t('application.searchAddress')} *</FormLabel>
+                    <Popover open={addressPopoverOpen} onOpenChange={setAddressPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-start text-left font-normal h-auto min-h-10 py-2"
+                          data-testid="button-search-address"
+                        >
+                          {selectedPlace ? (
+                            <div className="flex items-start gap-2">
+                              <MapPin className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm truncate">{selectedPlace.city}, {selectedPlace.country}</div>
+                                <div className="text-xs text-muted-foreground truncate">{selectedPlace.address}</div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Search className="w-4 h-4" />
+                              <span>{t('application.searchAddressPlaceholder')}</span>
+                            </div>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                        <Command shouldFilter={false}>
+                          <CommandInput 
+                            placeholder={t('application.searchAddressPlaceholder')}
+                            value={addressSearch}
+                            onValueChange={(value) => {
+                              setAddressSearch(value);
+                              searchPlaces(value);
+                            }}
+                            data-testid="input-address-search"
+                          />
+                          <CommandList>
+                            {isSearching && (
+                              <div className="flex items-center justify-center py-4">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              </div>
+                            )}
+                            {!isSearching && predictions.length === 0 && addressSearch.length >= 2 && (
+                              <CommandEmpty>{t('application.noAddressFound')}</CommandEmpty>
+                            )}
+                            {!isSearching && predictions.length > 0 && (
+                              <CommandGroup>
+                                {predictions.map((prediction) => (
+                                  <CommandItem
+                                    key={prediction.place_id}
+                                    value={prediction.place_id}
+                                    onSelect={() => selectPlace(prediction)}
+                                    className="cursor-pointer"
+                                    data-testid={`address-option-${prediction.place_id}`}
+                                  >
+                                    <MapPin className="w-4 h-4 mr-2 text-muted-foreground flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-sm font-medium truncate">
+                                        {prediction.structured_formatting?.main_text || prediction.description}
+                                      </div>
+                                      {prediction.structured_formatting?.secondary_text && (
+                                        <div className="text-xs text-muted-foreground truncate">
+                                          {prediction.structured_formatting.secondary_text}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            )}
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <FormDescription>{t('application.searchAddressHint')}</FormDescription>
+                  </FormItem>
+
+                  {selectedPlace && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="storeCity"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t('application.storeCity')}</FormLabel>
+                            <FormControl>
+                              <Input {...field} readOnly className="bg-muted" data-testid="input-city" />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="storeCountry"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t('application.storeCountry')}</FormLabel>
+                            <FormControl>
+                              <Input {...field} readOnly className="bg-muted" data-testid="input-country" />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
 
                   <FormField
                     control={form.control}
@@ -409,8 +601,14 @@ export default function ApplyDiscover() {
                       <FormItem>
                         <FormLabel>{t('application.storeAddress')} *</FormLabel>
                         <FormControl>
-                          <Textarea placeholder={t('application.storeAddressPlaceholder')} {...field} data-testid="input-address" />
+                          <Textarea 
+                            placeholder={t('application.storeAddressPlaceholder')} 
+                            {...field} 
+                            data-testid="input-address"
+                            className={selectedPlace ? 'bg-muted' : ''}
+                          />
                         </FormControl>
+                        <FormDescription>{t('application.addressCanEdit')}</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

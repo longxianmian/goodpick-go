@@ -2767,6 +2767,122 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // ============ Google Places API for Users (登录用户可用) ============
+
+  app.get('/api/places/autocomplete', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const input = req.query.input as string;
+      const language = req.query.language as string || 'en';
+      const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+
+      if (!input || input.length < 2) {
+        return res.json({ success: true, predictions: [] });
+      }
+
+      if (!apiKey) {
+        return res.status(500).json({ success: false, message: 'Google Maps API key not configured' });
+      }
+
+      const url = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
+      url.searchParams.set('input', input);
+      url.searchParams.set('key', apiKey);
+      url.searchParams.set('language', language);
+      // 不限制国家，支持全球搜索
+      url.searchParams.set('types', 'establishment|geocode');
+
+      const response = await fetch(url.toString());
+      const data = await response.json();
+
+      if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+        console.error('Google Places API error:', data);
+        return res.status(500).json({ success: false, message: 'Places API error' });
+      }
+
+      res.json({
+        success: true,
+        predictions: data.predictions || [],
+      });
+    } catch (error) {
+      console.error('Places autocomplete error:', error);
+      res.status(500).json({ success: false, message: 'Failed to search places' });
+    }
+  });
+
+  app.get('/api/places/details/:placeId', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { placeId } = req.params;
+      const language = req.query.language as string || 'en';
+      const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+
+      if (!apiKey) {
+        return res.status(500).json({ success: false, message: 'Google Maps API key not configured' });
+      }
+
+      const url = new URL('https://maps.googleapis.com/maps/api/place/details/json');
+      url.searchParams.set('place_id', placeId);
+      url.searchParams.set('key', apiKey);
+      url.searchParams.set('language', language);
+      url.searchParams.set('fields', 'name,formatted_address,address_components,geometry');
+
+      const response = await fetch(url.toString());
+      const data = await response.json();
+
+      if (data.status !== 'OK') {
+        console.error('Google Places Details API error:', data);
+        return res.status(500).json({ success: false, message: 'Places Details API error' });
+      }
+
+      const place = data.result;
+
+      // 智能提取城市和国家
+      let city = '';
+      let country = '';
+      if (place.address_components && Array.isArray(place.address_components)) {
+        // 提取国家
+        const countryComponent = place.address_components.find((component: any) =>
+          component.types.includes('country')
+        );
+        if (countryComponent) {
+          country = countryComponent.long_name;
+        }
+
+        // 提取城市（按优先级）
+        const provinceComponent = place.address_components.find((component: any) =>
+          component.types.includes('administrative_area_level_1')
+        );
+        const localityComponent = place.address_components.find((component: any) =>
+          component.types.includes('locality')
+        );
+        const districtComponent = place.address_components.find((component: any) =>
+          component.types.includes('administrative_area_level_2')
+        );
+        
+        if (provinceComponent) {
+          city = provinceComponent.long_name;
+        } else if (localityComponent) {
+          city = localityComponent.long_name;
+        } else if (districtComponent) {
+          city = districtComponent.long_name;
+        }
+      }
+
+      res.json({
+        success: true,
+        place: {
+          name: place.name,
+          address: place.formatted_address,
+          city: city,
+          country: country,
+          latitude: place.geometry?.location?.lat,
+          longitude: place.geometry?.location?.lng,
+        },
+      });
+    } catch (error) {
+      console.error('Places details error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get place details' });
+    }
+  });
+
   // ============ E. Admin - Campaign Management ============
 
   app.get('/api/admin/campaigns', adminAuthMiddleware, async (req: Request, res: Response) => {
