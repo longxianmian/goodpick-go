@@ -30,6 +30,7 @@ import MeSysAdmin from "@/pages/user/MeSysAdmin";
 import CreatorHome from "@/pages/creator/CreatorHome";
 import CreatorStudio from "@/pages/creator/CreatorStudio";
 import CreatorAccount from "@/pages/creator/CreatorAccount";
+import CreatorAnalytics from "@/pages/creator/CreatorAnalytics";
 import ContentEditor from "@/pages/creator/ContentEditor";
 import IncomeRecords from "@/pages/creator/IncomeRecords";
 import PaymentSettings from "@/pages/creator/PaymentSettings";
@@ -205,6 +206,7 @@ function Router() {
       <Route path="/creator/edit/:id" component={ContentEditor} />
       <Route path="/creator/create" component={CreatorStudio} />
       <Route path="/creator/me" component={CreatorAccount} />
+      <Route path="/creator/analytics" component={CreatorAnalytics} />
       <Route path="/creator/income-records" component={IncomeRecords} />
       <Route path="/creator/payment" component={PaymentSettings} />
       <Route path="/creator/notifications" component={CreatorNotifications} />

@@ -10,7 +10,7 @@ import { db } from './db';
 import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints } from '@shared/schema';
 import { getPaymentProvider } from './services/paymentProvider';
 import QRCode from 'qrcode';
-import { eq, and, desc, sql, inArray, isNotNull, or } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray, isNotNull, or, gte } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
 import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
 import { translateText } from './services/translationService';
@@ -4601,6 +4601,177 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Get creator stats error:', error);
       res.status(500).json({ success: false, message: '获取统计数据失败' });
+    }
+  });
+
+  // 获取创作者详细分析数据（时间维度统计）
+  app.get('/api/creator/analytics', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      // 获取创作者所有内容
+      const allContents = await db
+        .select()
+        .from(creatorContents)
+        .where(eq(creatorContents.creatorUserId, userId));
+      
+      // 总体统计
+      const totalViews = allContents.reduce((sum, c) => sum + (c.viewCount || 0), 0);
+      const totalLikes = allContents.reduce((sum, c) => sum + (c.likeCount || 0), 0);
+      const totalShares = allContents.reduce((sum, c) => sum + (c.shareCount || 0), 0);
+      const publishedContents = allContents.filter(c => c.status === 'published');
+      
+      // 粉丝统计
+      const [followerStats] = await db
+        .select({
+          totalFollowers: sql<number>`COUNT(*)`,
+        })
+        .from(userFollows)
+        .where(eq(userFollows.followingId, userId));
+      
+      const [followingStats] = await db
+        .select({
+          totalFollowing: sql<number>`COUNT(*)`,
+        })
+        .from(userFollows)
+        .where(eq(userFollows.followerId, userId));
+      
+      // 7天内新增粉丝
+      const [newFollowers7d] = await db
+        .select({
+          count: sql<number>`COUNT(*)`,
+        })
+        .from(userFollows)
+        .where(
+          and(
+            eq(userFollows.followingId, userId),
+            gte(userFollows.createdAt, sevenDaysAgo)
+          )
+        );
+      
+      // 评论统计（使用短视频评论表）
+      const contentIds = publishedContents.map(c => c.id);
+      let totalComments = 0;
+      if (contentIds.length > 0) {
+        const [commentStats] = await db
+          .select({
+            count: sql<number>`COUNT(*)`,
+          })
+          .from(shortVideoComments)
+          .where(inArray(shortVideoComments.videoId, contentIds));
+        totalComments = Number(commentStats?.count || 0);
+      }
+      
+      // 收益统计
+      const [earningStats] = await db
+        .select({
+          totalEarning: sql<string>`COALESCE(SUM(${promotionEarnings.creatorEarning}), 0)`,
+        })
+        .from(promotionEarnings)
+        .where(eq(promotionEarnings.creatorUserId, userId));
+      
+      // 7天收益
+      const [earning7d] = await db
+        .select({
+          total: sql<string>`COALESCE(SUM(${promotionEarnings.creatorEarning}), 0)`,
+        })
+        .from(promotionEarnings)
+        .where(
+          and(
+            eq(promotionEarnings.creatorUserId, userId),
+            gte(promotionEarnings.createdAt, sevenDaysAgo)
+          )
+        );
+      
+      // 30天收益
+      const [earning30d] = await db
+        .select({
+          total: sql<string>`COALESCE(SUM(${promotionEarnings.creatorEarning}), 0)`,
+        })
+        .from(promotionEarnings)
+        .where(
+          and(
+            eq(promotionEarnings.creatorUserId, userId),
+            gte(promotionEarnings.createdAt, thirtyDaysAgo)
+          )
+        );
+      
+      // 生成过去7天的趋势数据（简化版，基于内容创建时间）
+      const trendData: Array<{ date: string; views: number; likes: number; followers: number }> = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        // 简化的趋势数据 - 基于当天发布的内容
+        const dayContents = publishedContents.filter(c => {
+          const pubDate = c.publishedAt || c.createdAt;
+          return pubDate && pubDate.toISOString().split('T')[0] === dateStr;
+        });
+        
+        trendData.push({
+          date: dateStr,
+          views: dayContents.reduce((sum, c) => sum + (c.viewCount || 0), 0),
+          likes: dayContents.reduce((sum, c) => sum + (c.likeCount || 0), 0),
+          followers: 0, // 简化处理
+        });
+      }
+      
+      // 内容分类统计
+      const categoryStats: Record<string, { count: number; views: number; likes: number }> = {};
+      publishedContents.forEach(c => {
+        const cat = c.category || 'other';
+        if (!categoryStats[cat]) {
+          categoryStats[cat] = { count: 0, views: 0, likes: 0 };
+        }
+        categoryStats[cat].count++;
+        categoryStats[cat].views += c.viewCount || 0;
+        categoryStats[cat].likes += c.likeCount || 0;
+      });
+      
+      // 热门内容（按播放量排序）
+      const topContents = [...publishedContents]
+        .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
+        .slice(0, 5)
+        .map(c => ({
+          id: c.id,
+          title: c.title,
+          contentType: c.contentType,
+          coverImageUrl: c.coverImageUrl,
+          viewCount: c.viewCount || 0,
+          likeCount: c.likeCount || 0,
+          shareCount: c.shareCount || 0,
+        }));
+      
+      res.json({
+        success: true,
+        data: {
+          overview: {
+            totalViews,
+            totalLikes,
+            totalShares,
+            totalComments,
+            totalContents: publishedContents.length,
+            totalFollowers: Number(followerStats?.totalFollowers || 0),
+            totalFollowing: Number(followingStats?.totalFollowing || 0),
+            newFollowers7d: Number(newFollowers7d?.count || 0),
+          },
+          earnings: {
+            total: parseFloat(earningStats?.totalEarning || '0'),
+            last7Days: parseFloat(earning7d?.total || '0'),
+            last30Days: parseFloat(earning30d?.total || '0'),
+          },
+          trend: trendData,
+          categoryStats,
+          topContents,
+        },
+      });
+    } catch (error) {
+      console.error('Get creator analytics error:', error);
+      res.status(500).json({ success: false, message: '获取分析数据失败' });
     }
   });
 
