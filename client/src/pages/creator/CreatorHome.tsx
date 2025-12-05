@@ -19,8 +19,13 @@ import {
   List,
   Zap,
   Play,
-  Pencil
+  Pencil,
+  BarChart3,
+  FolderOpen,
+  ChevronRight,
+  Plus
 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -175,6 +180,45 @@ export default function CreatorHome() {
       </div>
 
       <main className="px-4 py-4">
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <Card 
+            className="cursor-pointer hover-elevate"
+            onClick={() => setLocation('/creator/analytics')}
+            data-testid="card-analytics"
+          >
+            <CardContent className="p-3 flex flex-col items-center text-center">
+              <div className="w-10 h-10 rounded-full bg-[#38B03B]/10 flex items-center justify-center mb-2">
+                <BarChart3 className="w-5 h-5 text-[#38B03B]" />
+              </div>
+              <span className="text-xs">{t('creatorHome.analytics')}</span>
+            </CardContent>
+          </Card>
+          <Card 
+            className="cursor-pointer hover-elevate"
+            onClick={() => setLocation('/creator/create')}
+            data-testid="card-studio"
+          >
+            <CardContent className="p-3 flex flex-col items-center text-center">
+              <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center mb-2">
+                <FolderOpen className="w-5 h-5 text-blue-500" />
+              </div>
+              <span className="text-xs">{t('creatorHome.contentManagement')}</span>
+            </CardContent>
+          </Card>
+          <Card 
+            className="cursor-pointer hover-elevate"
+            onClick={() => setLocation('/creator/edit/new')}
+            data-testid="card-create"
+          >
+            <CardContent className="p-3 flex flex-col items-center text-center">
+              <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center mb-2">
+                <Plus className="w-5 h-5 text-orange-500" />
+              </div>
+              <span className="text-xs">{t('creatorHome.createNew')}</span>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold">{t('creatorHome.myWorks')}</span>

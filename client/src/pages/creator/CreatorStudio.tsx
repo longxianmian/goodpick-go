@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { RoleAwareBottomNav } from '@/components/RoleAwareBottomNav';
@@ -8,6 +9,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   ChevronLeft, 
   Menu, 
@@ -24,7 +35,8 @@ import {
   CheckCircle,
   AlertCircle,
   TrendingUp,
-  Loader2
+  Loader2,
+  BarChart3
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -32,6 +44,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface CreatorContent {
   id: number;
@@ -48,12 +62,42 @@ interface CreatorContent {
 export default function CreatorStudio() {
   const [, setLocation] = useLocation();
   const { t } = useLanguage();
-  const { user, userToken } = useAuth();
+  const { userToken } = useAuth();
+  const { toast } = useToast();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [contentToDelete, setContentToDelete] = useState<CreatorContent | null>(null);
   
   const { data: contentsResponse, isLoading } = useQuery<{ success: boolean; data: CreatorContent[] }>({
     queryKey: ['/api/creator/contents'],
     enabled: !!userToken,
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (contentId: number) => {
+      const res = await apiRequest('DELETE', `/api/creator/contents/${contentId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: t('common.success'), description: t('creatorStudio.deleteSuccess') });
+      queryClient.invalidateQueries({ queryKey: ['/api/creator/contents'] });
+      setDeleteDialogOpen(false);
+      setContentToDelete(null);
+    },
+    onError: () => {
+      toast({ title: t('common.error'), description: t('creatorStudio.deleteFailed'), variant: 'destructive' });
+    },
+  });
+
+  const handleDeleteClick = (content: CreatorContent) => {
+    setContentToDelete(content);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (contentToDelete) {
+      deleteMutation.mutate(contentToDelete.id);
+    }
+  };
 
   const allContents = contentsResponse?.data || [];
   const publishedContents = allContents.filter(c => c.status === 'published' || c.status === 'reviewing' || c.status === 'rejected');
@@ -250,7 +294,10 @@ export default function CreatorStudio() {
                             <TrendingUp className="w-4 h-4 mr-2" />
                             {t('creatorStudio.promote')}
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={() => handleDeleteClick(content)}
+                          >
                             <Trash2 className="w-4 h-4 mr-2" />
                             {t('creatorStudio.delete')}
                           </DropdownMenuItem>
@@ -316,7 +363,13 @@ export default function CreatorStudio() {
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive" data-testid={`delete-draft-${draft.id}`}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-destructive" 
+                          onClick={() => handleDeleteClick(draft)}
+                          data-testid={`delete-draft-${draft.id}`}
+                        >
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -328,6 +381,35 @@ export default function CreatorStudio() {
           </TabsContent>
         </Tabs>
       </main>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('creatorStudio.deleteConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('creatorStudio.deleteConfirmDesc')}
+              {contentToDelete && (
+                <span className="block mt-2 font-medium text-foreground">
+                  "{contentToDelete.title}"
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
+              {t('creatorStudio.confirmDelete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <RoleAwareBottomNav forceRole="creator" />
     </div>
