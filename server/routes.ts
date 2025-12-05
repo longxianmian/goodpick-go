@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints } from '@shared/schema';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints } from '@shared/schema';
 import { getPaymentProvider } from './services/paymentProvider';
 import QRCode from 'qrcode';
 import { eq, and, desc, sql, inArray, isNotNull, or } from 'drizzle-orm';
@@ -4712,6 +4712,196 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Get user contents error:', error);
       res.status(500).json({ success: false, message: '获取用户内容失败' });
+    }
+  });
+
+  // 获取用户统计数据（关注数、粉丝数、作品统计）
+  app.get('/api/users/:id/stats', optionalUserAuth, async (req: Request, res: Response) => {
+    try {
+      const targetUserId = parseInt(req.params.id);
+      const currentUserId = req.user?.id;
+      
+      if (isNaN(targetUserId)) {
+        return res.status(400).json({ success: false, message: '无效的用户ID' });
+      }
+
+      // 获取关注数（该用户关注了多少人）
+      const [followingCount] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(userFollows)
+        .where(eq(userFollows.followerId, targetUserId));
+
+      // 获取粉丝数（多少人关注了该用户）
+      const [followerCount] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(userFollows)
+        .where(eq(userFollows.followingId, targetUserId));
+
+      // 获取作品统计
+      const [worksStats] = await db
+        .select({
+          worksCount: sql<number>`count(*)::int`,
+          totalLikes: sql<number>`coalesce(sum(${shortVideos.likeCount}), 0)::int`,
+          totalViews: sql<number>`coalesce(sum(${shortVideos.viewCount}), 0)::int`,
+        })
+        .from(shortVideos)
+        .where(and(
+          eq(shortVideos.creatorUserId, targetUserId),
+          eq(shortVideos.status, 'ready'),
+          eq(shortVideos.isPublic, true)
+        ));
+
+      // 检查当前用户是否关注了目标用户
+      let isFollowing = false;
+      if (currentUserId && currentUserId !== targetUserId) {
+        const [followRecord] = await db
+          .select()
+          .from(userFollows)
+          .where(and(
+            eq(userFollows.followerId, currentUserId),
+            eq(userFollows.followingId, targetUserId)
+          ));
+        isFollowing = !!followRecord;
+      }
+
+      res.json({
+        success: true,
+        data: {
+          followingCount: followingCount?.count || 0,
+          followerCount: followerCount?.count || 0,
+          worksCount: worksStats?.worksCount || 0,
+          totalLikes: worksStats?.totalLikes || 0,
+          totalViews: worksStats?.totalViews || 0,
+          isFollowing,
+          isSelf: currentUserId === targetUserId,
+        },
+      });
+    } catch (error) {
+      console.error('Get user stats error:', error);
+      res.status(500).json({ success: false, message: '获取用户统计失败' });
+    }
+  });
+
+  // 关注/取消关注用户
+  app.post('/api/users/:id/follow', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const targetUserId = parseInt(req.params.id);
+      const currentUserId = req.user!.id;
+
+      if (isNaN(targetUserId)) {
+        return res.status(400).json({ success: false, message: '无效的用户ID' });
+      }
+
+      if (currentUserId === targetUserId) {
+        return res.status(400).json({ success: false, message: '不能关注自己' });
+      }
+
+      // 检查目标用户是否存在
+      const [targetUser] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, targetUserId));
+
+      if (!targetUser) {
+        return res.status(404).json({ success: false, message: '用户不存在' });
+      }
+
+      // 检查是否已关注
+      const [existingFollow] = await db
+        .select()
+        .from(userFollows)
+        .where(and(
+          eq(userFollows.followerId, currentUserId),
+          eq(userFollows.followingId, targetUserId)
+        ));
+
+      if (existingFollow) {
+        // 取消关注
+        await db
+          .delete(userFollows)
+          .where(eq(userFollows.id, existingFollow.id));
+
+        res.json({ success: true, following: false, message: '已取消关注' });
+      } else {
+        // 添加关注
+        await db.insert(userFollows).values({
+          followerId: currentUserId,
+          followingId: targetUserId,
+        });
+
+        res.json({ success: true, following: true, message: '关注成功' });
+      }
+    } catch (error) {
+      console.error('Follow user error:', error);
+      res.status(500).json({ success: false, message: '操作失败' });
+    }
+  });
+
+  // 获取用户的关注列表
+  app.get('/api/users/:id/following', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+      const offset = (page - 1) * limit;
+
+      if (isNaN(userId)) {
+        return res.status(400).json({ success: false, message: '无效的用户ID' });
+      }
+
+      const followingList = await db
+        .select({
+          id: users.id,
+          displayName: users.displayName,
+          shuaName: users.shuaName,
+          avatarUrl: users.avatarUrl,
+          followedAt: userFollows.createdAt,
+        })
+        .from(userFollows)
+        .innerJoin(users, eq(userFollows.followingId, users.id))
+        .where(eq(userFollows.followerId, userId))
+        .orderBy(desc(userFollows.createdAt))
+        .offset(offset)
+        .limit(limit);
+
+      res.json({ success: true, data: followingList });
+    } catch (error) {
+      console.error('Get following list error:', error);
+      res.status(500).json({ success: false, message: '获取关注列表失败' });
+    }
+  });
+
+  // 获取用户的粉丝列表
+  app.get('/api/users/:id/followers', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+      const offset = (page - 1) * limit;
+
+      if (isNaN(userId)) {
+        return res.status(400).json({ success: false, message: '无效的用户ID' });
+      }
+
+      const followersList = await db
+        .select({
+          id: users.id,
+          displayName: users.displayName,
+          shuaName: users.shuaName,
+          avatarUrl: users.avatarUrl,
+          followedAt: userFollows.createdAt,
+        })
+        .from(userFollows)
+        .innerJoin(users, eq(userFollows.followerId, users.id))
+        .where(eq(userFollows.followingId, userId))
+        .orderBy(desc(userFollows.createdAt))
+        .offset(offset)
+        .limit(limit);
+
+      res.json({ success: true, data: followersList });
+    } catch (error) {
+      console.error('Get followers list error:', error);
+      res.status(500).json({ success: false, message: '获取粉丝列表失败' });
     }
   });
 

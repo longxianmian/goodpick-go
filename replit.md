@@ -29,6 +29,7 @@ Security features include bcryptjs for password hashing, JWT secrets managed via
 - **Multi-Platform Login**: Supports LINE, Google, and Apple ID token binding.
 - **Store City Data Normalization**: Integrates Google Maps for location data with manual override.
 - **Short Video System**: "ShuaShua" (刷刷) serves as a content platform for short videos, supporting feed display, upload, likes, comments, and categorization.
+- **User Profile & Social Features**: Public user profiles with follow/unfollow functionality, follower/following counts, works statistics (total works, views, likes), and share capability. Database table `user_follows` stores follow relationships with unique constraint on (follower_id, following_id).
 - **Rich Text Editor**: Integrated Tiptap-based editor for content creation.
 - **Merchant Store Management**: Supports single and chain store models, with detailed store editing (basic info, business hours, images, multi-language descriptions), and a consumer-facing store front.
 - **Merchant Owner Management**: "MeOwner" page provides an overview of 'People', 'Operations', and 'Assets', with detailed management accessible via a dedicated 'Operations Center'.

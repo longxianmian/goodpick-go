@@ -837,6 +837,23 @@ export const insertShortVideoCommentLikeSchema = createInsertSchema(shortVideoCo
 export type InsertShortVideoCommentLike = z.infer<typeof insertShortVideoCommentLikeSchema>;
 export type ShortVideoCommentLike = typeof shortVideoCommentLikes.$inferSelect;
 
+// 用户关注关系表
+export const userFollows = pgTable('user_follows', {
+  id: serial('id').primaryKey(),
+  followerId: integer('follower_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  followingId: integer('following_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqFollow: unique().on(table.followerId, table.followingId),
+}));
+
+export const insertUserFollowSchema = createInsertSchema(userFollows).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertUserFollow = z.infer<typeof insertUserFollowSchema>;
+export type UserFollow = typeof userFollows.$inferSelect;
+
 // ============================================
 // 数字人系统 - 预留表结构 (Digital Agent System)
 // ============================================
