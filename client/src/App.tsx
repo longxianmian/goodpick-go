@@ -18,6 +18,7 @@ import StaffStats from "@/pages/user/StaffStats";
 import StaffCampaignList from "@/pages/user/StaffCampaignList";
 import StaffCampaignDetail from "@/pages/user/StaffCampaignDetail";
 import CampaignDetail from "@/pages/user/CampaignDetail";
+import ProductDetail from "@/pages/user/ProductDetail";
 import MyCoupons from "@/pages/user/MyCoupons";
 import ShuaShuaHome from "@/pages/user/ShuaShuaHome";
 import ShopHome from "@/pages/user/ShopHome";
@@ -244,6 +245,7 @@ function Router() {
       <Route path="/p/:qrToken" component={PayEntryPage} />
       <Route path="/success/:paymentId" component={PaySuccessPage} />
       <Route path="/campaign/:id" component={CampaignDetail} />
+      <Route path="/product/:id" component={ProductDetail} />
       <Route path="/my-coupons" component={MyCoupons} />
       <Route path="/privacy" component={PrivacyPage} />
       <Route path="/terms" component={TermsPage} />
