@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ChevronLeft, QrCode, Plus, Copy, Check, AlertCircle, Settings, CreditCard, Store, ExternalLink } from 'lucide-react';
+import { ChevronLeft, QrCode, Plus, Copy, Check, AlertCircle, Settings, CreditCard, Store, ExternalLink, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { MerchantBottomNav } from '@/components/MerchantBottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -39,6 +40,82 @@ interface PspProvider {
   isActive: boolean;
 }
 
+function QRCodePreview({ token, size = 48 }: { token: string; size?: number }) {
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+
+  useEffect(() => {
+    if (token) {
+      import('qrcode').then((QRCode: any) => {
+        const paymentUrl = `${window.location.origin}/p/${token}`;
+        QRCode.default.toDataURL(paymentUrl, { width: size * 2, margin: 1 })
+          .then(setQrCodeUrl)
+          .catch(console.error);
+      });
+    }
+  }, [token, size]);
+
+  if (!qrCodeUrl) {
+    return <Skeleton className="w-full h-full" />;
+  }
+
+  return <img src={qrCodeUrl} alt="QR Code" className="w-full h-full object-contain" />;
+}
+
+function QRCodeDialog({ token, open, onOpenChange }: { token: string; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const { toast } = useToast();
+  const paymentUrl = `${window.location.origin}/p/${token}`;
+
+  useEffect(() => {
+    if (token && open) {
+      import('qrcode').then((QRCode: any) => {
+        QRCode.default.toDataURL(paymentUrl, { width: 512, margin: 2 })
+          .then(setQrCodeUrl)
+          .catch(console.error);
+      });
+    }
+  }, [token, open, paymentUrl]);
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(paymentUrl);
+      toast({ title: '已复制', description: '支付链接已复制到剪贴板' });
+    } catch {
+      toast({ title: '复制失败', variant: 'destructive' });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-center">收款二维码</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col items-center gap-4 py-4">
+          <div className="bg-white p-4 rounded-lg shadow-sm">
+            {qrCodeUrl ? (
+              <img src={qrCodeUrl} alt="QR Code" className="w-56 h-56" data-testid="img-qr-code-large" />
+            ) : (
+              <Skeleton className="w-56 h-56" />
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground text-center">顾客扫码即可支付并成为会员</p>
+          <div className="flex gap-2 w-full">
+            <Button variant="outline" className="flex-1" onClick={copyLink}>
+              <Copy className="w-4 h-4 mr-2" />
+              复制链接
+            </Button>
+            <Button className="flex-1" onClick={() => window.open(paymentUrl, '_blank')}>
+              <ExternalLink className="w-4 h-4 mr-2" />
+              打开预览
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function MerchantPaymentQrCode() {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -46,6 +123,7 @@ export default function MerchantPaymentQrCode() {
   const [, navigate] = useLocation();
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [selectedQrToken, setSelectedQrToken] = useState<string | null>(null);
 
   const { data: pspAccountsData, isLoading: loadingAccounts } = useQuery<{ success: boolean; data: PspAccount[] }>({
     queryKey: ['/api/merchant/psp-accounts'],
@@ -240,15 +318,19 @@ export default function MerchantPaymentQrCode() {
                     <Card key={qr.id} data-testid={`card-qrcode-${qr.id}`}>
                       <CardContent className="p-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
-                            <QrCode className="w-6 h-6 text-white" />
+                          <div 
+                            className="w-14 h-14 rounded-lg bg-white border p-1 cursor-pointer hover-elevate"
+                            onClick={() => setSelectedQrToken(qr.qrToken)}
+                            data-testid={`button-view-qr-${qr.id}`}
+                          >
+                            <QRCodePreview token={qr.qrToken} size={48} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium truncate">
-                              {qr.qrToken.slice(0, 8)}...{qr.qrToken.slice(-4)}
+                            <div className="text-sm font-medium">
+                              {new Date(qr.createdAt).toLocaleDateString('zh-CN')}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {new Date(qr.createdAt).toLocaleDateString('zh-CN')}
+                              点击二维码可放大
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -286,6 +368,14 @@ export default function MerchantPaymentQrCode() {
       </main>
 
       <MerchantBottomNav />
+
+      {selectedQrToken && (
+        <QRCodeDialog 
+          token={selectedQrToken} 
+          open={!!selectedQrToken} 
+          onOpenChange={(open) => !open && setSelectedQrToken(null)} 
+        />
+      )}
     </div>
   );
 }
