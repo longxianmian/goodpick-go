@@ -68,3 +68,14 @@ The backend is built with Express.js and Node.js, using PostgreSQL via Drizzle O
 -   **Vite**: Build tool and development server.
 -   **TypeScript**: Type safety.
 -   **Drizzle Kit**: Database migrations.
+
+## Deployment
+
+### Git Branches
+-   **开发环境 (Replit)**: `main` 分支
+-   **生产服务器 (阿里云ECS)**: `prod-20251117-line-login-ok` 分支
+-   **服务器路径**: `/var/www/goodpick-go`
+
+### Server Info
+-   **阿里云ECS实例**: iZt4n4cftt8gn7dthjne54Z
+-   **区域**: ap-southeast-1 (新加坡)
