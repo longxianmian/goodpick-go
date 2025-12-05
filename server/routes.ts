@@ -2767,9 +2767,9 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // ============ Google Places API for Users (登录用户可用) ============
+  // ============ Google Places API (公开访问，因为只是地址搜索，不涉及敏感数据) ============
 
-  app.get('/api/places/autocomplete', userAuthMiddleware, async (req: Request, res: Response) => {
+  app.get('/api/places/autocomplete', async (req: Request, res: Response) => {
     try {
       const input = req.query.input as string;
       const language = req.query.language as string || 'en';
@@ -2808,7 +2808,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.get('/api/places/details/:placeId', userAuthMiddleware, async (req: Request, res: Response) => {
+  app.get('/api/places/details/:placeId', async (req: Request, res: Response) => {
     try {
       const { placeId } = req.params;
       const language = req.query.language as string || 'en';
