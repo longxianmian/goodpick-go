@@ -18,7 +18,7 @@ import { UserBottomNav } from '@/components/UserBottomNav';
 import { ChatWindow } from '@/components/ChatWindow';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import type { Store, Campaign } from '@shared/schema';
+import type { Store, Campaign, Product } from '@shared/schema';
 
 interface StoreWithCampaigns extends Store {
   campaigns?: Campaign[];
@@ -347,81 +347,41 @@ function ServiceScores({ store }: { store: Store }) {
   );
 }
 
-function MenuTab({ campaigns, storeId }: { campaigns: Campaign[]; storeId: number }) {
+function MenuTab({ products, campaigns, storeId }: { products: Product[]; campaigns: Campaign[]; storeId: number }) {
   const { t, language } = useLanguage();
-  const [activeCategory, setActiveCategory] = useState('newShopWelfare');
+  const [activeCategory, setActiveCategory] = useState('all');
   
-  const getTitle = (campaign: Campaign) => {
+  const getProductName = (product: Product) => {
+    return product.name;
+  };
+
+  const getCampaignTitle = (campaign: Campaign) => {
     if (language === 'zh-cn') return campaign.titleZh || campaign.titleSource;
     if (language === 'en-us') return campaign.titleEn || campaign.titleSource;
     return campaign.titleTh || campaign.titleSource;
   };
 
   const categories = [
-    { key: 'newShopWelfare', label: t('storeFront.menu.newShopWelfare') },
-    { key: 'chefSpecial', label: t('storeFront.menu.chefSpecial') },
-    { key: 'chefSignature', label: t('storeFront.menu.chefSignature') },
-    { key: 'seasonal', label: t('storeFront.menu.seasonal') },
-    { key: 'stirFry', label: t('storeFront.menu.stirFry') },
-    { key: 'staples', label: t('storeFront.menu.staples') },
-    { key: 'drinks', label: t('storeFront.menu.drinks') },
-    { key: 'liveSets', label: t('storeFront.menu.liveSets') },
+    { key: 'all', label: t('storeFront.menu.all') || t('storeFront.menu.newShopWelfare') },
     { key: 'recommend', label: t('storeFront.menu.recommend') },
+    { key: 'hot', label: t('storeFront.menu.hot') || t('storeFront.menu.chefSpecial') },
+    { key: 'new', label: t('storeFront.menu.new') || t('storeFront.menu.chefSignature') },
+    { key: 'deals', label: t('storeFront.menu.deals') || t('storeFront.menu.seasonal') },
   ];
 
-  const generateMenuItems = () => {
-    if (campaigns.length === 0) return [];
-    // Generate more items to ensure all categories have content
-    const items: Array<{
-      id: number;
-      name: string;
-      image: string | null;
-      monthlySales: number;
-      reviewCount: number;
-      reviewText: string;
-      discount: number;
-      price: number;
-      originalPrice: number;
-      tag: string | null;
-      hasSpecs: boolean;
-      categoryKey: string;
-    }> = [];
-    
-    campaigns.forEach((campaign, campaignIndex) => {
-      // Generate multiple items per campaign for different categories
-      categories.forEach((cat, catIndex) => {
-        const index = campaignIndex * categories.length + catIndex;
-        const basePrice = Number(campaign.couponValue) || 10;
-        const monthlySales = 100 + (storeId * 37 + index * 73) % 400;
-        const reviewCount = 5 + (storeId * 13 + index * 17) % 30;
-        const discount = 70 + (index * 7) % 25;
-        const originalPrice = Math.round(Number(basePrice) * 100 / discount);
-        const hasSpecs = index % 3 === 2;
-        
-        items.push({
-          id: campaign.id * 100 + catIndex,
-          name: getTitle(campaign),
-          image: campaign.bannerImageUrl,
-          monthlySales,
-          reviewCount,
-          reviewText: t('storeFront.menu.portionGood'),
-          discount,
-          price: basePrice + catIndex * 2,
-          originalPrice,
-          tag: index % 2 === 1 ? t('storeFront.menu.singleNoDelivery') : null,
-          hasSpecs,
-          categoryKey: cat.key,
-        });
-      });
-    });
-    
-    return items;
-  };
+  const filteredProducts = activeCategory === 'all' 
+    ? products
+    : activeCategory === 'recommend'
+      ? products.filter(p => p.isRecommend)
+      : activeCategory === 'hot'
+        ? products.filter(p => p.isHot)
+        : activeCategory === 'new'
+          ? products.filter(p => p.isNew)
+          : activeCategory === 'deals'
+            ? campaigns.length > 0 ? [] : products.slice(0, 4)
+            : products;
 
-  const menuItems = generateMenuItems();
-  const filteredItems = activeCategory === 'newShopWelfare' 
-    ? menuItems.slice(0, 8) 
-    : menuItems.filter(item => item.categoryKey === activeCategory);
+  const showDeals = activeCategory === 'deals' && campaigns.length > 0;
 
   return (
     <div className="flex h-[calc(100vh-280px)]">
@@ -432,96 +392,139 @@ function MenuTab({ campaigns, storeId }: { campaigns: Campaign[]; storeId: numbe
             onClick={() => setActiveCategory(cat.key)}
             className={`w-full py-3 px-2 text-xs text-left border-l-2 transition-colors ${
               activeCategory === cat.key
-                ? 'bg-background border-l-orange-500 text-foreground font-medium'
+                ? 'bg-background border-l-[#38B03B] text-foreground font-medium'
                 : 'border-l-transparent text-muted-foreground hover:bg-background/50'
             }`}
             data-testid={`menu-category-${cat.key}`}
           >
             {cat.label}
+            {cat.key === 'all' && products.length > 0 && (
+              <span className="ml-1 text-muted-foreground">({products.length})</span>
+            )}
           </button>
         ))}
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {activeCategory === 'newShopWelfare' && (
-          <div className="px-3 py-2 text-xs text-muted-foreground bg-orange-50 dark:bg-orange-950/20">
+        {activeCategory === 'all' && products.length > 0 && (
+          <div className="px-3 py-2 text-xs text-muted-foreground bg-[#38B03B]/10">
             {t('storeFront.menu.warmTip')}
           </div>
         )}
         
         <div className="divide-y divide-border">
-          {filteredItems.length > 0 ? (
-            filteredItems.map((item) => (
-              <Link key={item.id} href={`/campaign/${item.id}`}>
-                <div className="flex gap-3 p-3 hover:bg-muted/30 active:bg-muted/50 transition-colors" data-testid={`menu-item-${item.id}`}>
+          {showDeals ? (
+            campaigns.map((campaign) => (
+              <Link key={campaign.id} href={`/campaign/${campaign.id}`}>
+                <div className="flex gap-3 p-3 hover:bg-muted/30 active:bg-muted/50 transition-colors" data-testid={`deal-item-${campaign.id}`}>
                   <div className="w-20 h-20 rounded-md overflow-hidden flex-shrink-0 bg-muted">
-                    {item.image ? (
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    {campaign.bannerImageUrl ? (
+                      <img src={campaign.bannerImageUrl} alt={getCampaignTitle(campaign)} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <Ticket className="w-8 h-8 text-muted-foreground" />
                       </div>
                     )}
                   </div>
-                  
                   <div className="flex-1 min-w-0 flex flex-col justify-between">
                     <div>
-                      <h4 className="font-medium text-sm line-clamp-2">{item.name}</h4>
-                      <div className="flex items-center gap-1 mt-1 text-[11px] text-muted-foreground">
-                        <span>{t('storeFront.menu.monthlySales', { count: String(item.monthlySales) })}</span>
-                      </div>
-                      <div className="flex items-center gap-1 mt-0.5 text-[11px] text-orange-500">
-                        <span>{t('storeFront.menu.reviewCount', { count: String(item.reviewCount) })}{item.reviewText}</span>
+                      <h4 className="font-medium text-sm line-clamp-2">{getCampaignTitle(campaign)}</h4>
+                      <div className="flex items-center gap-2 flex-wrap mt-1">
+                        <Badge className="text-[10px] px-1 py-0 h-4 bg-destructive/10 text-destructive border-0">
+                          {t('storeFront.deals.discountBadge')}
+                        </Badge>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-2 flex-wrap mt-1">
-                      <Badge className="text-[10px] px-1 py-0 h-4 bg-orange-100 text-orange-600 border-0 dark:bg-orange-900/30">
-                        {t('storeFront.menu.discount', { percent: String(item.discount / 10) })}
-                      </Badge>
-                      {item.tag && (
-                        <span className="text-[10px] text-muted-foreground">{item.tag}</span>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center justify-between mt-1">
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-destructive font-bold text-base">
-                          {t('common.currencySymbol')}{item.price}
-                        </span>
-                        <span className="text-xs text-muted-foreground line-through">
-                          {t('common.currencySymbol')}{item.originalPrice}
-                        </span>
-                      </div>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="text-destructive font-bold text-base">
+                        {t('common.currencySymbol')}{campaign.couponValue || 0}
+                      </span>
                     </div>
                   </div>
-                  
                   <div className="flex-shrink-0 flex items-end pb-1">
-                    {item.hasSpecs ? (
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="h-7 text-xs border-orange-500 text-orange-500"
-                        data-testid={`button-menu-specs-${item.id}`}
-                      >
-                        {t('storeFront.menu.selectSpecs')}
-                      </Button>
-                    ) : (
-                      <Button 
-                        size="icon" 
-                        className="h-7 w-7 rounded-full bg-orange-500 hover:bg-orange-600"
-                        data-testid={`button-menu-add-${item.id}`}
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
-                    )}
+                    <Button size="icon" className="h-7 w-7 rounded-full bg-[#38B03B]" data-testid={`button-deal-add-${campaign.id}`}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               </Link>
             ))
+          ) : filteredProducts.length > 0 ? (
+            filteredProducts.map((product) => {
+              const hasDiscount = product.originalPrice && Number(product.originalPrice) > Number(product.price);
+              const discountPercent = hasDiscount 
+                ? Math.round((1 - Number(product.price) / Number(product.originalPrice)) * 100)
+                : 0;
+              
+              return (
+                <Link key={product.id} href={`/product/${product.id}`}>
+                  <div className="flex gap-3 p-3 hover:bg-muted/30 active:bg-muted/50 transition-colors" data-testid={`menu-item-${product.id}`}>
+                    <div className="w-20 h-20 rounded-md overflow-hidden flex-shrink-0 bg-muted relative">
+                      {product.coverImage ? (
+                        <img src={product.coverImage} alt={getProductName(product)} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ShoppingBag className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                      )}
+                      {product.isHot && (
+                        <Badge className="absolute top-1 left-1 text-[9px] px-1 py-0 h-4 bg-destructive text-white border-0">
+                          {t('product.hot')}
+                        </Badge>
+                      )}
+                      {product.isNew && !product.isHot && (
+                        <Badge className="absolute top-1 left-1 text-[9px] px-1 py-0 h-4 bg-[#38B03B] text-white border-0">
+                          {t('product.new')}
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                      <div>
+                        <h4 className="font-medium text-sm line-clamp-2">{getProductName(product)}</h4>
+                        <div className="flex items-center gap-1 mt-1 text-[11px] text-muted-foreground">
+                          <span>{t('product.sold')} {product.salesCount || 0}</span>
+                        </div>
+                      </div>
+                      
+                      {hasDiscount && (
+                        <div className="flex items-center gap-2 flex-wrap mt-1">
+                          <Badge className="text-[10px] px-1 py-0 h-4 bg-[#38B03B]/10 text-[#38B03B] border-0">
+                            {t('storeFront.menu.discount', { percent: String(discountPercent) })}% OFF
+                          </Badge>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center justify-between mt-1">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-destructive font-bold text-base">
+                            {t('common.currencySymbol')}{Number(product.price).toFixed(0)}
+                          </span>
+                          {hasDiscount && (
+                            <span className="text-xs text-muted-foreground line-through">
+                              {t('common.currencySymbol')}{Number(product.originalPrice).toFixed(0)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex-shrink-0 flex items-end pb-1">
+                      <Button 
+                        size="icon" 
+                        className="h-7 w-7 rounded-full bg-[#38B03B]"
+                        data-testid={`button-menu-add-${product.id}`}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              <Ticket className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <ShoppingBag className="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p>{t('storeFront.noProducts')}</p>
             </div>
           )}
@@ -950,15 +953,20 @@ export default function StoreFront() {
     enabled: !!storeId,
   });
 
+  const { data: productsData } = useQuery<{ success: boolean; data: Product[] }>({
+    queryKey: ['/api/stores', storeId, 'products'],
+    enabled: !!storeId,
+  });
+
   const { data: campaignsData } = useQuery<{ success: boolean; data: any[] }>({
     queryKey: ['/api/campaigns'],
   });
 
   const store = storeData?.data;
+  const storeProducts = productsData?.data || [];
   const allCampaigns = campaignsData?.data || [];
   
   // Filter campaigns by store, or use all campaigns if no store-specific ones exist
-  // TODO: Implement proper campaign-store relationship in backend
   const storeSpecificCampaigns = allCampaigns.filter((c: any) => 
     c.stores?.some((s: any) => s.id === parseInt(storeId || '0'))
   );
@@ -1026,7 +1034,7 @@ export default function StoreFront() {
         </TabsList>
 
         <TabsContent value="menu" className="mt-0">
-          <MenuTab campaigns={storeCampaigns} storeId={store.id} />
+          <MenuTab products={storeProducts} campaigns={storeCampaigns} storeId={store.id} />
         </TabsContent>
         <TabsContent value="deals" className="mt-0">
           <DealsTab campaigns={storeCampaigns} storeId={store.id} />
