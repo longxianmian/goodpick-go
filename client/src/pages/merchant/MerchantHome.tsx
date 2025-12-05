@@ -17,10 +17,17 @@ import { MerchantBottomNav } from '@/components/MerchantBottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import type { Campaign, Store as StoreType } from '@shared/schema';
+import type { Campaign, Store as StoreType, Product } from '@shared/schema';
 
 interface CampaignWithStores extends Campaign {
   stores: StoreType[];
+}
+
+interface ProductWithCategory extends Product {
+  category?: {
+    id: number;
+    name: string;
+  };
 }
 
 interface StoreRole {
@@ -119,6 +126,94 @@ function UnifiedCard({ campaign }: { campaign: CampaignWithStores }) {
             </div>
             <span className="text-[10px] text-muted-foreground">
               已售{formatSoldCount(soldCount)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function ProductCard({ product }: { product: ProductWithCategory }) {
+  const formatPrice = (price: string | number) => {
+    return Number(price).toFixed(2);
+  };
+
+  const isActive = product.status === 'active';
+
+  return (
+    <Link href={`/merchant/product/${product.id}`}>
+      <div 
+        className="rounded-lg overflow-hidden bg-card cursor-pointer hover-elevate active-elevate-2"
+        data-testid={`card-product-${product.id}`}
+      >
+        <div className="relative aspect-square overflow-hidden">
+          {product.coverImage ? (
+            <img 
+              src={product.coverImage} 
+              alt={product.name} 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <Package className="w-10 h-10 text-muted-foreground" />
+            </div>
+          )}
+          
+          {product.isRecommend && (
+            <Badge 
+              variant="secondary" 
+              className="absolute top-2 left-2 text-[10px] bg-orange-500 text-white border-0 gap-0.5"
+            >
+              <Sparkles className="w-2.5 h-2.5" />
+              推荐
+            </Badge>
+          )}
+          {product.isNew && (
+            <Badge 
+              variant="secondary" 
+              className="absolute top-2 right-2 text-[10px] bg-blue-500 text-white border-0"
+            >
+              新品
+            </Badge>
+          )}
+        </div>
+        
+        <div className="p-2 space-y-1.5">
+          <h3 
+            className="font-medium text-sm line-clamp-2 leading-tight min-h-[2.5rem]"
+            data-testid={`text-product-title-${product.id}`}
+          >
+            {product.name}
+          </h3>
+          
+          <div className="flex items-center gap-1 flex-wrap">
+            {isActive ? (
+              <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-700 border-0 dark:bg-green-900/30 dark:text-green-400">
+                已上架
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="text-[10px] bg-gray-100 text-gray-600 border-0 dark:bg-gray-800 dark:text-gray-400">
+                已下架
+              </Badge>
+            )}
+            {product.isHot && (
+              <Badge variant="secondary" className="text-[10px] bg-red-100 text-red-600 border-0 dark:bg-red-900/30 dark:text-red-400">
+                热销
+              </Badge>
+            )}
+          </div>
+          
+          <div className="flex items-end justify-between gap-1">
+            <div className="flex items-baseline gap-0.5">
+              <span className="text-xs text-destructive">฿</span>
+              <span className="text-lg font-bold text-destructive">{formatPrice(product.price)}</span>
+              {product.originalPrice && Number(product.originalPrice) > Number(product.price) && (
+                <span className="text-[10px] text-muted-foreground line-through ml-1">฿{formatPrice(product.originalPrice)}</span>
+              )}
+            </div>
+            <span className="text-[10px] text-muted-foreground">
+              库存: {product.inventory ?? 0}
             </span>
           </div>
         </div>
@@ -266,6 +361,20 @@ export default function MerchantHome() {
   const merchantRoles = roles.filter(r => r.role === 'owner' || r.role === 'operator');
   const currentStore = merchantRoles[0];
   const campaigns = campaignsData?.data || [];
+
+  const { data: productsData, isLoading: productsLoading } = useQuery<{ success: boolean; data: ProductWithCategory[] }>({
+    queryKey: ['/api/stores', currentStore?.storeId, 'products'],
+    enabled: !!currentStore?.storeId,
+  });
+
+  const products = productsData?.data || [];
+
+  const { data: storeCampaignsData, isLoading: storeCampaignsLoading } = useQuery<{ success: boolean; data: CampaignWithStores[] }>({
+    queryKey: ['/api/stores', currentStore?.storeId, 'campaigns'],
+    enabled: !!currentStore?.storeId,
+  });
+
+  const storeCampaigns = storeCampaignsData?.data || [];
 
   if (!isLoggedIn) {
     return (
@@ -525,33 +634,79 @@ export default function MerchantHome() {
         <div className="mt-4 px-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Grid3X3 className="w-4 h-4 text-primary" />
+              <Package className="w-4 h-4 text-primary" />
               <h2 className="font-semibold">店铺商品</h2>
+              <Badge variant="secondary" className="text-[10px]">{products.length}</Badge>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground" onClick={handleComingSoon}>
-                筛选
-              </Button>
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground gap-0.5" onClick={handleComingSoon}>
-                全部 <ChevronRight className="w-3 h-3" />
-              </Button>
+              <Link href={`/merchant/products/${currentStore?.storeId}`}>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground gap-0.5">
+                  管理 <ChevronRight className="w-3 h-3" />
+                </Button>
+              </Link>
             </div>
           </div>
           
-          {campaignsLoading ? (
+          {productsLoading ? (
             <div className="grid grid-cols-2 gap-2">
               {[1, 2, 3, 4].map((i) => (
                 <ProductSkeleton key={i} />
               ))}
             </div>
-          ) : campaigns.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-              <Package className="w-16 h-16 mb-4 opacity-50" />
+          ) : products.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Package className="w-12 h-12 mb-3 opacity-50" />
               <p className="text-sm">暂无商品</p>
+              <Link href={`/merchant/products/${currentStore?.storeId}`}>
+                <Button variant="outline" size="sm" className="mt-3">
+                  添加商品
+                </Button>
+              </Link>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2">
-              {campaigns.map((campaign) => (
+              {products.slice(0, 4).map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 px-4 pb-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Ticket className="w-4 h-4 text-primary" />
+              <h2 className="font-semibold">店铺活动</h2>
+              <Badge variant="secondary" className="text-[10px]">{storeCampaigns.length}</Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link href={`/merchant/campaigns/${currentStore?.storeId}`}>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground gap-0.5">
+                  管理 <ChevronRight className="w-3 h-3" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+          
+          {storeCampaignsLoading ? (
+            <div className="grid grid-cols-2 gap-2">
+              {[1, 2, 3, 4].map((i) => (
+                <ProductSkeleton key={i} />
+              ))}
+            </div>
+          ) : storeCampaigns.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Ticket className="w-12 h-12 mb-3 opacity-50" />
+              <p className="text-sm">暂无活动</p>
+              <Link href={`/merchant/campaigns/${currentStore?.storeId}`}>
+                <Button variant="outline" size="sm" className="mt-3">
+                  创建活动
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {storeCampaigns.slice(0, 4).map((campaign) => (
                 <UnifiedCard key={campaign.id} campaign={campaign} />
               ))}
             </div>
