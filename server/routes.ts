@@ -34,7 +34,12 @@ declare module 'express-session' {
   }
 }
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB max file size
+  }
+});
 
 let ossService: AliOssService | null = null;
 function getOssService(): AliOssService {
