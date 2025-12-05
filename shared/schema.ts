@@ -1623,3 +1623,98 @@ export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
 });
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type ChatMessage = typeof chatMessages.$inferSelect;
+
+// ==================== 账号申请系统 ====================
+
+// 申请状态枚举
+export const applicationStatusEnum = pgEnum('application_status', [
+  'pending',    // 待审核
+  'approved',   // 已通过
+  'rejected',   // 已拒绝
+]);
+
+// 发现号申请表（商家入驻申请）
+export const discoverApplications = pgTable('discover_applications', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  
+  // 商家基本信息
+  storeName: text('store_name').notNull(),           // 店铺名称
+  storeCategory: storeCategoryEnum('store_category').notNull(),  // 店铺类目
+  storeAddress: text('store_address').notNull(),     // 店铺地址
+  storeCity: text('store_city').notNull(),           // 所在城市
+  contactName: text('contact_name').notNull(),       // 联系人姓名
+  contactPhone: text('contact_phone').notNull(),     // 联系电话
+  
+  // 可选信息
+  brandName: text('brand_name'),                     // 品牌名称（连锁店适用）
+  businessLicense: text('business_license'),         // 营业执照图片URL
+  storePhotos: text('store_photos'),                 // 门店照片URLs (JSON数组)
+  description: text('description'),                  // 申请说明
+  
+  // 审核相关
+  status: applicationStatusEnum('status').notNull().default('pending'),
+  reviewNote: text('review_note'),                   // 审核备注
+  reviewedBy: integer('reviewed_by'),                // 审核人ID
+  reviewedAt: timestamp('reviewed_at'),              // 审核时间
+  
+  // 审核通过后创建的店铺ID
+  approvedStoreId: integer('approved_store_id'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertDiscoverApplicationSchema = createInsertSchema(discoverApplications).omit({
+  id: true,
+  status: true,
+  reviewNote: true,
+  reviewedBy: true,
+  reviewedAt: true,
+  approvedStoreId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertDiscoverApplication = z.infer<typeof insertDiscoverApplicationSchema>;
+export type DiscoverApplication = typeof discoverApplications.$inferSelect;
+
+// 刷刷号申请表（创作者入驻申请）
+export const shuashuaApplications = pgTable('shuashua_applications', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  
+  // 创作者基本信息
+  shuaName: text('shua_name').notNull(),             // 刷刷号名称（唯一标识）
+  displayName: text('display_name').notNull(),       // 展示昵称
+  bio: text('bio'),                                  // 个人简介
+  contentType: text('content_type').notNull(),       // 内容类型（美食/旅行/生活等）
+  
+  // 社交媒体（用于验证创作能力）
+  socialLinks: text('social_links'),                 // 社交媒体链接 (JSON数组)
+  followerCount: text('follower_count'),             // 大致粉丝数
+  
+  // 可选信息
+  portfolioLinks: text('portfolio_links'),           // 作品链接 (JSON数组)
+  description: text('description'),                  // 申请说明
+  
+  // 审核相关
+  status: applicationStatusEnum('status').notNull().default('pending'),
+  reviewNote: text('review_note'),                   // 审核备注
+  reviewedBy: integer('reviewed_by'),                // 审核人ID
+  reviewedAt: timestamp('reviewed_at'),              // 审核时间
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertShuashuaApplicationSchema = createInsertSchema(shuashuaApplications).omit({
+  id: true,
+  status: true,
+  reviewNote: true,
+  reviewedBy: true,
+  reviewedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertShuashuaApplication = z.infer<typeof insertShuashuaApplicationSchema>;
+export type ShuashuaApplication = typeof shuashuaApplications.$inferSelect;
