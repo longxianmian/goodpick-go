@@ -23,7 +23,7 @@ The backend is built with Express.js and Node.js, using PostgreSQL via Drizzle O
 -   **Dynamic UI/UX**: Adaptive forms, e-commerce style product pages, and Meituan-style store fronts.
 -   **LINE Integration**: LIFF initialization, OAuth, and LINE OA messaging.
 -   **Multi-Platform Login**: Supports LINE, Google, and Apple ID token binding.
--   **Store Address Search**: Google Maps Places API integration with multilingual input support (Chinese, Thai, Vietnamese, Myanmar, Indonesian). Auto-extracts city, country, and GPS coordinates for "nearby" functionality.
+-   **Store Address Search**: Google Maps Places API integration with multilingual input support (English, Chinese, Thai, Vietnamese, Myanmar, Indonesian). Auto-extracts city, country, and GPS coordinates for "nearby" functionality.
 -   **Short Video System**: "ShuaShua" for short video feed, upload, likes, comments, and categorization.
 -   **User Profile & Social Features**: Public profiles with follow/unfollow, follower counts, and share functionality.
 -   **Rich Text Editor**: Tiptap-based editor for content creation.
