@@ -1,0 +1,181 @@
+root@iZt4n4cftt8gn7dthjne54Z:/var/www/goodpick-go# cat -n client/src/contexts/LanguageContext.tsx | grep -A5 -B5 "<<<<<"
+   880      'merchant.industryType': '行业类型',
+   881      'merchant.industryFood': '餐饮美食',
+   882      'merchant.industryRetail': '零售购物',
+   883      'merchant.industryService': '生活服务',
+   884      'merchant.industryEntertainment': '休闲娱乐',
+   885  <<<<<<< HEAD
+   886  =======
+   887      'merchant.serviceCategory': '服务类目',
+   888      'merchant.categoryHint': '选择店铺的服务类目，用于发现页分类筛选',
+   889  >>>>>>> origin/main
+   890      'merchant.businessStatus': '营业状态',
+--
+  1056      
+  1057      // 发现页
+  1058      'discover.defaultCity': '曼谷',
+  1059      'discover.searchPlaceholder': '搜索店名 / 品类 / 商圈',
+  1060      'discover.nearby': '附近',
+  1061  <<<<<<< HEAD
+  1062      'discover.catFood': '吃喝',
+  1063      'discover.catShopping': '买东西',
+  1064      'discover.catRelax': '放松',
+  1065      'discover.catFamily': '亲子',
+  1066      'discover.catEntertainment': '娱乐',
+--
+  1904      'payment.continueExplore': '继续探索',
+  1905      'payment.viewMembership': '查看会员权益',
+  1906      'payment.loginRequired': '请先登录',
+  1907      'payment.loginToComplete': '登录后完成支付',
+  1908      
+  1909  <<<<<<< HEAD
+  1910  =======
+  1911      // H5 支付入口页面
+  1912      'payEntry.title': '支付金额确认',
+  1913      'payEntry.securePage': '安全页面',
+  1914      'payEntry.serviceBy': '页面服务由',
+--
+  2911      'merchant.industryType': 'Industry Type',
+  2912      'merchant.industryFood': 'Food & Beverage',
+  2913      'merchant.industryRetail': 'Retail & Shopping',
+  2914      'merchant.industryService': 'Life Services',
+  2915      'merchant.industryEntertainment': 'Entertainment',
+  2916  <<<<<<< HEAD
+  2917  =======
+  2918      'merchant.serviceCategory': 'Service Category',
+  2919      'merchant.categoryHint': 'Select your store service category for Discover page filtering',
+  2920  >>>>>>> origin/main
+  2921      'merchant.businessStatus': 'Business Status',
+--
+  3087      
+  3088      // Discover Page
+  3089      'discover.defaultCity': 'Bangkok',
+  3090      'discover.searchPlaceholder': 'Search store / category / area',
+  3091      'discover.nearby': 'Nearby',
+  3092  <<<<<<< HEAD
+  3093      'discover.catFood': 'Food',
+  3094      'discover.catShopping': 'Shopping',
+  3095      'discover.catRelax': 'Relax',
+  3096      'discover.catFamily': 'Family',
+  3097      'discover.catEntertainment': 'Fun',
+--
+  3936      'payment.continueExplore': 'Continue Exploring',
+  3937      'payment.viewMembership': 'View Benefits',
+  3938      'payment.loginRequired': 'Login Required',
+  3939      'payment.loginToComplete': 'Please login to complete payment',
+  3940      
+  3941  <<<<<<< HEAD
+  3942  =======
+  3943      // H5 Payment Entry Page
+  3944      'payEntry.title': 'Payment amount confirmation',
+  3945      'payEntry.securePage': 'Secure page',
+  3946      'payEntry.serviceBy': 'Page service by',
+--
+  4629      'merchant.industryType': 'ประเภทธุรกิจ',
+  4630      'merchant.industryFood': 'อาหารและเครื่องดื่ม',
+  4631      'merchant.industryRetail': 'ค้าปลีกและช้อปปิ้ง',
+  4632      'merchant.industryService': 'บริการ',
+  4633      'merchant.industryEntertainment': 'บันเทิง',
+  4634  <<<<<<< HEAD
+  4635  =======
+  4636      'merchant.serviceCategory': 'หมวดหมู่บริการ',
+  4637      'merchant.categoryHint': 'เลือกหมวดหมู่บริการสำหรับการกรองในหน้า Discover',
+  4638  >>>>>>> origin/main
+  4639      'merchant.businessStatus': 'สถานะร้าน',
+--
+  4794      
+  4795      // Discover Page
+  4796      'discover.defaultCity': 'กรุงเทพ',
+  4797      'discover.searchPlaceholder': 'ค้นหาร้าน / หมวดหมู่ / ย่าน',
+  4798      'discover.nearby': 'ใกล้เคียง',
+  4799  <<<<<<< HEAD
+  4800      'discover.catFood': 'อาหาร',
+  4801      'discover.catShopping': 'ซื้อของ',
+  4802      'discover.catRelax': 'ผ่อนคลาย',
+  4803      'discover.catFamily': 'ครอบครัว',
+  4804      'discover.catEntertainment': 'บันเทิง',
+--
+  5643      'payment.continueExplore': 'ค้นหาต่อ',
+  5644      'payment.viewMembership': 'ดูสิทธิประโยชน์',
+  5645      'payment.loginRequired': 'กรุณาเข้าสู่ระบบ',
+  5646      'payment.loginToComplete': 'เข้าสู่ระบบเพื่อชำระเงิน',
+  5647      
+  5648  <<<<<<< HEAD
+  5649  =======
+  5650      // หน้าการชำระเงิน H5
+  5651      'payEntry.title': 'ยืนยันจำนวนเงิน',
+  5652      'payEntry.securePage': 'หน้าปลอดภัย',
+  5653      'payEntry.serviceBy': 'บริการโดย',
+--
+  5882      // 发现页
+  5883      'discover.title': 'Temukan',
+  5884      'discover.searchPlaceholder': 'Cari toko atau penawaran...',
+  5885      'discover.defaultCity': 'Bangkok',
+  5886      'discover.nearby': 'Terdekat',
+  5887  <<<<<<< HEAD
+  5888      'discover.catFood': 'Makanan',
+  5889      'discover.catShopping': 'Belanja',
+  5890      'discover.catRelax': 'Relaksasi',
+  5891      'discover.catFamily': 'Keluarga',
+  5892      'discover.catEntertainment': 'Hiburan',
+--
+  6433      'payment.failed': 'Pembayaran Gagal',
+  6434      'payment.pending': 'Menunggu Pembayaran',
+  6435      'payment.loginRequired': 'Silakan masuk',
+  6436      'payment.loginToComplete': 'Masuk untuk menyelesaikan pembayaran',
+  6437      
+  6438  <<<<<<< HEAD
+  6439  =======
+  6440      // Halaman Entri Pembayaran H5
+  6441      'payEntry.title': 'Konfirmasi jumlah pembayaran',
+  6442      'payEntry.securePage': 'Halaman aman',
+  6443      'payEntry.serviceBy': 'Layanan oleh',
+--
+  6671      // 发现页
+  6672      'discover.title': 'Khám phá',
+  6673      'discover.searchPlaceholder': 'Tìm cửa hàng hoặc ưu đãi...',
+  6674      'discover.defaultCity': 'Bangkok',
+  6675      'discover.nearby': 'Gần đây',
+  6676  <<<<<<< HEAD
+  6677      'discover.catFood': 'Ẩm thực',
+  6678      'discover.catShopping': 'Mua sắm',
+  6679      'discover.catRelax': 'Thư giãn',
+  6680      'discover.catFamily': 'Gia đình',
+  6681      'discover.catEntertainment': 'Giải trí',
+--
+  7222      'payment.failed': 'Thanh toán thất bại',
+  7223      'payment.pending': 'Đang chờ thanh toán',
+  7224      'payment.loginRequired': 'Vui lòng đăng nhập',
+  7225      'payment.loginToComplete': 'Đăng nhập để thanh toán',
+  7226      
+  7227  <<<<<<< HEAD
+  7228  =======
+  7229      // Trang thanh toán H5
+  7230      'payEntry.title': 'Xác nhận số tiền thanh toán',
+  7231      'payEntry.securePage': 'Trang an toàn',
+  7232      'payEntry.serviceBy': 'Dịch vụ bởi',
+--
+  7460      // 发现页
+  7461      'discover.title': 'ရှာဖွေ',
+  7462      'discover.searchPlaceholder': 'ဆိုင်ရှာ...',
+  7463      'discover.defaultCity': 'ဘန်ကောက်',
+  7464      'discover.nearby': 'အနီးအနား',
+  7465  <<<<<<< HEAD
+  7466      'discover.catFood': 'စားသောက်',
+  7467      'discover.catShopping': 'စျေးဝယ်',
+  7468      'discover.catRelax': 'အနားယူ',
+  7469      'discover.catFamily': 'မိသားစု',
+  7470      'discover.catEntertainment': 'ဖျော်ဖြေရေး',
+--
+  8011      'payment.failed': 'ငွေပေးချေမအောင်မြင်',
+  8012      'payment.pending': 'စောင့်နေဆဲ',
+  8013      'payment.loginRequired': 'ဝင်ရောက်ပါ',
+  8014      'payment.loginToComplete': 'ငွေပေးချေရန်ဝင်ပါ',
+  8015      
+  8016  <<<<<<< HEAD
+  8017  =======
+  8018      // H5 ငွေပေးချေမှုစာမျက်နှာ
+  8019      'payEntry.title': 'ငွေပမာဏအတည်ပြုခြင်း',
+  8020      'payEntry.securePage': 'လုံခြုံသောစာမျက်နှာ',
+  8021      'payEntry.serviceBy': 'ဝန်ဆောင်မှု',
+root@iZt4n4cftt8gn7dthjne54Z:/var/www/goodpick-go# 
