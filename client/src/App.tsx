@@ -149,6 +149,16 @@ function ProtectedAdminRoutes() {
   const { isAdminAuthenticated, admin, isLoading } = useAuth();
   const [location] = useLocation();
   
+  // 只在 /admin/* 路径下才执行守卫逻辑，防止生产环境构建顺序问题导致首页被重定向
+  if (!location.startsWith('/admin/') && location !== '/admin') {
+    return null;
+  }
+  
+  // 登录页不需要验证
+  if (location === '/admin/login') {
+    return null;
+  }
+  
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
