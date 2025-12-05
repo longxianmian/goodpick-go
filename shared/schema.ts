@@ -1436,7 +1436,12 @@ export const qrPayments = pgTable('qr_payments', {
   
   // 金额
   amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+  originalAmount: decimal('original_amount', { precision: 12, scale: 2 }),  // 原始金额（使用优惠券前）
   currency: text('currency').notNull().default('THB'),
+  
+  // 优惠券抵扣
+  couponId: integer('coupon_id').references(() => coupons.id, { onDelete: 'set null' }),
+  discountAmount: decimal('discount_amount', { precision: 12, scale: 2 }),  // 优惠金额
   
   // 支付方式 (V1 固定为 promptpay，预留 card 扩展)
   paymentMethod: paymentMethodEnum('payment_method').notNull().default('promptpay'),

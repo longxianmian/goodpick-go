@@ -6981,7 +6981,7 @@ export function registerRoutes(app: Express): Server {
   // 创建支付订单
   app.post('/api/payments/qrcode/create', async (req: Request, res: Response) => {
     try {
-      const { qr_token, amount, currency = 'THB', line_user_id, user_id } = req.body;
+      const { qr_token, amount, currency = 'THB', line_user_id, user_id, coupon_id, discount_amount } = req.body;
 
       if (!qr_token || !amount) {
         return res.status(400).json({ success: false, message: 'Missing required fields' });
@@ -6991,7 +6991,7 @@ export function registerRoutes(app: Express): Server {
       let verifiedLineUserId: string | null = null;
       let verifiedUserId: number | null = null;
       
-      if (line_user_id || user_id) {
+      if (line_user_id || user_id || coupon_id) {
         // 安全检查：如果没有配置 JWT_SECRET，拒绝处理用户身份
         const jwtSecret = process.env.JWT_SECRET;
         if (!jwtSecret) {
@@ -7070,6 +7070,61 @@ export function registerRoutes(app: Express): Server {
         return res.status(500).json({ success: false, message: 'PSP provider not available' });
       }
 
+      // 优惠券验证
+      let validatedCouponId: number | null = null;
+      let validatedDiscountAmount: string | null = null;
+      let originalAmount: string | null = null;
+      
+      if (coupon_id && verifiedUserId) {
+        const now = new Date();
+        
+        const [coupon] = await db
+          .select({
+            id: coupons.id,
+            userId: coupons.userId,
+            campaignId: coupons.campaignId,
+            status: coupons.status,
+            expiredAt: coupons.expiredAt,
+            couponValue: campaigns.couponValue,
+            discountType: campaigns.discountType,
+          })
+          .from(coupons)
+          .innerJoin(campaigns, eq(coupons.campaignId, campaigns.id))
+          .innerJoin(campaignStores, eq(campaigns.id, campaignStores.campaignId))
+          .where(and(
+            eq(coupons.id, coupon_id),
+            eq(coupons.userId, verifiedUserId),
+            eq(coupons.status, 'unused'),
+            gt(coupons.expiredAt, now),
+            eq(campaignStores.storeId, qrCode.storeId),
+            eq(campaigns.isActive, true)
+          ));
+        
+        if (!coupon) {
+          return res.status(400).json({ success: false, message: 'Invalid or expired coupon' });
+        }
+        
+        const couponValue = parseFloat(coupon.couponValue || '0');
+        let expectedDiscount = 0;
+        
+        if (coupon.discountType === 'percent') {
+          expectedDiscount = (parseFloat(amount) + parseFloat(discount_amount || '0')) * (couponValue / 100);
+        } else {
+          expectedDiscount = Math.min(couponValue, parseFloat(amount) + parseFloat(discount_amount || '0'));
+        }
+        
+        expectedDiscount = Math.round(expectedDiscount * 100) / 100;
+        const clientDiscount = parseFloat(discount_amount || '0');
+        
+        if (Math.abs(expectedDiscount - clientDiscount) > 0.01) {
+          return res.status(400).json({ success: false, message: 'Discount amount mismatch' });
+        }
+        
+        validatedCouponId = coupon.id;
+        validatedDiscountAmount = clientDiscount.toFixed(2);
+        originalAmount = (parseFloat(amount) + clientDiscount).toFixed(2);
+      }
+
       // 创建支付记录
       const orderId = `pay_${nanoid(16)}`;
       const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
@@ -7105,6 +7160,9 @@ export function registerRoutes(app: Express): Server {
           pspCode: pspAccount.pspCode,
           pspPaymentId: chargeResult.pspPaymentId,
           amount: amount.toString(),
+          originalAmount: originalAmount,
+          couponId: validatedCouponId,
+          discountAmount: validatedDiscountAmount,
           currency,
           paymentMethod: 'promptpay',
           status: 'pending',
@@ -7252,6 +7310,18 @@ export function registerRoutes(app: Express): Server {
             claimedAt: hasUser ? new Date() : null,
           });
 
+        // 如果使用了优惠券，标记为已使用
+        if (payment.couponId) {
+          await db
+            .update(coupons)
+            .set({
+              status: 'used',
+              usedAt: new Date(),
+            })
+            .where(eq(coupons.id, payment.couponId));
+          console.log('[Webhook/opn] Coupon marked as used:', payment.couponId);
+        }
+
         console.log('[Webhook/opn] Points created:', { 
           paymentId: payment.id, 
           points: pointsAmount,
@@ -7367,6 +7437,18 @@ export function registerRoutes(app: Express): Server {
             status: hasUser ? 'claimed' : 'unclaimed',
             claimedAt: hasUser ? new Date() : null,
           });
+
+        // 如果使用了优惠券，标记为已使用
+        if (payment.couponId) {
+          await db
+            .update(coupons)
+            .set({
+              status: 'used',
+              usedAt: new Date(),
+            })
+            .where(eq(coupons.id, payment.couponId));
+          console.log('[Webhook/2c2p] Coupon marked as used:', payment.couponId);
+        }
 
         console.log('[Webhook/2c2p] Points created:', { 
           paymentId: payment.id, 
