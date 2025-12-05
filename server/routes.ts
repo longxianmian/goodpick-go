@@ -74,6 +74,23 @@ if (!JWT_SECRET) {
 
 const JWT_SECRET_VALUE = JWT_SECRET || 'change_this_to_strong_secret';
 
+// Simple memory cache for QR code metadata (30 second TTL)
+const qrMetaCache = new Map<string, { data: any; expiry: number }>();
+const QR_CACHE_TTL = 30000; // 30 seconds
+
+function getCachedQrMeta(qrToken: string) {
+  const cached = qrMetaCache.get(qrToken);
+  if (cached && Date.now() < cached.expiry) {
+    return cached.data;
+  }
+  qrMetaCache.delete(qrToken);
+  return null;
+}
+
+function setCachedQrMeta(qrToken: string, data: any) {
+  qrMetaCache.set(qrToken, { data, expiry: Date.now() + QR_CACHE_TTL });
+}
+
 // OA Configuration for messaging system
 const GOODPICK_MAIN_OA_ID = process.env.GOODPICK_MAIN_OA_ID ?? 'GOODPICK_MAIN_OA';
 const DEECARD_MAIN_OA_ID = process.env.DEECARD_MAIN_OA_ID ?? 'DEECARD_MAIN_OA';
@@ -6998,13 +7015,19 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // H5 支付入口 - 获取二维码元数据
+  // H5 支付入口 - 获取二维码元数据 (带缓存优化)
   app.get('/api/payments/qrcode/meta', async (req: Request, res: Response) => {
     try {
       const { qr_token } = req.query;
 
       if (!qr_token || typeof qr_token !== 'string') {
         return res.status(400).json({ success: false, message: 'Missing qr_token' });
+      }
+
+      // 检查缓存
+      const cachedData = getCachedQrMeta(qr_token);
+      if (cachedData) {
+        return res.json({ success: true, data: cachedData });
       }
 
       // 查询二维码和关联门店
@@ -7046,18 +7069,20 @@ export function registerRoutes(app: Express): Server {
         }
       }
 
-      res.json({
-        success: true,
-        data: {
-          qrCodeId: qrCode.id,
-          storeId: qrCode.storeId,
-          storeName: qrCode.storeName,
-          storeAddress: qrCode.storeAddress,
-          storeImageUrl: convertHttpToHttps(qrCode.storeImageUrl),
-          currency: 'THB',
-          pspDisplayName,  // PSP 显示名称从后端传
-        }
-      });
+      const responseData = {
+        qrCodeId: qrCode.id,
+        storeId: qrCode.storeId,
+        storeName: qrCode.storeName,
+        storeAddress: qrCode.storeAddress,
+        storeImageUrl: convertHttpToHttps(qrCode.storeImageUrl),
+        currency: 'THB',
+        pspDisplayName,
+      };
+
+      // 存入缓存
+      setCachedQrMeta(qr_token, responseData);
+
+      res.json({ success: true, data: responseData });
     } catch (error) {
       console.error('Get QR code meta error:', error);
       res.status(500).json({ success: false, message: 'Failed to get QR code info' });

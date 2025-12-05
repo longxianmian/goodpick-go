@@ -138,8 +138,28 @@ export default function PayEntryPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
+        <div className="animate-pulse">
+          <div className="bg-white shadow-sm">
+            <div className="p-4 flex items-center gap-3">
+              <div className="w-12 h-12 bg-slate-200 rounded-lg" />
+              <div className="flex-1">
+                <div className="h-4 bg-slate-200 rounded w-32 mb-2" />
+                <div className="h-3 bg-slate-100 rounded w-48" />
+              </div>
+            </div>
+          </div>
+          <div className="p-4 space-y-4">
+            <div className="bg-white rounded-2xl p-6 shadow-sm">
+              <div className="h-4 bg-slate-200 rounded w-20 mb-4" />
+              <div className="h-16 bg-slate-100 rounded-xl" />
+            </div>
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <div className="h-12 bg-slate-100 rounded-xl" />
+            </div>
+            <div className="h-14 bg-slate-200 rounded-xl" />
+          </div>
+        </div>
       </div>
     );
   }
