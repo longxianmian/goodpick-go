@@ -28,6 +28,8 @@ import { useState, useEffect } from 'react';
 const TABS = ['product', 'reviews', 'details', 'recommend'] as const;
 type TabType = typeof TABS[number];
 
+type DeliveryMode = 'delivery' | 'express' | 'pickup';
+
 interface ProductData {
   id: number;
   storeId: number;
@@ -83,6 +85,7 @@ export default function ProductDetail() {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [isFavorited, setIsFavorited] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('delivery');
 
   useEffect(() => {
     if (!carouselApi) return;
@@ -91,6 +94,16 @@ export default function ProductDetail() {
       setCurrentImageIndex(carouselApi.selectedScrollSnap());
     });
   }, [carouselApi]);
+
+  useEffect(() => {
+    if (!product) return;
+    
+    if (product.isAvailableForDelivery) {
+      setDeliveryMode('delivery');
+    } else if (product.isAvailableForPickup) {
+      setDeliveryMode('pickup');
+    }
+  }, [product]);
 
   useEffect(() => {
     if (!id) return;
@@ -348,40 +361,115 @@ export default function ProductDetail() {
           </h1>
         </div>
 
-        <div className="px-4 py-3 bg-card border-t space-y-2.5">
-          <div className="flex items-start gap-3">
-            <Truck className="w-4 h-4 text-[#38B03B] flex-shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <span className="font-medium">{t('product.delivery')}</span>
-              <span className="text-muted-foreground ml-2">
-                {product.isAvailableForDelivery ? t('product.deliveryAvailable') : t('product.pickupOnly')}
-              </span>
-            </div>
+        <div className="px-4 py-3 bg-card border-t">
+          <div className="flex gap-2 mb-3">
+            <Button
+              variant={deliveryMode === 'delivery' ? 'default' : 'outline'}
+              size="sm"
+              className={`flex-1 ${deliveryMode === 'delivery' ? 'bg-[#38B03B] hover:bg-[#38B03B]/90' : ''}`}
+              onClick={() => setDeliveryMode('delivery')}
+              disabled={!product.isAvailableForDelivery}
+              data-testid="mode-delivery"
+            >
+              <Truck className="w-4 h-4 mr-1" />
+              {t('product.modeDelivery')}
+            </Button>
+            <Button
+              variant={deliveryMode === 'express' ? 'default' : 'outline'}
+              size="sm"
+              className={`flex-1 ${deliveryMode === 'express' ? 'bg-[#38B03B] hover:bg-[#38B03B]/90' : ''}`}
+              onClick={() => setDeliveryMode('express')}
+              disabled={!product.isAvailableForDelivery}
+              data-testid="mode-express"
+            >
+              <Package className="w-4 h-4 mr-1" />
+              {t('product.modeExpress')}
+            </Button>
+            <Button
+              variant={deliveryMode === 'pickup' ? 'default' : 'outline'}
+              size="sm"
+              className={`flex-1 ${deliveryMode === 'pickup' ? 'bg-[#38B03B] hover:bg-[#38B03B]/90' : ''}`}
+              onClick={() => setDeliveryMode('pickup')}
+              disabled={!product.isAvailableForPickup}
+              data-testid="mode-pickup"
+            >
+              <MapPin className="w-4 h-4 mr-1" />
+              {t('product.modePickup')}
+            </Button>
           </div>
           
-          <div className="flex items-start gap-3">
-            <Clock className="w-4 h-4 text-[#38B03B] flex-shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <span className="font-medium">{t('product.prepTime')}</span>
-              <span className="text-muted-foreground ml-2">
-                {product.prepTimeMinutes || 15} {t('common.minutes')}
-              </span>
+          <div className="space-y-2.5">
+            {deliveryMode === 'delivery' && (
+              <>
+                <div className="flex items-start gap-3">
+                  <Truck className="w-4 h-4 text-[#38B03B] flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <span className="font-medium">{t('product.deliveryFee')}</span>
+                    <span className="text-muted-foreground ml-2">{t('common.currencySymbol')}0 {t('product.freeDelivery')}</span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Clock className="w-4 h-4 text-[#38B03B] flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <span className="font-medium">{t('product.deliveryTime')}</span>
+                    <span className="text-muted-foreground ml-2">~{(product.prepTimeMinutes || 15) + 30} {t('common.minutes')}</span>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {deliveryMode === 'express' && (
+              <>
+                <div className="flex items-start gap-3">
+                  <Package className="w-4 h-4 text-[#38B03B] flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <span className="font-medium">{t('product.expressShipping')}</span>
+                    <span className="text-muted-foreground ml-2">{t('product.expressDesc')}</span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Clock className="w-4 h-4 text-[#38B03B] flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <span className="font-medium">{t('product.expressTime')}</span>
+                    <span className="text-muted-foreground ml-2">1-3 {t('product.days')}</span>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {deliveryMode === 'pickup' && (
+              <>
+                <div className="flex items-start gap-3">
+                  <MapPin className="w-4 h-4 text-[#38B03B] flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <span className="font-medium">{t('product.pickupAddress')}</span>
+                    <span className="text-muted-foreground ml-2">{product.store?.address || product.store?.city}</span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Clock className="w-4 h-4 text-[#38B03B] flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <span className="font-medium">{t('product.pickupTime')}</span>
+                    <span className="text-[#38B03B] ml-2">~{product.prepTimeMinutes || 15} {t('common.minutes')}</span>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            <div className="flex items-start gap-3">
+              <Package className="w-4 h-4 text-[#38B03B] flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <span className="font-medium">{t('product.stock')}</span>
+                <span className={`ml-2 ${inStock ? 'text-[#38B03B]' : 'text-destructive'}`}>
+                  {inStock ? t('product.inStock', { count: String(product.inventory) }) : t('product.outOfStock')}
+                </span>
+              </div>
             </div>
-          </div>
-          
-          <div className="flex items-start gap-3">
-            <Package className="w-4 h-4 text-[#38B03B] flex-shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <span className="font-medium">{t('product.stock')}</span>
-              <span className={`ml-2 ${inStock ? 'text-[#38B03B]' : 'text-destructive'}`}>
-                {inStock ? t('product.inStock', { count: String(product.inventory) }) : t('product.outOfStock')}
-              </span>
+            
+            <div className="flex items-start gap-3">
+              <Shield className="w-4 h-4 text-[#38B03B] flex-shrink-0 mt-0.5" />
+              <span className="text-sm">{t('product.guarantee')}</span>
             </div>
-          </div>
-          
-          <div className="flex items-start gap-3">
-            <Shield className="w-4 h-4 text-[#38B03B] flex-shrink-0 mt-0.5" />
-            <span className="text-sm">{t('product.guarantee')}</span>
           </div>
         </div>
 
