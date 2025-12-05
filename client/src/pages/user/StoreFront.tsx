@@ -15,7 +15,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { UserBottomNav } from '@/components/UserBottomNav';
+import { ChatWindow } from '@/components/ChatWindow';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Store, Campaign } from '@shared/schema';
 
 interface StoreWithCampaigns extends Store {
@@ -880,14 +882,18 @@ function IndustryPlaceholder({ type }: { type: IndustryType }) {
   );
 }
 
-function BottomActionBar() {
+function BottomActionBar({ onChatClick }: { onChatClick: () => void }) {
   const { t } = useLanguage();
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-3 z-50">
       <div className="flex items-center gap-3 max-w-lg mx-auto">
         <div className="flex items-center gap-4">
-          <button className="flex flex-col items-center gap-0.5" data-testid="button-chat">
+          <button 
+            className="flex flex-col items-center gap-0.5" 
+            data-testid="button-chat"
+            onClick={onChatClick}
+          >
             <MessageCircle className="w-5 h-5 text-muted-foreground" />
             <span className="text-[10px] text-muted-foreground">{t('storeFront.chat')}</span>
           </button>
@@ -933,9 +939,11 @@ function StoreFrontSkeleton() {
 
 export default function StoreFront() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [, params] = useRoute('/store/:id');
   const storeId = params?.id;
   const [activeTab, setActiveTab] = useState('menu');
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const { data: storeData, isLoading: storeLoading } = useQuery<{ success: boolean; data: Store }>({
     queryKey: ['/api/stores', storeId],
@@ -955,6 +963,14 @@ export default function StoreFront() {
     c.stores?.some((s: any) => s.id === parseInt(storeId || '0'))
   );
   const storeCampaigns = storeSpecificCampaigns.length > 0 ? storeSpecificCampaigns : allCampaigns;
+
+  const handleChatClick = () => {
+    if (!user) {
+      window.location.href = '/me';
+      return;
+    }
+    setIsChatOpen(true);
+  };
 
   if (storeLoading) {
     return <StoreFrontSkeleton />;
@@ -1023,7 +1039,15 @@ export default function StoreFront() {
         </TabsContent>
       </Tabs>
 
-      <BottomActionBar />
+      <BottomActionBar onChatClick={handleChatClick} />
+
+      <ChatWindow
+        storeId={store.id}
+        storeName={store.name}
+        storeImageUrl={store.imageUrl || undefined}
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+      />
     </div>
   );
 }
