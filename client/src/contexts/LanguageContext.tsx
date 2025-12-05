@@ -1582,6 +1582,15 @@ const translations: Record<Language, Record<string, string>> = {
     'coupon.issuedAt': '领取时间',
     'coupon.usedAt': '使用时间',
     'coupon.scanToRedeem': '向店员出示此二维码以核销',
+    'coupon.viewStore': '进店',
+    'coupon.favorite': '收藏',
+    'coupon.claimNow': '立即领取',
+    'coupon.loginToClaim': '登录领取',
+    'coupon.addedToFavorites': '已加入收藏',
+    'coupon.removedFromFavorites': '已取消收藏',
+    'coupon.claimedCount': '已领取',
+    'coupon.remainingCount': '剩余',
+    'coupon.useWhenPay': '消费时出示核销抵扣',
     
     // Admin Login (additional)
     'adminLogin.success': '登录成功',
@@ -3462,6 +3471,15 @@ const translations: Record<Language, Record<string, string>> = {
     'coupon.issuedAt': 'Claimed At',
     'coupon.usedAt': 'Used At',
     'coupon.scanToRedeem': 'Show this QR code to staff to redeem',
+    'coupon.viewStore': 'Store',
+    'coupon.favorite': 'Save',
+    'coupon.claimNow': 'Claim Now',
+    'coupon.loginToClaim': 'Login to Claim',
+    'coupon.addedToFavorites': 'Added to favorites',
+    'coupon.removedFromFavorites': 'Removed from favorites',
+    'coupon.claimedCount': 'Claimed',
+    'coupon.remainingCount': 'Remaining',
+    'coupon.useWhenPay': 'Show when paying to redeem',
     
     // Admin Login (additional)
     'adminLogin.success': 'Login successful',
@@ -5017,6 +5035,15 @@ const translations: Record<Language, Record<string, string>> = {
     'coupon.issuedAt': 'วันที่รับ',
     'coupon.usedAt': 'วันที่ใช้',
     'coupon.scanToRedeem': 'แสดง QR Code นี้กับพนักงานเพื่อใช้คูปอง',
+    'coupon.viewStore': 'ร้านค้า',
+    'coupon.favorite': 'บันทึก',
+    'coupon.claimNow': 'รับเลย',
+    'coupon.loginToClaim': 'เข้าสู่ระบบเพื่อรับ',
+    'coupon.addedToFavorites': 'เพิ่มในรายการโปรด',
+    'coupon.removedFromFavorites': 'ลบออกจากรายการโปรด',
+    'coupon.claimedCount': 'รับแล้ว',
+    'coupon.remainingCount': 'เหลือ',
+    'coupon.useWhenPay': 'แสดงเมื่อชำระเงินเพื่อใช้ส่วนลด',
     
     // Admin Login (additional)
     'adminLogin.success': 'เข้าสู่ระบบสำเร็จ',

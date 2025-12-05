@@ -19,9 +19,8 @@ import {
   CheckCircle2,
   Star,
   Store,
-  MessageCircle,
-  ShoppingCart,
-  Play
+  Play,
+  Ticket
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import MyCoupons from './MyCoupons';
@@ -487,27 +486,34 @@ export default function CampaignDetail() {
           </div>
         )}
 
-        {/* Price section */}
-        <div className="px-4 py-3 bg-card">
-          <div className="flex items-end justify-between">
-            <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-bold text-destructive">
+        {/* Coupon Value Section */}
+        <div className="px-4 py-4 bg-gradient-to-r from-[#38B03B]/10 to-[#38B03B]/5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Ticket className="w-6 h-6 text-[#38B03B]" />
+              <span className="text-2xl font-bold text-[#38B03B]">
                 {formatCouponValue(campaign.couponValue, campaign.discountType)}
               </span>
             </div>
-            <span className="text-sm text-muted-foreground">
-              {t('shop.sold')}{soldCount}
-            </span>
+            <div className="text-right">
+              <span className="text-sm text-muted-foreground">
+                {t('coupon.claimedCount')} {soldCount}
+              </span>
+              {campaign.maxTotal && (
+                <span className="text-sm text-muted-foreground ml-2">
+                  / {t('coupon.remainingCount')} {campaign.maxTotal - campaign.currentClaimed}
+                </span>
+              )}
+            </div>
           </div>
           
-          {/* Promo tag */}
-          <div className="mt-2">
-            <Badge 
-              variant="outline" 
-              className="text-destructive border-destructive text-xs"
-              data-testid="promo-tag"
-            >
-              {t('productDetail.followDiscount', { amount: '20' })}
+          {/* Coupon type tag */}
+          <div className="mt-2 flex items-center gap-2">
+            <Badge className="bg-[#38B03B] text-white text-xs">
+              {campaign.discountType === 'percent' ? t('shop.percentOff') : t('shop.fixedDiscount')}
+            </Badge>
+            <Badge variant="outline" className="text-[#38B03B] border-[#38B03B] text-xs">
+              {t('coupon.useWhenPay')}
             </Badge>
           </div>
         </div>
@@ -515,7 +521,7 @@ export default function CampaignDetail() {
         {/* Title section */}
         <div className="px-4 py-3 bg-card border-t">
           <div className="flex items-start gap-2">
-            <Badge className="bg-destructive text-white text-xs flex-shrink-0">
+            <Badge className="bg-[#38B03B] text-white text-xs flex-shrink-0">
               {storeName.slice(0, 4)}
             </Badge>
             <h1 className="text-base font-medium leading-tight" data-testid="product-title">
@@ -524,48 +530,32 @@ export default function CampaignDetail() {
           </div>
         </div>
 
-        {/* Service tags */}
-        <div className="px-4 py-2 bg-card border-t flex items-center gap-3 overflow-x-auto">
-          <Badge variant="outline" className="text-destructive border-destructive text-xs whitespace-nowrap">
-            {t('productDetail.freeReturn')}
-          </Badge>
-          <span className="text-xs text-muted-foreground whitespace-nowrap">
-            {addToCartCount}+{t('productDetail.addedToCart')}
-          </span>
-          <span className="text-xs text-muted-foreground whitespace-nowrap">
-            {t('productDetail.recentBuyers', { count: String(recentBuyCount) })}
-          </span>
-        </div>
-
-        {/* Delivery info */}
+        {/* Coupon info */}
         <div className="px-4 py-3 bg-card border-t space-y-2.5">
-          {/* Delivery time */}
+          {/* Validity period */}
           <div className="flex items-start gap-3">
-            <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+            <Clock className="w-4 h-4 text-[#38B03B] flex-shrink-0 mt-0.5" />
             <div className="text-sm">
-              <span className="font-medium">{t('productDetail.avgDelivery', { hours: '26' })}</span>
-              <span className="text-muted-foreground mx-2">|</span>
-              <span className="text-muted-foreground">{t('productDetail.deliveryPromise')}</span>
+              <span className="font-medium">{t('productDetail.validPeriod')}</span>
+              <span className="text-muted-foreground ml-2">
+                {new Date(campaign.startAt).toLocaleDateString(language)} - {new Date(campaign.endAt).toLocaleDateString(language)}
+              </span>
             </div>
           </div>
           
-          {/* Location */}
+          {/* Store location */}
           <div className="flex items-start gap-3">
-            <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+            <MapPin className="w-4 h-4 text-[#38B03B] flex-shrink-0 mt-0.5" />
             <span className="text-sm">
-              {campaign.stores?.[0]?.city || t('productDetail.defaultLocation')} {t('productDetail.freeShipping')}
+              {campaign.stores?.[0]?.city || t('productDetail.defaultLocation')} - {storeName}
             </span>
           </div>
           
-          {/* Guarantees */}
+          {/* How to use */}
           <div className="flex items-start gap-3">
-            <Shield className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+            <CheckCircle2 className="w-4 h-4 text-[#38B03B] flex-shrink-0 mt-0.5" />
             <div className="text-sm text-muted-foreground">
-              <span>{t('productDetail.freeReturn')}</span>
-              <span className="mx-2">|</span>
-              <span>{t('productDetail.quickRefund')}</span>
-              <span className="mx-2">|</span>
-              <span>{t('productDetail.authentic')}</span>
+              <span>{t('coupon.useWhenPay')}</span>
             </div>
           </div>
           
@@ -713,58 +703,69 @@ export default function CampaignDetail() {
         </div>
       </main>
 
-      {/* Fixed bottom bar */}
+      {/* Fixed bottom bar - Coupon style */}
       <div className="fixed bottom-0 left-0 right-0 bg-background border-t z-50">
-        {/* Icon buttons row */}
-        <div className="flex items-center px-2 py-2 gap-1 border-b">
-          <Link href={`/merchant`}>
+        <div className="flex items-center px-3 py-2 gap-2">
+          {/* Store link */}
+          <Link href={campaign.stores?.[0]?.id ? `/store/${campaign.stores[0].id}` : '/shop'}>
             <Button variant="ghost" size="sm" className="flex flex-col items-center gap-0.5 h-auto py-1 px-3">
               <Store className="w-5 h-5" />
-              <span className="text-[10px]">{t('productDetail.store')}</span>
+              <span className="text-[10px]">{t('coupon.viewStore')}</span>
             </Button>
           </Link>
-          <Button variant="ghost" size="sm" className="flex flex-col items-center gap-0.5 h-auto py-1 px-3">
-            <MessageCircle className="w-5 h-5" />
-            <span className="text-[10px]">{t('productDetail.service')}</span>
-          </Button>
-          <Button variant="ghost" size="sm" className="flex flex-col items-center gap-0.5 h-auto py-1 px-3">
-            <ShoppingCart className="w-5 h-5" />
-            <span className="text-[10px]">{t('productDetail.cart')}</span>
+          
+          {/* Favorite button */}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="flex flex-col items-center gap-0.5 h-auto py-1 px-3"
+            onClick={() => {
+              setIsFavorited(!isFavorited);
+              toast({
+                title: t('common.success'),
+                description: isFavorited ? t('coupon.removedFromFavorites') : t('coupon.addedToFavorites'),
+              });
+            }}
+          >
+            <Heart className={`w-5 h-5 ${isFavorited ? 'fill-destructive text-destructive' : ''}`} />
+            <span className="text-[10px]">{t('coupon.favorite')}</span>
           </Button>
           
           {/* Spacer */}
           <div className="flex-1" />
           
-          {/* Action buttons */}
+          {/* Main claim button */}
           <Button 
-            variant="outline"
-            className="flex-1 max-w-[120px] border-destructive text-destructive"
-            onClick={() => {
-              if (!loggedIn) {
-                handleLineLogin();
-              } else {
-                toast({
-                  title: t('common.success'),
-                  description: t('productDetail.addedToFavorites'),
-                });
-              }
-            }}
-            disabled={claiming || isExpired || isSoldOut}
-            data-testid="button-add-cart"
-          >
-            {t('productDetail.addToCart')}
-          </Button>
-          <Button 
-            className="flex-1 max-w-[120px] bg-destructive hover:bg-destructive/90"
+            className="flex-1 max-w-[200px] bg-[#38B03B] hover:bg-[#38B03B]/90 text-white"
             onClick={handleClaimClick}
             disabled={claiming || isExpired || isSoldOut}
-            data-testid="button-buy-now"
+            data-testid="button-claim-coupon"
           >
-            {claiming ? t('campaign.claiming') : 
-             isSoldOut ? t('campaign.soldOut') :
-             isExpired ? t('campaign.expired') :
-             hasClaimed ? t('campaign.viewMyCoupons') :
-             loggedIn ? t('productDetail.buyNow') : t('campaign.claimWithLine')}
+            {claiming ? (
+              <span className="flex items-center gap-2">
+                <span className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
+                {t('campaign.claiming')}
+              </span>
+            ) : isSoldOut ? (
+              t('campaign.soldOut')
+            ) : isExpired ? (
+              t('campaign.expired')
+            ) : hasClaimed ? (
+              <span className="flex items-center gap-2">
+                <Ticket className="w-4 h-4" />
+                {t('campaign.viewMyCoupons')}
+              </span>
+            ) : loggedIn ? (
+              <span className="flex items-center gap-2">
+                <Ticket className="w-4 h-4" />
+                {t('coupon.claimNow')}
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <Ticket className="w-4 h-4" />
+                {t('coupon.loginToClaim')}
+              </span>
+            )}
           </Button>
         </div>
       </div>
