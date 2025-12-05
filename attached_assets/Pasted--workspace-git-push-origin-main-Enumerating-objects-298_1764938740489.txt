@@ -1,0 +1,53 @@
+~/workspace$ git push origin main
+Enumerating objects: 298, done.
+Counting objects: 100% (298/298), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (241/241), done.
+Writing objects: 100% (241/241), 15.76 MiB | 5.68 MiB/s, done.
+Total 241 (delta 189), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (189/189), completed with 25 local objects.
+remote: error: GH013: Repository rule violations found for refs/heads/main.
+remote: 
+remote: - GITHUB PUSH PROTECTION
+remote:   —————————————————————————————————————————
+remote:     Resolve the following violations before pushing again
+remote: 
+remote:     - Push cannot contain secrets
+remote: 
+remote:     
+remote:      (?) Learn how to resolve a blocked push
+remote:      https://docs.github.com/code-security/secret-scanning/working-with-secret-scanning-and-push-protection/working-with-push-protection-from-the-command-line#resolving-a-blocked-push
+remote:     
+remote:     
+remote:       —— OpenAI API Key ————————————————————————————————————
+remote:        locations:
+remote:          - commit: f0ec7c77381d94811969e6e973173f02d40d0b62
+remote:            path: attached_assets/Pasted-root-iZt4n4cftt8gn7dthjne54Z-var-www-goodpick-go-cat-en_1764936622816.txt:23
+remote:     
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.
+remote:        https://github.com/longxianmian/goodpick-go/security/secret-scanning/unblock-secret/36QVLQ4pXBYb5w49prFPq5jV3fj
+remote:     
+remote:     
+remote:       —— Alibaba Cloud AccessKey ID ————————————————————————
+remote:        locations:
+remote:          - commit: f0ec7c77381d94811969e6e973173f02d40d0b62
+remote:            path: attached_assets/Pasted-root-iZt4n4cftt8gn7dthjne54Z-var-www-goodpick-go-cat-en_1764936622816.txt:27
+remote:     
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.
+remote:        https://github.com/longxianmian/goodpick-go/security/secret-scanning/unblock-secret/36QVLUGAhTz0gJqfgmlepwvx7Hl
+remote:     
+remote:     
+remote:       —— Alibaba Cloud AccessKey Secret ————————————————————
+remote:        locations:
+remote:          - commit: f0ec7c77381d94811969e6e973173f02d40d0b62
+remote:            path: attached_assets/Pasted-root-iZt4n4cftt8gn7dthjne54Z-var-www-goodpick-go-cat-en_1764936622816.txt:28
+remote:     
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.
+remote:        https://github.com/longxianmian/goodpick-go/security/secret-scanning/unblock-secret/36QVLPTrpIBLfeBwjjKBa2Hq8dR
+remote:     
+remote: 
+remote: 
+To https://github.com/longxianmian/goodpick-go.git
+ ! [remote rejected] main -> main (push declined due to repository rule violations)
+error: failed to push some refs to 'https://github.com/longxianmian/goodpick-go.git'
+~/workspace$ 
