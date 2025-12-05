@@ -7339,9 +7339,9 @@ export function registerRoutes(app: Express): Server {
         const couponValue = parseFloat(coupon.couponValue || '0');
         let expectedDiscount = 0;
         
-        if (coupon.discountType === 'percent') {
+        if (coupon.discountType === 'percentage_off') {
           expectedDiscount = (parseFloat(amount) + parseFloat(discount_amount || '0')) * (couponValue / 100);
-        } else {
+        } else if (coupon.discountType === 'cash_voucher') {
           expectedDiscount = Math.min(couponValue, parseFloat(amount) + parseFloat(discount_amount || '0'));
         }
         
