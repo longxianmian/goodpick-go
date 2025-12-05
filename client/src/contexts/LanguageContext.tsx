@@ -68,6 +68,26 @@ const translations: Record<Language, Record<string, string>> = {
     'common.more': '更多 >',
     'common.switchRole': '切换账号',
     'common.current': '当前',
+    'common.retry': '重试',
+    'common.loadMore': '加载更多',
+    'common.noMore': '没有更多了',
+    'common.pullToRefresh': '下拉刷新',
+    'common.releaseToRefresh': '释放刷新',
+    'common.refreshing': '刷新中...',
+    
+    // 错误提示
+    'error.network.title': '网络连接失败',
+    'error.network.message': '请检查您的网络连接后重试',
+    'error.server.title': '服务器错误',
+    'error.server.message': '服务器暂时无法响应，请稍后重试',
+    'error.notFound.title': '内容不存在',
+    'error.notFound.message': '您访问的内容可能已被删除或移动',
+    'error.generic.title': '出错了',
+    'error.generic.message': '发生了一些问题，请稍后重试',
+    'error.unauthorized.title': '需要登录',
+    'error.unauthorized.message': '请先登录后再继续操作',
+    'error.forbidden.title': '无权限访问',
+    'error.forbidden.message': '您没有权限访问此内容',
     
     // Navigation
     'nav.stores': '门店管理',
@@ -1879,6 +1899,26 @@ const translations: Record<Language, Record<string, string>> = {
     'common.more': 'More >',
     'common.switchRole': 'Switch Account',
     'common.current': 'Current',
+    'common.retry': 'Retry',
+    'common.loadMore': 'Load more',
+    'common.noMore': 'No more',
+    'common.pullToRefresh': 'Pull to refresh',
+    'common.releaseToRefresh': 'Release to refresh',
+    'common.refreshing': 'Refreshing...',
+    
+    // Error messages
+    'error.network.title': 'Connection Failed',
+    'error.network.message': 'Please check your network connection and try again',
+    'error.server.title': 'Server Error',
+    'error.server.message': 'Server is temporarily unavailable, please try again later',
+    'error.notFound.title': 'Not Found',
+    'error.notFound.message': 'The content you are looking for may have been deleted or moved',
+    'error.generic.title': 'Something went wrong',
+    'error.generic.message': 'An error occurred, please try again later',
+    'error.unauthorized.title': 'Login Required',
+    'error.unauthorized.message': 'Please login to continue',
+    'error.forbidden.title': 'Access Denied',
+    'error.forbidden.message': 'You do not have permission to access this content',
     
     // Navigation
     'nav.stores': 'Stores',

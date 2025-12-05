@@ -14,6 +14,9 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { ProfileSkeleton, FeedGridSkeleton } from '@/components/ui/content-skeleton';
+import { ErrorState, EmptyState } from '@/components/ui/error-state';
+import { PageTransition } from '@/components/ui/page-transition';
 
 interface UserProfileData {
   id: number;
@@ -74,25 +77,51 @@ export default function UserProfile() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-muted/30 flex items-center justify-center">
-        <div className="text-muted-foreground">{t('common.loading')}</div>
+      <div className="min-h-screen bg-muted/30">
+        <div className="bg-gradient-to-b from-[#38B03B] to-[#2d8f30] text-white">
+          <header className="flex items-center justify-between h-12 px-4">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="text-white"
+              onClick={() => window.history.back()}
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </Button>
+          </header>
+          <ProfileSkeleton />
+        </div>
+        <FeedGridSkeleton count={4} />
       </div>
     );
   }
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-muted/30 flex flex-col items-center justify-center gap-4">
-        <div className="text-muted-foreground">{t('common.notFound')}</div>
-        <Button variant="outline" onClick={() => setLocation('/')}>
-          {t('common.backToHome')}
-        </Button>
+      <div className="min-h-screen bg-muted/30 flex flex-col">
+        <header className="bg-[#38B03B] h-12 px-4 flex items-center">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className="text-white"
+            onClick={() => window.history.back()}
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </Button>
+        </header>
+        <ErrorState 
+          type="notFound"
+          onRetry={() => window.location.reload()}
+          showHomeButton
+          showBackButton
+          className="flex-1"
+        />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-muted/30 pb-4">
+    <PageTransition className="min-h-screen bg-muted/30 pb-4">
       <div className="bg-gradient-to-b from-[#38B03B] to-[#2d8f30] text-white">
         <header className="flex items-center justify-between h-12 px-4">
           <Button 
@@ -245,6 +274,6 @@ export default function UserProfile() {
           </div>
         )}
       </div>
-    </div>
+    </PageTransition>
   );
 }

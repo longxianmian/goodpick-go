@@ -13,12 +13,14 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { ArticleDetailSkeleton } from '@/components/ui/content-skeleton';
+import { ErrorState } from '@/components/ui/error-state';
+import { PageTransition } from '@/components/ui/page-transition';
 
 interface ArticleData {
   id: number;
@@ -284,40 +286,37 @@ export default function ArticleDetail() {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <header className="sticky top-0 z-50 bg-background border-b">
-          <div className="flex items-center h-12 px-4 gap-3">
-            <Skeleton className="w-8 h-8 rounded-full" />
-            <Skeleton className="w-8 h-8 rounded-full" />
-            <Skeleton className="h-4 w-24" />
-          </div>
-        </header>
-        <div className="space-y-0">
-          <Skeleton className="w-full aspect-[3/4]" />
-          <div className="p-4 space-y-3">
-            <Skeleton className="h-5 w-3/4" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
-          </div>
-        </div>
-      </div>
-    );
+    return <ArticleDetailSkeleton />;
   }
 
   if (error || !article) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <p className="text-muted-foreground mb-4">{t('common.error')}</p>
-        <Link href="/">
-          <Button variant="outline">{t('common.back')}</Button>
-        </Link>
+      <div className="min-h-screen bg-background flex flex-col">
+        <header className="sticky top-0 z-50 bg-background border-b">
+          <div className="flex items-center h-12 px-4">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => window.history.back()}
+              data-testid="button-back"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+          </div>
+        </header>
+        <ErrorState 
+          type="notFound"
+          onRetry={() => window.location.reload()}
+          showHomeButton
+          showBackButton
+          className="flex-1"
+        />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <PageTransition className="min-h-screen bg-background flex flex-col">
       <header className="sticky top-0 z-50 bg-background border-b">
         <div className="flex items-center justify-between h-12 px-3">
           <div className="flex items-center gap-3">
@@ -587,6 +586,6 @@ export default function ArticleDetail() {
           )}
         </div>
       </div>
-    </div>
+    </PageTransition>
   );
 }
