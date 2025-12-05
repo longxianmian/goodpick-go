@@ -1,0 +1,141 @@
+root@iZt4n4cftt8gn7dthjne54Z:/var/www/goodpick-go# # 1. 检查 nginx.conf 是否存在
+cat /etc/nginx/nginx.conf
+
+# 2. 查看 Nginx 实际使用的配置文件路径
+nginx -t
+
+# 3. 列出所有 nginx 配置目录下的文件
+ls -la /etc/nginx/
+ls -la /etc/nginx/conf.d/
+ls -la /etc/nginx/sites-enabled/
+
+# 4. 搜索包含 goodpickgo 或 goodpick-go 的配置文件
+grep -r "goodpick" /etc/nginx/
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+        worker_connections 768;
+        # multi_accept on;
+}
+
+http {
+
+        ##
+        # Basic Settings
+        ##
+
+        sendfile on;
+        tcp_nopush on;
+        types_hash_max_size 2048;
+        # server_tokens off;
+
+        # server_names_hash_bucket_size 64;
+        # server_name_in_redirect off;
+
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        ##
+        # SSL Settings
+        ##
+
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3; # Dropping SSLv3, ref: POODLE
+        ssl_prefer_server_ciphers on;
+
+        ##
+        # Logging Settings
+        ##
+
+        access_log /var/log/nginx/access.log;
+        error_log /var/log/nginx/error.log;
+
+        ##
+        # Gzip Settings
+        ##
+
+        gzip on;
+
+        # gzip_vary on;
+        # gzip_proxied any;
+        # gzip_comp_level 6;
+        # gzip_buffers 16 8k;
+        # gzip_http_version 1.1;
+        # gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+        ##
+        # Virtual Host Configs
+        ##
+
+        include /etc/nginx/conf.d/*.conf;
+        include /etc/nginx/sites-enabled/*;
+}
+
+
+#mail {
+#       # See sample authentication script at:
+#       # http://wiki.nginx.org/ImapAuthenticateWithApachePhpScript
+#
+#       # auth_http localhost/auth.php;
+#       # pop3_capabilities "TOP" "USER";
+#       # imap_capabilities "IMAP4rev1" "UIDPLUS";
+#
+#       server {
+#               listen     localhost:110;
+#               protocol   pop3;
+#               proxy      on;
+#       }
+#
+#       server {
+#               listen     localhost:143;
+#               protocol   imap;
+#               proxy      on;
+#       }
+#}
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+total 72
+drwxr-xr-x   8 root root 4096 Nov 14 15:33 .
+drwxr-xr-x 111 root root 4096 Dec  5 06:36 ..
+drwxr-xr-x   2 root root 4096 Aug 22 20:46 conf.d
+-rw-r--r--   1 root root 1125 May 31  2023 fastcgi.conf
+-rw-r--r--   1 root root 1055 May 31  2023 fastcgi_params
+-rw-r--r--   1 root root 2837 May 31  2023 koi-utf
+-rw-r--r--   1 root root 2223 May 31  2023 koi-win
+-rw-r--r--   1 root root 3957 May 31  2023 mime.types
+drwxr-xr-x   2 root root 4096 Aug 22 20:46 modules-available
+drwxr-xr-x   2 root root 4096 Nov  8 22:36 modules-enabled
+-rw-r--r--   1 root root 1447 May 31  2023 nginx.conf
+-rw-r--r--   1 root root  180 May 31  2023 proxy_params
+-rw-r--r--   1 root root  636 May 31  2023 scgi_params
+drwxr-xr-x   2 root root 4096 Nov 17 04:41 sites-available
+drwxr-xr-x   2 root root 4096 Nov  8 22:40 sites-enabled
+drwxr-xr-x   2 root root 4096 Nov  8 22:36 snippets
+-rw-r--r--   1 root root  664 May 31  2023 uwsgi_params
+-rw-r--r--   1 root root 3071 May 31  2023 win-utf
+total 8
+drwxr-xr-x 2 root root 4096 Aug 22 20:46 .
+drwxr-xr-x 8 root root 4096 Nov 14 15:33 ..
+total 8
+drwxr-xr-x 2 root root 4096 Nov  8 22:40 .
+drwxr-xr-x 8 root root 4096 Nov 14 15:33 ..
+lrwxrwxrwx 1 root root   34 Nov  8 22:36 default -> /etc/nginx/sites-available/default
+lrwxrwxrwx 1 root root   41 Nov  8 22:40 goodpickgo.com -> /etc/nginx/sites-available/goodpickgo.com
+/etc/nginx/sites-available/goodpickgo.com:upstream goodpickgo_node {
+/etc/nginx/sites-available/goodpickgo.com:# 所有 80 端口访问统一跳到 https://goodpickgo.com
+/etc/nginx/sites-available/goodpickgo.com:    server_name goodpickgo.com www.goodpickgo.com api.goodpickgo.com;
+/etc/nginx/sites-available/goodpickgo.com:    return 301 https://goodpickgo.com$request_uri;
+/etc/nginx/sites-available/goodpickgo.com:# 443 只用 goodpickgo.com 这个主域名
+/etc/nginx/sites-available/goodpickgo.com:    server_name goodpickgo.com;
+/etc/nginx/sites-available/goodpickgo.com:    ssl_certificate /etc/letsencrypt/live/goodpickgo.com/fullchain.pem;
+/etc/nginx/sites-available/goodpickgo.com:    ssl_certificate_key /etc/letsencrypt/live/goodpickgo.com/privkey.pem;
+/etc/nginx/sites-available/goodpickgo.com:        proxy_pass http://goodpickgo_node;
+/etc/nginx/sites-available/goodpickgo.com.bak-2025-11-17-044148:    server_name goodpickgo.com www.goodpickgo.com api.goodpickgo.com;
+/etc/nginx/sites-available/goodpickgo.com.bak-2025-11-17-044148:    ssl_certificate /etc/letsencrypt/live/goodpickgo.com/fullchain.pem; # managed by Certbot
+/etc/nginx/sites-available/goodpickgo.com.bak-2025-11-17-044148:    ssl_certificate_key /etc/letsencrypt/live/goodpickgo.com/privkey.pem; # managed by Certbot
+/etc/nginx/sites-available/goodpickgo.com.bak-2025-11-17-044148:    if ($host = www.goodpickgo.com) {
+/etc/nginx/sites-available/goodpickgo.com.bak-2025-11-17-044148:    if ($host = goodpickgo.com) {
+/etc/nginx/sites-available/goodpickgo.com.bak-2025-11-17-044148:    server_name goodpickgo.com www.goodpickgo.com api.goodpickgo.com;
+root@iZt4n4cftt8gn7dthjne54Z:/var/www/goodpick-go# 
