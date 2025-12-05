@@ -1357,6 +1357,67 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // 公开的商品列表API（发现页使用）
+  app.get('/api/products', async (req: Request, res: Response) => {
+    try {
+      const { limit = 20 } = req.query;
+      const limitNum = Math.min(parseInt(limit as string) || 20, 50);
+
+      const activeProducts = await db
+        .select({
+          id: products.id,
+          storeId: products.storeId,
+          name: products.name,
+          descriptionSource: products.descriptionSource,
+          descriptionZh: products.descriptionZh,
+          descriptionEn: products.descriptionEn,
+          descriptionTh: products.descriptionTh,
+          price: products.price,
+          originalPrice: products.originalPrice,
+          unit: products.unit,
+          coverImage: products.coverImage,
+          status: products.status,
+          isRecommend: products.isRecommend,
+          isNew: products.isNew,
+          isHot: products.isHot,
+          salesCount: products.salesCount,
+        })
+        .from(products)
+        .where(eq(products.status, 'active'))
+        .orderBy(desc(products.salesCount), desc(products.createdAt))
+        .limit(limitNum);
+
+      // 获取每个商品关联的店铺信息
+      const productsWithStores = await Promise.all(
+        activeProducts.map(async (product) => {
+          const [store] = await db
+            .select({
+              id: stores.id,
+              name: stores.name,
+              imageUrl: stores.imageUrl,
+              city: stores.city,
+            })
+            .from(stores)
+            .where(eq(stores.id, product.storeId))
+            .limit(1);
+          
+          return {
+            ...product,
+            store: store || null,
+          };
+        })
+      );
+
+      res.json({
+        success: true,
+        data: productsWithStores,
+      });
+    } catch (error) {
+      console.error('Get products list error:', error);
+      res.status(500).json({ success: false, message: '获取商品列表失败' });
+    }
+  });
+
       app.get('/api/campaigns/:id', optionalUserAuth, async (req: Request, res: Response) => {
     try {
       const sessionId = req.headers['x-gpgo-session'] || 'no-session-id';

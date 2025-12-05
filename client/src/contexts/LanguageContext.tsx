@@ -1065,6 +1065,8 @@ const translations: Record<Language, Record<string, string>> = {
     'discover.promoPresale': '预售',
     'discover.promoDiscount': '满减',
     'discover.noContent': '暂无内容',
+    'discover.newProduct': '新品上架',
+    'discover.hotSale': '热销',
     'discover.merchantOfficial': '商户官方',
     
     // 购物页
@@ -2968,6 +2970,8 @@ const translations: Record<Language, Record<string, string>> = {
     'discover.promoPresale': 'Presale',
     'discover.promoDiscount': 'Discount',
     'discover.noContent': 'No content yet',
+    'discover.newProduct': 'New',
+    'discover.hotSale': 'Hot',
     'discover.merchantOfficial': 'Official',
     
     // Shop Page
@@ -4547,6 +4551,8 @@ const translations: Record<Language, Record<string, string>> = {
     'discover.promoPresale': 'พรีเซล',
     'discover.promoDiscount': 'ลดราคา',
     'discover.noContent': 'ยังไม่มีเนื้อหา',
+    'discover.newProduct': 'ใหม่',
+    'discover.hotSale': 'ขายดี',
     'discover.merchantOfficial': 'ร้านค้า',
     
     // Shop Page
@@ -5513,6 +5519,8 @@ const translations: Record<Language, Record<string, string>> = {
     'discover.promoPresale': 'Presale',
     'discover.promoDiscount': 'Diskon',
     'discover.noContent': 'Belum ada konten',
+    'discover.newProduct': 'Baru',
+    'discover.hotSale': 'Laris',
     'discover.noCampaigns': 'Tidak ada kampanye',
     'discover.checkBackLater': 'Coba lagi nanti',
 
@@ -6196,6 +6204,8 @@ const translations: Record<Language, Record<string, string>> = {
     'discover.promoPresale': 'Đặt trước',
     'discover.promoDiscount': 'Giảm giá',
     'discover.noContent': 'Chưa có nội dung',
+    'discover.newProduct': 'Mới',
+    'discover.hotSale': 'Bán chạy',
     'discover.noCampaigns': 'Không có chiến dịch',
     'discover.checkBackLater': 'Quay lại sau',
 
@@ -6879,6 +6889,8 @@ const translations: Record<Language, Record<string, string>> = {
     'discover.promoPresale': 'ကြိုရောင်း',
     'discover.promoDiscount': 'လျှော့စျေး',
     'discover.noContent': 'အကြောင်းအရာမရှိသေး',
+    'discover.newProduct': 'အသစ်',
+    'discover.hotSale': 'ရောင်းအားကောင်း',
     'discover.noCampaigns': 'ကမ်ပိန်းမရှိပါ',
     'discover.checkBackLater': 'နောက်မှပြန်လာပါ',
 

@@ -1,17 +1,30 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { Search, Heart, MapPin, ChevronDown, Sparkles, Locate, Ticket, Users, Clock, Percent } from 'lucide-react';
+import { Search, Heart, MapPin, ChevronDown, Sparkles, Locate, Ticket, Users, Clock, Percent, Package } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { UserBottomNav } from '@/components/UserBottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
-import type { Campaign, Store as StoreType } from '@shared/schema';
+import type { Campaign, Store as StoreType, Product } from '@shared/schema';
 
 interface CampaignWithStores extends Campaign {
   stores: StoreType[];
 }
+
+interface ProductWithStore extends Product {
+  store: {
+    id: number;
+    name: string;
+    imageUrl: string | null;
+    city: string | null;
+  } | null;
+}
+
+type FeedItem = 
+  | { type: 'campaign'; data: CampaignWithStores; sortKey: number }
+  | { type: 'product'; data: ProductWithStore; sortKey: number };
 
 const DISCOVER_CATEGORIES = ['food', 'shopping', 'relax', 'family', 'entertainment', 'stay', 'travel', 'featured'] as const;
 type DiscoverCategoryType = typeof DISCOVER_CATEGORIES[number];
@@ -149,16 +162,147 @@ function DiscoverSkeleton() {
   );
 }
 
+function ProductCard({ product, index }: { product: ProductWithStore; index: number }) {
+  const { language, t } = useLanguage();
+  const [liked, setLiked] = useState(false);
+  const [likeCount] = useState(() => Math.floor(Math.random() * 2000) + 100);
+  
+  const gradientClass = GRADIENT_COLORS[index % GRADIENT_COLORS.length];
+
+  const handleLike = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLiked(!liked);
+  };
+
+  const storeName = product.store?.name || t('feed.anonymousUser');
+  const storeAvatar = product.store?.imageUrl;
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'k';
+    }
+    return num.toString();
+  };
+
+  const formatPrice = (price: string | number) => {
+    return Number(price).toFixed(0);
+  };
+
+  return (
+    <Link href={`/product/${product.id}`}>
+      <div 
+        className="bg-card rounded-xl overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-shadow duration-200"
+        style={{ aspectRatio: '1 / 1.618' }}
+        data-testid={`card-product-${product.id}`}
+      >
+        <div className="relative w-full h-[65%] overflow-hidden">
+          {product.coverImage ? (
+            <img 
+              src={product.coverImage} 
+              alt={product.name} 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className={`w-full h-full bg-gradient-to-br ${gradientClass} flex items-center justify-center`}>
+              <div className="text-center text-white/90">
+                <Package className="w-6 h-6 mx-auto mb-1 opacity-80" />
+                <span className="text-[10px] font-medium opacity-70">{t('discover.newProduct')}</span>
+              </div>
+            </div>
+          )}
+          
+          <Badge 
+            variant="secondary" 
+            className="absolute top-1.5 left-1.5 bg-[#38B03B] text-white border-0 text-[9px] px-1.5 py-0.5"
+          >
+            ฿{formatPrice(product.price)}
+          </Badge>
+          
+          {product.isHot && (
+            <Badge 
+              variant="secondary" 
+              className="absolute top-1.5 right-1.5 bg-red-500 text-white border-0 text-[9px] px-1.5 py-0.5"
+            >
+              {t('discover.hotSale')}
+            </Badge>
+          )}
+        </div>
+
+        <div className="h-[35%] p-2 flex flex-col justify-between">
+          <h3 
+            className="text-[11px] font-medium text-foreground line-clamp-2 leading-tight"
+            data-testid={`text-product-title-${product.id}`}
+          >
+            {product.name}
+          </h3>
+          
+          <div className="flex items-center justify-between mt-auto">
+            <div className="flex items-center gap-1 min-w-0 flex-1">
+              <Avatar className="w-4 h-4 flex-shrink-0">
+                <AvatarImage src={storeAvatar || undefined} />
+                <AvatarFallback className="text-[7px] bg-muted">
+                  {storeName.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-[9px] text-muted-foreground truncate">{storeName}</span>
+            </div>
+            
+            <button
+              onClick={handleLike}
+              className="flex items-center gap-0.5 text-[9px] text-muted-foreground"
+              data-testid={`button-like-product-${product.id}`}
+            >
+              <Heart className={`w-3 h-3 ${liked ? 'fill-red-500 text-red-500' : ''}`} />
+              <span className={liked ? 'text-red-500' : ''}>{formatNumber(likeCount + (liked ? 1 : 0))}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 export default function ShopHome() {
   const { t } = useLanguage();
   const [activeCategory, setActiveCategory] = useState<DiscoverCategoryType>('food');
   const [activePromo, setActivePromo] = useState<PromoType | null>(null);
   
-  const { data: campaignsData, isLoading } = useQuery<{ success: boolean; data: CampaignWithStores[] }>({
+  const { data: campaignsData, isLoading: campaignsLoading } = useQuery<{ success: boolean; data: CampaignWithStores[] }>({
     queryKey: ['/api/campaigns'],
   });
 
+  const { data: productsData, isLoading: productsLoading } = useQuery<{ success: boolean; data: ProductWithStore[] }>({
+    queryKey: ['/api/products'],
+  });
+
   const campaigns = campaignsData?.data || [];
+  const products = productsData?.data || [];
+  const isLoading = campaignsLoading || productsLoading;
+
+  // 混杂显示商品和活动
+  const feedItems = useMemo<FeedItem[]>(() => {
+    const items: FeedItem[] = [];
+    
+    campaigns.forEach((campaign, index) => {
+      items.push({
+        type: 'campaign',
+        data: campaign,
+        sortKey: index * 2,
+      });
+    });
+    
+    products.forEach((product, index) => {
+      items.push({
+        type: 'product',
+        data: product,
+        sortKey: index * 2 + 1,
+      });
+    });
+    
+    // 交替排序：活动、商品、活动、商品...
+    return items.sort((a, b) => a.sortKey - b.sortKey);
+  }, [campaigns, products]);
 
   const categoryLabels: Record<DiscoverCategoryType, string> = {
     food: t('discover.catFood'),
@@ -257,15 +401,19 @@ export default function ShopHome() {
               <DiscoverSkeleton key={i} />
             ))}
           </div>
-        ) : campaigns.length === 0 ? (
+        ) : feedItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
             <Sparkles className="w-16 h-16 text-muted-foreground mb-4" />
             <p className="text-muted-foreground text-sm">{t('discover.noContent')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
-            {campaigns.map((campaign, index) => (
-              <DiscoverCard key={campaign.id} campaign={campaign} index={index} />
+            {feedItems.map((item, index) => (
+              item.type === 'campaign' ? (
+                <DiscoverCard key={`campaign-${item.data.id}`} campaign={item.data} index={index} />
+              ) : (
+                <ProductCard key={`product-${item.data.id}`} product={item.data} index={index} />
+              )
             ))}
           </div>
         )}
