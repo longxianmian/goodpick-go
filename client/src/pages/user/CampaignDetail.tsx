@@ -440,22 +440,6 @@ export default function CampaignDetail() {
             </div>
           )}
           
-          {/* Image counter and style button */}
-          {mediaUrls.length > 0 && (
-            <div className="absolute bottom-3 right-3 flex items-center gap-2">
-              <span className="bg-black/60 text-white text-xs px-2 py-1 rounded-md">
-                {t('productDetail.imageCount', { current: String(currentImageIndex + 1), total: String(mediaUrls.length) })}
-              </span>
-              <Button 
-                size="sm" 
-                variant="secondary" 
-                className="bg-black/60 text-white text-xs h-7"
-                data-testid="button-styles"
-              >
-                {t('productDetail.styles')}
-              </Button>
-            </div>
-          )}
         </div>
 
         {/* Thumbnail row */}
@@ -510,7 +494,7 @@ export default function CampaignDetail() {
           {/* Coupon type tag */}
           <div className="mt-2 flex items-center gap-2">
             <Badge className="bg-[#38B03B] text-white text-xs">
-              {campaign.discountType === 'percent' ? t('shop.percentOff') : t('shop.fixedDiscount')}
+              {t(`discountType.${campaign.discountType}`)}
             </Badge>
             <Badge variant="outline" className="text-[#38B03B] border-[#38B03B] text-xs">
               {t('coupon.useWhenPay')}
