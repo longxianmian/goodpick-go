@@ -73,8 +73,25 @@ The backend is built with Express.js and Node.js, using PostgreSQL via Drizzle O
 
 ### Git Branches
 -   **开发环境 (Replit)**: `main` 分支
--   **生产服务器 (阿里云ECS)**: `prod-20251117-line-login-ok` 分支
+-   **生产服务器 (阿里云ECS)**: `main` 分支（从Replit推送后拉取）
 -   **服务器路径**: `/var/www/goodpick-go`
+
+### 推送部署流程
+1. **从 Replit 推送代码**:
+```bash
+git add .
+git commit -m "描述你的更改"
+git push origin main
+```
+
+2. **在阿里云服务器部署**:
+```bash
+ssh root@服务器IP
+cd /var/www/goodpick-go
+git pull origin main
+npm install  # 如果有新依赖
+pm2 restart all
+```
 
 ### Server Info
 -   **阿里云ECS实例**: iZt4n4cftt8gn7dthjne54Z
