@@ -1418,6 +1418,52 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // 公开的商品详情API（消费者端使用）
+  app.get('/api/products/:id', async (req: Request, res: Response) => {
+    try {
+      const productId = parseInt(req.params.id);
+      
+      if (isNaN(productId)) {
+        return res.status(400).json({ success: false, message: '无效的商品ID' });
+      }
+
+      const [product] = await db
+        .select()
+        .from(products)
+        .where(eq(products.id, productId))
+        .limit(1);
+
+      if (!product) {
+        return res.status(404).json({ success: false, message: '商品不存在' });
+      }
+
+      // 获取店铺信息
+      const [store] = await db
+        .select({
+          id: stores.id,
+          name: stores.name,
+          imageUrl: stores.imageUrl,
+          city: stores.city,
+          address: stores.address,
+          phone: stores.phone,
+        })
+        .from(stores)
+        .where(eq(stores.id, product.storeId))
+        .limit(1);
+
+      res.json({
+        success: true,
+        data: {
+          ...product,
+          store: store || null,
+        },
+      });
+    } catch (error) {
+      console.error('Get product detail error:', error);
+      res.status(500).json({ success: false, message: '获取商品详情失败' });
+    }
+  });
+
       app.get('/api/campaigns/:id', optionalUserAuth, async (req: Request, res: Response) => {
     try {
       const sessionId = req.headers['x-gpgo-session'] || 'no-session-id';
