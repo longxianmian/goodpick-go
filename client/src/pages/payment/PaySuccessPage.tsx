@@ -183,8 +183,8 @@ export default function PaySuccessPage() {
 
   if (isPending) {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-[375px] bg-white rounded-3xl shadow-xl p-6 text-center">
+      <div className="min-h-screen bg-slate-100 overflow-y-auto py-4 px-4 md:flex md:items-center md:justify-center">
+        <div className="w-full max-w-[375px] mx-auto bg-white rounded-3xl shadow-xl p-6 text-center">
           <Loader2 className="w-16 h-16 animate-spin text-slate-400 mx-auto mb-4" />
           <h1 className="text-xl font-semibold text-slate-800 mb-2">{t('paySuccess.processing')}</h1>
           <p className="text-slate-500">
@@ -197,8 +197,8 @@ export default function PaySuccessPage() {
 
   if (!isPaid) {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-[375px] bg-white rounded-3xl shadow-xl p-6 text-center">
+      <div className="min-h-screen bg-slate-100 overflow-y-auto py-4 px-4 md:flex md:items-center md:justify-center">
+        <div className="w-full max-w-[375px] mx-auto bg-white rounded-3xl shadow-xl p-6 text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h1 className="text-xl font-semibold text-slate-800 mb-2">{t('paySuccess.failed')}</h1>
           <p className="text-slate-500">
@@ -212,8 +212,8 @@ export default function PaySuccessPage() {
   const formattedAmount = parseFloat(payment.amount).toLocaleString('en-US', { minimumFractionDigits: 2 });
 
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-[375px] bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200 flex flex-col" style={{ minHeight: '600px' }}>
+    <div className="min-h-screen bg-slate-100 overflow-y-auto py-4 px-4 md:flex md:items-center md:justify-center">
+      <div className="w-full max-w-[375px] mx-auto bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200 flex flex-col">
         {/* Top bar */}
         <div className="px-4 pt-4 pb-3 bg-white border-b border-slate-100 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
