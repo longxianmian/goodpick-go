@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
 import { 
   Menu,
   ChevronRight,
@@ -33,6 +34,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MerchantBottomNav } from '@/components/MerchantBottomNav';
 import { DrawerMenu } from '@/components/DrawerMenu';
+import { MerchantChatFloatingButton } from '@/components/MerchantChatFloatingButton';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -59,6 +61,14 @@ export default function MeOwner() {
   const isTestAccount = user?.isTestAccount === true;
   
   const ownerRoles = userRoles.filter(r => r.role === 'owner');
+  
+  const { data: myStoresData } = useQuery<{ success: boolean; data: any[] }>({
+    queryKey: ['/api/stores/my'],
+    enabled: !!user,
+  });
+  
+  const myStores = myStoresData?.data || [];
+  const primaryStore = myStores[0];
   
   const allRoleOptions = [
     { role: 'consumer', label: t('roles.consumer'), icon: User, path: '/me', color: 'text-blue-500' },
@@ -636,6 +646,7 @@ export default function MeOwner() {
 
       <MerchantBottomNav />
       <DrawerMenu open={drawerOpen} onOpenChange={setDrawerOpen} />
+      {primaryStore && <MerchantChatFloatingButton storeId={primaryStore.id} />}
     </div>
   );
 }

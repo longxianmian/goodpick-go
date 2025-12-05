@@ -3522,6 +3522,60 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Merchant: Get my stores (stores owned by current user)
+  app.get('/api/stores/my', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ success: false, message: '未登录' });
+      }
+      
+      // Get stores where user is owner or has operator role
+      const ownedStores = await db
+        .select()
+        .from(stores)
+        .where(eq(stores.ownerId, userId))
+        .orderBy(desc(stores.createdAt));
+      
+      // Also get stores where user has operator role
+      const operatorRoles = await db
+        .select({
+          storeId: merchantStaffRoles.storeId,
+        })
+        .from(merchantStaffRoles)
+        .where(
+          and(
+            eq(merchantStaffRoles.userId, userId),
+            eq(merchantStaffRoles.role, 'operator')
+          )
+        );
+      
+      const operatorStoreIds = operatorRoles.map(r => r.storeId).filter((id): id is number => id !== null);
+      
+      let operatorStores: any[] = [];
+      if (operatorStoreIds.length > 0) {
+        operatorStores = await db
+          .select()
+          .from(stores)
+          .where(inArray(stores.id, operatorStoreIds));
+      }
+      
+      // Combine and deduplicate
+      const allStores = [...ownedStores];
+      for (const store of operatorStores) {
+        if (!allStores.find(s => s.id === store.id)) {
+          allStores.push(store);
+        }
+      }
+      
+      res.json({ success: true, data: allStores });
+    } catch (error) {
+      console.error('Get my stores error:', error);
+      res.status(500).json({ success: false, message: '获取店铺列表失败' });
+    }
+  });
+
   // Public: Get single store details (for store front page)
   app.get('/api/stores/:id', async (req: Request, res: Response) => {
     try {
