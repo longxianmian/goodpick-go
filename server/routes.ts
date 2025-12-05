@@ -4953,7 +4953,8 @@ export function registerRoutes(app: Express): Server {
           creatorUserId: shortVideos.creatorUserId,
           storeId: shortVideos.storeId,
           campaignId: shortVideos.campaignId,
-          creatorName: users.displayName,
+          creatorShuaName: users.shuaName,
+          creatorDisplayName: users.displayName,
           creatorAvatar: users.avatarUrl,
         })
         .from(shortVideos)
@@ -4985,6 +4986,7 @@ export function registerRoutes(app: Express): Server {
         data: {
           items: items.map(v => ({
             ...v,
+            creatorName: v.creatorShuaName || v.creatorDisplayName || '匿名用户',
             videoUrl: convertHttpToHttps(v.videoUrl),
             hlsUrl: convertHttpToHttps(v.hlsUrl),
             coverImageUrl: convertHttpToHttps(v.coverImageUrl),
@@ -5030,7 +5032,8 @@ export function registerRoutes(app: Express): Server {
           creatorUserId: shortVideos.creatorUserId,
           storeId: shortVideos.storeId,
           campaignId: shortVideos.campaignId,
-          creatorName: users.displayName,
+          creatorShuaName: users.shuaName,
+          creatorDisplayName: users.displayName,
           creatorAvatar: users.avatarUrl,
         })
         .from(shortVideos)
@@ -5064,6 +5067,7 @@ export function registerRoutes(app: Express): Server {
         success: true,
         data: { 
           ...video, 
+          creatorName: video.creatorShuaName || video.creatorDisplayName || '匿名用户',
           videoUrl: convertHttpToHttps(video.videoUrl),
           hlsUrl: convertHttpToHttps(video.hlsUrl),
           coverImageUrl: convertHttpToHttps(video.coverImageUrl),
