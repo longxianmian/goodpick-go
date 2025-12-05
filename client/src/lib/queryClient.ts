@@ -18,11 +18,12 @@ export async function apiRequest(
   const userToken = localStorage.getItem('userToken');
   
   // 根据URL路径选择正确的token
-  // /api/creator/*, /api/user/*, /api/short-videos/*, /api/stores/*, /api/payments/* 需要userToken
+  // /api/creator/*, /api/user/*, /api/short-videos/*, /api/stores/*, /api/payments/*, /api/chat/* 需要userToken
   // /api/admin/* 需要adminToken
   const isUserRoute = url.includes('/api/creator') || url.includes('/api/user') || 
                       url.includes('/api/short-videos') || url.includes('/api/me') ||
-                      url.includes('/api/stores') || url.includes('/api/payments');
+                      url.includes('/api/stores') || url.includes('/api/payments') ||
+                      url.includes('/api/chat');
   const isAdminRoute = url.includes('/api/admin');
   
   if (isAdminRoute && adminToken) {
@@ -65,7 +66,8 @@ export const getQueryFn: <T>(options: {
     const url = queryKey[0] as string;
     const isUserRoute = url.includes('/api/creator') || url.includes('/api/user') || 
                         url.includes('/api/short-videos') || url.includes('/api/me') ||
-                        url.includes('/api/stores') || url.includes('/api/payments');
+                        url.includes('/api/stores') || url.includes('/api/payments') ||
+                        url.includes('/api/chat');
     const isAdminRoute = url.includes('/api/admin');
     
     if (isAdminRoute && adminToken) {

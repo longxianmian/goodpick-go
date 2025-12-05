@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MessageCircle, X, ArrowLeft, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { apiRequest } from '@/lib/queryClient';
 
 interface ChatConversation {
   id: number;
@@ -46,6 +46,7 @@ interface MerchantChatFloatingButtonProps {
 export function MerchantChatFloatingButton({ storeId }: MerchantChatFloatingButtonProps) {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState<ChatConversation | null>(null);
   const [messageInput, setMessageInput] = useState('');
@@ -71,10 +72,12 @@ export function MerchantChatFloatingButton({ storeId }: MerchantChatFloatingButt
   useEffect(() => {
     if (selectedConversation && messagesData?.success) {
       apiRequest('POST', `/api/chat/conversations/${selectedConversation.id}/read`)
-        .then(() => refetchConversations())
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ['/api/chat/merchant/conversations', storeId] });
+        })
         .catch(() => {});
     }
-  }, [selectedConversation, messagesData]);
+  }, [selectedConversation, messagesData, storeId, queryClient]);
 
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedConversation || isSending) return;
@@ -85,8 +88,8 @@ export function MerchantChatFloatingButton({ storeId }: MerchantChatFloatingButt
         content: messageInput.trim(),
       });
       setMessageInput('');
-      refetchMessages();
-      refetchConversations();
+      queryClient.invalidateQueries({ queryKey: ['/api/chat/conversations', selectedConversation.id, 'messages'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/chat/merchant/conversations', storeId] });
     } catch (error) {
       console.error('Failed to send message:', error);
     } finally {
