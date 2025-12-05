@@ -10,7 +10,7 @@ import { db } from './db';
 import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints } from '@shared/schema';
 import { getPaymentProvider } from './services/paymentProvider';
 import QRCode from 'qrcode';
-import { eq, and, desc, sql, inArray, isNotNull, or, gte } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray, isNotNull, or, gte, gt } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
 import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
 import { translateText } from './services/translationService';
@@ -6900,6 +6900,81 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Get QR code meta error:', error);
       res.status(500).json({ success: false, message: 'Failed to get QR code info' });
+    }
+  });
+
+  // 获取用户在指定门店可用的优惠券
+  app.get('/api/payments/available-coupons', async (req: Request, res: Response) => {
+    try {
+      const { store_id } = req.query;
+      
+      // 从 JWT token 获取用户信息
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith('Bearer ')) {
+        return res.json({ success: true, data: [] }); // 未登录返回空列表
+      }
+      
+      const token = authHeader.slice(7);
+      let userId: number;
+      
+      try {
+        const jwtSecret = process.env.JWT_SECRET || 'dev-secret-key';
+        const decoded = jwt.verify(token, jwtSecret) as any;
+        userId = decoded.userId;
+      } catch (err) {
+        return res.json({ success: true, data: [] }); // Token 无效返回空列表
+      }
+      
+      if (!store_id || typeof store_id !== 'string') {
+        return res.status(400).json({ success: false, message: 'Missing store_id' });
+      }
+      
+      const storeIdNum = parseInt(store_id);
+      
+      // 查询用户可用的优惠券（未使用、未过期，且该券的活动关联了此门店）
+      const now = new Date();
+      
+      const availableCoupons = await db
+        .select({
+          id: coupons.id,
+          code: coupons.code,
+          status: coupons.status,
+          issuedAt: coupons.issuedAt,
+          expiredAt: coupons.expiredAt,
+          campaignId: coupons.campaignId,
+          campaignTitle: campaigns.titleSource,
+          campaignTitleZh: campaigns.titleZh,
+          campaignTitleEn: campaigns.titleEn,
+          couponValue: campaigns.couponValue,
+          discountType: campaigns.discountType,
+        })
+        .from(coupons)
+        .innerJoin(campaigns, eq(coupons.campaignId, campaigns.id))
+        .innerJoin(campaignStores, eq(campaigns.id, campaignStores.campaignId))
+        .where(and(
+          eq(coupons.userId, userId),
+          eq(coupons.status, 'unused'),
+          gt(coupons.expiredAt, now),
+          eq(campaignStores.storeId, storeIdNum),
+          eq(campaigns.isActive, true)
+        ))
+        .orderBy(desc(coupons.issuedAt));
+      
+      res.json({ 
+        success: true, 
+        data: availableCoupons.map(c => ({
+          id: c.id,
+          code: c.code,
+          campaignId: c.campaignId,
+          campaignTitle: c.campaignTitleZh || c.campaignTitleEn || c.campaignTitle,
+          couponValue: c.couponValue,
+          discountType: c.discountType,
+          expiredAt: c.expiredAt,
+        }))
+      });
+    } catch (error) {
+      console.error('Get available coupons error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get coupons' });
     }
   });
 

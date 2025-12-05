@@ -554,8 +554,9 @@ export default function CampaignDetail() {
           {/* How to use */}
           <div className="flex items-start gap-3">
             <CheckCircle2 className="w-4 h-4 text-[#38B03B] flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-muted-foreground">
-              <span>{t('coupon.useWhenPay')}</span>
+            <div className="text-sm">
+              <span className="font-medium">{t('coupon.howToUse')}</span>
+              <span className="text-muted-foreground ml-2">{t('coupon.redeemAtStore')}</span>
             </div>
           </div>
           

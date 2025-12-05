@@ -1591,6 +1591,8 @@ const translations: Record<Language, Record<string, string>> = {
     'coupon.claimedCount': '已领取',
     'coupon.remainingCount': '剩余',
     'coupon.useWhenPay': '消费时出示核销抵扣',
+    'coupon.howToUse': '使用方式',
+    'coupon.redeemAtStore': '到店消费时出示券码核销',
     
     // Admin Login (additional)
     'adminLogin.success': '登录成功',
@@ -3480,6 +3482,8 @@ const translations: Record<Language, Record<string, string>> = {
     'coupon.claimedCount': 'Claimed',
     'coupon.remainingCount': 'Remaining',
     'coupon.useWhenPay': 'Show when paying to redeem',
+    'coupon.howToUse': 'How to use',
+    'coupon.redeemAtStore': 'Show code at store to redeem',
     
     // Admin Login (additional)
     'adminLogin.success': 'Login successful',
@@ -5044,6 +5048,8 @@ const translations: Record<Language, Record<string, string>> = {
     'coupon.claimedCount': 'รับแล้ว',
     'coupon.remainingCount': 'เหลือ',
     'coupon.useWhenPay': 'แสดงเมื่อชำระเงินเพื่อใช้ส่วนลด',
+    'coupon.howToUse': 'วิธีใช้',
+    'coupon.redeemAtStore': 'แสดงรหัสที่ร้านค้าเพื่อใช้',
     
     // Admin Login (additional)
     'adminLogin.success': 'เข้าสู่ระบบสำเร็จ',
