@@ -267,14 +267,14 @@ export default function ShuaShuaHome() {
         <div className="flex items-center justify-between px-3 h-14">
           <MenuIcon onClick={() => setDrawerOpen(true)} />
           
-          <div className="flex items-center bg-muted rounded-full p-0.5">
+          <div className="flex items-center gap-1">
             {FEED_TABS.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveFeedTab(tab)}
-                className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 ${
+                className={`px-4 py-1.5 text-sm font-semibold transition-colors ${
                   activeFeedTab === tab
-                    ? 'bg-[#38B03B] text-white shadow-sm'
+                    ? 'text-[#38B03B]'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
                 data-testid={`tab-feed-${tab}`}
