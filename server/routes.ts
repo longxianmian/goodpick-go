@@ -3844,6 +3844,7 @@ export function registerRoutes(app: Express): Server {
         phone,
         description,
         industryType,
+        category,
         businessStatus,
         businessHours,
         coverImages,
@@ -3878,6 +3879,7 @@ export function registerRoutes(app: Express): Server {
       }
       
       if (industryType !== undefined) updateData.industryType = industryType;
+      if (category !== undefined) updateData.category = category;
       if (businessStatus !== undefined) updateData.businessStatus = businessStatus;
       if (businessHours !== undefined) updateData.businessHours = businessHours;
       if (coverImages !== undefined) updateData.coverImages = coverImages;

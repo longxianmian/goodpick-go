@@ -37,6 +37,15 @@ interface BusinessHours {
   sun: string;
 }
 
+// 服务类目列表
+const STORE_CATEGORIES = [
+  'dining', 'coffee', 'dessert', 'bbq', 'beauty', 'cosmetics', 'fashion',
+  'convenience', 'grocery', 'mother_baby', 'home', 'building', 'ktv',
+  'amusement', 'hotel', 'tourism', 'rental', 'training', 'education', 'other'
+] as const;
+
+type StoreCategory = typeof STORE_CATEGORIES[number];
+
 interface StoreFormData {
   name: string;
   brand: string;
@@ -45,6 +54,7 @@ interface StoreFormData {
   phone: string;
   description: string;
   industryType: 'food' | 'retail' | 'service' | 'entertainment';
+  category: StoreCategory | null;
   businessStatus: 'open' | 'closed' | 'temporarily_closed';
   businessHours: BusinessHours;
   coverImages: string[];
@@ -85,6 +95,7 @@ export default function MerchantStoreEdit() {
     phone: '',
     description: '',
     industryType: 'food',
+    category: null,
     businessStatus: 'open',
     businessHours: defaultBusinessHours,
     coverImages: [],
@@ -123,6 +134,7 @@ export default function MerchantStoreEdit() {
         phone: store.phone || '',
         description: store.descriptionZh || store.descriptionEn || '',
         industryType: (store.industryType as StoreFormData['industryType']) || 'food',
+        category: (store.category as StoreCategory) || null,
         businessStatus: (store.businessStatus as StoreFormData['businessStatus']) || 'open',
         businessHours: parsedBusinessHours,
         coverImages: store.coverImages || [],
@@ -319,6 +331,28 @@ export default function MerchantStoreEdit() {
                       <SelectItem value="entertainment">{t('storeFront.industryEntertainment')}</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="category">{t('merchant.serviceCategory')}</Label>
+                  <Select 
+                    value={formData.category || ''} 
+                    onValueChange={(v) => handleInputChange('category', v || null)}
+                  >
+                    <SelectTrigger data-testid="select-category">
+                      <SelectValue placeholder={t('merchant.selectCategory')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STORE_CATEGORIES.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {t(`category.${cat}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {t('merchant.categoryHint')}
+                  </p>
                 </div>
 
                 <div className="space-y-2">
