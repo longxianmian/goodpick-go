@@ -10,6 +10,7 @@ import { useParams } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2, AlertCircle, Ticket, ChevronRight, Check, X } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface StoreMetaData {
   qrCodeId: number;
@@ -32,6 +33,7 @@ interface AvailableCoupon {
 }
 
 export default function PayEntryPage() {
+  const { t } = useLanguage();
   const params = useParams<{ qrToken: string }>();
   const qrToken = params.qrToken;
   
@@ -169,9 +171,9 @@ export default function PayEntryPage() {
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
         <div className="w-full max-w-[375px] bg-white rounded-3xl shadow-xl p-6 text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-xl font-semibold text-slate-800 mb-2">QR Code Invalid</h1>
+          <h1 className="text-xl font-semibold text-slate-800 mb-2">{t('payEntry.qrInvalid')}</h1>
           <p className="text-slate-500">
-            This payment QR code is not available or has been disabled.
+            {t('payEntry.qrInvalidDesc')}
           </p>
         </div>
       </div>
@@ -190,17 +192,17 @@ export default function PayEntryPage() {
               S
             </div>
             <div className="flex flex-col leading-tight">
-              <div className="text-[13px] font-semibold text-slate-800">Payment amount confirmation</div>
+              <div className="text-[13px] font-semibold text-slate-800">{t('payEntry.title')}</div>
               <div className="text-[10px] text-slate-400 flex items-center gap-1">
                 <span className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-emerald-500">
                   <span className="w-1.5 h-1.5 border-[1.5px] border-white border-t-transparent border-l-transparent rounded-sm rotate-45" />
                 </span>
-                <span>Secure page</span>
+                <span>{t('payEntry.securePage')}</span>
               </div>
             </div>
           </div>
           <div className="flex flex-col items-end leading-tight">
-            <span className="text-[10px] text-slate-400">Page service by</span>
+            <span className="text-[10px] text-slate-400">{t('payEntry.serviceBy')}</span>
             <span className="text-[11px] font-medium text-slate-600">DeeCard / Shuashua</span>
           </div>
         </div>
@@ -228,7 +230,7 @@ export default function PayEntryPage() {
                     {store.storeName}
                   </p>
                   <span className="px-1.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-[10px] text-emerald-700 flex-shrink-0">
-                    Verified store
+                    {t('payEntry.verifiedStore')}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400 truncate">{store.storeAddress}</p>
@@ -240,8 +242,8 @@ export default function PayEntryPage() {
             {/* Amount confirmation */}
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[12px] text-slate-500">Payment amount</span>
-                <span className="text-[11px] text-emerald-600">Please confirm with staff</span>
+                <span className="text-[12px] text-slate-500">{t('payEntry.paymentAmount')}</span>
+                <span className="text-[11px] text-emerald-600">{t('payEntry.confirmWithStaff')}</span>
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-[16px] font-semibold text-slate-900">THB</span>
@@ -256,7 +258,7 @@ export default function PayEntryPage() {
                 />
               </div>
               <p className="text-[11px] text-slate-400">
-                The system will use this amount to create a secure payment request only for this transaction.
+                {t('payEntry.amountHint')}
               </p>
             </div>
 
@@ -271,9 +273,9 @@ export default function PayEntryPage() {
                 >
                   <div className="flex items-center gap-2">
                     <Ticket className="w-4 h-4 text-emerald-500" />
-                    <span className="text-[13px] text-slate-700">Use coupon</span>
+                    <span className="text-[13px] text-slate-700">{t('payEntry.useCoupon')}</span>
                     <span className="text-[11px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">
-                      {availableCoupons.length} available
+                      {availableCoupons.length} {t('payEntry.available')}
                     </span>
                   </div>
                   {selectedCoupon ? (
@@ -304,15 +306,15 @@ export default function PayEntryPage() {
                 <div className="h-px bg-slate-100" />
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2 text-[12px]">
-                    <span className="text-slate-500">Original amount</span>
+                    <span className="text-slate-500">{t('payEntry.originalAmount')}</span>
                     <span className="text-slate-600">THB {parseFloat(amount).toFixed(2)}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 text-[12px]">
-                    <span className="text-emerald-600">Coupon discount</span>
+                    <span className="text-emerald-600">{t('payEntry.couponDiscount')}</span>
                     <span className="text-emerald-600">-THB {discountInfo.discountAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 text-[14px] font-semibold">
-                    <span className="text-slate-700">Final amount</span>
+                    <span className="text-slate-700">{t('payEntry.finalAmount')}</span>
                     <span className="text-slate-900">THB {discountInfo.finalAmount.toFixed(2)}</span>
                   </div>
                 </div>
@@ -329,18 +331,18 @@ export default function PayEntryPage() {
               {isProcessing ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Processing...</span>
+                  <span>{t('payEntry.processing')}</span>
                 </>
               ) : (
                 selectedCoupon 
-                  ? `Pay THB ${discountInfo.finalAmount.toFixed(2)}`
-                  : 'Confirm and continue to pay'
+                  ? `${t('payEntry.payAmount')} ${discountInfo.finalAmount.toFixed(2)}`
+                  : t('payEntry.confirmAndPay')
               )}
             </button>
 
             {/* PSP info - 显示名称从后端获取 */}
             <div className="mt-2 flex items-center justify-center gap-1 text-[10px] text-slate-400 flex-wrap">
-              <span>Payment service via</span>
+              <span>{t('payEntry.paymentVia')}</span>
               <span className="px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200 text-[10px] font-medium text-slate-600">
                 {store.pspDisplayName || 'Payment Service'}
               </span>
@@ -349,11 +351,7 @@ export default function PayEntryPage() {
 
           {/* Legal & branding area */}
           <div className="mt-1 text-center text-[10px] text-slate-400 space-y-1 pb-2">
-            <p>
-              This page is provided by DeeCard / Shuashua only to show merchant payment information and
-              membership points. Actual payment services are provided directly by licensed PSPs in Thailand.
-            </p>
-            <p>DeeCard / Shuashua does not hold customer funds.</p>
+            <p>{t('payEntry.disclaimer')}</p>
           </div>
         </div>
       </div>
@@ -363,7 +361,7 @@ export default function PayEntryPage() {
         <div className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center">
           <div className="w-full max-w-[375px] bg-white rounded-t-3xl max-h-[70vh] flex flex-col animate-slide-up">
             <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
-              <h3 className="text-[15px] font-semibold text-slate-800">Select a coupon</h3>
+              <h3 className="text-[15px] font-semibold text-slate-800">{t('payEntry.selectCoupon')}</h3>
               <button 
                 onClick={() => setShowCouponSelector(false)}
                 className="p-1 rounded-full bg-slate-100"
@@ -391,11 +389,11 @@ export default function PayEntryPage() {
                       </p>
                       <p className="text-[18px] font-bold text-emerald-600 mt-1">
                         {coupon.discountType === 'percent' 
-                          ? `${coupon.couponValue}% OFF` 
-                          : `THB ${coupon.couponValue} OFF`}
+                          ? `${coupon.couponValue}% ${t('payEntry.off')}` 
+                          : `THB ${coupon.couponValue} ${t('payEntry.off')}`}
                       </p>
                       <p className="text-[11px] text-slate-400 mt-1">
-                        Expires: {new Date(coupon.expiredAt).toLocaleDateString()}
+                        {t('payEntry.expires')}: {new Date(coupon.expiredAt).toLocaleDateString()}
                       </p>
                     </div>
                     {selectedCoupon?.id === coupon.id && (
