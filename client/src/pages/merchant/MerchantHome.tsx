@@ -435,7 +435,13 @@ export default function MerchantHome() {
         <main className="px-4 py-8 max-w-lg mx-auto text-center">
           <Store className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-lg font-semibold mb-2">{t('merchant.noStores')}</h2>
-          <p className="text-sm text-muted-foreground">{t('merchant.noStoresDesc')}</p>
+          <p className="text-sm text-muted-foreground mb-6">{t('merchant.noStoresDesc')}</p>
+          <Link href="/merchant/store-create">
+            <Button className="gap-2" data-testid="button-create-store">
+              <Store className="w-4 h-4" />
+              {t('merchant.createStore')}
+            </Button>
+          </Link>
         </main>
         <MerchantBottomNav />
       </div>

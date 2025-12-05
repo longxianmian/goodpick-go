@@ -149,7 +149,7 @@ export default function MerchantStoreCreate() {
       <div className="min-h-screen bg-background pb-6">
         <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
           <div className="flex items-center h-12 px-4 gap-2">
-            <Link href="/merchant/store-settings">
+            <Link href="/merchant">
               <Button variant="ghost" size="icon" data-testid="button-back">
                 <ChevronLeft className="w-5 h-5" />
               </Button>
@@ -177,7 +177,7 @@ export default function MerchantStoreCreate() {
     <div className="min-h-screen bg-background pb-6">
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="flex items-center h-12 px-4 gap-2">
-          <Link href="/merchant/store-settings">
+          <Link href="/merchant">
             <Button variant="ghost" size="icon" data-testid="button-back">
               <ChevronLeft className="w-5 h-5" />
             </Button>
