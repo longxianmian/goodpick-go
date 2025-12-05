@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints } from '@shared/schema';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints } from '@shared/schema';
 import { getPaymentProvider } from './services/paymentProvider';
 import QRCode from 'qrcode';
 import { eq, and, desc, sql, inArray, isNotNull, or } from 'drizzle-orm';
@@ -5103,6 +5103,63 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Post short video comment error:', error);
       res.status(500).json({ success: false, message: '发表评论失败' });
+    }
+  });
+
+  // 评论点赞/取消点赞
+  app.post('/api/short-videos/comments/:id/like', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const commentId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      // 检查评论是否存在
+      const [comment] = await db
+        .select()
+        .from(shortVideoComments)
+        .where(eq(shortVideoComments.id, commentId));
+
+      if (!comment) {
+        return res.status(404).json({ success: false, message: '评论不存在' });
+      }
+
+      // 检查是否已点赞
+      const [existingLike] = await db
+        .select()
+        .from(shortVideoCommentLikes)
+        .where(and(
+          eq(shortVideoCommentLikes.commentId, commentId),
+          eq(shortVideoCommentLikes.userId, userId)
+        ));
+
+      if (existingLike) {
+        // 取消点赞
+        await db
+          .delete(shortVideoCommentLikes)
+          .where(eq(shortVideoCommentLikes.id, existingLike.id));
+        
+        await db
+          .update(shortVideoComments)
+          .set({ likeCount: sql`GREATEST(${shortVideoComments.likeCount} - 1, 0)` })
+          .where(eq(shortVideoComments.id, commentId));
+
+        res.json({ success: true, liked: false });
+      } else {
+        // 添加点赞
+        await db.insert(shortVideoCommentLikes).values({
+          commentId,
+          userId,
+        });
+
+        await db
+          .update(shortVideoComments)
+          .set({ likeCount: sql`${shortVideoComments.likeCount} + 1` })
+          .where(eq(shortVideoComments.id, commentId));
+
+        res.json({ success: true, liked: true });
+      }
+    } catch (error) {
+      console.error('Like comment error:', error);
+      res.status(500).json({ success: false, message: '操作失败' });
     }
   });
 

@@ -821,6 +821,22 @@ export const insertShortVideoCommentSchema = createInsertSchema(shortVideoCommen
 export type InsertShortVideoComment = z.infer<typeof insertShortVideoCommentSchema>;
 export type ShortVideoComment = typeof shortVideoComments.$inferSelect;
 
+export const shortVideoCommentLikes = pgTable('short_video_comment_likes', {
+  id: serial('id').primaryKey(),
+  commentId: integer('comment_id').notNull().references(() => shortVideoComments.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqCommentUser: unique().on(table.commentId, table.userId),
+}));
+
+export const insertShortVideoCommentLikeSchema = createInsertSchema(shortVideoCommentLikes).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertShortVideoCommentLike = z.infer<typeof insertShortVideoCommentLikeSchema>;
+export type ShortVideoCommentLike = typeof shortVideoCommentLikes.$inferSelect;
+
 // ============================================
 // 数字人系统 - 预留表结构 (Digital Agent System)
 // ============================================
