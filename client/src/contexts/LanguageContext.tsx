@@ -43,11 +43,19 @@ const translations: Record<Language, Record<string, string>> = {
     
     // Login
     'login.title': '管理后台登录',
+    'login.description': '请输入管理员账号登录',
     'login.email': '邮箱',
     'login.password': '密码',
     'login.submit': '登录',
+    'login.signIn': '登录',
+    'login.signingIn': '登录中...',
     'login.emailPlaceholder': '请输入邮箱',
     'login.passwordPlaceholder': '请输入密码',
+    'login.welcome': '欢迎回来',
+    'login.loginSuccess': '登录成功',
+    'login.loginFailed': '登录失败',
+    'login.invalidCredentials': '邮箱或密码错误',
+    'login.connectionError': '网络连接失败，请重试',
     
     // Stores
     'stores.title': '门店管理',
@@ -533,11 +541,19 @@ const translations: Record<Language, Record<string, string>> = {
     
     // Login
     'login.title': 'Admin Login',
+    'login.description': 'Enter admin credentials to login',
     'login.email': 'Email',
     'login.password': 'Password',
     'login.submit': 'Login',
+    'login.signIn': 'Sign In',
+    'login.signingIn': 'Signing in...',
     'login.emailPlaceholder': 'Enter email',
     'login.passwordPlaceholder': 'Enter password',
+    'login.welcome': 'Welcome back',
+    'login.loginSuccess': 'Login successful',
+    'login.loginFailed': 'Login failed',
+    'login.invalidCredentials': 'Invalid email or password',
+    'login.connectionError': 'Connection failed, please try again',
     
     // Stores
     'stores.title': 'Stores Management',
@@ -1023,11 +1039,19 @@ const translations: Record<Language, Record<string, string>> = {
     
     // Login
     'login.title': 'เข้าสู่ระบบผู้ดูแล',
+    'login.description': 'กรุณากรอกข้อมูลผู้ดูแลเพื่อเข้าสู่ระบบ',
     'login.email': 'อีเมล',
     'login.password': 'รหัสผ่าน',
     'login.submit': 'เข้าสู่ระบบ',
+    'login.signIn': 'เข้าสู่ระบบ',
+    'login.signingIn': 'กำลังเข้าสู่ระบบ...',
     'login.emailPlaceholder': 'กรุณากรอกอีเมล',
     'login.passwordPlaceholder': 'กรุณากรอกรหัสผ่าน',
+    'login.welcome': 'ยินดีต้อนรับกลับมา',
+    'login.loginSuccess': 'เข้าสู่ระบบสำเร็จ',
+    'login.loginFailed': 'เข้าสู่ระบบไม่สำเร็จ',
+    'login.invalidCredentials': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+    'login.connectionError': 'การเชื่อมต่อล้มเหลว กรุณาลองอีกครั้ง',
     
     // Stores
     'stores.title': 'จัดการร้านค้า',
