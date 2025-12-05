@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints, chatConversations, chatMessages, discoverApplications, shuashuaApplications, insertDiscoverApplicationSchema, insertShuashuaApplicationSchema } from '@shared/schema';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, shortVideoBookmarks, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints, chatConversations, chatMessages, discoverApplications, shuashuaApplications, insertDiscoverApplicationSchema, insertShuashuaApplicationSchema } from '@shared/schema';
 import { getPaymentProvider } from './services/paymentProvider';
 import QRCode from 'qrcode';
 import { eq, and, desc, sql, inArray, isNotNull, or, gte, gt } from 'drizzle-orm';
@@ -5568,6 +5568,43 @@ export function registerRoutes(app: Express): Server {
       }
     } catch (error) {
       console.error('Like short video error:', error);
+      res.status(500).json({ success: false, message: '操作失败' });
+    }
+  });
+
+  // 收藏/取消收藏短视频
+  app.post('/api/short-videos/:id/bookmark', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const videoId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      // 检查是否已收藏
+      const [existingBookmark] = await db
+        .select()
+        .from(shortVideoBookmarks)
+        .where(and(
+          eq(shortVideoBookmarks.videoId, videoId),
+          eq(shortVideoBookmarks.userId, userId)
+        ));
+
+      if (existingBookmark) {
+        // 取消收藏
+        await db
+          .delete(shortVideoBookmarks)
+          .where(eq(shortVideoBookmarks.id, existingBookmark.id));
+
+        res.json({ success: true, bookmarked: false });
+      } else {
+        // 添加收藏
+        await db.insert(shortVideoBookmarks).values({
+          videoId,
+          userId,
+        });
+
+        res.json({ success: true, bookmarked: true });
+      }
+    } catch (error) {
+      console.error('Bookmark short video error:', error);
       res.status(500).json({ success: false, message: '操作失败' });
     }
   });

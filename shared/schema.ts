@@ -862,6 +862,23 @@ export const insertShortVideoCommentLikeSchema = createInsertSchema(shortVideoCo
 export type InsertShortVideoCommentLike = z.infer<typeof insertShortVideoCommentLikeSchema>;
 export type ShortVideoCommentLike = typeof shortVideoCommentLikes.$inferSelect;
 
+// 短视频收藏表
+export const shortVideoBookmarks = pgTable('short_video_bookmarks', {
+  id: serial('id').primaryKey(),
+  videoId: integer('video_id').notNull().references(() => shortVideos.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqVideoUser: unique().on(table.videoId, table.userId),
+}));
+
+export const insertShortVideoBookmarkSchema = createInsertSchema(shortVideoBookmarks).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertShortVideoBookmark = z.infer<typeof insertShortVideoBookmarkSchema>;
+export type ShortVideoBookmark = typeof shortVideoBookmarks.$inferSelect;
+
 // 用户关注关系表
 export const userFollows = pgTable('user_follows', {
   id: serial('id').primaryKey(),

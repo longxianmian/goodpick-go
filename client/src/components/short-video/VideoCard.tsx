@@ -19,6 +19,7 @@ export interface ShortVideoData {
   likeCount: number;
   commentCount: number;
   shareCount: number;
+  bookmarkCount?: number;
   createdAt: string;
   creatorUserId: number;
   creatorName?: string | null;
@@ -26,6 +27,7 @@ export interface ShortVideoData {
   storeId?: number | null;
   campaignId?: number | null;
   isLiked?: boolean;
+  isBookmarked?: boolean;
 }
 
 interface VideoCardProps {
@@ -34,6 +36,7 @@ interface VideoCardProps {
   onLike?: (videoId: number) => void;
   onComment?: (videoId: number) => void;
   onShare?: (videoId: number) => void;
+  onBookmark?: (videoId: number) => void;
   onUserClick?: (userId: number) => void;
 }
 
@@ -43,6 +46,7 @@ export function VideoCard({
   onLike, 
   onComment, 
   onShare,
+  onBookmark,
   onUserClick 
 }: VideoCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -53,6 +57,8 @@ export function VideoCard({
   const [videoError, setVideoError] = useState(false);
   const [liked, setLiked] = useState(video.isLiked ?? false);
   const [likeCount, setLikeCount] = useState(video.likeCount);
+  const [bookmarked, setBookmarked] = useState(video.isBookmarked ?? false);
+  const [bookmarkCount, setBookmarkCount] = useState(video.bookmarkCount ?? 0);
   
   useEffect(() => {
     const videoEl = videoRef.current;
@@ -112,6 +118,13 @@ export function VideoCard({
     setLikeCount(prev => liked ? prev - 1 : prev + 1);
     onLike?.(video.id);
   }, [liked, video.id, onLike]);
+
+  const handleBookmark = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setBookmarked(!bookmarked);
+    setBookmarkCount(prev => bookmarked ? prev - 1 : prev + 1);
+    onBookmark?.(video.id);
+  }, [bookmarked, video.id, onBookmark]);
 
   const formatCount = (count: number): string => {
     if (count >= 10000) {
@@ -244,14 +257,14 @@ export function VideoCard({
 
         <button
           className="flex flex-col items-center gap-1"
-          onClick={(e) => { e.stopPropagation(); }}
+          onClick={handleBookmark}
           data-testid={`button-bookmark-${video.id}`}
         >
-          <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
-            <Bookmark className="w-5 h-5 text-white" />
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${bookmarked ? 'bg-yellow-500' : 'bg-white/20'} backdrop-blur`}>
+            <Bookmark className={`w-5 h-5 ${bookmarked ? 'text-white fill-white' : 'text-white'}`} />
           </div>
           <span className="text-white text-xs font-medium drop-shadow-lg">
-            {formatCount(Math.floor(video.shareCount / 2))}
+            {formatCount(bookmarkCount)}
           </span>
         </button>
 

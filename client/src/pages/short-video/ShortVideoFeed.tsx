@@ -101,6 +101,28 @@ export default function ShortVideoFeed() {
     },
   });
 
+  const bookmarkMutation = useMutation({
+    mutationFn: async (videoId: number) => {
+      const res = await apiRequest('POST', `/api/short-videos/${videoId}/bookmark`);
+      return res.json();
+    },
+    onError: () => {
+      if (!isUserAuthenticated) {
+        toast({
+          title: '请先登录',
+          description: '登录后即可收藏视频',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: '操作失败',
+          description: '请稍后重试',
+          variant: 'destructive',
+        });
+      }
+    },
+  });
+
   const handleLike = useCallback((videoId: number) => {
     if (!isUserAuthenticated) {
       toast({
@@ -111,6 +133,17 @@ export default function ShortVideoFeed() {
     }
     likeMutation.mutate(videoId);
   }, [isUserAuthenticated, likeMutation, toast]);
+
+  const handleBookmark = useCallback((videoId: number) => {
+    if (!isUserAuthenticated) {
+      toast({
+        title: '请先登录',
+        description: '登录后即可收藏视频',
+      });
+      return;
+    }
+    bookmarkMutation.mutate(videoId);
+  }, [isUserAuthenticated, bookmarkMutation, toast]);
 
   const handleComment = useCallback((videoId: number) => {
     setActiveCommentVideoId(videoId);
@@ -233,6 +266,7 @@ export default function ShortVideoFeed() {
               onLike={handleLike}
               onComment={handleComment}
               onShare={handleShare}
+              onBookmark={handleBookmark}
               onUserClick={handleUserClick}
             />
           );

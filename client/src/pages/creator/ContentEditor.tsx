@@ -571,7 +571,7 @@ export default function ContentEditor() {
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="absolute top-2 right-2 h-6 w-6 bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute bottom-2 right-2 h-6 w-6 bg-black/60 text-white"
                         onClick={() => removeMedia(index)}
                         data-testid={`button-remove-media-${index}`}
                       >
