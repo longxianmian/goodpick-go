@@ -16,6 +16,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Common
     'common.logout': '登出',
     'common.cancel': '取消',
+    'common.login': '立即登录',
     'common.save': '保存',
     'common.delete': '删除',
     'common.edit': '编辑',
@@ -2151,6 +2152,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Common
     'common.logout': 'Logout',
     'common.cancel': 'Cancel',
+    'common.login': 'Login Now',
     'common.save': 'Save',
     'common.delete': 'Delete',
     'common.edit': 'Edit',
@@ -4287,6 +4289,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Common
     'common.logout': 'ออกจากระบบ',
     'common.cancel': 'ยกเลิก',
+    'common.login': 'เข้าสู่ระบบ',
     'common.save': 'บันทึก',
     'common.delete': 'ลบ',
     'common.edit': 'แก้ไข',
@@ -6005,6 +6008,7 @@ const translations: Record<Language, Record<string, string>> = {
     'common.help': 'Bantuan',
     'common.confirm': 'Konfirmasi',
     'common.cancel': 'Batal',
+    'common.login': 'Masuk',
     'common.save': 'Simpan',
     'common.delete': 'Hapus',
     'common.edit': 'Edit',
@@ -6779,6 +6783,7 @@ const translations: Record<Language, Record<string, string>> = {
     'common.help': 'Trợ giúp',
     'common.confirm': 'Xác nhận',
     'common.cancel': 'Hủy',
+    'common.login': 'Đăng nhập',
     'common.save': 'Lưu',
     'common.delete': 'Xóa',
     'common.edit': 'Sửa',
@@ -7553,6 +7558,7 @@ const translations: Record<Language, Record<string, string>> = {
     'common.help': 'အကူအညီ',
     'common.confirm': 'အတည်ပြု',
     'common.cancel': 'ပယ်ဖျက်',
+    'common.login': 'ဝင်ရောက်',
     'common.save': 'သိမ်းဆည်း',
     'common.delete': 'ဖျက်',
     'common.edit': 'ပြင်ဆင်',
