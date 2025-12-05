@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints, chatConversations, chatMessages } from '@shared/schema';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints, chatConversations, chatMessages, discoverApplications, shuashuaApplications, insertDiscoverApplicationSchema, insertShuashuaApplicationSchema } from '@shared/schema';
 import { getPaymentProvider } from './services/paymentProvider';
 import QRCode from 'qrcode';
 import { eq, and, desc, sql, inArray, isNotNull, or, gte, gt } from 'drizzle-orm';
@@ -8364,6 +8364,236 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Get messages error:', error);
       res.status(500).json({ success: false, message: 'Failed to get messages' });
+    }
+  });
+
+  // ============ 账号申请系统 ============
+
+  // 获取用户的申请状态（发现号和刷刷号）
+  app.get('/api/me/application-status', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+
+      // 查询发现号申请
+      const [discoverApp] = await db
+        .select()
+        .from(discoverApplications)
+        .where(eq(discoverApplications.userId, userId))
+        .orderBy(desc(discoverApplications.createdAt))
+        .limit(1);
+
+      // 查询刷刷号申请
+      const [shuashuaApp] = await db
+        .select()
+        .from(shuashuaApplications)
+        .where(eq(shuashuaApplications.userId, userId))
+        .orderBy(desc(shuashuaApplications.createdAt))
+        .limit(1);
+
+      // 检查用户是否已经是商家（有 owner 角色）
+      const [merchantRole] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          eq(merchantStaffRoles.role, 'owner'),
+          eq(merchantStaffRoles.isActive, true)
+        ))
+        .limit(1);
+
+      // 检查用户是否已经是创作者（有 shuaName）
+      const [userData] = await db
+        .select({ shuaName: users.shuaName })
+        .from(users)
+        .where(eq(users.id, userId));
+
+      res.json({
+        success: true,
+        data: {
+          discover: {
+            hasApplied: !!discoverApp,
+            status: discoverApp?.status || null,
+            isMerchant: !!merchantRole,
+            application: discoverApp || null,
+          },
+          shuashua: {
+            hasApplied: !!shuashuaApp,
+            status: shuashuaApp?.status || null,
+            isCreator: !!userData?.shuaName,
+            application: shuashuaApp || null,
+          },
+        },
+      });
+    } catch (error) {
+      console.error('Get application status error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get application status' });
+    }
+  });
+
+  // 提交发现号申请（商家入驻）
+  app.post('/api/applications/discover', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+
+      // 检查是否已经是商家
+      const [existingMerchant] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          eq(merchantStaffRoles.role, 'owner'),
+          eq(merchantStaffRoles.isActive, true)
+        ))
+        .limit(1);
+
+      if (existingMerchant) {
+        return res.status(400).json({ 
+          success: false, 
+          message: '您已经是商家，无需重复申请' 
+        });
+      }
+
+      // 检查是否有待审核的申请
+      const [pendingApp] = await db
+        .select()
+        .from(discoverApplications)
+        .where(and(
+          eq(discoverApplications.userId, userId),
+          eq(discoverApplications.status, 'pending')
+        ))
+        .limit(1);
+
+      if (pendingApp) {
+        return res.status(400).json({ 
+          success: false, 
+          message: '您有待审核的申请，请耐心等待' 
+        });
+      }
+
+      // 验证请求数据
+      const validatedData = insertDiscoverApplicationSchema.parse({
+        ...req.body,
+        userId,
+      });
+
+      // 创建申请
+      const [newApplication] = await db
+        .insert(discoverApplications)
+        .values(validatedData)
+        .returning();
+
+      res.json({
+        success: true,
+        message: '申请已提交，请等待审核',
+        data: newApplication,
+      });
+    } catch (error: any) {
+      console.error('Submit discover application error:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          success: false, 
+          message: '请填写完整的申请信息',
+          errors: error.errors,
+        });
+      }
+      res.status(500).json({ success: false, message: 'Failed to submit application' });
+    }
+  });
+
+  // 提交刷刷号申请（创作者入驻）
+  app.post('/api/applications/shuashua', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+
+      // 检查是否已经是创作者
+      const [userData] = await db
+        .select({ shuaName: users.shuaName })
+        .from(users)
+        .where(eq(users.id, userId));
+
+      if (userData?.shuaName) {
+        return res.status(400).json({ 
+          success: false, 
+          message: '您已经是创作者，无需重复申请' 
+        });
+      }
+
+      // 检查是否有待审核的申请
+      const [pendingApp] = await db
+        .select()
+        .from(shuashuaApplications)
+        .where(and(
+          eq(shuashuaApplications.userId, userId),
+          eq(shuashuaApplications.status, 'pending')
+        ))
+        .limit(1);
+
+      if (pendingApp) {
+        return res.status(400).json({ 
+          success: false, 
+          message: '您有待审核的申请，请耐心等待' 
+        });
+      }
+
+      // 检查刷刷号名称是否已被使用
+      const { shuaName } = req.body;
+      const [existingShuaName] = await db
+        .select()
+        .from(users)
+        .where(eq(users.shuaName, shuaName))
+        .limit(1);
+
+      if (existingShuaName) {
+        return res.status(400).json({ 
+          success: false, 
+          message: '该刷刷号名称已被使用，请换一个' 
+        });
+      }
+
+      // 也检查待审核的申请中是否有相同的刷刷号名称
+      const [pendingSameName] = await db
+        .select()
+        .from(shuashuaApplications)
+        .where(and(
+          eq(shuashuaApplications.shuaName, shuaName),
+          eq(shuashuaApplications.status, 'pending')
+        ))
+        .limit(1);
+
+      if (pendingSameName) {
+        return res.status(400).json({ 
+          success: false, 
+          message: '该刷刷号名称已被其他用户申请，请换一个' 
+        });
+      }
+
+      // 验证请求数据
+      const validatedData = insertShuashuaApplicationSchema.parse({
+        ...req.body,
+        userId,
+      });
+
+      // 创建申请
+      const [newApplication] = await db
+        .insert(shuashuaApplications)
+        .values(validatedData)
+        .returning();
+
+      res.json({
+        success: true,
+        message: '申请已提交，请等待审核',
+        data: newApplication,
+      });
+    } catch (error: any) {
+      console.error('Submit shuashua application error:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          success: false, 
+          message: '请填写完整的申请信息',
+          errors: error.errors,
+        });
+      }
+      res.status(500).json({ success: false, message: 'Failed to submit application' });
     }
   });
 
