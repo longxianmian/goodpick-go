@@ -4,6 +4,7 @@ import { useLocation, useRoute } from 'wouter';
 import { VerticalSwiper } from '@/components/short-video/VerticalSwiper';
 import { VideoCard, ShortVideoData } from '@/components/short-video/VideoCard';
 import { ArticleCard, ArticleCardData } from '@/components/short-video/ArticleCard';
+import { CommentDrawer } from '@/components/short-video/CommentDrawer';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { Loader2, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,8 @@ export default function ShortVideoFeed() {
   const [cursor, setCursor] = useState<number | null>(0);
   const [hasMore, setHasMore] = useState(true);
   const [isReady, setIsReady] = useState(false);
+  const [commentDrawerOpen, setCommentDrawerOpen] = useState(false);
+  const [activeCommentVideoId, setActiveCommentVideoId] = useState<number | null>(null);
 
   const { data, isLoading, isError, error } = useQuery<FeedResponse>({
     queryKey: ['/api/short-videos/feed'],
@@ -110,11 +113,9 @@ export default function ShortVideoFeed() {
   }, [isUserAuthenticated, likeMutation, toast]);
 
   const handleComment = useCallback((videoId: number) => {
-    toast({
-      title: '评论功能',
-      description: '评论功能即将上线',
-    });
-  }, [toast]);
+    setActiveCommentVideoId(videoId);
+    setCommentDrawerOpen(true);
+  }, []);
 
   const handleShare = useCallback((videoId: number) => {
     if (navigator.share) {
@@ -253,6 +254,18 @@ export default function ShortVideoFeed() {
           })}
         </div>
       </div>
+
+      {activeCommentVideoId && (
+        <CommentDrawer
+          videoId={activeCommentVideoId}
+          isOpen={commentDrawerOpen}
+          onClose={() => {
+            setCommentDrawerOpen(false);
+            setActiveCommentVideoId(null);
+          }}
+          commentCount={allVideos.find(v => v.id === activeCommentVideoId)?.commentCount || 0}
+        />
+      )}
     </div>
   );
 }
