@@ -3,13 +3,29 @@
  * 路由: /success/:paymentId
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+
+// 自定义 hook：检测页面可见性
+function usePageVisibility() {
+  const [isVisible, setIsVisible] = useState(!document.hidden);
+  
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsVisible(!document.hidden);
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+  
+  return isVisible;
+}
 
 interface PaymentData {
   id: number;
@@ -33,6 +49,7 @@ export default function PaySuccessPage() {
   const params = useParams<{ paymentId: string }>();
   const paymentId = params.paymentId;
   const { user, isUserAuthenticated } = useAuth();
+  const isPageVisible = usePageVisibility();
   
   const [isClaiming, setIsClaiming] = useState(false);
   const [mockCompleting, setMockCompleting] = useState(false);
@@ -49,7 +66,9 @@ export default function PaySuccessPage() {
       return res.json();
     },
     enabled: !!paymentId,
+    // 只在页面可见且状态为 pending 时轮询，减少移动端资源消耗
     refetchInterval: (query) => {
+      if (!isPageVisible) return false; // 页面不可见时暂停轮询
       if (query?.state?.data?.data?.status === 'pending') {
         return 3000;
       }
