@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints } from '@shared/schema';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints, chatConversations, chatMessages } from '@shared/schema';
 import { getPaymentProvider } from './services/paymentProvider';
 import QRCode from 'qrcode';
 import { eq, and, desc, sql, inArray, isNotNull, or, gte, gt } from 'drizzle-orm';
@@ -7799,6 +7799,381 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Init PSP providers error:', error);
       res.status(500).json({ success: false, message: 'Failed to init PSP providers' });
+    }
+  });
+
+  // ============ 聊天功能 API ============
+
+  // 消费者端：创建或获取与门店的会话
+  app.post('/api/chat/conversations', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const consumerId = req.user!.id;
+      const { storeId } = req.body;
+
+      if (!storeId) {
+        return res.status(400).json({ success: false, message: 'Store ID is required' });
+      }
+
+      // 检查门店是否存在
+      const [store] = await db.select().from(stores).where(eq(stores.id, storeId));
+      if (!store) {
+        return res.status(404).json({ success: false, message: 'Store not found' });
+      }
+
+      // 查找已有会话或创建新会话
+      let [conversation] = await db
+        .select()
+        .from(chatConversations)
+        .where(and(
+          eq(chatConversations.storeId, storeId),
+          eq(chatConversations.consumerId, consumerId)
+        ));
+
+      if (!conversation) {
+        [conversation] = await db
+          .insert(chatConversations)
+          .values({
+            storeId,
+            consumerId,
+            status: 'active',
+          })
+          .returning();
+      }
+
+      res.json({
+        success: true,
+        data: {
+          id: conversation.id,
+          storeId: conversation.storeId,
+          storeName: store.name,
+          storeImageUrl: store.imageUrl,
+          status: conversation.status,
+          lastMessagePreview: conversation.lastMessagePreview,
+          lastMessageAt: conversation.lastMessageAt,
+          unreadCount: conversation.unreadCountConsumer,
+        },
+      });
+    } catch (error) {
+      console.error('Create conversation error:', error);
+      res.status(500).json({ success: false, message: 'Failed to create conversation' });
+    }
+  });
+
+  // 消费者端：获取自己的会话列表
+  app.get('/api/chat/my-conversations', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const consumerId = req.user!.id;
+
+      const conversations = await db
+        .select({
+          id: chatConversations.id,
+          storeId: chatConversations.storeId,
+          storeName: stores.name,
+          storeImageUrl: stores.imageUrl,
+          lastMessagePreview: chatConversations.lastMessagePreview,
+          lastMessageAt: chatConversations.lastMessageAt,
+          unreadCount: chatConversations.unreadCountConsumer,
+          status: chatConversations.status,
+        })
+        .from(chatConversations)
+        .innerJoin(stores, eq(chatConversations.storeId, stores.id))
+        .where(eq(chatConversations.consumerId, consumerId))
+        .orderBy(desc(chatConversations.lastMessageAt));
+
+      res.json({ success: true, data: conversations });
+    } catch (error) {
+      console.error('Get my conversations error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get conversations' });
+    }
+  });
+
+  // 商户端：获取门店的会话列表
+  app.get('/api/chat/store/:storeId/conversations', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const storeId = parseInt(req.params.storeId);
+
+      // 验证用户是否是该门店的owner或operator
+      const [staff] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.storeId, storeId),
+          eq(merchantStaffRoles.userId, userId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      if (!staff) {
+        return res.status(403).json({ success: false, message: 'No permission to access this store' });
+      }
+
+      const conversations = await db
+        .select({
+          id: chatConversations.id,
+          consumerId: chatConversations.consumerId,
+          consumerName: users.displayName,
+          consumerShuaName: users.shuaName,
+          consumerAvatar: users.avatarUrl,
+          lastMessagePreview: chatConversations.lastMessagePreview,
+          lastMessageAt: chatConversations.lastMessageAt,
+          unreadCount: chatConversations.unreadCountMerchant,
+          status: chatConversations.status,
+        })
+        .from(chatConversations)
+        .innerJoin(users, eq(chatConversations.consumerId, users.id))
+        .where(eq(chatConversations.storeId, storeId))
+        .orderBy(desc(chatConversations.lastMessageAt));
+
+      res.json({ success: true, data: conversations });
+    } catch (error) {
+      console.error('Get store conversations error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get conversations' });
+    }
+  });
+
+  // 商户端：获取所有门店的未读消息总数
+  app.get('/api/chat/merchant/unread-count', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+
+      // 获取用户管理的所有门店
+      const staffRoles = await db
+        .select({ storeId: merchantStaffRoles.storeId })
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          inArray(merchantStaffRoles.role, ['owner', 'operator'])
+        ));
+
+      const storeIds = staffRoles.map(s => s.storeId);
+      
+      if (storeIds.length === 0) {
+        return res.json({ success: true, data: { totalUnread: 0, stores: [] } });
+      }
+
+      // 统计每个门店的未读消息
+      const storeUnreads = await db
+        .select({
+          storeId: chatConversations.storeId,
+          storeName: stores.name,
+          unreadCount: sql<number>`SUM(${chatConversations.unreadCountMerchant})::int`,
+        })
+        .from(chatConversations)
+        .innerJoin(stores, eq(chatConversations.storeId, stores.id))
+        .where(inArray(chatConversations.storeId, storeIds))
+        .groupBy(chatConversations.storeId, stores.name);
+
+      const totalUnread = storeUnreads.reduce((sum, s) => sum + (s.unreadCount || 0), 0);
+
+      res.json({
+        success: true,
+        data: {
+          totalUnread,
+          stores: storeUnreads,
+        },
+      });
+    } catch (error) {
+      console.error('Get merchant unread count error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get unread count' });
+    }
+  });
+
+  // 发送消息
+  app.post('/api/chat/conversations/:conversationId/messages', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const conversationId = parseInt(req.params.conversationId);
+      const { content, messageType = 'text', imageUrl } = req.body;
+
+      if (!content) {
+        return res.status(400).json({ success: false, message: 'Message content is required' });
+      }
+
+      // 获取会话信息
+      const [conversation] = await db
+        .select()
+        .from(chatConversations)
+        .where(eq(chatConversations.id, conversationId));
+
+      if (!conversation) {
+        return res.status(404).json({ success: false, message: 'Conversation not found' });
+      }
+
+      // 判断发送者身份
+      let senderType: 'consumer' | 'merchant' = 'consumer';
+      
+      if (conversation.consumerId === userId) {
+        senderType = 'consumer';
+      } else {
+        // 检查是否是商户
+        const [staff] = await db
+          .select()
+          .from(merchantStaffRoles)
+          .where(and(
+            eq(merchantStaffRoles.storeId, conversation.storeId),
+            eq(merchantStaffRoles.userId, userId),
+            inArray(merchantStaffRoles.role, ['owner', 'operator'])
+          ));
+        
+        if (staff) {
+          senderType = 'merchant';
+        } else {
+          return res.status(403).json({ success: false, message: 'No permission to send message' });
+        }
+      }
+
+      // 插入消息
+      const [message] = await db
+        .insert(chatMessages)
+        .values({
+          conversationId,
+          senderType,
+          senderId: userId,
+          messageType,
+          content,
+          imageUrl,
+          isReadByMerchant: senderType === 'merchant',
+          isReadByConsumer: senderType === 'consumer',
+        })
+        .returning();
+
+      // 更新会话的最后消息预览和时间
+      const preview = content.length > 50 ? content.substring(0, 50) + '...' : content;
+      const updateData: any = {
+        lastMessagePreview: preview,
+        lastMessageAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // 增加对方的未读计数
+      if (senderType === 'consumer') {
+        updateData.unreadCountMerchant = sql`${chatConversations.unreadCountMerchant} + 1`;
+      } else {
+        updateData.unreadCountConsumer = sql`${chatConversations.unreadCountConsumer} + 1`;
+      }
+
+      await db
+        .update(chatConversations)
+        .set(updateData)
+        .where(eq(chatConversations.id, conversationId));
+
+      res.json({
+        success: true,
+        data: {
+          id: message.id,
+          conversationId: message.conversationId,
+          senderType: message.senderType,
+          senderId: message.senderId,
+          messageType: message.messageType,
+          content: message.content,
+          imageUrl: message.imageUrl,
+          createdAt: message.createdAt,
+        },
+      });
+    } catch (error) {
+      console.error('Send message error:', error);
+      res.status(500).json({ success: false, message: 'Failed to send message' });
+    }
+  });
+
+  // 获取会话消息列表
+  app.get('/api/chat/conversations/:conversationId/messages', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const conversationId = parseInt(req.params.conversationId);
+      const limit = parseInt(req.query.limit as string) || 50;
+      const before = req.query.before ? parseInt(req.query.before as string) : undefined;
+
+      // 获取会话信息
+      const [conversation] = await db
+        .select()
+        .from(chatConversations)
+        .where(eq(chatConversations.id, conversationId));
+
+      if (!conversation) {
+        return res.status(404).json({ success: false, message: 'Conversation not found' });
+      }
+
+      // 验证访问权限
+      let isConsumer = conversation.consumerId === userId;
+      let isMerchant = false;
+      
+      if (!isConsumer) {
+        const [staff] = await db
+          .select()
+          .from(merchantStaffRoles)
+          .where(and(
+            eq(merchantStaffRoles.storeId, conversation.storeId),
+            eq(merchantStaffRoles.userId, userId),
+            inArray(merchantStaffRoles.role, ['owner', 'operator'])
+          ));
+        
+        if (staff) {
+          isMerchant = true;
+        }
+      }
+
+      if (!isConsumer && !isMerchant) {
+        return res.status(403).json({ success: false, message: 'No permission to view messages' });
+      }
+
+      // 获取消息
+      let query = db
+        .select({
+          id: chatMessages.id,
+          conversationId: chatMessages.conversationId,
+          senderType: chatMessages.senderType,
+          senderId: chatMessages.senderId,
+          messageType: chatMessages.messageType,
+          content: chatMessages.content,
+          imageUrl: chatMessages.imageUrl,
+          createdAt: chatMessages.createdAt,
+        })
+        .from(chatMessages)
+        .where(
+          before
+            ? and(eq(chatMessages.conversationId, conversationId), sql`${chatMessages.id} < ${before}`)
+            : eq(chatMessages.conversationId, conversationId)
+        )
+        .orderBy(desc(chatMessages.id))
+        .limit(limit);
+
+      const messages = await query;
+
+      // 标记消息为已读并重置未读计数
+      if (isConsumer) {
+        await db
+          .update(chatMessages)
+          .set({ isReadByConsumer: true })
+          .where(and(
+            eq(chatMessages.conversationId, conversationId),
+            eq(chatMessages.isReadByConsumer, false)
+          ));
+        await db
+          .update(chatConversations)
+          .set({ unreadCountConsumer: 0 })
+          .where(eq(chatConversations.id, conversationId));
+      } else {
+        await db
+          .update(chatMessages)
+          .set({ isReadByMerchant: true })
+          .where(and(
+            eq(chatMessages.conversationId, conversationId),
+            eq(chatMessages.isReadByMerchant, false)
+          ));
+        await db
+          .update(chatConversations)
+          .set({ unreadCountMerchant: 0 })
+          .where(eq(chatConversations.id, conversationId));
+      }
+
+      res.json({
+        success: true,
+        data: messages.reverse(), // 返回按时间正序
+      });
+    } catch (error) {
+      console.error('Get messages error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get messages' });
     }
   });
 
