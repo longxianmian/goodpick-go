@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { Heart, MessageCircle, Share2, Music2, UserCircle, Bookmark, Play, Pause, Volume2, VolumeX } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Music2, UserCircle, Bookmark, Play } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -47,7 +47,6 @@ export function VideoCard({
 }: VideoCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
   const [progress, setProgress] = useState(0);
   const [showPlayButton, setShowPlayButton] = useState(true);
   const [videoLoaded, setVideoLoaded] = useState(false);
@@ -101,15 +100,6 @@ export function VideoCard({
     }
   }, [isPlaying]);
 
-  const toggleMute = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    const videoEl = videoRef.current;
-    if (!videoEl) return;
-    
-    videoEl.muted = !videoEl.muted;
-    setIsMuted(!isMuted);
-  }, [isMuted]);
-
   const handleTimeUpdate = useCallback(() => {
     const videoEl = videoRef.current;
     if (!videoEl || !videoEl.duration) return;
@@ -153,7 +143,6 @@ export function VideoCard({
           videoLoaded ? 'opacity-100' : 'opacity-0'
         }`}
         loop
-        muted={isMuted}
         playsInline
         preload="auto"
         onTimeUpdate={handleTimeUpdate}
@@ -277,20 +266,6 @@ export function VideoCard({
           <span className="text-white text-xs font-medium drop-shadow-lg">
             {formatCount(video.shareCount)}
           </span>
-        </button>
-
-        <button
-          className="mt-2"
-          onClick={toggleMute}
-          data-testid={`button-mute-${video.id}`}
-        >
-          <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
-            {isMuted ? (
-              <VolumeX className="w-4 h-4 text-white" />
-            ) : (
-              <Volume2 className="w-4 h-4 text-white" />
-            )}
-          </div>
         </button>
       </div>
     </div>
