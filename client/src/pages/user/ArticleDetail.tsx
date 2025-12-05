@@ -77,7 +77,7 @@ interface CommentsResponse {
 export default function ArticleDetail() {
   const { t } = useLanguage();
   const { toast } = useToast();
-  const { isUserAuthenticated } = useAuth();
+  const { isUserAuthenticated, user } = useAuth();
   const [, setLocation] = useLocation();
   const [, params] = useRoute('/articles/:id');
   const articleId = params?.id;
@@ -94,6 +94,7 @@ export default function ArticleDetail() {
   const [commentLikes, setCommentLikes] = useState<Record<number, boolean>>({});
   const [commentLikeCounts, setCommentLikeCounts] = useState<Record<number, number>>({});
   const [expandedReplies, setExpandedReplies] = useState<Set<number>>(new Set());
+  const [isFollowing, setIsFollowing] = useState(false);
   
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const commentInputRef = useRef<HTMLInputElement>(null);
@@ -127,6 +128,27 @@ export default function ArticleDetail() {
   const images = article?.mediaUrls?.length ? article.mediaUrls : 
                  article?.coverImageUrl ? [article.coverImageUrl] : [];
   const imageCount = images.length;
+  const creatorUserId = article?.creatorUserId;
+  const isOwnContent = user?.id === creatorUserId;
+
+  // 查询关注状态
+  const { data: userProfileData } = useQuery<{ success: boolean; data: { isFollowing?: boolean } }>({
+    queryKey: ['/api/users', creatorUserId, 'profile'],
+    queryFn: async () => {
+      const response = await fetch(`/api/users/${creatorUserId}`, { credentials: 'include' });
+      if (!response.ok) {
+        throw new Error('Failed to fetch user profile');
+      }
+      return response.json();
+    },
+    enabled: !!creatorUserId && isUserAuthenticated,
+  });
+
+  useEffect(() => {
+    if (userProfileData?.data?.isFollowing !== undefined) {
+      setIsFollowing(userProfileData.data.isFollowing);
+    }
+  }, [userProfileData]);
 
   useEffect(() => {
     if (article) {
@@ -218,6 +240,42 @@ export default function ArticleDetail() {
       });
     },
   });
+
+  // 关注/取消关注
+  const followMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', `/api/users/${creatorUserId}/follow`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setIsFollowing(data.isFollowing);
+      queryClient.invalidateQueries({ queryKey: ['/api/users', creatorUserId, 'profile'] });
+      toast({
+        title: data.isFollowing 
+          ? (t('article.followSuccess') || '已关注') 
+          : (t('article.unfollowSuccess') || '已取消关注'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('common.error'),
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleFollow = () => {
+    if (!isUserAuthenticated) {
+      toast({
+        title: t('auth.loginRequired') || '请先登录',
+      });
+      return;
+    }
+    if (isOwnContent) {
+      return; // 不能关注自己
+    }
+    followMutation.mutate();
+  };
 
   const handleLike = () => {
     if (!isUserAuthenticated) {
@@ -449,14 +507,27 @@ export default function ArticleDetail() {
           </div>
 
           <div className="flex items-center gap-1">
-            <Button 
-              variant="default" 
-              size="sm"
-              className="h-7 px-4 text-xs font-medium bg-[#38B03B] hover:bg-[#2d8f2f]"
-              data-testid="button-follow"
-            >
-              {t('article.follow')}
-            </Button>
+            {!isOwnContent && (
+              <Button 
+                variant={isFollowing ? "outline" : "default"}
+                size="sm"
+                className={`h-7 px-4 text-xs font-medium ${
+                  isFollowing 
+                    ? 'border-muted-foreground/30 text-muted-foreground' 
+                    : 'bg-[#38B03B] hover:bg-[#2d8f2f] text-white'
+                }`}
+                onClick={handleFollow}
+                disabled={followMutation.isPending}
+                data-testid="button-follow"
+              >
+                {followMutation.isPending 
+                  ? '...' 
+                  : isFollowing 
+                    ? (t('article.following') || '已关注') 
+                    : (t('article.follow') || '关注')
+                }
+              </Button>
+            )}
             <Button variant="ghost" size="icon" data-testid="button-more">
               <MoreHorizontal className="w-5 h-5" />
             </Button>
