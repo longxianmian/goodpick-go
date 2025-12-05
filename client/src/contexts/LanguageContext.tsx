@@ -72,6 +72,14 @@ const translations: Record<Language, Record<string, string>> = {
     'common.current': '当前',
     'common.retry': '重试',
     'common.loadMore': '加载更多',
+    'common.backToHome': '返回首页',
+    
+    // 认证相关
+    'auth.loginRequired': '请先登录',
+    'auth.loginRequiredDesc': '此页面需要登录后才能访问',
+    'auth.goLogin': '前往登录',
+    'auth.noPermission': '无访问权限',
+    'auth.noPermissionDesc': '您没有权限访问此页面',
     'common.noMore': '没有更多了',
     'common.pullToRefresh': '下拉刷新',
     'common.releaseToRefresh': '释放刷新',
@@ -2226,6 +2234,14 @@ const translations: Record<Language, Record<string, string>> = {
     'common.current': 'Current',
     'common.retry': 'Retry',
     'common.loadMore': 'Load more',
+    'common.backToHome': 'Back to Home',
+    
+    // Authentication
+    'auth.loginRequired': 'Login Required',
+    'auth.loginRequiredDesc': 'Please login to access this page',
+    'auth.goLogin': 'Go to Login',
+    'auth.noPermission': 'Access Denied',
+    'auth.noPermissionDesc': 'You do not have permission to access this page',
     'common.noMore': 'No more',
     'common.pullToRefresh': 'Pull to refresh',
     'common.releaseToRefresh': 'Release to refresh',
@@ -4376,6 +4392,14 @@ const translations: Record<Language, Record<string, string>> = {
     'common.next': 'ถัดไป',
     'common.featureInDevelopment': 'ฟีเจอร์นี้อยู่ระหว่างการพัฒนา',
     'common.more': 'เพิ่มเติม >',
+    'common.backToHome': 'กลับหน้าแรก',
+    
+    // Authentication
+    'auth.loginRequired': 'กรุณาเข้าสู่ระบบ',
+    'auth.loginRequiredDesc': 'คุณต้องเข้าสู่ระบบเพื่อเข้าถึงหน้านี้',
+    'auth.goLogin': 'ไปเข้าสู่ระบบ',
+    'auth.noPermission': 'ไม่มีสิทธิ์เข้าถึง',
+    'auth.noPermissionDesc': 'คุณไม่มีสิทธิ์เข้าถึงหน้านี้',
     
     // Navigation
     'nav.stores': 'จัดการร้านค้า',
@@ -6080,6 +6104,14 @@ const translations: Record<Language, Record<string, string>> = {
     'common.all': 'Semua',
     'common.featureInDevelopment': 'Fitur ini sedang dalam pengembangan',
     'common.currencySymbol': '฿',
+    'common.backToHome': 'Kembali ke Beranda',
+    
+    // Autentikasi
+    'auth.loginRequired': 'Perlu Login',
+    'auth.loginRequiredDesc': 'Silakan login untuk mengakses halaman ini',
+    'auth.goLogin': 'Ke Login',
+    'auth.noPermission': 'Akses Ditolak',
+    'auth.noPermissionDesc': 'Anda tidak memiliki izin untuk halaman ini',
 
     // 导航
     'nav.feed': 'Feed',
@@ -6873,6 +6905,14 @@ const translations: Record<Language, Record<string, string>> = {
     'common.all': 'Tất cả',
     'common.featureInDevelopment': 'Tính năng đang phát triển',
     'common.currencySymbol': '฿',
+    'common.backToHome': 'Về trang chủ',
+    
+    // Xác thực
+    'auth.loginRequired': 'Cần Đăng nhập',
+    'auth.loginRequiredDesc': 'Vui lòng đăng nhập để truy cập trang này',
+    'auth.goLogin': 'Đến Đăng nhập',
+    'auth.noPermission': 'Bị Từ chối',
+    'auth.noPermissionDesc': 'Bạn không có quyền truy cập trang này',
 
     // 导航
     'nav.feed': 'Feed',
@@ -7666,6 +7706,14 @@ const translations: Record<Language, Record<string, string>> = {
     'common.all': 'အားလုံး',
     'common.featureInDevelopment': 'ဖွံ့ဖြိုးဆဲဖြစ်သည်',
     'common.currencySymbol': '฿',
+    'common.backToHome': 'ပင်မသို့ပြန်သွားရန်',
+    
+    // အထောက်အထား
+    'auth.loginRequired': 'ဝင်ရောက်ရန်လိုအပ်',
+    'auth.loginRequiredDesc': 'ဤစာမျက်နှာကိုကြည့်ရန် ဝင်ရောက်ပါ',
+    'auth.goLogin': 'ဝင်ရောက်ရန်သွားပါ',
+    'auth.noPermission': 'ဝင်ခွင့်မရှိ',
+    'auth.noPermissionDesc': 'ဤစာမျက်နှာကို သင်ဝင်ခွင့်မရှိပါ',
 
     // 导航
     'nav.feed': 'ဖိဒ်',

@@ -71,6 +71,7 @@ import OperatorCenter from "@/pages/operator/OperatorCenter";
 import OperatorPreview from "@/pages/operator/OperatorPreview";
 import PayEntryPage from "@/pages/payment/PayEntryPage";
 import PaySuccessPage from "@/pages/payment/PaySuccessPage";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import { Store, Tag, LogOut, LayoutDashboard } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -192,88 +193,196 @@ function ProtectedAdminRoutes() {
 function Router() {
   return (
     <Switch>
-      {/* 刷刷升级 - C端三栏结构 + 角色自适应 */}
+      {/* 公开页面 - 游客可访问 */}
       <Route path="/" component={ShuaShuaHome} />
       <Route path="/videos/:id" component={ShortVideoFeed} />
       <Route path="/videos" component={ShortVideoFeed} />
       <Route path="/articles/:id" component={ArticleDetail} />
       <Route path="/user/:id" component={UserProfile} />
       <Route path="/shop" component={ShopHome} />
-      <Route path="/me" component={RoleBasedMe} />
-      {/* 开发环境 - 测试登录 */}
-      <Route path="/dev/login" component={DevLogin} />
-      {/* 开发预览 - 直接访问各角色个人中心 */}
-      <Route path="/dev/me/consumer" component={UserCenter} />
-      <Route path="/dev/me/owner" component={MeOwner} />
-      <Route path="/dev/me/operator" component={MeOperator} />
-      <Route path="/dev/me/verifier" component={MeVerifier} />
-      <Route path="/dev/me/sysadmin" component={MeSysAdmin} />
-      <Route path="/dev/me/creator" component={CreatorAccount} />
-      {/* 系统管理员页面 - 快捷访问 */}
-      <Route path="/sysadmin" component={MeSysAdmin} />
-      {/* 运营中心 - 系统管理员专属 */}
-      <Route path="/ops" component={OpsCenter} />
-      <Route path="/ops/shuashua" component={OpsShuashua} />
-      <Route path="/ops/discover" component={OpsDiscover} />
-      {/* 刷刷号（创作者）专属路由 */}
-      <Route path="/creator/edit/:id" component={ContentEditor} />
-      <Route path="/creator/create" component={CreatorStudio} />
-      <Route path="/creator/me" component={CreatorAccount} />
-      <Route path="/creator/analytics" component={CreatorAnalytics} />
-      <Route path="/creator/income-records" component={IncomeRecords} />
-      <Route path="/creator/payment" component={PaymentSettings} />
-      <Route path="/creator/notifications" component={CreatorNotifications} />
-      <Route path="/creator/security" component={AccountSecurity} />
-      <Route path="/creator" component={CreatorHome} />
+      <Route path="/store/:id" component={StoreFront} />
+      <Route path="/campaign/:id" component={CampaignDetail} />
+      <Route path="/product/:id" component={ProductDetail} />
+      <Route path="/privacy" component={PrivacyPage} />
+      <Route path="/terms" component={TermsPage} />
       <Route path="/settings/language" component={LanguageSettings} />
       <Route path="/settings" component={SettingsPage} />
       <Route path="/help" component={HelpPage} />
       <Route path="/about" component={AboutPage} />
-      {/* 申请入驻 */}
-      <Route path="/apply/discover" component={ApplyDiscover} />
-      <Route path="/apply/shuashua" component={ApplyShuashua} />
-      {/* 店铺首页 - C端用户视角 */}
-      <Route path="/store/:id" component={StoreFront} />
-      {/* 商户端 */}
-      <Route path="/merchant" component={MerchantHome} />
-      <Route path="/merchant/operations" component={MerchantOperations} />
-      <Route path="/merchant/store-settings" component={MerchantStoreSettings} />
-      <Route path="/merchant/store-create" component={MerchantStoreCreate} />
-      <Route path="/merchant/store-edit/:id" component={MerchantStoreEdit} />
-      <Route path="/merchant/products" component={MerchantProducts} />
-      <Route path="/merchant/products/:id" component={MerchantProductEdit} />
-      <Route path="/merchant/campaigns" component={MerchantCampaigns} />
-      <Route path="/merchant/campaigns/:id" component={MerchantCampaignEdit} />
-      <Route path="/merchant/payment-qrcode" component={MerchantPaymentQrCode} />
-      <Route path="/merchant/psp-setup" component={MerchantPspSetup} />
-      <Route path="/merchant/me" component={MeOwner} />
-      {/* 运营号 - 被商户授权的运营人员 */}
-      <Route path="/operator/preview" component={OperatorPreview} />
-      <Route path="/operator/center" component={OperatorCenter} />
-      <Route path="/operator/products" component={MerchantProducts} />
-      <Route path="/operator/campaigns" component={MerchantCampaigns} />
-      <Route path="/operator/me" component={MeOperator} />
-      {/* 支付页面 */}
-      <Route path="/pay/:id/success" component={PaymentSuccess} />
-      <Route path="/pay/:id" component={PaymentPage} />
-      {/* 收款二维码支付 - H5 */}
+      
+      {/* 开发环境 - 测试登录 */}
+      <Route path="/dev/login" component={DevLogin} />
+      
+      {/* 支付公开页面 */}
       <Route path="/p/:qrToken" component={PayEntryPage} />
       <Route path="/success/:paymentId" component={PaySuccessPage} />
-      <Route path="/campaign/:id" component={CampaignDetail} />
-      <Route path="/product/:id" component={ProductDetail} />
-      <Route path="/my-coupons" component={MyCoupons} />
-      <Route path="/privacy" component={PrivacyPage} />
-      <Route path="/terms" component={TermsPage} />
+      
+      {/* ========== 以下路由需要登录 ========== */}
+      
+      {/* 个人中心 - 需要登录 */}
+      <Route path="/me">
+        <ProtectedRoute><RoleBasedMe /></ProtectedRoute>
+      </Route>
+      <Route path="/my-coupons">
+        <ProtectedRoute><MyCoupons /></ProtectedRoute>
+      </Route>
+      <Route path="/pay/:id/success">
+        {(params) => <ProtectedRoute><PaymentSuccess /></ProtectedRoute>}
+      </Route>
+      <Route path="/pay/:id">
+        {(params) => <ProtectedRoute><PaymentPage /></ProtectedRoute>}
+      </Route>
+      
+      {/* 申请入驻 - 需要登录 */}
+      <Route path="/apply/discover">
+        <ProtectedRoute><ApplyDiscover /></ProtectedRoute>
+      </Route>
+      <Route path="/apply/shuashua">
+        <ProtectedRoute><ApplyShuashua /></ProtectedRoute>
+      </Route>
+      
+      {/* 系统管理员 - 需要登录 + sysadmin 角色 */}
+      <Route path="/sysadmin">
+        <ProtectedRoute requiredRole="sysadmin"><MeSysAdmin /></ProtectedRoute>
+      </Route>
+      <Route path="/ops">
+        <ProtectedRoute requiredRole="sysadmin"><OpsCenter /></ProtectedRoute>
+      </Route>
+      <Route path="/ops/shuashua">
+        <ProtectedRoute requiredRole="sysadmin"><OpsShuashua /></ProtectedRoute>
+      </Route>
+      <Route path="/ops/discover">
+        <ProtectedRoute requiredRole="sysadmin"><OpsDiscover /></ProtectedRoute>
+      </Route>
+      
+      {/* 创作者 - 需要登录 */}
+      <Route path="/creator/edit/:id">
+        {(params) => <ProtectedRoute><ContentEditor /></ProtectedRoute>}
+      </Route>
+      <Route path="/creator/create">
+        <ProtectedRoute><CreatorStudio /></ProtectedRoute>
+      </Route>
+      <Route path="/creator/me">
+        <ProtectedRoute><CreatorAccount /></ProtectedRoute>
+      </Route>
+      <Route path="/creator/analytics">
+        <ProtectedRoute><CreatorAnalytics /></ProtectedRoute>
+      </Route>
+      <Route path="/creator/income-records">
+        <ProtectedRoute><IncomeRecords /></ProtectedRoute>
+      </Route>
+      <Route path="/creator/payment">
+        <ProtectedRoute><PaymentSettings /></ProtectedRoute>
+      </Route>
+      <Route path="/creator/notifications">
+        <ProtectedRoute><CreatorNotifications /></ProtectedRoute>
+      </Route>
+      <Route path="/creator/security">
+        <ProtectedRoute><AccountSecurity /></ProtectedRoute>
+      </Route>
+      <Route path="/creator">
+        <ProtectedRoute><CreatorHome /></ProtectedRoute>
+      </Route>
+      
+      {/* 商户端 - 需要登录 + owner 角色 */}
+      <Route path="/merchant">
+        <ProtectedRoute requiredRole="owner"><MerchantHome /></ProtectedRoute>
+      </Route>
+      <Route path="/merchant/operations">
+        <ProtectedRoute requiredRole="owner"><MerchantOperations /></ProtectedRoute>
+      </Route>
+      <Route path="/merchant/store-settings">
+        <ProtectedRoute requiredRole="owner"><MerchantStoreSettings /></ProtectedRoute>
+      </Route>
+      <Route path="/merchant/store-create">
+        <ProtectedRoute requiredRole="owner"><MerchantStoreCreate /></ProtectedRoute>
+      </Route>
+      <Route path="/merchant/store-edit/:id">
+        {(params) => <ProtectedRoute requiredRole="owner"><MerchantStoreEdit /></ProtectedRoute>}
+      </Route>
+      <Route path="/merchant/products">
+        <ProtectedRoute requiredRole="owner"><MerchantProducts /></ProtectedRoute>
+      </Route>
+      <Route path="/merchant/products/:id">
+        {(params) => <ProtectedRoute requiredRole="owner"><MerchantProductEdit /></ProtectedRoute>}
+      </Route>
+      <Route path="/merchant/campaigns">
+        <ProtectedRoute requiredRole="owner"><MerchantCampaigns /></ProtectedRoute>
+      </Route>
+      <Route path="/merchant/campaigns/:id">
+        {(params) => <ProtectedRoute requiredRole="owner"><MerchantCampaignEdit /></ProtectedRoute>}
+      </Route>
+      <Route path="/merchant/payment-qrcode">
+        <ProtectedRoute requiredRole="owner"><MerchantPaymentQrCode /></ProtectedRoute>
+      </Route>
+      <Route path="/merchant/psp-setup">
+        <ProtectedRoute requiredRole="owner"><MerchantPspSetup /></ProtectedRoute>
+      </Route>
+      <Route path="/merchant/me">
+        <ProtectedRoute requiredRole="owner"><MeOwner /></ProtectedRoute>
+      </Route>
+      
+      {/* 运营号 - 需要登录 + operator 角色 */}
+      <Route path="/operator/preview">
+        <ProtectedRoute requiredRole="operator"><OperatorPreview /></ProtectedRoute>
+      </Route>
+      <Route path="/operator/center">
+        <ProtectedRoute requiredRole="operator"><OperatorCenter /></ProtectedRoute>
+      </Route>
+      <Route path="/operator/products">
+        <ProtectedRoute requiredRole="operator"><MerchantProducts /></ProtectedRoute>
+      </Route>
+      <Route path="/operator/campaigns">
+        <ProtectedRoute requiredRole="operator"><MerchantCampaigns /></ProtectedRoute>
+      </Route>
+      <Route path="/operator/me">
+        <ProtectedRoute requiredRole="operator"><MeOperator /></ProtectedRoute>
+      </Route>
+      
+      {/* 核销员 - 需要登录 + verifier 角色 */}
+      <Route path="/staff/bind">
+        <ProtectedRoute requiredRole="verifier"><StaffBind /></ProtectedRoute>
+      </Route>
+      <Route path="/staff/redeem">
+        <ProtectedRoute requiredRole="verifier"><StaffRedeem /></ProtectedRoute>
+      </Route>
+      <Route path="/staff/stats">
+        <ProtectedRoute requiredRole="verifier"><StaffStats /></ProtectedRoute>
+      </Route>
+      <Route path="/staff/campaign/:id">
+        {(params) => <ProtectedRoute requiredRole="verifier"><StaffCampaignDetail /></ProtectedRoute>}
+      </Route>
+      <Route path="/staff/campaign">
+        <ProtectedRoute requiredRole="verifier"><StaffCampaignList /></ProtectedRoute>
+      </Route>
+      
+      {/* 开发预览 - 需要登录 */}
+      <Route path="/dev/me/consumer">
+        <ProtectedRoute><UserCenter /></ProtectedRoute>
+      </Route>
+      <Route path="/dev/me/owner">
+        <ProtectedRoute><MeOwner /></ProtectedRoute>
+      </Route>
+      <Route path="/dev/me/operator">
+        <ProtectedRoute><MeOperator /></ProtectedRoute>
+      </Route>
+      <Route path="/dev/me/verifier">
+        <ProtectedRoute><MeVerifier /></ProtectedRoute>
+      </Route>
+      <Route path="/dev/me/sysadmin">
+        <ProtectedRoute><MeSysAdmin /></ProtectedRoute>
+      </Route>
+      <Route path="/dev/me/creator">
+        <ProtectedRoute><CreatorAccount /></ProtectedRoute>
+      </Route>
+      
+      {/* Admin 后台 */}
       <Route path="/admin" component={() => <Redirect to="/admin/login" />} />
       <Route path="/admin/login" component={AdminLogin} />
-      <Route path="/staff/bind" component={StaffBind} />
-      <Route path="/staff/redeem" component={StaffRedeem} />
-      <Route path="/staff/stats" component={StaffStats} />
-      <Route path="/staff/campaign/:id" component={StaffCampaignDetail} />
-      <Route path="/staff/campaign" component={StaffCampaignList} />
       <Route path="/admin/:rest*">
         <ProtectedAdminRoutes />
       </Route>
+      
       <Route component={NotFound} />
     </Switch>
   );
