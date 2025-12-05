@@ -52,14 +52,14 @@ export default function PayEntryPage() {
   const storeId = storeData?.data?.storeId;
 
   const { data: couponsData } = useQuery<{ success: boolean; data: AvailableCoupon[] }>({
-    queryKey: ['/api/payments/available-coupons', storeId],
+    queryKey: ['/api/payments/qrcode/available-coupons', storeId],
     queryFn: async () => {
       const token = localStorage.getItem('auth_token');
       const headers: Record<string, string> = {};
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
-      const res = await fetch(`/api/payments/available-coupons?store_id=${storeId}`, { headers });
+      const res = await fetch(`/api/payments/qrcode/available-coupons?store_id=${storeId}`, { headers });
       return res.json();
     },
     enabled: !!storeId,

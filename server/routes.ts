@@ -6903,8 +6903,8 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // 获取用户在指定门店可用的优惠券
-  app.get('/api/payments/available-coupons', async (req: Request, res: Response) => {
+  // 获取用户在指定门店可用的优惠券（安全：从 qr_token 解析 store_id）
+  app.get('/api/payments/qrcode/available-coupons', async (req: Request, res: Response) => {
     try {
       const { store_id } = req.query;
       
