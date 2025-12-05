@@ -131,7 +131,7 @@ function Router() {
     <Switch>
       <Route path="/" component={() => <Redirect to="/admin/login" />} />
       <Route path="/campaign/:id" component={CampaignDetail} />
-      <Route path="/my-coupons" component={MyCoupons} />
+      <Route path="/my-coupons" component={() => <MyCoupons />} />
       <Route path="/admin" component={() => <Redirect to="/admin/login" />} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/staff/bind" component={StaffBind} />
