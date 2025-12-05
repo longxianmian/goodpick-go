@@ -7,27 +7,54 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { UserBottomNav } from '@/components/UserBottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
-import type { Campaign, Store as StoreType, Product } from '@shared/schema';
+import type { Campaign, Product } from '@shared/schema';
+
+// API返回的店铺摘要信息
+interface StoreSummary {
+  id: number;
+  name: string;
+  imageUrl: string | null;
+  city: string | null;
+  address?: string | null;
+  category: string | null;
+}
 
 interface CampaignWithStores extends Campaign {
-  stores: StoreType[];
+  stores: StoreSummary[];
 }
 
 interface ProductWithStore extends Product {
-  store: {
-    id: number;
-    name: string;
-    imageUrl: string | null;
-    city: string | null;
-  } | null;
+  store: StoreSummary | null;
 }
 
 type FeedItem = 
   | { type: 'campaign'; data: CampaignWithStores; sortKey: number }
   | { type: 'product'; data: ProductWithStore; sortKey: number };
 
-const DISCOVER_CATEGORIES = ['food', 'shopping', 'relax', 'family', 'entertainment', 'stay', 'travel', 'featured'] as const;
-type DiscoverCategoryType = typeof DISCOVER_CATEGORIES[number];
+// 东南亚本地生活服务类目（按热度排序）
+const STORE_CATEGORIES = [
+  'dining',      // 餐饮
+  'coffee',      // 咖啡
+  'dessert',     // 甜品
+  'bbq',         // 烧烤
+  'beauty',      // 美容美发
+  'cosmetics',   // 美妆护肤
+  'fashion',     // 服装
+  'convenience', // 便利店
+  'grocery',     // 百货/超市
+  'mother_baby', // 母婴
+  'home',        // 家居
+  'building',    // 建材
+  'ktv',         // KTV
+  'amusement',   // 游乐场
+  'hotel',       // 酒店
+  'tourism',     // 旅游
+  'rental',      // 租房
+  'training',    // 培训
+  'education',   // 教育
+  'other',       // 其他
+] as const;
+type StoreCategoryType = typeof STORE_CATEGORIES[number];
 
 const PROMO_TYPES = ['coupon', 'groupBuy', 'presale', 'discount'] as const;
 type PromoType = typeof PROMO_TYPES[number];
@@ -265,7 +292,7 @@ function ProductCard({ product, index }: { product: ProductWithStore; index: num
 
 export default function ShopHome() {
   const { t } = useLanguage();
-  const [activeCategory, setActiveCategory] = useState<DiscoverCategoryType>('food');
+  const [activeCategory, setActiveCategory] = useState<StoreCategoryType | null>(null);
   const [activePromo, setActivePromo] = useState<PromoType | null>(null);
   
   const { data: campaignsData, isLoading: campaignsLoading } = useQuery<{ success: boolean; data: CampaignWithStores[] }>({
@@ -280,11 +307,26 @@ export default function ShopHome() {
   const products = productsData?.data || [];
   const isLoading = campaignsLoading || productsLoading;
 
+  // 根据类目筛选活动和商品
+  const filteredCampaigns = useMemo(() => {
+    if (!activeCategory) return campaigns;
+    return campaigns.filter(campaign => 
+      campaign.stores?.some(store => store.category === activeCategory)
+    );
+  }, [campaigns, activeCategory]);
+
+  const filteredProducts = useMemo(() => {
+    if (!activeCategory) return products;
+    return products.filter(product => 
+      product.store?.category === activeCategory
+    );
+  }, [products, activeCategory]);
+
   // 混杂显示商品和活动
   const feedItems = useMemo<FeedItem[]>(() => {
     const items: FeedItem[] = [];
     
-    campaigns.forEach((campaign, index) => {
+    filteredCampaigns.forEach((campaign, index) => {
       items.push({
         type: 'campaign',
         data: campaign,
@@ -292,7 +334,7 @@ export default function ShopHome() {
       });
     });
     
-    products.forEach((product, index) => {
+    filteredProducts.forEach((product, index) => {
       items.push({
         type: 'product',
         data: product,
@@ -302,17 +344,29 @@ export default function ShopHome() {
     
     // 交替排序：活动、商品、活动、商品...
     return items.sort((a, b) => a.sortKey - b.sortKey);
-  }, [campaigns, products]);
+  }, [filteredCampaigns, filteredProducts]);
 
-  const categoryLabels: Record<DiscoverCategoryType, string> = {
-    food: t('discover.catFood'),
-    shopping: t('discover.catShopping'),
-    relax: t('discover.catRelax'),
-    family: t('discover.catFamily'),
-    entertainment: t('discover.catEntertainment'),
-    stay: t('discover.catStay'),
-    travel: t('discover.catTravel'),
-    featured: t('discover.catFeatured'),
+  const categoryLabels: Record<StoreCategoryType, string> = {
+    dining: t('category.dining'),
+    coffee: t('category.coffee'),
+    dessert: t('category.dessert'),
+    bbq: t('category.bbq'),
+    beauty: t('category.beauty'),
+    cosmetics: t('category.cosmetics'),
+    fashion: t('category.fashion'),
+    convenience: t('category.convenience'),
+    grocery: t('category.grocery'),
+    mother_baby: t('category.motherBaby'),
+    home: t('category.home'),
+    building: t('category.building'),
+    ktv: t('category.ktv'),
+    amusement: t('category.amusement'),
+    hotel: t('category.hotel'),
+    tourism: t('category.tourism'),
+    rental: t('category.rental'),
+    training: t('category.training'),
+    education: t('category.education'),
+    other: t('category.other'),
   };
 
   const promoLabels: Record<PromoType, { label: string; icon: typeof Ticket }> = {
@@ -354,16 +408,27 @@ export default function ShopHome() {
       </header>
 
       <div className="bg-background sticky top-14 z-30 border-b border-border/30">
-        <div className="px-3 py-2.5 space-y-2">
-          <div className="grid grid-cols-4 gap-2">
-            {DISCOVER_CATEGORIES.map((cat) => (
+        <div className="py-2.5 space-y-2">
+          <div className="flex gap-2 overflow-x-auto px-3 pb-1 scrollbar-hide">
+            <button
+              onClick={() => setActiveCategory(null)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full whitespace-nowrap text-xs font-medium transition-all duration-200 ${
+                activeCategory === null
+                  ? 'bg-[#38B03B] text-white shadow-sm'
+                  : 'bg-muted/70 text-muted-foreground'
+              }`}
+              data-testid="category-all"
+            >
+              {t('category.all')}
+            </button>
+            {STORE_CATEGORIES.map((cat) => (
               <button
                 key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`w-full px-2 py-1.5 rounded-full whitespace-nowrap text-xs font-medium transition-all duration-200 ${
+                onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full whitespace-nowrap text-xs font-medium transition-all duration-200 ${
                   activeCategory === cat
                     ? 'bg-[#38B03B] text-white shadow-sm'
-                    : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
+                    : 'bg-muted/70 text-muted-foreground'
                 }`}
                 data-testid={`category-${cat}`}
               >
@@ -371,17 +436,17 @@ export default function ShopHome() {
               </button>
             ))}
           </div>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="flex gap-2 overflow-x-auto px-3 pb-1 scrollbar-hide">
             {PROMO_TYPES.map((promo) => {
               const PromoIcon = promoLabels[promo].icon;
               return (
                 <button
                   key={promo}
                   onClick={() => setActivePromo(activePromo === promo ? null : promo)}
-                  className={`w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-full whitespace-nowrap text-xs font-medium transition-all duration-200 ${
+                  className={`flex-shrink-0 flex items-center justify-center gap-1 px-3 py-1.5 rounded-full whitespace-nowrap text-xs font-medium transition-all duration-200 ${
                     activePromo === promo
                       ? 'bg-[#38B03B] text-white shadow-sm'
-                      : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
+                      : 'bg-muted/70 text-muted-foreground'
                   }`}
                   data-testid={`promo-${promo}`}
                 >

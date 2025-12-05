@@ -1352,6 +1352,7 @@ export function registerRoutes(app: Express): Server {
               imageUrl: stores.imageUrl,
               city: stores.city,
               address: stores.address,
+              category: stores.category,
             })
             .from(stores)
             .innerJoin(campaignStores, eq(stores.id, campaignStores.storeId))
@@ -1413,6 +1414,7 @@ export function registerRoutes(app: Express): Server {
               name: stores.name,
               imageUrl: stores.imageUrl,
               city: stores.city,
+              category: stores.category,
             })
             .from(stores)
             .where(eq(stores.id, product.storeId))
