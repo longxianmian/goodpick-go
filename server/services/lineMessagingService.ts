@@ -204,7 +204,7 @@ export async function sendCampaignMessage(
   payload: { campaignId: number }
 ): Promise<{ success: boolean; status?: number; error?: string }> {
   // 1. Build campaign URL (production H5 page)
-  const campaignUrl = `https://goodpickgo.com/campaign/${payload.campaignId}`;
+  const campaignUrl = `https://www.goodpickgo.com/campaign/${payload.campaignId}`;
 
   // 2. Select message template based on language
   const templateFn = CAMPAIGN_MESSAGE_TEMPLATES[lang] ?? CAMPAIGN_MESSAGE_TEMPLATES['th'];
