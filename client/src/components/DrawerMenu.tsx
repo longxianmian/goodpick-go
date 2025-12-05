@@ -115,7 +115,7 @@ export function DrawerMenu({ open, onOpenChange }: DrawerMenuProps) {
       });
       return;
     }
-    handleComingSoon();
+    handleNavigate('/apply/discover');
   };
 
   const handleApplyShua = () => {
@@ -126,7 +126,7 @@ export function DrawerMenu({ open, onOpenChange }: DrawerMenuProps) {
       });
       return;
     }
-    handleComingSoon();
+    handleNavigate('/apply/shuashua');
   };
 
   const handleLogout = async () => {

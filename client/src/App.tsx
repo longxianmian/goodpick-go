@@ -45,6 +45,8 @@ import LanguageSettings from "@/pages/user/LanguageSettings";
 import SettingsPage from "@/pages/user/SettingsPage";
 import HelpPage from "@/pages/user/HelpPage";
 import AboutPage from "@/pages/user/AboutPage";
+import ApplyDiscover from "@/pages/user/ApplyDiscover";
+import ApplyShuashua from "@/pages/user/ApplyShuashua";
 import MerchantHome from "@/pages/merchant/MerchantHome";
 import MerchantOperations from "@/pages/merchant/MerchantOperations";
 import MerchantStoreSettings from "@/pages/merchant/MerchantStoreSettings";
@@ -227,6 +229,9 @@ function Router() {
       <Route path="/settings" component={SettingsPage} />
       <Route path="/help" component={HelpPage} />
       <Route path="/about" component={AboutPage} />
+      {/* 申请入驻 */}
+      <Route path="/apply/discover" component={ApplyDiscover} />
+      <Route path="/apply/shuashua" component={ApplyShuashua} />
       {/* 店铺首页 - C端用户视角 */}
       <Route path="/store/:id" component={StoreFront} />
       {/* 商户端 */}
