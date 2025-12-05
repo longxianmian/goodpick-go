@@ -1502,3 +1502,99 @@ export const insertPaymentPointsSchema = createInsertSchema(paymentPoints).omit(
 });
 export type InsertPaymentPoints = z.infer<typeof insertPaymentPointsSchema>;
 export type PaymentPoints = typeof paymentPoints.$inferSelect;
+
+// ============================================
+// 聊天功能 - Chat System
+// ============================================
+
+// 消息发送者类型枚举
+export const chatSenderTypeEnum = pgEnum('chat_sender_type', [
+  'consumer',   // 消费者
+  'merchant',   // 商户（人工）
+  'ai_agent',   // AI数字人
+]);
+
+// 消息类型枚举
+export const chatMessageTypeEnum = pgEnum('chat_message_type', [
+  'text',       // 文本消息
+  'image',      // 图片
+  'product',    // 商品卡片
+  'coupon',     // 优惠券卡片
+]);
+
+// 会话状态枚举
+export const chatConversationStatusEnum = pgEnum('chat_conversation_status', [
+  'active',     // 活跃
+  'closed',     // 已关闭
+]);
+
+// 1. 聊天会话表 - 消费者与门店之间的对话
+export const chatConversations = pgTable('chat_conversations', {
+  id: serial('id').primaryKey(),
+  
+  // 会话双方
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  consumerId: integer('consumer_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  
+  // 最后一条消息预览
+  lastMessagePreview: text('last_message_preview'),
+  lastMessageAt: timestamp('last_message_at'),
+  
+  // 未读消息数（商户端）
+  unreadCountMerchant: integer('unread_count_merchant').default(0),
+  // 未读消息数（消费者端）
+  unreadCountConsumer: integer('unread_count_consumer').default(0),
+  
+  // 状态
+  status: chatConversationStatusEnum('status').notNull().default('active'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  // 确保每个消费者和门店之间只有一个会话
+  uniqueConversation: unique().on(table.storeId, table.consumerId),
+}));
+
+export const insertChatConversationSchema = createInsertSchema(chatConversations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastMessagePreview: true,
+  lastMessageAt: true,
+  unreadCountMerchant: true,
+  unreadCountConsumer: true,
+});
+export type InsertChatConversation = z.infer<typeof insertChatConversationSchema>;
+export type ChatConversation = typeof chatConversations.$inferSelect;
+
+// 2. 聊天消息表
+export const chatMessages = pgTable('chat_messages', {
+  id: serial('id').primaryKey(),
+  
+  // 关联会话
+  conversationId: integer('conversation_id').notNull().references(() => chatConversations.id, { onDelete: 'cascade' }),
+  
+  // 发送者信息
+  senderType: chatSenderTypeEnum('sender_type').notNull(),
+  senderId: integer('sender_id'),  // 消费者或商户操作员的用户ID
+  
+  // 消息内容
+  messageType: chatMessageTypeEnum('message_type').notNull().default('text'),
+  content: text('content').notNull(),           // 文本内容或JSON数据
+  imageUrl: text('image_url'),                  // 图片URL（如果是图片消息）
+  
+  // 已读状态
+  isReadByMerchant: boolean('is_read_by_merchant').default(false),
+  isReadByConsumer: boolean('is_read_by_consumer').default(false),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
+  id: true,
+  createdAt: true,
+  isReadByMerchant: true,
+  isReadByConsumer: true,
+});
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
+export type ChatMessage = typeof chatMessages.$inferSelect;
