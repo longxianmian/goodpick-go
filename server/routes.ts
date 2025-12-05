@@ -5214,14 +5214,16 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // 获取短视频评论
-  app.get('/api/short-videos/:id/comments', async (req: Request, res: Response) => {
+  // 获取短视频评论（支持嵌套回复结构）
+  app.get('/api/short-videos/:id/comments', optionalUserAuth, async (req: Request, res: Response) => {
     try {
       const videoId = parseInt(req.params.id);
+      const userId = req.user?.id;
       const cursor = req.query.cursor ? parseInt(req.query.cursor as string) : 0;
       const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
 
-      const comments = await db
+      // 获取所有评论（包括回复）
+      const allComments = await db
         .select({
           id: shortVideoComments.id,
           content: shortVideoComments.content,
@@ -5229,18 +5231,47 @@ export function registerRoutes(app: Express): Server {
           createdAt: shortVideoComments.createdAt,
           parentId: shortVideoComments.parentId,
           userId: shortVideoComments.userId,
-          userName: users.displayName,
+          userName: sql<string>`COALESCE(${users.shuaName}, ${users.displayName}, '匿名用户')`,
           userAvatar: users.avatarUrl,
         })
         .from(shortVideoComments)
         .leftJoin(users, eq(shortVideoComments.userId, users.id))
         .where(eq(shortVideoComments.videoId, videoId))
-        .orderBy(desc(shortVideoComments.createdAt))
-        .offset(cursor)
-        .limit(limit + 1);
+        .orderBy(desc(shortVideoComments.createdAt));
 
-      const hasMore = comments.length > limit;
-      const items = hasMore ? comments.slice(0, limit) : comments;
+      // 检查用户点赞状态
+      let likedCommentIds: number[] = [];
+      if (userId) {
+        const likes = await db
+          .select({ commentId: shortVideoCommentLikes.commentId })
+          .from(shortVideoCommentLikes)
+          .where(eq(shortVideoCommentLikes.userId, userId));
+        likedCommentIds = likes.map(l => l.commentId);
+      }
+
+      // 分离顶层评论和回复
+      const topLevelComments = allComments.filter(c => !c.parentId);
+      const replies = allComments.filter(c => c.parentId);
+
+      // 构建嵌套结构
+      const commentsWithReplies = topLevelComments.map(comment => ({
+        ...comment,
+        userAvatar: convertHttpToHttps(comment.userAvatar),
+        isLiked: likedCommentIds.includes(comment.id),
+        replies: replies
+          .filter(r => r.parentId === comment.id)
+          .map(r => ({
+            ...r,
+            userAvatar: convertHttpToHttps(r.userAvatar),
+            isLiked: likedCommentIds.includes(r.id),
+          }))
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+        replyCount: replies.filter(r => r.parentId === comment.id).length,
+      }));
+
+      // 分页处理（只对顶层评论分页）
+      const hasMore = commentsWithReplies.length > cursor + limit;
+      const items = commentsWithReplies.slice(cursor, cursor + limit);
 
       res.json({
         success: true,
@@ -5282,7 +5313,11 @@ export function registerRoutes(app: Express): Server {
 
       // 获取用户信息
       const [user] = await db
-        .select({ displayName: users.displayName, avatarUrl: users.avatarUrl })
+        .select({ 
+          displayName: users.displayName, 
+          shuaName: users.shuaName,
+          avatarUrl: users.avatarUrl 
+        })
         .from(users)
         .where(eq(users.id, userId));
 
@@ -5290,8 +5325,8 @@ export function registerRoutes(app: Express): Server {
         success: true,
         data: {
           ...newComment,
-          userName: user?.displayName,
-          userAvatar: user?.avatarUrl,
+          userName: user?.shuaName || user?.displayName || '匿名用户',
+          userAvatar: convertHttpToHttps(user?.avatarUrl),
         },
       });
     } catch (error) {
