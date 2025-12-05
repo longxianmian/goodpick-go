@@ -267,39 +267,41 @@ function StoreStats({ store }: { store: Store }) {
   );
 }
 
-function CouponSection() {
-  const { t } = useLanguage();
-  // TODO: Replace with real coupon data from store campaigns when available
-  const coupons = [
-    { discount: 18, minSpend: 25, type: 'voucher' },
-    { discount: 30, percentage: true, type: 'discount' },
-    { discount: 38, reduction: 1, type: 'reduction' },
-    { discount: 48, reduction: 2, type: 'reduction' },
-  ];
+function CouponSection({ campaigns }: { campaigns: Campaign[] }) {
+  const { t, language } = useLanguage();
+  
+  const activeCampaigns = campaigns.filter(c => c.isActive).slice(0, 4);
+  
+  if (activeCampaigns.length === 0) return null;
+
+  const getCouponLabel = (campaign: Campaign) => {
+    if (campaign.discountType === 'percentage') {
+      return t('storeFront.couponDiscount', { percent: String(campaign.couponValue || 10) });
+    }
+    return t('storeFront.couponVoucher', { 
+      amount: String(campaign.couponValue || 0), 
+      min: String(campaign.originalPrice || 0) 
+    });
+  };
 
   return (
     <div className="bg-card p-4 border-t border-border">
       <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
-        {coupons.map((coupon, i) => (
-          <Badge 
-            key={i} 
-            variant="outline" 
-            className="flex-shrink-0 text-destructive border-destructive/30 bg-destructive/5"
-          >
-            {coupon.type === 'voucher' && (
-              <span>{t('storeFront.couponVoucher', { amount: String(coupon.discount), min: String(coupon.minSpend) })}</span>
-            )}
-            {coupon.type === 'discount' && (
-              <span>{t('storeFront.couponDiscount', { percent: String(coupon.discount) })}</span>
-            )}
-            {coupon.type === 'reduction' && (
-              <span>{t('storeFront.couponReduction', { spend: String(coupon.discount), save: String(coupon.reduction) })}</span>
-            )}
-          </Badge>
+        {activeCampaigns.map((campaign) => (
+          <Link key={campaign.id} href={`/campaign/${campaign.id}`}>
+            <Badge 
+              variant="outline" 
+              className="flex-shrink-0 text-destructive border-destructive/30 bg-destructive/5 cursor-pointer"
+            >
+              {getCouponLabel(campaign)}
+            </Badge>
+          </Link>
         ))}
-        <Button variant="ghost" size="sm" className="flex-shrink-0 text-xs text-primary h-6 px-2">
-          {t('storeFront.getCoupon')}
-        </Button>
+        <Link href="/shop">
+          <Button variant="ghost" size="sm" className="flex-shrink-0 text-xs text-primary h-6 px-2">
+            {t('storeFront.getCoupon')}
+          </Button>
+        </Link>
       </div>
     </div>
   );
@@ -534,7 +536,7 @@ function MenuTab({ products, campaigns, storeId }: { products: Product[]; campai
   );
 }
 
-function DealsTab({ campaigns, storeId }: { campaigns: Campaign[]; storeId: number }) {
+function DealsTab({ campaigns }: { campaigns: Campaign[] }) {
   const { t, language } = useLanguage();
   
   const getTitle = (campaign: Campaign) => {
@@ -543,41 +545,11 @@ function DealsTab({ campaigns, storeId }: { campaigns: Campaign[]; storeId: numb
     return campaign.titleTh || campaign.titleSource;
   };
 
-  const generateDealItems = () => {
-    if (campaigns.length === 0) return [];
-    return campaigns.slice(0, 6).map((campaign, index) => {
-      const basePrice = Number(campaign.couponValue) || 20;
-      const discountPercent = 90 + (index * 2) % 8;
-      const originalPrice = Math.round(Number(basePrice) * 100 / discountPercent);
-      const monthlySales = 50 + (storeId * 23 + index * 47) % 400;
-      const repeatCustomers = 10 + (storeId * 11 + index * 19) % 100;
-      const recentOrders = 50 + (storeId * 7 + index * 31) % 100;
-      const portionReviews = 3 + (storeId * 5 + index * 7) % 10;
-      const tasteReviews = 5 + (storeId * 3 + index * 11) % 15;
-      const newCustomerPrice = Math.round(Number(basePrice) * 0.4);
-      const hasSpecs = index % 2 === 1;
-      const badgeType = index === 0 ? 'new' : index === 1 ? 'signature' : null;
-      
-      return {
-        id: campaign.id,
-        name: getTitle(campaign),
-        image: campaign.bannerImageUrl,
-        badgeType,
-        monthlySales,
-        repeatCustomers,
-        recentOrders,
-        portionReviews,
-        tasteReviews,
-        discountPercent,
-        price: basePrice,
-        originalPrice,
-        newCustomerPrice,
-        hasSpecs,
-      };
-    });
+  const getDescription = (campaign: Campaign) => {
+    if (language === 'zh-cn') return campaign.descriptionZh || campaign.descriptionSource;
+    if (language === 'en-us') return campaign.descriptionEn || campaign.descriptionSource;
+    return campaign.descriptionTh || campaign.descriptionSource;
   };
-
-  const dealItems = generateDealItems();
 
   return (
     <div className="overflow-y-auto h-[calc(100vh-280px)]">
@@ -589,25 +561,14 @@ function DealsTab({ campaigns, storeId }: { campaigns: Campaign[]; storeId: numb
       </div>
 
       <div className="divide-y divide-border">
-        {dealItems.length > 0 ? (
-          dealItems.map((item) => (
-            <Link key={item.id} href={`/campaign/${item.id}`}>
-              <div className="p-4 hover:bg-muted/30 active:bg-muted/50 transition-colors" data-testid={`deal-item-${item.id}`}>
+        {campaigns.length > 0 ? (
+          campaigns.map((campaign) => (
+            <Link key={campaign.id} href={`/campaign/${campaign.id}`}>
+              <div className="p-4 hover:bg-muted/30 active:bg-muted/50 transition-colors" data-testid={`deal-item-${campaign.id}`}>
                 <div className="flex gap-3">
                   <div className="relative w-28 h-28 rounded-md overflow-hidden flex-shrink-0 bg-muted">
-                    {item.badgeType && (
-                      <Badge 
-                        className={`absolute top-1 left-1 text-[10px] px-1.5 py-0.5 z-10 ${
-                          item.badgeType === 'new' 
-                            ? 'bg-orange-500 text-white' 
-                            : 'bg-yellow-500 text-white'
-                        }`}
-                      >
-                        {item.badgeType === 'new' ? t('storeFront.deals.badgeNew') : t('storeFront.deals.badgeSignature')}
-                      </Badge>
-                    )}
-                    {item.image ? (
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    {campaign.bannerImageUrl ? (
+                      <img src={campaign.bannerImageUrl} alt={getTitle(campaign)} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <Ticket className="w-10 h-10 text-muted-foreground" />
@@ -616,62 +577,46 @@ function DealsTab({ campaigns, storeId }: { campaigns: Campaign[]; storeId: numb
                   </div>
                   
                   <div className="flex-1 min-w-0 flex flex-col">
-                    <h4 className="font-medium text-sm line-clamp-2">{item.name}</h4>
+                    <h4 className="font-medium text-sm line-clamp-2">{getTitle(campaign)}</h4>
                     
-                    <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground flex-wrap">
-                      <span>{t('storeFront.menu.monthlySales', { count: String(item.monthlySales) })}</span>
-                      <span className="text-orange-500">{t('storeFront.deals.repeatCustomers', { count: String(item.repeatCustomers) })}</span>
-                    </div>
+                    {getDescription(campaign) && (
+                      <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
+                        {getDescription(campaign)}
+                      </p>
+                    )}
                     
-                    <div className="flex items-center gap-2 mt-1 text-[11px] flex-wrap">
-                      <span className="text-orange-500">{t('storeFront.deals.recentOrders', { count: String(item.recentOrders) })}</span>
-                      <span className="text-muted-foreground">"{t('storeFront.deals.portionGood')}"</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground flex-wrap">
-                      <span>{t('storeFront.deals.reviewPortion', { count: String(item.portionReviews) })}</span>
-                      <span>{t('storeFront.deals.reviewTaste', { count: String(item.tasteReviews) })}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge className="text-[10px] px-1.5 py-0 h-4 bg-orange-100 text-orange-600 border-0 dark:bg-orange-900/30">
-                        {t('storeFront.deals.discountPercent', { percent: String(item.discountPercent / 10) })}
-                      </Badge>
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      {campaign.discountType && (
+                        <Badge className="text-[10px] px-1.5 py-0 h-4 bg-[#38B03B]/10 text-[#38B03B] border-0">
+                          {campaign.discountType === 'percentage' ? t('storeFront.deals.discountBadge') : t('storeFront.deals.voucherBadge')}
+                        </Badge>
+                      )}
+                      {campaign.maxTotal && campaign.currentClaimed !== undefined && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {t('storeFront.deals.remaining')}: {campaign.maxTotal - (campaign.currentClaimed || 0)}
+                        </span>
+                      )}
                     </div>
                     
                     <div className="flex items-center justify-between mt-2">
-                      <div className="flex flex-col">
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-destructive font-bold text-lg">
-                            {t('common.currencySymbol')}{item.price}
-                          </span>
-                          <span className="text-xs text-muted-foreground line-through">
-                            {t('common.currencySymbol')}{item.originalPrice}
-                          </span>
-                        </div>
-                        <span className="text-xs text-orange-500">
-                          {t('common.currencySymbol')}{item.newCustomerPrice} {t('storeFront.deals.newCustomerPrice')}
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-destructive font-bold text-lg">
+                          {t('common.currencySymbol')}{campaign.couponValue || 0}
                         </span>
+                        {campaign.originalPrice && Number(campaign.originalPrice) > Number(campaign.couponValue) && (
+                          <span className="text-xs text-muted-foreground line-through">
+                            {t('common.currencySymbol')}{campaign.originalPrice}
+                          </span>
+                        )}
                       </div>
                       
-                      {item.hasSpecs ? (
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="h-7 text-xs border-orange-500 text-orange-500"
-                          data-testid={`button-deals-specs-${item.id}`}
-                        >
-                          {t('storeFront.menu.selectSpecs')}
-                        </Button>
-                      ) : (
-                        <Button 
-                          size="icon" 
-                          className="h-8 w-8 rounded-full bg-orange-500 hover:bg-orange-600"
-                          data-testid={`button-deals-add-${item.id}`}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      )}
+                      <Button 
+                        size="icon" 
+                        className="h-8 w-8 rounded-full bg-[#38B03B]"
+                        data-testid={`button-deals-add-${campaign.id}`}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -681,7 +626,7 @@ function DealsTab({ campaigns, storeId }: { campaigns: Campaign[]; storeId: numb
         ) : (
           <div className="text-center py-8 text-muted-foreground">
             <Ticket className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>{t('storeFront.noProducts')}</p>
+            <p>{t('storeFront.noCampaigns')}</p>
           </div>
         )}
       </div>
@@ -1002,7 +947,7 @@ export default function StoreFront() {
     <div className="min-h-screen bg-background pb-24">
       <StoreHeader store={store} onBack={() => window.history.back()} />
       <StoreStats store={store} />
-      <CouponSection />
+      <CouponSection campaigns={storeCampaigns} />
       <ServiceScores store={store} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-2">
@@ -1037,7 +982,7 @@ export default function StoreFront() {
           <MenuTab products={storeProducts} campaigns={storeCampaigns} storeId={store.id} />
         </TabsContent>
         <TabsContent value="deals" className="mt-0">
-          <DealsTab campaigns={storeCampaigns} storeId={store.id} />
+          <DealsTab campaigns={storeCampaigns} />
         </TabsContent>
         <TabsContent value="reviews" className="mt-0">
           <ReviewsTab />

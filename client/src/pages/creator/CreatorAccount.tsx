@@ -60,19 +60,17 @@ export default function CreatorAccount() {
     setLocation(path);
   };
   
-  const mockEarnings = {
-    thisMonth: 12580,
-    lastMonth: 10260,
-    pending: 3680,
-    withdrawable: 8900,
-    total: 86500,
+  // TODO: Replace with real earnings API when available
+  const earnings = {
+    thisMonth: 0,
+    lastMonth: 0,
+    pending: 0,
+    withdrawable: 0,
+    total: 0,
   };
 
-  const mockSettlements = [
-    { id: 1, amount: 5000, date: '2024-11-25', status: 'completed' },
-    { id: 2, amount: 3260, date: '2024-11-18', status: 'completed' },
-    { id: 3, amount: 2000, date: '2024-11-10', status: 'processing' },
-  ];
+  // TODO: Replace with real settlements API when available
+  const settlements: { id: number; amount: number; date: string; status: string }[] = [];
 
   const formatNumber = (num: number) => {
     if (num >= 10000) {
@@ -199,29 +197,31 @@ export default function CreatorAccount() {
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/30" data-testid="stat-this-month">
                 <div className="text-xs text-muted-foreground mb-1">{t('creatorAccount.thisMonth')}</div>
-                <div className="text-xl font-bold text-green-600">{t('common.currencySymbol')}{formatNumber(mockEarnings.thisMonth)}</div>
-                <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
-                  <TrendingUp className="w-3 h-3" />
-                  <span>+22.6%</span>
-                </div>
+                <div className="text-xl font-bold text-green-600">{t('common.currencySymbol')}{formatNumber(earnings.thisMonth)}</div>
+                {earnings.thisMonth > 0 && earnings.lastMonth > 0 && (
+                  <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
+                    <TrendingUp className="w-3 h-3" />
+                    <span>+{((earnings.thisMonth - earnings.lastMonth) / earnings.lastMonth * 100).toFixed(1)}%</span>
+                  </div>
+                )}
               </div>
               
               <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30" data-testid="stat-withdrawable">
                 <div className="text-xs text-muted-foreground mb-1">{t('creatorAccount.withdrawable')}</div>
-                <div className="text-xl font-bold text-blue-600">{t('common.currencySymbol')}{formatNumber(mockEarnings.withdrawable)}</div>
-                <Button variant="outline" size="sm" className="mt-2 h-7 text-xs" data-testid="button-withdraw">
+                <div className="text-xl font-bold text-blue-600">{t('common.currencySymbol')}{formatNumber(earnings.withdrawable)}</div>
+                <Button variant="outline" size="sm" className="mt-2 h-7 text-xs" data-testid="button-withdraw" disabled={earnings.withdrawable <= 0}>
                   {t('creatorAccount.withdraw')}
                 </Button>
               </div>
               
               <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30" data-testid="stat-pending">
                 <div className="text-xs text-muted-foreground mb-1">{t('creatorAccount.pending')}</div>
-                <div className="text-lg font-bold text-amber-600">{t('common.currencySymbol')}{formatNumber(mockEarnings.pending)}</div>
+                <div className="text-lg font-bold text-amber-600">{t('common.currencySymbol')}{formatNumber(earnings.pending)}</div>
               </div>
               
               <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950/30" data-testid="stat-total">
                 <div className="text-xs text-muted-foreground mb-1">{t('creatorAccount.totalEarnings')}</div>
-                <div className="text-lg font-bold text-purple-600">{t('common.currencySymbol')}{formatNumber(mockEarnings.total)}</div>
+                <div className="text-lg font-bold text-purple-600">{t('common.currencySymbol')}{formatNumber(earnings.total)}</div>
               </div>
             </div>
           </CardContent>
@@ -237,28 +237,35 @@ export default function CreatorAccount() {
             </div>
             
             <div className="space-y-3">
-              {mockSettlements.map((settlement) => (
-                <div 
-                  key={settlement.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                  data-testid={`settlement-${settlement.id}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                      <CreditCard className="w-5 h-5 text-green-500" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium">
-                        {t('common.currencySymbol')}{formatNumber(settlement.amount)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">{settlement.date}</div>
-                    </div>
-                  </div>
-                  <Badge variant={settlement.status === 'completed' ? 'secondary' : 'outline'}>
-                    {settlement.status === 'completed' ? t('creatorAccount.completed') : t('creatorAccount.processing')}
-                  </Badge>
+              {settlements.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                  <Wallet className="w-10 h-10 mb-2 opacity-50" />
+                  <span className="text-sm">{t('common.noData')}</span>
                 </div>
-              ))}
+              ) : (
+                settlements.map((settlement) => (
+                  <div 
+                    key={settlement.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                    data-testid={`settlement-${settlement.id}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                        <CreditCard className="w-5 h-5 text-green-500" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium">
+                          {t('common.currencySymbol')}{formatNumber(settlement.amount)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{settlement.date}</div>
+                      </div>
+                    </div>
+                    <Badge variant={settlement.status === 'completed' ? 'secondary' : 'outline'}>
+                      {settlement.status === 'completed' ? t('creatorAccount.completed') : t('creatorAccount.processing')}
+                    </Badge>
+                  </div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
