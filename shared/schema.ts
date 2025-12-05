@@ -46,6 +46,30 @@ export const industryTypeEnum = pgEnum('industry_type', [
   'entertainment', // 休闲娱乐
 ]);
 
+// 门店服务类目枚举（按东南亚本地生活热度排序）
+export const storeCategoryEnum = pgEnum('store_category', [
+  'dining',           // 餐饮
+  'coffee',           // 咖啡
+  'dessert',          // 甜品
+  'bbq',              // 烧烤
+  'beauty',           // 美容美发
+  'cosmetics',        // 美妆护肤
+  'fashion',          // 服装
+  'convenience',      // 便利店
+  'grocery',          // 百货/超市
+  'mother_baby',      // 母婴
+  'home',             // 家居
+  'building',         // 建材
+  'ktv',              // KTV
+  'amusement',        // 游乐场
+  'hotel',            // 酒店
+  'tourism',          // 旅游
+  'rental',           // 租房
+  'training',         // 培训
+  'education',        // 教育
+  'other',            // 其他
+]);
+
 export const businessStatusEnum = pgEnum('business_status', [
   'open',          // 营业中
   'closed',        // 休息中
@@ -91,6 +115,7 @@ export const stores = pgTable('stores', {
   // 新增字段 - 门店首页展示相关
   industryType: industryTypeEnum('industry_type').default('food'),
   businessStatus: businessStatusEnum('business_status').default('open'),
+  category: storeCategoryEnum('category').default('other'),
   
   // 门店描述（多语言）
   descriptionZh: text('description_zh'),
