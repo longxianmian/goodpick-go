@@ -105,7 +105,10 @@ export default function CreatorStudio() {
   const totalViews = allContents.reduce((sum, c) => sum + (c.views || 0), 0);
 
   const formatRelativeTime = (dateStr: string) => {
-    const date = new Date(dateStr);
+    let date = new Date(dateStr);
+    if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+      date = new Date(dateStr + 'Z');
+    }
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -113,6 +116,7 @@ export default function CreatorStudio() {
     const diffDays = Math.floor(diffMs / 86400000);
     const diffWeeks = Math.floor(diffDays / 7);
     
+    if (diffMins < 1) return t('common.justNow') || '刚刚';
     if (diffMins < 60) return `${diffMins}${t('common.minutesAgo') || '分钟前'}`;
     if (diffHours < 24) return `${diffHours}${t('common.hoursAgo') || '小时前'}`;
     if (diffDays < 7) return `${diffDays}${t('common.daysAgo') || '天前'}`;
