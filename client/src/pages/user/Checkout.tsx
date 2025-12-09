@@ -219,7 +219,7 @@ export default function Checkout() {
     );
   }
 
-  const subtotal = cart.items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const subtotal = cart.items.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
   const deliveryFee = feeData?.total || 0;
   const total = subtotal + deliveryFee;
   const selectedAddress = addresses.find(a => a.id === selectedAddressId);
@@ -356,16 +356,16 @@ export default function Checkout() {
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-3">
             <Store className="w-5 h-5 text-primary" />
-            <span className="font-medium">{cart.store.name}</span>
+            <span className="font-medium">{cart.store?.name || t('cart.unknownProduct')}</span>
           </div>
           <div className="space-y-3">
             {cart.items.map((item) => (
               <div key={item.id} className="flex gap-3" data-testid={`cart-item-${item.id}`}>
                 <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                  {item.product.coverImage ? (
+                  {item.product?.coverImage ? (
                     <img
                       src={item.product.coverImage}
-                      alt={item.product.name}
+                      alt={item.product?.name || ''}
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -375,10 +375,10 @@ export default function Checkout() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-sm line-clamp-2">{item.product.name}</h4>
+                  <h4 className="font-medium text-sm line-clamp-2">{item.product?.name || t('cart.unknownProduct')}</h4>
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-primary font-semibold">
-                      ฿{item.product.price.toFixed(2)}
+                      ฿{(item.product?.price || 0).toFixed(2)}
                     </span>
                     <span className="text-muted-foreground text-sm">x{item.quantity}</span>
                   </div>

@@ -8864,6 +8864,17 @@ export function registerRoutes(app: Express): Server {
         return res.json({ success: true, data: null });
       }
 
+      // 获取门店信息
+      const [store] = await db
+        .select({
+          id: stores.id,
+          name: stores.name,
+          imageUrl: stores.imageUrl,
+        })
+        .from(stores)
+        .where(eq(stores.id, storeId))
+        .limit(1);
+
       // 获取购物车商品
       const items = await db
         .select({
@@ -8891,6 +8902,7 @@ export function registerRoutes(app: Express): Server {
         success: true,
         data: {
           ...cart,
+          store,
           items,
         },
       });
