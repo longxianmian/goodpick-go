@@ -137,6 +137,16 @@ export const stores = pgTable('stores', {
   deliveryTime: integer('delivery_time'), // 分钟
   pickupTime: integer('pickup_time'),     // 自取等待时间（分钟）
   
+  // 外卖配送设置
+  supportsDelivery: boolean('supports_delivery').default(true),     // 是否支持外卖
+  supportsPickup: boolean('supports_pickup').default(true),         // 是否支持自取
+  deliveryRadiusKm: decimal('delivery_radius_km', { precision: 5, scale: 2 }).default('5'),  // 配送范围（公里）
+  baseDeliveryFee: decimal('base_delivery_fee', { precision: 10, scale: 2 }).default('20'),  // 基础配送费
+  perKmFee: decimal('per_km_fee', { precision: 10, scale: 2 }).default('5'),                 // 每公里配送费
+  freeDeliveryMinAmount: decimal('free_delivery_min_amount', { precision: 10, scale: 2 }),   // 免配送费最低消费
+  packagingFee: decimal('packaging_fee', { precision: 10, scale: 2 }).default('0'),          // 打包费
+  minOrderAmount: decimal('min_order_amount', { precision: 10, scale: 2 }).default('0'),     // 最低起送金额
+  
   // 服务评分（JSON格式: {"product": 4.8, "logistics": 4.5, "service": 4.7}）
   serviceScores: text('service_scores'),
   
@@ -1735,3 +1745,316 @@ export const insertShuashuaApplicationSchema = createInsertSchema(shuashuaApplic
 });
 export type InsertShuashuaApplication = z.infer<typeof insertShuashuaApplicationSchema>;
 export type ShuashuaApplication = typeof shuashuaApplications.$inferSelect;
+
+// ============================================
+// 外卖系统 - 购物车、订单、配送
+// ============================================
+
+// 购物车状态枚举
+export const cartStatusEnum = pgEnum('cart_status', [
+  'active',     // 活跃购物车
+  'checked_out', // 已结账
+  'abandoned',  // 已放弃
+]);
+
+// 订单类型枚举
+export const orderTypeEnum = pgEnum('order_type', [
+  'dine_in',    // 堂食
+  'pickup',     // 自取
+  'delivery',   // 外卖配送
+]);
+
+// 外卖订单状态枚举
+export const deliveryOrderStatusEnum = pgEnum('delivery_order_status', [
+  'pending_payment',    // 待支付
+  'paid',               // 已支付，等待商家接单
+  'accepted',           // 商家已接单
+  'preparing',          // 备餐中
+  'ready_for_pickup',   // 备餐完成，等待骑手取餐
+  'picked_up',          // 骑手已取餐
+  'delivering',         // 配送中
+  'delivered',          // 已送达
+  'completed',          // 已完成
+  'cancelled',          // 已取消
+  'refunded',           // 已退款
+]);
+
+// 配送任务状态枚举
+export const deliveryAssignmentStatusEnum = pgEnum('delivery_assignment_status', [
+  'pending',            // 等待分配骑手
+  'assigned',           // 已分配骑手
+  'rider_accepted',     // 骑手已接单
+  'rider_arrived_store', // 骑手已到店
+  'picked_up',          // 已取餐
+  'delivering',         // 配送中
+  'delivered',          // 已送达
+  'cancelled',          // 已取消
+]);
+
+// 骑手平台提供商枚举
+export const riderProviderEnum = pgEnum('rider_provider', [
+  'internal',           // 内部骑手
+  'lalamove',           // Lalamove
+  'grab',               // Grab Express
+  'lineman',            // LINE MAN
+  'foodpanda_rider',    // foodpanda 骑手
+  'other',              // 其他平台
+]);
+
+// 购物车表
+export const carts = pgTable('carts', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  
+  // 购物车状态
+  status: cartStatusEnum('status').notNull().default('active'),
+  
+  // 订单类型
+  orderType: orderTypeEnum('order_type').notNull().default('delivery'),
+  
+  // 金额汇总（实时计算，缓存用）
+  subtotal: decimal('subtotal', { precision: 10, scale: 2 }).default('0'),
+  deliveryFee: decimal('delivery_fee', { precision: 10, scale: 2 }).default('0'),
+  discount: decimal('discount', { precision: 10, scale: 2 }).default('0'),
+  total: decimal('total', { precision: 10, scale: 2 }).default('0'),
+  
+  // 优惠券
+  couponId: integer('coupon_id'),
+  
+  // 会话ID（未登录用户）
+  sessionId: text('session_id'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertCartSchema = createInsertSchema(carts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertCart = z.infer<typeof insertCartSchema>;
+export type Cart = typeof carts.$inferSelect;
+
+// 购物车商品表
+export const cartItems = pgTable('cart_items', {
+  id: serial('id').primaryKey(),
+  cartId: integer('cart_id').notNull().references(() => carts.id, { onDelete: 'cascade' }),
+  productId: integer('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  
+  // 数量和价格
+  quantity: integer('quantity').notNull().default(1),
+  unitPrice: decimal('unit_price', { precision: 10, scale: 2 }).notNull(),
+  
+  // 商品规格/选项（JSON格式）
+  options: text('options'), // {"size": "大杯", "sugar": "少糖", "ice": "少冰"}
+  
+  // 备注
+  note: text('note'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertCartItemSchema = createInsertSchema(cartItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
+export type CartItem = typeof cartItems.$inferSelect;
+
+// 用户配送地址表
+export const deliveryAddresses = pgTable('delivery_addresses', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  
+  // 收货人信息
+  recipientName: text('recipient_name').notNull(),
+  recipientPhone: text('recipient_phone').notNull(),
+  
+  // 地址信息
+  addressLine1: text('address_line1').notNull(),  // 详细地址
+  addressLine2: text('address_line2'),            // 门牌号/楼层
+  district: text('district'),                     // 区域
+  city: text('city').notNull(),
+  province: text('province'),
+  postalCode: text('postal_code'),
+  country: text('country').default('Thailand'),
+  
+  // 地理位置
+  latitude: decimal('latitude', { precision: 10, scale: 7 }),
+  longitude: decimal('longitude', { precision: 10, scale: 7 }),
+  
+  // 标签
+  label: text('label'),  // "家", "公司", "学校"
+  
+  // 默认地址
+  isDefault: boolean('is_default').default(false),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertDeliveryAddressSchema = createInsertSchema(deliveryAddresses).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertDeliveryAddress = z.infer<typeof insertDeliveryAddressSchema>;
+export type DeliveryAddress = typeof deliveryAddresses.$inferSelect;
+
+// 外卖订单表
+export const deliveryOrders = pgTable('delivery_orders', {
+  id: serial('id').primaryKey(),
+  orderNo: text('order_no').notNull().unique(),  // 订单编号
+  
+  // 关联
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  storeId: integer('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  cartId: integer('cart_id').references(() => carts.id, { onDelete: 'set null' }),
+  addressId: integer('address_id').references(() => deliveryAddresses.id, { onDelete: 'set null' }),
+  
+  // 订单类型和状态
+  orderType: orderTypeEnum('order_type').notNull().default('delivery'),
+  status: deliveryOrderStatusEnum('status').notNull().default('pending_payment'),
+  
+  // 收货地址快照（防止地址变更影响历史订单）
+  addressSnapshot: text('address_snapshot'),  // JSON格式的地址信息
+  
+  // 金额
+  subtotal: decimal('subtotal', { precision: 10, scale: 2 }).notNull(),
+  deliveryFee: decimal('delivery_fee', { precision: 10, scale: 2 }).default('0'),
+  packagingFee: decimal('packaging_fee', { precision: 10, scale: 2 }).default('0'),
+  discount: decimal('discount', { precision: 10, scale: 2 }).default('0'),
+  total: decimal('total', { precision: 10, scale: 2 }).notNull(),
+  currency: text('currency').notNull().default('THB'),
+  
+  // 配送信息
+  distanceKm: decimal('distance_km', { precision: 10, scale: 2 }),
+  estimatedPrepTime: integer('estimated_prep_time'),   // 预计备餐时间（分钟）
+  estimatedDeliveryTime: integer('estimated_delivery_time'),  // 预计配送时间（分钟）
+  scheduledAt: timestamp('scheduled_at'),              // 预约配送时间
+  
+  // 备注
+  customerNote: text('customer_note'),  // 顾客备注
+  merchantNote: text('merchant_note'),  // 商家备注
+  
+  // 支付信息
+  paymentMethod: text('payment_method'),
+  paymentReference: text('payment_reference'),
+  paidAt: timestamp('paid_at'),
+  
+  // 时间戳
+  acceptedAt: timestamp('accepted_at'),      // 商家接单时间
+  preparedAt: timestamp('prepared_at'),      // 备餐完成时间
+  pickedUpAt: timestamp('picked_up_at'),     // 骑手取餐时间
+  deliveredAt: timestamp('delivered_at'),    // 送达时间
+  completedAt: timestamp('completed_at'),    // 完成时间
+  cancelledAt: timestamp('cancelled_at'),    // 取消时间
+  cancelReason: text('cancel_reason'),       // 取消原因
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertDeliveryOrderSchema = createInsertSchema(deliveryOrders).omit({
+  id: true,
+  orderNo: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertDeliveryOrder = z.infer<typeof insertDeliveryOrderSchema>;
+export type DeliveryOrder = typeof deliveryOrders.$inferSelect;
+
+// 订单商品表（订单快照）
+export const orderItems = pgTable('order_items', {
+  id: serial('id').primaryKey(),
+  orderId: integer('order_id').notNull().references(() => deliveryOrders.id, { onDelete: 'cascade' }),
+  productId: integer('product_id').references(() => products.id, { onDelete: 'set null' }),
+  
+  // 商品快照
+  productName: text('product_name').notNull(),
+  productImage: text('product_image'),
+  
+  // 数量和价格
+  quantity: integer('quantity').notNull(),
+  unitPrice: decimal('unit_price', { precision: 10, scale: 2 }).notNull(),
+  subtotal: decimal('subtotal', { precision: 10, scale: 2 }).notNull(),
+  
+  // 规格选项
+  options: text('options'),  // JSON格式
+  note: text('note'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertOrderItemSchema = createInsertSchema(orderItems).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
+export type OrderItem = typeof orderItems.$inferSelect;
+
+// 配送任务表（骑手配送）
+export const deliveryAssignments = pgTable('delivery_assignments', {
+  id: serial('id').primaryKey(),
+  orderId: integer('order_id').notNull().references(() => deliveryOrders.id, { onDelete: 'cascade' }),
+  
+  // 骑手平台
+  provider: riderProviderEnum('provider').notNull().default('internal'),
+  providerOrderId: text('provider_order_id'),  // 第三方平台订单ID
+  
+  // 骑手信息
+  riderId: integer('rider_id').references(() => users.id, { onDelete: 'set null' }),
+  riderName: text('rider_name'),
+  riderPhone: text('rider_phone'),
+  riderAvatarUrl: text('rider_avatar_url'),
+  
+  // 状态
+  status: deliveryAssignmentStatusEnum('status').notNull().default('pending'),
+  
+  // 位置追踪
+  currentLatitude: decimal('current_latitude', { precision: 10, scale: 7 }),
+  currentLongitude: decimal('current_longitude', { precision: 10, scale: 7 }),
+  lastLocationUpdate: timestamp('last_location_update'),
+  
+  // 时间戳
+  assignedAt: timestamp('assigned_at'),
+  acceptedAt: timestamp('accepted_at'),
+  arrivedStoreAt: timestamp('arrived_store_at'),
+  pickedUpAt: timestamp('picked_up_at'),
+  deliveredAt: timestamp('delivered_at'),
+  
+  // 配送费（骑手端）
+  riderFee: decimal('rider_fee', { precision: 10, scale: 2 }),
+  
+  // 备注
+  riderNote: text('rider_note'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertDeliveryAssignmentSchema = createInsertSchema(deliveryAssignments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertDeliveryAssignment = z.infer<typeof insertDeliveryAssignmentSchema>;
+export type DeliveryAssignment = typeof deliveryAssignments.$inferSelect;
+
+// 骑手位置历史表（用于追踪轨迹）
+export const riderLocationHistory = pgTable('rider_location_history', {
+  id: serial('id').primaryKey(),
+  assignmentId: integer('assignment_id').notNull().references(() => deliveryAssignments.id, { onDelete: 'cascade' }),
+  
+  latitude: decimal('latitude', { precision: 10, scale: 7 }).notNull(),
+  longitude: decimal('longitude', { precision: 10, scale: 7 }).notNull(),
+  accuracy: decimal('accuracy', { precision: 10, scale: 2 }),  // 精度（米）
+  speed: decimal('speed', { precision: 10, scale: 2 }),        // 速度（km/h）
+  heading: decimal('heading', { precision: 10, scale: 2 }),    // 方向（角度）
+  
+  recordedAt: timestamp('recorded_at').notNull().defaultNow(),
+});
