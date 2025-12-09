@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { UserBottomNav } from '@/components/UserBottomNav';
 import { ChatWindow } from '@/components/ChatWindow';
+import { CartDrawer, useAddToCart } from '@/components/CartDrawer';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Store, Campaign, Product } from '@shared/schema';
@@ -352,6 +353,13 @@ function ServiceScores({ store }: { store: Store }) {
 function MenuTab({ products, campaigns, storeId }: { products: Product[]; campaigns: Campaign[]; storeId: number }) {
   const { t, language } = useLanguage();
   const [activeCategory, setActiveCategory] = useState('all');
+  const addToCart = useAddToCart(storeId);
+
+  const handleAddToCart = (e: React.MouseEvent, productId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addToCart.mutate({ productId, quantity: 1 });
+  };
   
   const getProductName = (product: Product) => {
     return product.name;
@@ -516,6 +524,8 @@ function MenuTab({ products, campaigns, storeId }: { products: Product[]; campai
                         size="icon" 
                         className="h-7 w-7 rounded-full bg-[#38B03B]"
                         data-testid={`button-menu-add-${product.id}`}
+                        onClick={(e) => handleAddToCart(e, product.id)}
+                        disabled={addToCart.isPending}
                       >
                         <Plus className="w-4 h-4" />
                       </Button>
@@ -992,6 +1002,8 @@ export default function StoreFront() {
         </TabsContent>
       </Tabs>
 
+      <CartDrawer storeId={store.id} storeName={store.name} />
+      
       <BottomActionBar onChatClick={handleChatClick} />
 
       <ChatWindow
