@@ -30,6 +30,9 @@ import {
   Edit2,
   Check,
   Store,
+  Home,
+  Bike,
+  Clock,
 } from 'lucide-react';
 
 interface CartItem {
@@ -79,6 +82,8 @@ export default function Checkout() {
   const searchParams = new URLSearchParams(window.location.search);
   const storeId = searchParams.get('storeId');
 
+  // 配送方式: pickup(自提), delivery(外卖), shipping(快递)
+  const [fulfillmentType, setFulfillmentType] = useState<'pickup' | 'delivery' | 'shipping'>('delivery');
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
   const [deliveryNote, setDeliveryNote] = useState('');
   const [showAddressDialog, setShowAddressDialog] = useState(false);
@@ -115,15 +120,20 @@ export default function Checkout() {
   }, [addresses, selectedAddressId]);
 
   const { data: feeData } = useQuery<DeliveryFee>({
-    queryKey: ['/api/delivery/calculate-fee', storeId, selectedAddressId],
+    queryKey: ['/api/delivery/calculate-fee', storeId, selectedAddressId, fulfillmentType],
     queryFn: async () => {
+      // 自提不需要配送费
+      if (fulfillmentType === 'pickup') {
+        return { baseFee: 0, distanceFee: 0, total: 0, estimatedTime: '15-30 min' };
+      }
       const res = await apiRequest('POST', '/api/delivery/calculate-fee', {
         storeId: Number(storeId),
         addressId: selectedAddressId,
+        fulfillmentType,
       });
       return res.json().then(r => r.data);
     },
-    enabled: !!storeId && !!selectedAddressId,
+    enabled: !!storeId && (fulfillmentType === 'pickup' || !!selectedAddressId),
   });
 
   const createAddressMutation = useMutation({
@@ -225,7 +235,8 @@ export default function Checkout() {
   const selectedAddress = addresses.find(a => a.id === selectedAddressId);
 
   const handleSubmitOrder = async () => {
-    if (!selectedAddressId) {
+    // 外卖和快递需要选择地址
+    if (fulfillmentType !== 'pickup' && !selectedAddressId) {
       toast({
         title: t('checkout.selectAddress'),
         variant: 'destructive',
@@ -257,11 +268,88 @@ export default function Checkout() {
       </header>
 
       <div className="p-4 space-y-4">
+        {/* 配送方式选择 */}
         <Card className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Truck className="w-5 h-5 text-primary" />
+            <span className="font-medium">{t('checkout.fulfillmentType')}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={() => setFulfillmentType('pickup')}
+              className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                fulfillmentType === 'pickup'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover-elevate'
+              }`}
+              data-testid="btn-fulfillment-pickup"
+            >
+              <Store className={`w-6 h-6 ${fulfillmentType === 'pickup' ? 'text-primary' : 'text-muted-foreground'}`} />
+              <span className={`text-sm font-medium ${fulfillmentType === 'pickup' ? 'text-primary' : ''}`}>
+                {t('checkout.pickup')}
+              </span>
+            </button>
+            <button
+              onClick={() => setFulfillmentType('delivery')}
+              className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                fulfillmentType === 'delivery'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover-elevate'
+              }`}
+              data-testid="btn-fulfillment-delivery"
+            >
+              <Bike className={`w-6 h-6 ${fulfillmentType === 'delivery' ? 'text-primary' : 'text-muted-foreground'}`} />
+              <span className={`text-sm font-medium ${fulfillmentType === 'delivery' ? 'text-primary' : ''}`}>
+                {t('checkout.deliveryOption')}
+              </span>
+            </button>
+            <button
+              onClick={() => setFulfillmentType('shipping')}
+              className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                fulfillmentType === 'shipping'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover-elevate'
+              }`}
+              data-testid="btn-fulfillment-shipping"
+            >
+              <Package className={`w-6 h-6 ${fulfillmentType === 'shipping' ? 'text-primary' : 'text-muted-foreground'}`} />
+              <span className={`text-sm font-medium ${fulfillmentType === 'shipping' ? 'text-primary' : ''}`}>
+                {t('checkout.shipping')}
+              </span>
+            </button>
+          </div>
+        </Card>
+
+        {/* 自提 - 显示门店信息 */}
+        {fulfillmentType === 'pickup' && (
+          <Card className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Store className="w-5 h-5 text-primary" />
+              <span className="font-medium">{t('checkout.pickupLocation')}</span>
+            </div>
+            <div className="bg-muted/50 rounded-lg p-3">
+              <h4 className="font-medium mb-2">{cart.store?.name || t('cart.unknownProduct')}</h4>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                <MapPin className="w-4 h-4" />
+                <span>{t('checkout.storeAddress')}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Clock className="w-4 h-4" />
+                <span>{t('checkout.pickupTime')}: {feeData?.estimatedTime || '15-30 min'}</span>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* 外卖/快递 - 显示地址选择 */}
+        {fulfillmentType !== 'pickup' && (
+          <Card className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <MapPin className="w-5 h-5 text-primary" />
-              <span className="font-medium">{t('checkout.deliveryAddress')}</span>
+              <span className="font-medium">
+                {fulfillmentType === 'delivery' ? t('checkout.deliveryAddress') : t('checkout.shippingAddress')}
+              </span>
             </div>
             <Dialog open={showAddressDialog} onOpenChange={setShowAddressDialog}>
               <DialogTrigger asChild>
@@ -351,8 +439,10 @@ export default function Checkout() {
               ))}
             </RadioGroup>
           )}
-        </Card>
+          </Card>
+        )}
 
+        {/* 商品清单 */}
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-3">
             <Store className="w-5 h-5 text-primary" />
@@ -390,13 +480,33 @@ export default function Checkout() {
 
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-3">
-            <Truck className="w-5 h-5 text-primary" />
-            <span className="font-medium">{t('checkout.delivery')}</span>
+            {fulfillmentType === 'pickup' ? (
+              <Store className="w-5 h-5 text-primary" />
+            ) : fulfillmentType === 'delivery' ? (
+              <Bike className="w-5 h-5 text-primary" />
+            ) : (
+              <Package className="w-5 h-5 text-primary" />
+            )}
+            <span className="font-medium">
+              {fulfillmentType === 'pickup' 
+                ? t('checkout.pickupInfo')
+                : fulfillmentType === 'delivery'
+                  ? t('checkout.deliveryInfo')
+                  : t('checkout.shippingInfo')
+              }
+            </span>
           </div>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t('checkout.estimatedTime')}</span>
-              <span>{feeData?.estimatedTime || '30-45 min'}</span>
+              <span>
+                {fulfillmentType === 'pickup' 
+                  ? (feeData?.estimatedTime || '15-30 min')
+                  : fulfillmentType === 'shipping'
+                    ? '2-5 ' + t('checkout.days')
+                    : (feeData?.estimatedTime || '30-45 min')
+                }
+              </span>
             </div>
           </div>
         </Card>
