@@ -93,11 +93,9 @@ export default function Checkout() {
   const { data: cart, isLoading: cartLoading } = useQuery<CartData>({
     queryKey: ['/api/cart', storeId],
     queryFn: async () => {
-      const res = await fetch(`/api/cart?storeId=${storeId}`, {
-        credentials: 'include',
-      });
+      const res = await apiRequest('GET', `/api/cart?storeId=${storeId}`);
       const data = await res.json();
-      return data.data;
+      return data.data || null;
     },
     enabled: !!storeId && !!user,
   });
