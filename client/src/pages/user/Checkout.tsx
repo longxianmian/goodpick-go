@@ -559,10 +559,10 @@ export default function Checkout() {
             className="flex-1 max-w-[200px]"
             size="lg"
             onClick={handleSubmitOrder}
-            disabled={isSubmitting || !selectedAddressId}
-            data-testid="button-place-order"
+            disabled={isSubmitting || (fulfillmentType !== 'pickup' && !selectedAddressId)}
+            data-testid="button-pay-now"
           >
-            {isSubmitting ? t('checkout.processing') : t('checkout.placeOrder')}
+            {isSubmitting ? t('checkout.processing') : t('checkout.payNow')}
           </Button>
         </div>
       </div>
