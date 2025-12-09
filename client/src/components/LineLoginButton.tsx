@@ -26,11 +26,17 @@ export function LineLoginButton({ returnTo, className, children }: LineLoginButt
     const initLiff = async () => {
       try {
         const state = await ensureLiffReady();
+        console.log('[LineLoginButton] LIFF state:', {
+          isInClient: state.isInClient,
+          isLoggedIn: state.isLoggedIn,
+        });
+        
         setLiffReady(true);
         setIsInLineApp(state.isInClient);
         
-        // 如果已登录，自动处理登录
-        if (state.isLoggedIn) {
+        // 如果在 LINE 应用内且已登录，自动处理登录
+        if (state.isInClient && state.isLoggedIn) {
+          console.log('[LineLoginButton] In LINE app and logged in, auto-login');
           await handleLiffLogin();
         }
       } catch (e) {
@@ -94,20 +100,22 @@ export function LineLoginButton({ returnTo, className, children }: LineLoginButt
     setLoading(true);
 
     try {
-      if (liffReady) {
+      // 只有在 LINE 应用内才使用 LIFF 登录
+      if (isInLineApp && liffReady) {
         const liff = getLiff();
         
         if (liff && isLiffLoggedIn()) {
+          console.log('[LineLogin] In LINE app, using LIFF login');
           await handleLiffLogin();
         } else if (liff) {
-          const redirectUri = `${window.location.origin}${returnTo || '/me'}`;
-          liff.login({ redirectUri });
+          console.log('[LineLogin] In LINE app, calling liff.login()');
+          liff.login();
         } else {
-          // 回退到 OAuth
           await fallbackToOAuth();
         }
       } else {
-        // LIFF 未就绪，使用 OAuth
+        // 外部浏览器始终使用 OAuth 流程（更可靠）
+        console.log('[LineLogin] External browser, using OAuth');
         await fallbackToOAuth();
       }
     } catch (e: any) {
@@ -122,19 +130,22 @@ export function LineLoginButton({ returnTo, className, children }: LineLoginButt
   };
 
   const fallbackToOAuth = async () => {
+    console.log('[OAuth] Initiating OAuth flow, returnTo:', returnTo || '/me');
+    
     const response = await fetch('/api/auth/line/init-oauth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         returnTo: returnTo || '/me',
-        state: JSON.stringify({ returnTo: returnTo || '/me' })
       }),
     });
 
     const data = await response.json();
+    console.log('[OAuth] Init response:', data);
 
-    if (data.success && data.lineLoginUrl) {
-      window.location.href = data.lineLoginUrl;
+    if (data.success && data.redirectUrl) {
+      console.log('[OAuth] Redirecting to:', data.redirectUrl);
+      window.location.href = data.redirectUrl;
     } else {
       throw new Error(data.message || 'Failed to init OAuth');
     }
