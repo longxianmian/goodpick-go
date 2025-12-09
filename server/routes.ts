@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, shortVideoBookmarks, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints, chatConversations, chatMessages, discoverApplications, shuashuaApplications, insertDiscoverApplicationSchema, insertShuashuaApplicationSchema } from '@shared/schema';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, shortVideoBookmarks, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints, chatConversations, chatMessages, discoverApplications, shuashuaApplications, insertDiscoverApplicationSchema, insertShuashuaApplicationSchema, carts, cartItems, deliveryAddresses, deliveryOrders, orderItems, deliveryAssignments, insertCartSchema, insertCartItemSchema, insertDeliveryAddressSchema, insertDeliveryOrderSchema, insertOrderItemSchema } from '@shared/schema';
 import { getPaymentProvider } from './services/paymentProvider';
 import QRCode from 'qrcode';
 import { eq, and, desc, sql, inArray, isNotNull, or, gte, gt } from 'drizzle-orm';
@@ -8834,6 +8834,987 @@ export function registerRoutes(app: Express): Server {
         });
       }
       res.status(500).json({ success: false, message: 'Failed to submit application' });
+    }
+  });
+
+  // ============ 购物车 API ============
+  
+  // 获取当前用户的购物车
+  app.get('/api/cart', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const storeId = parseInt(req.query.storeId as string);
+      
+      if (!storeId) {
+        return res.status(400).json({ success: false, message: '门店ID必填' });
+      }
+
+      // 查找活跃购物车
+      const [cart] = await db
+        .select()
+        .from(carts)
+        .where(and(
+          eq(carts.userId, userId),
+          eq(carts.storeId, storeId),
+          eq(carts.status, 'active')
+        ))
+        .limit(1);
+
+      if (!cart) {
+        return res.json({ success: true, data: null });
+      }
+
+      // 获取购物车商品
+      const items = await db
+        .select({
+          id: cartItems.id,
+          cartId: cartItems.cartId,
+          productId: cartItems.productId,
+          quantity: cartItems.quantity,
+          unitPrice: cartItems.unitPrice,
+          options: cartItems.options,
+          note: cartItems.note,
+          product: {
+            id: products.id,
+            name: products.name,
+            coverImage: products.coverImage,
+            price: products.price,
+            originalPrice: products.originalPrice,
+            status: products.status,
+          }
+        })
+        .from(cartItems)
+        .leftJoin(products, eq(cartItems.productId, products.id))
+        .where(eq(cartItems.cartId, cart.id));
+
+      res.json({
+        success: true,
+        data: {
+          ...cart,
+          items,
+        },
+      });
+    } catch (error: any) {
+      console.error('Get cart error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get cart' });
+    }
+  });
+
+  // 添加商品到购物车
+  app.post('/api/cart/items', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { storeId, productId, quantity = 1, options, note } = req.body;
+
+      if (!storeId || !productId) {
+        return res.status(400).json({ success: false, message: '门店ID和商品ID必填' });
+      }
+
+      // 获取商品信息
+      const [product] = await db
+        .select()
+        .from(products)
+        .where(and(
+          eq(products.id, productId),
+          eq(products.storeId, storeId),
+          eq(products.status, 'active')
+        ))
+        .limit(1);
+
+      if (!product) {
+        return res.status(404).json({ success: false, message: '商品不存在或已下架' });
+      }
+
+      // 查找或创建购物车
+      let [cart] = await db
+        .select()
+        .from(carts)
+        .where(and(
+          eq(carts.userId, userId),
+          eq(carts.storeId, storeId),
+          eq(carts.status, 'active')
+        ))
+        .limit(1);
+
+      if (!cart) {
+        [cart] = await db
+          .insert(carts)
+          .values({
+            userId,
+            storeId,
+            status: 'active',
+            orderType: 'delivery',
+          })
+          .returning();
+      }
+
+      // 检查购物车是否已有该商品
+      const [existingItem] = await db
+        .select()
+        .from(cartItems)
+        .where(and(
+          eq(cartItems.cartId, cart.id),
+          eq(cartItems.productId, productId)
+        ))
+        .limit(1);
+
+      if (existingItem) {
+        // 更新数量
+        await db
+          .update(cartItems)
+          .set({
+            quantity: existingItem.quantity + quantity,
+            options: options || existingItem.options,
+            note: note || existingItem.note,
+            updatedAt: new Date(),
+          })
+          .where(eq(cartItems.id, existingItem.id));
+      } else {
+        // 添加新商品
+        await db
+          .insert(cartItems)
+          .values({
+            cartId: cart.id,
+            productId,
+            quantity,
+            unitPrice: product.price,
+            options: options ? JSON.stringify(options) : null,
+            note,
+          });
+      }
+
+      // 重新计算购物车总价
+      await updateCartTotals(cart.id);
+
+      res.json({ success: true, message: '商品已添加到购物车' });
+    } catch (error: any) {
+      console.error('Add to cart error:', error);
+      res.status(500).json({ success: false, message: 'Failed to add to cart' });
+    }
+  });
+
+  // 更新购物车商品数量
+  app.patch('/api/cart/items/:itemId', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const itemId = parseInt(req.params.itemId);
+      const { quantity } = req.body;
+
+      // 验证购物车属于当前用户
+      const [item] = await db
+        .select({
+          item: cartItems,
+          cart: carts,
+        })
+        .from(cartItems)
+        .innerJoin(carts, eq(cartItems.cartId, carts.id))
+        .where(and(
+          eq(cartItems.id, itemId),
+          eq(carts.userId, userId)
+        ))
+        .limit(1);
+
+      if (!item) {
+        return res.status(404).json({ success: false, message: '购物车商品不存在' });
+      }
+
+      if (quantity <= 0) {
+        // 删除商品
+        await db.delete(cartItems).where(eq(cartItems.id, itemId));
+      } else {
+        // 更新数量
+        await db
+          .update(cartItems)
+          .set({ quantity, updatedAt: new Date() })
+          .where(eq(cartItems.id, itemId));
+      }
+
+      await updateCartTotals(item.cart.id);
+
+      res.json({ success: true, message: '购物车已更新' });
+    } catch (error: any) {
+      console.error('Update cart item error:', error);
+      res.status(500).json({ success: false, message: 'Failed to update cart' });
+    }
+  });
+
+  // 删除购物车商品
+  app.delete('/api/cart/items/:itemId', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const itemId = parseInt(req.params.itemId);
+
+      const [item] = await db
+        .select({
+          item: cartItems,
+          cart: carts,
+        })
+        .from(cartItems)
+        .innerJoin(carts, eq(cartItems.cartId, carts.id))
+        .where(and(
+          eq(cartItems.id, itemId),
+          eq(carts.userId, userId)
+        ))
+        .limit(1);
+
+      if (!item) {
+        return res.status(404).json({ success: false, message: '购物车商品不存在' });
+      }
+
+      await db.delete(cartItems).where(eq(cartItems.id, itemId));
+      await updateCartTotals(item.cart.id);
+
+      res.json({ success: true, message: '商品已从购物车移除' });
+    } catch (error: any) {
+      console.error('Delete cart item error:', error);
+      res.status(500).json({ success: false, message: 'Failed to delete cart item' });
+    }
+  });
+
+  // 清空购物车
+  app.delete('/api/cart', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const storeId = parseInt(req.query.storeId as string);
+
+      if (!storeId) {
+        return res.status(400).json({ success: false, message: '门店ID必填' });
+      }
+
+      const [cart] = await db
+        .select()
+        .from(carts)
+        .where(and(
+          eq(carts.userId, userId),
+          eq(carts.storeId, storeId),
+          eq(carts.status, 'active')
+        ))
+        .limit(1);
+
+      if (cart) {
+        await db.delete(cartItems).where(eq(cartItems.cartId, cart.id));
+        await db.delete(carts).where(eq(carts.id, cart.id));
+      }
+
+      res.json({ success: true, message: '购物车已清空' });
+    } catch (error: any) {
+      console.error('Clear cart error:', error);
+      res.status(500).json({ success: false, message: 'Failed to clear cart' });
+    }
+  });
+
+  // 辅助函数：更新购物车总价
+  async function updateCartTotals(cartId: number) {
+    const items = await db
+      .select({
+        quantity: cartItems.quantity,
+        unitPrice: cartItems.unitPrice,
+      })
+      .from(cartItems)
+      .where(eq(cartItems.cartId, cartId));
+
+    const subtotal = items.reduce((sum, item) => {
+      return sum + (item.quantity * parseFloat(item.unitPrice || '0'));
+    }, 0);
+
+    await db
+      .update(carts)
+      .set({
+        subtotal: subtotal.toFixed(2),
+        total: subtotal.toFixed(2), // 配送费等在结算时计算
+        updatedAt: new Date(),
+      })
+      .where(eq(carts.id, cartId));
+  }
+
+  // ============ 配送地址 API ============
+
+  // 获取用户配送地址列表
+  app.get('/api/delivery-addresses', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+
+      const addresses = await db
+        .select()
+        .from(deliveryAddresses)
+        .where(eq(deliveryAddresses.userId, userId))
+        .orderBy(desc(deliveryAddresses.isDefault), desc(deliveryAddresses.updatedAt));
+
+      res.json({ success: true, data: addresses });
+    } catch (error: any) {
+      console.error('Get addresses error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get addresses' });
+    }
+  });
+
+  // 添加配送地址
+  app.post('/api/delivery-addresses', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const data = insertDeliveryAddressSchema.parse({
+        ...req.body,
+        userId,
+      });
+
+      // 如果设为默认，先取消其他默认地址
+      if (data.isDefault) {
+        await db
+          .update(deliveryAddresses)
+          .set({ isDefault: false })
+          .where(eq(deliveryAddresses.userId, userId));
+      }
+
+      const [address] = await db
+        .insert(deliveryAddresses)
+        .values(data)
+        .returning();
+
+      res.json({ success: true, data: address });
+    } catch (error: any) {
+      console.error('Add address error:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ success: false, message: '请填写完整的地址信息' });
+      }
+      res.status(500).json({ success: false, message: 'Failed to add address' });
+    }
+  });
+
+  // 更新配送地址
+  app.patch('/api/delivery-addresses/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const addressId = parseInt(req.params.id);
+
+      const [existing] = await db
+        .select()
+        .from(deliveryAddresses)
+        .where(and(
+          eq(deliveryAddresses.id, addressId),
+          eq(deliveryAddresses.userId, userId)
+        ))
+        .limit(1);
+
+      if (!existing) {
+        return res.status(404).json({ success: false, message: '地址不存在' });
+      }
+
+      if (req.body.isDefault) {
+        await db
+          .update(deliveryAddresses)
+          .set({ isDefault: false })
+          .where(eq(deliveryAddresses.userId, userId));
+      }
+
+      const [updated] = await db
+        .update(deliveryAddresses)
+        .set({ ...req.body, updatedAt: new Date() })
+        .where(eq(deliveryAddresses.id, addressId))
+        .returning();
+
+      res.json({ success: true, data: updated });
+    } catch (error: any) {
+      console.error('Update address error:', error);
+      res.status(500).json({ success: false, message: 'Failed to update address' });
+    }
+  });
+
+  // 删除配送地址
+  app.delete('/api/delivery-addresses/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const addressId = parseInt(req.params.id);
+
+      await db
+        .delete(deliveryAddresses)
+        .where(and(
+          eq(deliveryAddresses.id, addressId),
+          eq(deliveryAddresses.userId, userId)
+        ));
+
+      res.json({ success: true, message: '地址已删除' });
+    } catch (error: any) {
+      console.error('Delete address error:', error);
+      res.status(500).json({ success: false, message: 'Failed to delete address' });
+    }
+  });
+
+  // ============ 外卖订单 API ============
+
+  // 计算配送费
+  app.post('/api/delivery/calculate-fee', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { storeId, addressId, subtotal } = req.body;
+
+      if (!storeId || !addressId) {
+        return res.status(400).json({ success: false, message: '门店ID和地址ID必填' });
+      }
+
+      const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
+      const [address] = await db.select().from(deliveryAddresses).where(eq(deliveryAddresses.id, addressId)).limit(1);
+
+      if (!store || !address) {
+        return res.status(404).json({ success: false, message: '门店或地址不存在' });
+      }
+
+      // 计算距离（使用 Haversine 公式）
+      const storeLat = parseFloat(store.latitude || '0');
+      const storeLng = parseFloat(store.longitude || '0');
+      const addrLat = parseFloat(address.latitude || '0');
+      const addrLng = parseFloat(address.longitude || '0');
+
+      let distance = 0;
+      if (storeLat && storeLng && addrLat && addrLng) {
+        distance = calculateHaversineDistance(storeLat, storeLng, addrLat, addrLng);
+      }
+
+      // 检查是否在配送范围内
+      const maxRadius = parseFloat(store.deliveryRadiusKm || '5');
+      if (distance > maxRadius) {
+        return res.json({
+          success: true,
+          data: {
+            distance,
+            deliveryFee: 0,
+            outOfRange: true,
+            message: `超出配送范围(${maxRadius}公里)`,
+          },
+        });
+      }
+
+      // 计算配送费
+      const baseFee = parseFloat(store.baseDeliveryFee || '20');
+      const perKmFee = parseFloat(store.perKmFee || '5');
+      const freeMinAmount = parseFloat(store.freeDeliveryMinAmount || '0');
+
+      let deliveryFee = baseFee + (distance * perKmFee);
+
+      // 满额免配送费
+      if (freeMinAmount > 0 && subtotal >= freeMinAmount) {
+        deliveryFee = 0;
+      }
+
+      res.json({
+        success: true,
+        data: {
+          distance: Math.round(distance * 10) / 10,
+          deliveryFee: Math.round(deliveryFee * 100) / 100,
+          baseFee,
+          perKmFee,
+          freeMinAmount,
+          outOfRange: false,
+        },
+      });
+    } catch (error: any) {
+      console.error('Calculate fee error:', error);
+      res.status(500).json({ success: false, message: 'Failed to calculate delivery fee' });
+    }
+  });
+
+  // Haversine 距离计算（公里）
+  function calculateHaversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371; // 地球半径（公里）
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  // 创建外卖订单（结算）
+  app.post('/api/delivery-orders', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { storeId, addressId, orderType = 'delivery', customerNote, paymentMethod } = req.body;
+
+      if (!storeId) {
+        return res.status(400).json({ success: false, message: '门店ID必填' });
+      }
+
+      // 获取购物车
+      const [cart] = await db
+        .select()
+        .from(carts)
+        .where(and(
+          eq(carts.userId, userId),
+          eq(carts.storeId, storeId),
+          eq(carts.status, 'active')
+        ))
+        .limit(1);
+
+      if (!cart) {
+        return res.status(400).json({ success: false, message: '购物车为空' });
+      }
+
+      // 获取购物车商品
+      const items = await db
+        .select({
+          item: cartItems,
+          product: products,
+        })
+        .from(cartItems)
+        .leftJoin(products, eq(cartItems.productId, products.id))
+        .where(eq(cartItems.cartId, cart.id));
+
+      if (items.length === 0) {
+        return res.status(400).json({ success: false, message: '购物车为空' });
+      }
+
+      // 获取门店信息
+      const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
+      if (!store) {
+        return res.status(404).json({ success: false, message: '门店不存在' });
+      }
+
+      // 计算小计
+      const subtotal = items.reduce((sum, { item }) => {
+        return sum + (item.quantity * parseFloat(item.unitPrice || '0'));
+      }, 0);
+
+      // 检查最低起送金额
+      const minAmount = parseFloat(store.minOrderAmount || '0');
+      if (subtotal < minAmount) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `订单金额未达到最低起送金额 ${minAmount} 泰铢` 
+        });
+      }
+
+      let deliveryFee = 0;
+      let distance = 0;
+      let addressSnapshot = null;
+
+      if (orderType === 'delivery') {
+        if (!addressId) {
+          return res.status(400).json({ success: false, message: '请选择配送地址' });
+        }
+
+        const [address] = await db.select().from(deliveryAddresses).where(eq(deliveryAddresses.id, addressId)).limit(1);
+        if (!address) {
+          return res.status(404).json({ success: false, message: '地址不存在' });
+        }
+
+        // 计算配送距离和费用
+        const storeLat = parseFloat(store.latitude || '0');
+        const storeLng = parseFloat(store.longitude || '0');
+        const addrLat = parseFloat(address.latitude || '0');
+        const addrLng = parseFloat(address.longitude || '0');
+
+        if (storeLat && storeLng && addrLat && addrLng) {
+          distance = calculateHaversineDistance(storeLat, storeLng, addrLat, addrLng);
+        }
+
+        const maxRadius = parseFloat(store.deliveryRadiusKm || '5');
+        if (distance > maxRadius) {
+          return res.status(400).json({ success: false, message: '超出配送范围' });
+        }
+
+        const baseFee = parseFloat(store.baseDeliveryFee || '20');
+        const perKmFee = parseFloat(store.perKmFee || '5');
+        const freeMinAmount = parseFloat(store.freeDeliveryMinAmount || '0');
+
+        deliveryFee = baseFee + (distance * perKmFee);
+        if (freeMinAmount > 0 && subtotal >= freeMinAmount) {
+          deliveryFee = 0;
+        }
+
+        addressSnapshot = JSON.stringify({
+          recipientName: address.recipientName,
+          recipientPhone: address.recipientPhone,
+          addressLine1: address.addressLine1,
+          addressLine2: address.addressLine2,
+          district: address.district,
+          city: address.city,
+          province: address.province,
+          postalCode: address.postalCode,
+          latitude: address.latitude,
+          longitude: address.longitude,
+        });
+      }
+
+      const packagingFee = parseFloat(store.packagingFee || '0');
+      const total = subtotal + deliveryFee + packagingFee;
+
+      // 生成订单号
+      const orderNo = `D${Date.now()}${nanoid(4).toUpperCase()}`;
+
+      // 创建订单
+      const [order] = await db
+        .insert(deliveryOrders)
+        .values({
+          orderNo,
+          userId,
+          storeId,
+          cartId: cart.id,
+          addressId: orderType === 'delivery' ? addressId : null,
+          orderType,
+          status: 'pending_payment',
+          addressSnapshot,
+          subtotal: subtotal.toFixed(2),
+          deliveryFee: deliveryFee.toFixed(2),
+          packagingFee: packagingFee.toFixed(2),
+          discount: '0',
+          total: total.toFixed(2),
+          currency: 'THB',
+          distanceKm: distance.toFixed(2),
+          estimatedPrepTime: store.pickupTime || 20,
+          estimatedDeliveryTime: orderType === 'delivery' ? Math.ceil(distance * 5) + 15 : null,
+          customerNote,
+          paymentMethod,
+        })
+        .returning();
+
+      // 创建订单商品快照
+      for (const { item, product } of items) {
+        await db.insert(orderItems).values({
+          orderId: order.id,
+          productId: item.productId,
+          productName: product?.name || '未知商品',
+          productImage: product?.coverImage,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          subtotal: (item.quantity * parseFloat(item.unitPrice || '0')).toFixed(2),
+          options: item.options,
+          note: item.note,
+        });
+      }
+
+      // 更新购物车状态
+      await db
+        .update(carts)
+        .set({ status: 'checked_out', updatedAt: new Date() })
+        .where(eq(carts.id, cart.id));
+
+      res.json({
+        success: true,
+        data: order,
+        message: '订单创建成功',
+      });
+    } catch (error: any) {
+      console.error('Create order error:', error);
+      res.status(500).json({ success: false, message: 'Failed to create order' });
+    }
+  });
+
+  // 获取用户订单列表
+  app.get('/api/delivery-orders', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const status = req.query.status as string;
+
+      let query = db
+        .select({
+          order: deliveryOrders,
+          store: {
+            id: stores.id,
+            name: stores.name,
+            imageUrl: stores.imageUrl,
+          },
+        })
+        .from(deliveryOrders)
+        .leftJoin(stores, eq(deliveryOrders.storeId, stores.id))
+        .where(eq(deliveryOrders.userId, userId))
+        .orderBy(desc(deliveryOrders.createdAt));
+
+      const orders = await query;
+
+      // 获取每个订单的商品
+      const ordersWithItems = await Promise.all(
+        orders.map(async ({ order, store }) => {
+          const items = await db
+            .select()
+            .from(orderItems)
+            .where(eq(orderItems.orderId, order.id));
+
+          return {
+            ...order,
+            store,
+            items,
+          };
+        })
+      );
+
+      res.json({ success: true, data: ordersWithItems });
+    } catch (error: any) {
+      console.error('Get orders error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get orders' });
+    }
+  });
+
+  // 获取订单详情
+  app.get('/api/delivery-orders/:id', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const orderId = parseInt(req.params.id);
+
+      const [result] = await db
+        .select({
+          order: deliveryOrders,
+          store: stores,
+        })
+        .from(deliveryOrders)
+        .leftJoin(stores, eq(deliveryOrders.storeId, stores.id))
+        .where(and(
+          eq(deliveryOrders.id, orderId),
+          eq(deliveryOrders.userId, userId)
+        ))
+        .limit(1);
+
+      if (!result) {
+        return res.status(404).json({ success: false, message: '订单不存在' });
+      }
+
+      const items = await db
+        .select()
+        .from(orderItems)
+        .where(eq(orderItems.orderId, orderId));
+
+      // 获取配送信息
+      const [assignment] = await db
+        .select()
+        .from(deliveryAssignments)
+        .where(eq(deliveryAssignments.orderId, orderId))
+        .limit(1);
+
+      res.json({
+        success: true,
+        data: {
+          ...result.order,
+          store: result.store,
+          items,
+          delivery: assignment,
+        },
+      });
+    } catch (error: any) {
+      console.error('Get order detail error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get order' });
+    }
+  });
+
+  // ============ 商户外卖订单管理 API ============
+
+  // 获取商户订单列表
+  app.get('/api/merchant/delivery-orders', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const status = req.query.status as string;
+
+      // 获取用户管理的门店
+      const staffRoles = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          or(
+            eq(merchantStaffRoles.role, 'owner'),
+            eq(merchantStaffRoles.role, 'operator')
+          )
+        ));
+
+      if (staffRoles.length === 0) {
+        return res.status(403).json({ success: false, message: '无权限' });
+      }
+
+      const storeIds = staffRoles.map(r => r.storeId);
+
+      let conditions: any[] = [inArray(deliveryOrders.storeId, storeIds)];
+      if (status) {
+        conditions.push(eq(deliveryOrders.status, status as any));
+      }
+
+      const orders = await db
+        .select({
+          order: deliveryOrders,
+          user: {
+            id: users.id,
+            displayName: users.displayName,
+            avatarUrl: users.avatarUrl,
+          },
+        })
+        .from(deliveryOrders)
+        .leftJoin(users, eq(deliveryOrders.userId, users.id))
+        .where(and(...conditions))
+        .orderBy(desc(deliveryOrders.createdAt));
+
+      // 获取订单商品
+      const ordersWithItems = await Promise.all(
+        orders.map(async ({ order, user }) => {
+          const items = await db
+            .select()
+            .from(orderItems)
+            .where(eq(orderItems.orderId, order.id));
+
+          return {
+            ...order,
+            customer: user,
+            items,
+          };
+        })
+      );
+
+      res.json({ success: true, data: ordersWithItems });
+    } catch (error: any) {
+      console.error('Get merchant orders error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get orders' });
+    }
+  });
+
+  // 商户接单
+  app.post('/api/merchant/delivery-orders/:id/accept', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const orderId = parseInt(req.params.id);
+      const { estimatedPrepTime } = req.body;
+
+      const [order] = await db
+        .select()
+        .from(deliveryOrders)
+        .where(eq(deliveryOrders.id, orderId))
+        .limit(1);
+
+      if (!order) {
+        return res.status(404).json({ success: false, message: '订单不存在' });
+      }
+
+      // 验证权限
+      const [staffRole] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          eq(merchantStaffRoles.storeId, order.storeId),
+          or(
+            eq(merchantStaffRoles.role, 'owner'),
+            eq(merchantStaffRoles.role, 'operator')
+          )
+        ))
+        .limit(1);
+
+      if (!staffRole) {
+        return res.status(403).json({ success: false, message: '无权限' });
+      }
+
+      if (order.status !== 'paid') {
+        return res.status(400).json({ success: false, message: '订单状态不允许接单' });
+      }
+
+      await db
+        .update(deliveryOrders)
+        .set({
+          status: 'accepted',
+          acceptedAt: new Date(),
+          estimatedPrepTime: estimatedPrepTime || order.estimatedPrepTime,
+          updatedAt: new Date(),
+        })
+        .where(eq(deliveryOrders.id, orderId));
+
+      res.json({ success: true, message: '已接单' });
+    } catch (error: any) {
+      console.error('Accept order error:', error);
+      res.status(500).json({ success: false, message: 'Failed to accept order' });
+    }
+  });
+
+  // 商户标记备餐完成
+  app.post('/api/merchant/delivery-orders/:id/ready', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const orderId = parseInt(req.params.id);
+
+      const [order] = await db
+        .select()
+        .from(deliveryOrders)
+        .where(eq(deliveryOrders.id, orderId))
+        .limit(1);
+
+      if (!order) {
+        return res.status(404).json({ success: false, message: '订单不存在' });
+      }
+
+      const [staffRole] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          eq(merchantStaffRoles.storeId, order.storeId),
+          or(
+            eq(merchantStaffRoles.role, 'owner'),
+            eq(merchantStaffRoles.role, 'operator')
+          )
+        ))
+        .limit(1);
+
+      if (!staffRole) {
+        return res.status(403).json({ success: false, message: '无权限' });
+      }
+
+      if (order.status !== 'accepted' && order.status !== 'preparing') {
+        return res.status(400).json({ success: false, message: '订单状态不允许此操作' });
+      }
+
+      await db
+        .update(deliveryOrders)
+        .set({
+          status: 'ready_for_pickup',
+          preparedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(deliveryOrders.id, orderId));
+
+      res.json({ success: true, message: '已标记备餐完成' });
+    } catch (error: any) {
+      console.error('Mark ready error:', error);
+      res.status(500).json({ success: false, message: 'Failed to mark order ready' });
+    }
+  });
+
+  // 商户完成自取订单
+  app.post('/api/merchant/delivery-orders/:id/complete', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const orderId = parseInt(req.params.id);
+
+      const [order] = await db
+        .select()
+        .from(deliveryOrders)
+        .where(eq(deliveryOrders.id, orderId))
+        .limit(1);
+
+      if (!order) {
+        return res.status(404).json({ success: false, message: '订单不存在' });
+      }
+
+      const [staffRole] = await db
+        .select()
+        .from(merchantStaffRoles)
+        .where(and(
+          eq(merchantStaffRoles.userId, userId),
+          eq(merchantStaffRoles.storeId, order.storeId),
+          or(
+            eq(merchantStaffRoles.role, 'owner'),
+            eq(merchantStaffRoles.role, 'operator')
+          )
+        ))
+        .limit(1);
+
+      if (!staffRole) {
+        return res.status(403).json({ success: false, message: '无权限' });
+      }
+
+      await db
+        .update(deliveryOrders)
+        .set({
+          status: 'completed',
+          completedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(deliveryOrders.id, orderId));
+
+      res.json({ success: true, message: '订单已完成' });
+    } catch (error: any) {
+      console.error('Complete order error:', error);
+      res.status(500).json({ success: false, message: 'Failed to complete order' });
     }
   });
 
