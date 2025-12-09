@@ -1,4 +1,4 @@
-import { useParams, Link } from 'wouter';
+import { useParams, Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/components/ui/carousel';
+import { useAddToCart } from '@/components/CartDrawer';
 import { 
   ChevronLeft, 
   Heart, 
@@ -21,7 +22,8 @@ import {
   MessageCircle,
   Truck,
   CheckCircle2,
-  Clock
+  Clock,
+  Loader2
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -75,6 +77,7 @@ export default function ProductDetail() {
   const { authPhase, user, userToken } = useAuth();
   const { t, language } = useLanguage();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const [product, setProduct] = useState<ProductData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -86,6 +89,10 @@ export default function ProductDetail() {
   const [isFavorited, setIsFavorited] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('delivery');
+  const [isBuyingNow, setIsBuyingNow] = useState(false);
+  
+  const storeId = product?.storeId ?? 0;
+  const addToCart = useAddToCart(storeId);
 
   useEffect(() => {
     if (!carouselApi) return;
@@ -212,6 +219,50 @@ export default function ProductDetail() {
   }
 
   const inStock = (product.inventory ?? 0) > 0;
+
+  const handleAddToCart = () => {
+    if (!user) {
+      toast({
+        title: t('auth.loginRequired'),
+        description: t('auth.loginRequiredDesc'),
+        variant: 'destructive'
+      });
+      return;
+    }
+    addToCart.mutate(
+      { productId: product.id, quantity },
+      {
+        onSuccess: () => {
+          toast({
+            title: t('cart.addedSuccess'),
+          });
+        }
+      }
+    );
+  };
+
+  const handleBuyNow = async () => {
+    if (!user) {
+      toast({
+        title: t('auth.loginRequired'),
+        description: t('auth.loginRequiredDesc'),
+        variant: 'destructive'
+      });
+      return;
+    }
+    setIsBuyingNow(true);
+    addToCart.mutate(
+      { productId: product.id, quantity },
+      {
+        onSuccess: () => {
+          navigate(`/checkout?storeId=${storeId}`);
+        },
+        onError: () => {
+          setIsBuyingNow(false);
+        }
+      }
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col pb-[120px]">
@@ -617,30 +668,27 @@ export default function ProductDetail() {
           <Button 
             variant="outline"
             className="flex-1 max-w-[120px] border-[#38B03B] text-[#38B03B]"
-            disabled={!inStock}
-            onClick={() => {
-              toast({
-                title: t('common.comingSoon'),
-                description: t('product.cartComingSoon'),
-              });
-            }}
+            disabled={!inStock || addToCart.isPending}
+            onClick={handleAddToCart}
             data-testid="button-add-cart"
           >
-            <ShoppingCart className="w-4 h-4 mr-1" />
+            {addToCart.isPending && !isBuyingNow ? (
+              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+            ) : (
+              <ShoppingCart className="w-4 h-4 mr-1" />
+            )}
             {t('product.addToCart')}
           </Button>
           
           <Button 
             className="flex-1 max-w-[120px] bg-[#38B03B] hover:bg-[#38B03B]/90 text-white"
-            disabled={!inStock}
-            onClick={() => {
-              toast({
-                title: t('common.comingSoon'),
-                description: t('product.buyComingSoon'),
-              });
-            }}
+            disabled={!inStock || isBuyingNow}
+            onClick={handleBuyNow}
             data-testid="button-buy-now"
           >
+            {isBuyingNow ? (
+              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+            ) : null}
             {inStock ? t('product.buyNow') : t('product.outOfStock')}
           </Button>
         </div>
