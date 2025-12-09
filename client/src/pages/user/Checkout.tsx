@@ -154,8 +154,9 @@ export default function Checkout() {
     mutationFn: async () => {
       const res = await apiRequest('POST', '/api/delivery-orders', {
         storeId: Number(storeId),
-        addressId: selectedAddressId,
+        addressId: fulfillmentType === 'pickup' ? null : selectedAddressId,
         deliveryNote,
+        orderType: fulfillmentType,
       });
       return res.json();
     },
