@@ -62,6 +62,7 @@ import MerchantVouchers from "@/pages/merchant/MerchantVouchers";
 import MerchantOrders from "@/pages/merchant/MerchantOrders";
 import MerchantPackages from "@/pages/merchant/MerchantPackages";
 import StoreFront from "@/pages/user/StoreFront";
+import Checkout from "@/pages/user/Checkout";
 import AdminPaymentSettings from "@/pages/admin/AdminPaymentSettings";
 import PaymentPage from "@/pages/user/PaymentPage";
 import PaymentSuccess from "@/pages/user/PaymentSuccess";
@@ -206,6 +207,7 @@ function Router() {
       <Route path="/store/:id" component={StoreFront} />
       <Route path="/campaign/:id" component={CampaignDetail} />
       <Route path="/product/:id" component={ProductDetail} />
+      <Route path="/checkout" component={Checkout} />
       <Route path="/privacy" component={PrivacyPage} />
       <Route path="/terms" component={TermsPage} />
       <Route path="/settings/language" component={LanguageSettings} />
