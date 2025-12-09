@@ -222,6 +222,7 @@ export function AvatarUploader({ imageUrl, onChange, size = 80 }: AvatarUploader
         toast({
           title: t('common.success'),
           description: t('merchant.avatarUploadSuccess'),
+          duration: 3000,
         });
       }
     } catch (error) {

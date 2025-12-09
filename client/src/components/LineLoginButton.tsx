@@ -78,6 +78,7 @@ export function LineLoginButton({ returnTo, className, children }: LineLoginButt
         toast({
           title: t('common.success'),
           description: `${t('common.welcome')}, ${data.user.displayName}`,
+          duration: 3000,
         });
 
         navigate(returnTo || '/me');
