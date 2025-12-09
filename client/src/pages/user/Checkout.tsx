@@ -219,7 +219,7 @@ export default function Checkout() {
     );
   }
 
-  const subtotal = cart.items.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
+  const subtotal = cart.items.reduce((sum, item) => sum + Number(item.product?.price || 0) * item.quantity, 0);
   const deliveryFee = feeData?.total || 0;
   const total = subtotal + deliveryFee;
   const selectedAddress = addresses.find(a => a.id === selectedAddressId);
@@ -378,7 +378,7 @@ export default function Checkout() {
                   <h4 className="font-medium text-sm line-clamp-2">{item.product?.name || t('cart.unknownProduct')}</h4>
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-primary font-semibold">
-                      ฿{(item.product?.price || 0).toFixed(2)}
+                      ฿{Number(item.product?.price || 0).toFixed(2)}
                     </span>
                     <span className="text-muted-foreground text-sm">x{item.quantity}</span>
                   </div>
