@@ -911,8 +911,90 @@ export function registerRoutes(app: Express): Server {
  
 
 
-  // LINE OAuth callback endpoint
-      // LINE OAuth callback endpoint
+  // LIFF ID Token login endpoint (POST)
+  // Used when logging in via LIFF SDK - receives ID token directly
+  app.post('/api/auth/line/callback', async (req: Request, res: Response) => {
+    try {
+      const { idToken } = req.body;
+
+      if (!idToken) {
+        console.error('[LIFF LOGIN] missing idToken');
+        return res.status(400).json({ success: false, message: 'Missing ID token' });
+      }
+
+      // Verify ID token
+      const lineProfile = await verifyLineIdToken(idToken);
+
+      if (!lineProfile) {
+        console.error('[LIFF LOGIN] invalid id_token');
+        return res.status(401).json({ success: false, message: 'Invalid ID token' });
+      }
+
+      console.log('[LIFF LOGIN] profile:', {
+        sub: lineProfile.sub,
+        name: lineProfile.name,
+      });
+
+      // Create or update user (same logic as OAuth callback)
+      let [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.lineUserId, lineProfile.sub))
+        .limit(1);
+
+      if (!existingUser) {
+        [existingUser] = await db
+          .insert(users)
+          .values({
+            lineUserId: lineProfile.sub,
+            displayName: lineProfile.name,
+            avatarUrl: lineProfile.picture,
+            language: 'th-th',
+          })
+          .returning();
+        console.log('[LIFF LOGIN] created new user:', existingUser.id);
+      } else {
+        await db
+          .update(users)
+          .set({
+            displayName: lineProfile.name,
+            avatarUrl: lineProfile.picture,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, existingUser.id));
+        console.log('[LIFF LOGIN] updated existing user:', existingUser.id);
+      }
+
+      // Generate JWT token
+      const token = jwt.sign(
+        {
+          id: existingUser.id,
+          lineUserId: existingUser.lineUserId,
+          type: 'user' as const,
+        },
+        JWT_SECRET_VALUE,
+        { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
+      );
+
+      // Return user data with token
+      return res.json({
+        success: true,
+        token,
+        user: {
+          id: existingUser.id,
+          lineUserId: existingUser.lineUserId,
+          displayName: existingUser.displayName,
+          avatarUrl: existingUser.avatarUrl,
+        },
+      });
+    } catch (err) {
+      console.error('[LIFF LOGIN] error:', err);
+      return res.status(500).json({ success: false, message: 'Login failed' });
+    }
+  });
+
+  // LINE OAuth callback endpoint (GET)
+  // Used for traditional OAuth flow with authorization code
   app.get('/api/auth/line/callback', async (req: Request, res: Response) => {
     try {
       console.log('[OAUTH CB] query=', req.query);
