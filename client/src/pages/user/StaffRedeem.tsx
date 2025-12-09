@@ -64,60 +64,38 @@ export default function StaffRedeem() {
   const [authChecking, setAuthChecking] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // 异步检测LIFF环境（等待SDK加载）
+  // 异步检测LIFF环境（使用集中的LIFF客户端）
   const detectLiffEnvironment = async (): Promise<boolean> => {
-    const maxWaitTime = 5000;
-    const startTime = Date.now();
-    
-    while (Date.now() - startTime < maxWaitTime) {
-      if ((window as any).liff) {
-        try {
-          const isInClient = (window as any).liff.isInClient?.() || false;
-          return isInClient;
-        } catch (e) {
-          console.error('[detectLiffEnvironment] liff.isInClient() error:', e);
-        }
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, 100));
+    try {
+      const { ensureLiffReady } = await import('@/lib/liffClient');
+      const state = await ensureLiffReady();
+      return state.isInClient;
+    } catch (e) {
+      console.error('[detectLiffEnvironment] error:', e);
+      // Fallback: 检查UA
+      const ua = navigator.userAgent;
+      return ua.includes('Line/') || ua.includes('LIFF');
     }
-
-    // Fallback: LIFF SDK未加载，检查UA
-    const ua = navigator.userAgent;
-    return ua.includes('Line/') || ua.includes('LIFF');
   };
 
-  // LIFF登录
+  // LIFF登录（使用集中的LIFF客户端）
   const handleLiffLogin = async () => {
     setIsLoggingIn(true);
     try {
-      if (!(window as any).liff) {
-        console.error('[StaffRedeem] LIFF SDK not available');
+      const { ensureLiffReady, getLiff } = await import('@/lib/liffClient');
+      
+      // 确保LIFF已初始化
+      await ensureLiffReady();
+      const liff = getLiff();
+      
+      if (!liff) {
+        console.error('[StaffRedeem] LIFF not available after init');
         toast({
           title: t('common.error'),
           description: 'LIFF not available',
           variant: 'destructive',
         });
         return;
-      }
-
-      const liff = (window as any).liff;
-
-      // 初始化LIFF（如果还没初始化）
-      if (!(window as any).__LIFF_INITED__) {
-        const liffId = import.meta.env.VITE_LIFF_ID;
-        if (!liffId) {
-          console.error('[StaffRedeem] No LIFF ID configured');
-          toast({
-            title: t('common.error'),
-            description: 'LIFF ID not configured',
-            variant: 'destructive',
-          });
-          return;
-        }
-        
-        await liff.init({ liffId });
-        (window as any).__LIFF_INITED__ = true;
       }
 
       // 检查登录状态

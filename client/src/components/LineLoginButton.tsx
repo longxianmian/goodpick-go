@@ -5,12 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
-
-declare global {
-  interface Window {
-    liff: any;
-  }
-}
+import { ensureLiffReady, getLiff, isLiffLoggedIn } from '@/lib/liffClient';
 
 interface LineLoginButtonProps {
   returnTo?: string;
@@ -22,7 +17,6 @@ export function LineLoginButton({ returnTo, className, children }: LineLoginButt
   const [loading, setLoading] = useState(false);
   const [liffReady, setLiffReady] = useState(false);
   const [isInLineApp, setIsInLineApp] = useState(false);
-  const [liffId, setLiffId] = useState<string>('');
   const { loginUser } = useAuth();
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -31,61 +25,17 @@ export function LineLoginButton({ returnTo, className, children }: LineLoginButt
   useEffect(() => {
     const initLiff = async () => {
       try {
-        const configRes = await fetch('/api/config');
-        const configData = await configRes.json();
-        const fetchedLiffId = configData.data?.liffId;
+        const state = await ensureLiffReady();
+        setLiffReady(true);
+        setIsInLineApp(state.isInClient);
         
-        if (fetchedLiffId) {
-          setLiffId(fetchedLiffId);
-          
-          if (!window.liff) {
-            const script = document.createElement('script');
-            script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
-            script.async = true;
-            script.onload = async () => {
-              try {
-                await window.liff.init({ liffId: fetchedLiffId });
-                setLiffReady(true);
-                setIsInLineApp(window.liff.isInClient());
-                
-                if (window.liff.isLoggedIn()) {
-                  await handleLiffLogin();
-                }
-              } catch (e) {
-                console.error('[LIFF] init error:', e);
-              }
-            };
-            document.body.appendChild(script);
-          } else {
-            try {
-              // LIFF SDK 已加载，检查是否需要初始化
-              // 使用 liff.getOS() 来判断是否已初始化（如果未初始化会返回 undefined）
-              const isInitialized = window.liff.id !== undefined;
-              
-              if (!isInitialized) {
-                await window.liff.init({ liffId: fetchedLiffId });
-              }
-              setLiffReady(true);
-              setIsInLineApp(window.liff.isInClient());
-              
-              if (window.liff.isLoggedIn()) {
-                await handleLiffLogin();
-              }
-            } catch (e) {
-              console.error('[LIFF] init error:', e);
-              // 如果初始化失败，尝试强制重新初始化
-              try {
-                await window.liff.init({ liffId: fetchedLiffId });
-                setLiffReady(true);
-                setIsInLineApp(window.liff.isInClient());
-              } catch (retryError) {
-                console.error('[LIFF] retry init error:', retryError);
-              }
-            }
-          }
+        // 如果已登录，自动处理登录
+        if (state.isLoggedIn) {
+          await handleLiffLogin();
         }
       } catch (e) {
-        console.error('[LineLoginButton] config fetch error:', e);
+        console.error('[LineLoginButton] LIFF init error:', e);
+        // 初始化失败，将使用 OAuth 回退
       }
     };
 
@@ -95,7 +45,13 @@ export function LineLoginButton({ returnTo, className, children }: LineLoginButt
   const handleLiffLogin = async () => {
     try {
       setLoading(true);
-      const idToken = window.liff.getIDToken();
+      const liff = getLiff();
+      
+      if (!liff) {
+        throw new Error('LIFF not available');
+      }
+      
+      const idToken = liff.getIDToken();
       
       if (!idToken) {
         throw new Error('No ID token from LIFF');
@@ -138,30 +94,21 @@ export function LineLoginButton({ returnTo, className, children }: LineLoginButt
     setLoading(true);
 
     try {
-      if (liffReady && liffId) {
-        if (window.liff.isLoggedIn()) {
+      if (liffReady) {
+        const liff = getLiff();
+        
+        if (liff && isLiffLoggedIn()) {
           await handleLiffLogin();
-        } else {
+        } else if (liff) {
           const redirectUri = `${window.location.origin}${returnTo || '/me'}`;
-          window.liff.login({ redirectUri });
+          liff.login({ redirectUri });
+        } else {
+          // 回退到 OAuth
+          await fallbackToOAuth();
         }
       } else {
-        const response = await fetch('/api/auth/line/init-oauth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            returnTo: returnTo || '/me',
-            state: JSON.stringify({ returnTo: returnTo || '/me' })
-          }),
-        });
-
-        const data = await response.json();
-
-        if (data.success && data.lineLoginUrl) {
-          window.location.href = data.lineLoginUrl;
-        } else {
-          throw new Error(data.message || 'Failed to init OAuth');
-        }
+        // LIFF 未就绪，使用 OAuth
+        await fallbackToOAuth();
       }
     } catch (e: any) {
       console.error('[LineLogin] error:', e);
@@ -171,6 +118,25 @@ export function LineLoginButton({ returnTo, className, children }: LineLoginButt
         variant: 'destructive',
       });
       setLoading(false);
+    }
+  };
+
+  const fallbackToOAuth = async () => {
+    const response = await fetch('/api/auth/line/init-oauth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        returnTo: returnTo || '/me',
+        state: JSON.stringify({ returnTo: returnTo || '/me' })
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.success && data.lineLoginUrl) {
+      window.location.href = data.lineLoginUrl;
+    } else {
+      throw new Error(data.message || 'Failed to init OAuth');
     }
   };
 

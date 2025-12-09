@@ -89,12 +89,17 @@ export default function MyCoupons({ hideNavigation = false, ...rest }: MyCoupons
       return;
     }
 
-    // 检查LIFF环境（登录已在AuthContext集中处理）
-    if (window.liff) {
-      setIsLiffEnvironment(window.liff.isInClient());
-    } else {
-      setIsLiffEnvironment(false);
-    }
+    // 检查LIFF环境（使用集中的LIFF客户端）
+    const checkLiffEnv = async () => {
+      try {
+        const { ensureLiffReady } = await import('@/lib/liffClient');
+        const state = await ensureLiffReady();
+        setIsLiffEnvironment(state.isInClient);
+      } catch {
+        setIsLiffEnvironment(false);
+      }
+    };
+    checkLiffEnv();
   }, []);
 
   // 获取优惠券列表
@@ -134,10 +139,17 @@ export default function MyCoupons({ hideNavigation = false, ...rest }: MyCoupons
     }
   }, [selectedCoupon]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     logoutUser();
-    if (window.liff) {
-      window.liff.logout();
+    try {
+      const { getLiff, resetLiffState } = await import('@/lib/liffClient');
+      const liff = getLiff();
+      if (liff) {
+        liff.logout();
+      }
+      resetLiffState();
+    } catch {
+      // 忽略错误
     }
     setLocation('/');
   };
