@@ -52,7 +52,7 @@ interface RolesResponse {
 type ContentType = 'voucher' | 'product' | 'service' | 'activity';
 
 function UnifiedCard({ campaign }: { campaign: CampaignWithStores }) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   
   const getTitle = () => {
     if (language === 'zh-cn') return campaign.titleZh || campaign.titleSource;
@@ -63,7 +63,7 @@ function UnifiedCard({ campaign }: { campaign: CampaignWithStores }) {
   const soldCount = Math.floor(Math.random() * 10000) + 1000;
   const formatSoldCount = (count: number) => {
     if (count >= 10000) {
-      return `${(count / 10000).toFixed(1)}万+`;
+      return `${(count / 10000).toFixed(1)}${t('merchant.units.wan')}+`;
     }
     return `${count}+`;
   };
@@ -96,7 +96,7 @@ function UnifiedCard({ campaign }: { campaign: CampaignWithStores }) {
               className="absolute top-2 left-2 text-[10px] bg-orange-500 text-white border-0 gap-0.5"
             >
               <Ticket className="w-2.5 h-2.5" />
-              优惠券
+              {t('merchant.voucher')}
             </Badge>
           )}
         </div>
@@ -112,7 +112,7 @@ function UnifiedCard({ campaign }: { campaign: CampaignWithStores }) {
           {hasShipping && (
             <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
               <Truck className="w-3 h-3" />
-              <span>包邮</span>
+              <span>{t('merchant.freeShipping')}</span>
             </div>
           )}
           
@@ -125,7 +125,7 @@ function UnifiedCard({ campaign }: { campaign: CampaignWithStores }) {
               )}
             </div>
             <span className="text-[10px] text-muted-foreground">
-              已售{formatSoldCount(soldCount)}
+              {t('merchant.sold')}{formatSoldCount(soldCount)}
             </span>
           </div>
         </div>
@@ -135,6 +135,7 @@ function UnifiedCard({ campaign }: { campaign: CampaignWithStores }) {
 }
 
 function ProductCard({ product }: { product: ProductWithCategory }) {
+  const { t } = useLanguage();
   const formatPrice = (price: string | number) => {
     return Number(price).toFixed(2);
   };
@@ -166,7 +167,7 @@ function ProductCard({ product }: { product: ProductWithCategory }) {
               className="absolute top-2 left-2 text-[10px] bg-orange-500 text-white border-0 gap-0.5"
             >
               <Sparkles className="w-2.5 h-2.5" />
-              推荐
+              {t('merchant.recommend')}
             </Badge>
           )}
           {product.isNew && (
@@ -174,7 +175,7 @@ function ProductCard({ product }: { product: ProductWithCategory }) {
               variant="secondary" 
               className="absolute top-2 right-2 text-[10px] bg-blue-500 text-white border-0"
             >
-              新品
+              {t('merchant.newLabel')}
             </Badge>
           )}
         </div>
@@ -190,16 +191,16 @@ function ProductCard({ product }: { product: ProductWithCategory }) {
           <div className="flex items-center gap-1 flex-wrap">
             {isActive ? (
               <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-700 border-0 dark:bg-green-900/30 dark:text-green-400">
-                已上架
+                {t('merchant.onShelf')}
               </Badge>
             ) : (
               <Badge variant="secondary" className="text-[10px] bg-gray-100 text-gray-600 border-0 dark:bg-gray-800 dark:text-gray-400">
-                已下架
+                {t('merchant.offShelf')}
               </Badge>
             )}
             {product.isHot && (
               <Badge variant="secondary" className="text-[10px] bg-red-100 text-red-600 border-0 dark:bg-red-900/30 dark:text-red-400">
-                热销
+                {t('merchant.hotSale')}
               </Badge>
             )}
           </div>
@@ -213,7 +214,7 @@ function ProductCard({ product }: { product: ProductWithCategory }) {
               )}
             </div>
             <span className="text-[10px] text-muted-foreground">
-              库存: {product.inventory ?? 0}
+              {t('merchant.stock')}: {product.inventory ?? 0}
             </span>
           </div>
         </div>
@@ -236,11 +237,12 @@ function ProductSkeleton() {
 }
 
 function MyAssetsEntry({ onNavigate }: { onNavigate: (type: string) => void }) {
+  const { t } = useLanguage();
   const assets = [
     { 
       id: 'vouchers', 
       icon: QrCode, 
-      label: '到店券', 
+      labelKey: 'merchant.vouchers', 
       count: 3, 
       color: 'text-orange-500',
       bgColor: 'bg-orange-50 dark:bg-orange-950'
@@ -248,7 +250,7 @@ function MyAssetsEntry({ onNavigate }: { onNavigate: (type: string) => void }) {
     { 
       id: 'orders', 
       icon: ClipboardList, 
-      label: '订单', 
+      labelKey: 'merchant.orders', 
       count: 2,
       color: 'text-blue-500',
       bgColor: 'bg-blue-50 dark:bg-blue-950'
@@ -256,7 +258,7 @@ function MyAssetsEntry({ onNavigate }: { onNavigate: (type: string) => void }) {
     { 
       id: 'packages', 
       icon: Box, 
-      label: '包裹', 
+      labelKey: 'merchant.packages', 
       count: 1,
       color: 'text-green-500',
       bgColor: 'bg-green-50 dark:bg-green-950'
@@ -266,9 +268,9 @@ function MyAssetsEntry({ onNavigate }: { onNavigate: (type: string) => void }) {
   return (
     <div className="bg-card rounded-lg p-3 mx-4 -mt-2 relative z-10 shadow-sm">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-muted-foreground">我的权益</span>
+        <span className="text-xs font-medium text-muted-foreground">{t('merchant.myAssets')}</span>
         <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] text-muted-foreground gap-0.5">
-          全部 <ChevronRight className="w-3 h-3" />
+          {t('merchant.viewAll')} <ChevronRight className="w-3 h-3" />
         </Button>
       </div>
       <div className="grid grid-cols-3 gap-3">
@@ -287,7 +289,7 @@ function MyAssetsEntry({ onNavigate }: { onNavigate: (type: string) => void }) {
                 </span>
               )}
             </div>
-            <span className="text-xs font-medium">{asset.label}</span>
+            <span className="text-xs font-medium">{t(asset.labelKey)}</span>
           </button>
         ))}
       </div>
@@ -466,7 +468,7 @@ export default function MerchantHome() {
               data-testid="button-expand-owner-bar"
             >
               <Eye className="w-3 h-3" />
-              老板视角
+              {t('merchant.ownerView')}
             </Button>
           )}
           <Button variant="ghost" size="icon" data-testid="button-search" onClick={handleComingSoon}>
@@ -487,7 +489,7 @@ export default function MerchantHome() {
             <div className="flex items-center justify-between px-3 py-2">
               <div className="flex items-center gap-1">
                 <Eye className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-medium">老板视角</span>
+                <span className="text-[10px] font-medium">{t('merchant.ownerView')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Button 
@@ -498,14 +500,14 @@ export default function MerchantHome() {
                   data-testid="button-edit-store"
                 >
                   <Edit3 className="w-3 h-3" />
-                  编辑店铺
+                  {t('merchant.editStore')}
                 </Button>
                 <button 
                   onClick={() => setShowOwnerBar(false)}
                   className="text-white/60 hover:text-white text-xs"
                   data-testid="button-collapse-owner-bar"
                 >
-                  收起
+                  {t('merchant.collapse')}
                 </button>
               </div>
             </div>
@@ -518,7 +520,7 @@ export default function MerchantHome() {
                     {ownerStats.viewsTrend}%
                   </span>
                 </div>
-                <div className="text-[9px] text-white/70">今日浏览</div>
+                <div className="text-[9px] text-white/70">{t('merchant.todayViews')}</div>
               </div>
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1">
@@ -528,7 +530,7 @@ export default function MerchantHome() {
                     {ownerStats.favoritesTrend}%
                   </span>
                 </div>
-                <div className="text-[9px] text-white/70">收藏</div>
+                <div className="text-[9px] text-white/70">{t('merchant.favorites')}</div>
               </div>
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1">
@@ -538,11 +540,11 @@ export default function MerchantHome() {
                     {ownerStats.ordersTrend}%
                   </span>
                 </div>
-                <div className="text-[9px] text-white/70">下单</div>
+                <div className="text-[9px] text-white/70">{t('merchant.ordersPlaced')}</div>
               </div>
               <div className="text-center">
                 <div className="text-base font-bold">{ownerStats.conversionRate}%</div>
-                <div className="text-[9px] text-white/70">转化率</div>
+                <div className="text-[9px] text-white/70">{t('merchant.conversionRate')}</div>
               </div>
             </div>
           </div>
@@ -564,7 +566,7 @@ export default function MerchantHome() {
                     {currentStore.storeName}
                   </h1>
                   <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-[10px]">
-                    {storeInfo.isOpen ? '营业中' : '休息中'}
+                    {storeInfo.isOpen ? t('merchant.open') : t('merchant.closed')}
                   </Badge>
                 </div>
                 
@@ -573,27 +575,27 @@ export default function MerchantHome() {
                     <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                     <span className="font-semibold">{storeInfo.rating}</span>
                   </div>
-                  <span className="text-muted-foreground">月售{storeInfo.monthSales}</span>
-                  <span className="text-muted-foreground">人均¥{storeInfo.perCapita}</span>
+                  <span className="text-muted-foreground">{t('merchant.monthlySales')}{storeInfo.monthSales}</span>
+                  <span className="text-muted-foreground">{t('merchant.perCapita')}¥{storeInfo.perCapita}</span>
                 </div>
                 
                 <div className="flex flex-wrap gap-2">
                   {storeInfo.supportsDineIn && (
                     <Badge variant="outline" className="text-[10px] gap-0.5">
                       <Store className="w-2.5 h-2.5" />
-                      到店
+                      {t('merchant.dineIn')}
                     </Badge>
                   )}
                   {storeInfo.supportsDelivery && (
                     <Badge variant="outline" className="text-[10px] gap-0.5">
                       <Bike className="w-2.5 h-2.5" />
-                      外卖
+                      {t('merchant.deliveryOption')}
                     </Badge>
                   )}
                   {storeInfo.supportsShipping && (
                     <Badge variant="outline" className="text-[10px] gap-0.5">
                       <Truck className="w-2.5 h-2.5" />
-                      快递
+                      {t('merchant.shippingOption')}
                     </Badge>
                   )}
                 </div>
@@ -622,15 +624,15 @@ export default function MerchantHome() {
           <div className="flex items-center gap-2 px-4 pb-2 overflow-x-auto">
             <Badge variant="secondary" className="text-[10px] flex-shrink-0 gap-1">
               <BadgeCheck className="w-3 h-3 text-green-500" />
-              好评率98%
+              {t('merchant.goodRating')}
             </Badge>
             <Badge variant="secondary" className="text-[10px] flex-shrink-0 gap-1">
               <ThumbsUp className="w-3 h-3 text-blue-500" />
-              回头客多
+              {t('merchant.returningCustomers')}
             </Badge>
             <Badge variant="secondary" className="text-[10px] flex-shrink-0 gap-1">
               <Timer className="w-3 h-3 text-orange-500" />
-              平均30分钟
+              {t('merchant.avgServiceTime')}
             </Badge>
           </div>
         </div>
@@ -641,13 +643,13 @@ export default function MerchantHome() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Package className="w-4 h-4 text-primary" />
-              <h2 className="font-semibold">店铺商品</h2>
+              <h2 className="font-semibold">{t('merchant.storeProducts')}</h2>
               <Badge variant="secondary" className="text-[10px]">{products.length}</Badge>
             </div>
             <div className="flex items-center gap-2">
               <Link href={`/merchant/products/${currentStore?.storeId}`}>
                 <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground gap-0.5">
-                  管理 <ChevronRight className="w-3 h-3" />
+                  {t('merchant.manage')} <ChevronRight className="w-3 h-3" />
                 </Button>
               </Link>
             </div>
@@ -662,10 +664,10 @@ export default function MerchantHome() {
           ) : products.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <Package className="w-12 h-12 mb-3 opacity-50" />
-              <p className="text-sm">暂无商品</p>
+              <p className="text-sm">{t('merchant.noProducts')}</p>
               <Link href={`/merchant/products/${currentStore?.storeId}`}>
                 <Button variant="outline" size="sm" className="mt-3">
-                  添加商品
+                  {t('merchant.addProduct')}
                 </Button>
               </Link>
             </div>
@@ -682,13 +684,13 @@ export default function MerchantHome() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Ticket className="w-4 h-4 text-primary" />
-              <h2 className="font-semibold">店铺活动</h2>
+              <h2 className="font-semibold">{t('merchant.storeCampaigns')}</h2>
               <Badge variant="secondary" className="text-[10px]">{storeCampaigns.length}</Badge>
             </div>
             <div className="flex items-center gap-2">
               <Link href={`/merchant/campaigns/${currentStore?.storeId}`}>
                 <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground gap-0.5">
-                  管理 <ChevronRight className="w-3 h-3" />
+                  {t('merchant.manage')} <ChevronRight className="w-3 h-3" />
                 </Button>
               </Link>
             </div>
@@ -703,10 +705,10 @@ export default function MerchantHome() {
           ) : storeCampaigns.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <Ticket className="w-12 h-12 mb-3 opacity-50" />
-              <p className="text-sm">暂无活动</p>
+              <p className="text-sm">{t('merchant.noCampaigns')}</p>
               <Link href={`/merchant/campaigns/${currentStore?.storeId}`}>
                 <Button variant="outline" size="sm" className="mt-3">
-                  创建活动
+                  {t('merchant.createCampaign')}
                 </Button>
               </Link>
             </div>
