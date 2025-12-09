@@ -58,7 +58,11 @@ export function LineLoginButton({ returnTo, className, children }: LineLoginButt
             document.body.appendChild(script);
           } else {
             try {
-              if (!window.liff.ready) {
+              // LIFF SDK 已加载，检查是否需要初始化
+              // 使用 liff.getOS() 来判断是否已初始化（如果未初始化会返回 undefined）
+              const isInitialized = window.liff.id !== undefined;
+              
+              if (!isInitialized) {
                 await window.liff.init({ liffId: fetchedLiffId });
               }
               setLiffReady(true);
@@ -69,6 +73,14 @@ export function LineLoginButton({ returnTo, className, children }: LineLoginButt
               }
             } catch (e) {
               console.error('[LIFF] init error:', e);
+              // 如果初始化失败，尝试强制重新初始化
+              try {
+                await window.liff.init({ liffId: fetchedLiffId });
+                setLiffReady(true);
+                setIsInLineApp(window.liff.isInClient());
+              } catch (retryError) {
+                console.error('[LIFF] retry init error:', retryError);
+              }
             }
           }
         }
