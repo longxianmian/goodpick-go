@@ -539,6 +539,9 @@ const translations: Record<Language, Record<string, string>> = {
     // 商户老板我的页面
     'owner.myTitle': '商户管理',
     'owner.role': '商户老板',
+    'owner.staff': '员工',
+    'owner.operations': '运营',
+    'owner.assets': '资产',
     'owner.staffOverview': '员工概览',
     'owner.operators': '运营人员',
     'owner.verifiers': '核销员',
@@ -2686,6 +2689,9 @@ const translations: Record<Language, Record<string, string>> = {
     // Owner Me Page
     'owner.myTitle': 'Management',
     'owner.role': 'Owner',
+    'owner.staff': 'Staff',
+    'owner.operations': 'Operations',
+    'owner.assets': 'Assets',
     'owner.staffOverview': 'Staff Overview',
     'owner.operators': 'Operators',
     'owner.verifiers': 'Verifiers',
@@ -4602,6 +4608,9 @@ const translations: Record<Language, Record<string, string>> = {
     // Owner Me Page
     'owner.myTitle': 'การจัดการ',
     'owner.role': 'เจ้าของ',
+    'owner.staff': 'พนักงาน',
+    'owner.operations': 'ดำเนินงาน',
+    'owner.assets': 'สินทรัพย์',
     'owner.staffOverview': 'ภาพรวมพนักงาน',
     'owner.operators': 'ผู้ดำเนินการ',
     'owner.verifiers': 'ผู้ตรวจสอบ',
@@ -6352,6 +6361,9 @@ const translations: Record<Language, Record<string, string>> = {
     // Owner Me Page
     'owner.myTitle': 'Manajemen',
     'owner.role': 'Pemilik',
+    'owner.staff': 'Staf',
+    'owner.operations': 'Operasi',
+    'owner.assets': 'Aset',
     'owner.staffOverview': 'Ikhtisar Staf',
     'owner.operators': 'Operator',
     'owner.verifiers': 'Verifikator',
@@ -7154,6 +7166,9 @@ const translations: Record<Language, Record<string, string>> = {
     // Owner Me Page
     'owner.myTitle': 'Quản lý',
     'owner.role': 'Chủ sở hữu',
+    'owner.staff': 'Nhân viên',
+    'owner.operations': 'Vận hành',
+    'owner.assets': 'Tài sản',
     'owner.staffOverview': 'Tổng quan nhân viên',
     'owner.operators': 'Nhân viên',
     'owner.verifiers': 'Xác minh viên',
@@ -7956,6 +7971,9 @@ const translations: Record<Language, Record<string, string>> = {
     // Owner Me Page
     'owner.myTitle': 'စီမံခန့်ခွဲမှု',
     'owner.role': 'ပိုင်ရှင်',
+    'owner.staff': 'ဝန်ထမ်း',
+    'owner.operations': 'လုပ်ငန်းစဉ်',
+    'owner.assets': 'ပိုင်ဆိုင်မှု',
     'owner.staffOverview': 'ဝန်ထမ်းအနှစ်ချုပ်',
     'owner.operators': 'ဝန်ထမ်းများ',
     'owner.verifiers': 'အတည်ပြုသူများ',
