@@ -58,6 +58,9 @@ import MerchantCampaigns from "@/pages/merchant/MerchantCampaigns";
 import MerchantCampaignEdit from "@/pages/merchant/MerchantCampaignEdit";
 import MerchantPaymentQrCode from "@/pages/merchant/MerchantPaymentQrCode";
 import MerchantPspSetup from "@/pages/merchant/MerchantPspSetup";
+import MerchantVouchers from "@/pages/merchant/MerchantVouchers";
+import MerchantOrders from "@/pages/merchant/MerchantOrders";
+import MerchantPackages from "@/pages/merchant/MerchantPackages";
 import StoreFront from "@/pages/user/StoreFront";
 import AdminPaymentSettings from "@/pages/admin/AdminPaymentSettings";
 import PaymentPage from "@/pages/user/PaymentPage";
@@ -317,6 +320,15 @@ function Router() {
       </Route>
       <Route path="/merchant/psp-setup">
         <ProtectedRoute requiredRole="owner"><MerchantPspSetup /></ProtectedRoute>
+      </Route>
+      <Route path="/merchant/vouchers">
+        <ProtectedRoute requiredRole="owner"><MerchantVouchers /></ProtectedRoute>
+      </Route>
+      <Route path="/merchant/orders">
+        <ProtectedRoute requiredRole="owner"><MerchantOrders /></ProtectedRoute>
+      </Route>
+      <Route path="/merchant/packages">
+        <ProtectedRoute requiredRole="owner"><MerchantPackages /></ProtectedRoute>
       </Route>
       <Route path="/merchant/me">
         <ProtectedRoute requiredRole="owner"><MeOwner /></ProtectedRoute>

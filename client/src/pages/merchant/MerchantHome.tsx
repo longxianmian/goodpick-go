@@ -347,7 +347,19 @@ export default function MerchantHome() {
   };
 
   const handleAssetNavigate = (type: string) => {
-    handleComingSoon();
+    switch (type) {
+      case 'vouchers':
+        navigate('/merchant/vouchers');
+        break;
+      case 'orders':
+        navigate('/merchant/orders');
+        break;
+      case 'packages':
+        navigate('/merchant/packages');
+        break;
+      default:
+        handleComingSoon();
+    }
   };
   
   const { data: rolesData, isLoading: rolesLoading } = useQuery<RolesResponse>({
