@@ -225,18 +225,16 @@ function Router() {
       <Route path="/p/:qrToken" component={PayEntryPage} />
       <Route path="/success/:paymentId" component={PaySuccessPage} />
       
-      {/* ========== 以下路由需要登录 ========== */}
-      
-      {/* 聊聊模块 - 需要登录 */}
-      <Route path="/liaoliao">
-        <ProtectedRoute showBottomNav><LiaoliaoChatList /></ProtectedRoute>
-      </Route>
+      {/* 聊聊模块 - 首页公开可见，聊天和添加好友需要登录 */}
+      <Route path="/liaoliao" component={LiaoliaoChatList} />
       <Route path="/liaoliao/chat/:friendId">
         {() => <ProtectedRoute><LiaoliaoChatDetail /></ProtectedRoute>}
       </Route>
       <Route path="/liaoliao/add-friend">
         <ProtectedRoute showBottomNav><LiaoliaoAddFriend /></ProtectedRoute>
       </Route>
+      
+      {/* ========== 以下路由需要登录 ========== */}
       
       {/* 个人中心 - 需要登录 */}
       <Route path="/me">

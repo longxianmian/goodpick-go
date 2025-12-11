@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -6,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, UserPlus, Users, MessageCircle } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN, th, vi } from 'date-fns/locale';
 import { UserBottomNav } from '@/components/UserBottomNav';
@@ -36,22 +38,28 @@ function getDateLocale(lang: string) {
 
 export default function LiaoliaoChatList() {
   const { t, language } = useLanguage();
+  const { user, isUserAuthenticated } = useAuth();
   const [, navigate] = useLocation();
+  const [searchQuery, setSearchQuery] = useState('');
   
   const { data: chats = [], isLoading } = useQuery<ChatItem[]>({
     queryKey: ['/api/liaoliao/chats'],
     refetchInterval: 5000,
+    enabled: isUserAuthenticated,
   });
 
   const { data: friendRequests = [] } = useQuery<any[]>({
     queryKey: ['/api/liaoliao/friend-requests'],
+    enabled: isUserAuthenticated,
   });
 
-  const totalUnread = chats.reduce((sum, chat) => sum + chat.unreadCount, 0);
+  const filteredChats = searchQuery
+    ? chats.filter(chat => chat.name?.toLowerCase().includes(searchQuery.toLowerCase()))
+    : chats;
 
   return (
     <div className="flex flex-col min-h-screen bg-background pb-14">
-      <header className="sticky top-0 z-10 bg-background border-b px-4 py-3">
+      <header className="sticky top-0 z-50 bg-background border-b px-4 py-3">
         <div className="flex items-center justify-between gap-2 mb-3">
           <h1 className="text-xl font-bold" data-testid="text-liaoliao-title">
             {t('liaoliao.title')}
@@ -85,30 +93,49 @@ export default function LiaoliaoChatList() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
             placeholder={t('liaoliao.searchPlaceholder')}
-            className="pl-9"
+            className="pl-9 bg-muted/50"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             data-testid="input-search-chat"
           />
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto">
-        {isLoading ? (
+        {!isUserAuthenticated ? (
+          <div className="flex flex-col items-center justify-center h-64 text-muted-foreground px-4">
+            <MessageCircle className="w-16 h-16 mb-4 text-muted-foreground/50" />
+            <p className="text-center mb-4">{t('liaoliao.noChats')}</p>
+            <Button 
+              onClick={() => navigate('/login')} 
+              className="bg-[#38B03B] hover:bg-[#2e9632] text-white"
+              data-testid="button-login"
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              {t('common.login')}
+            </Button>
+          </div>
+        ) : isLoading ? (
           <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
             <MessageCircle className="w-8 h-8 mb-2 animate-pulse" />
             <p>{t('common.loading')}</p>
           </div>
-        ) : chats.length === 0 ? (
+        ) : filteredChats.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-muted-foreground px-4">
-            <MessageCircle className="w-12 h-12 mb-3 opacity-50" />
+            <MessageCircle className="w-16 h-16 mb-4 text-muted-foreground/50" />
             <p className="text-center mb-4">{t('liaoliao.noChats')}</p>
-            <Button onClick={() => navigate('/liaoliao/add-friend')} data-testid="button-start-chat">
+            <Button 
+              onClick={() => navigate('/liaoliao/add-friend')} 
+              className="bg-[#38B03B] hover:bg-[#2e9632] text-white"
+              data-testid="button-start-chat"
+            >
               <UserPlus className="w-4 h-4 mr-2" />
               {t('liaoliao.addFriend')}
             </Button>
           </div>
         ) : (
           <div className="divide-y">
-            {chats.map((chat) => (
+            {filteredChats.map((chat) => (
               <Link 
                 key={`${chat.type}-${chat.id}`}
                 href={chat.type === 'friend' ? `/liaoliao/chat/${chat.id}` : `/liaoliao/group/${chat.id}`}
