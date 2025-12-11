@@ -262,7 +262,7 @@ function CampaignCard({ campaign, index }: { campaign: Campaign; index: number }
   const storeAvatar = store?.imageUrl;
 
   return (
-    <Link href={`/campaigns/${campaign.id}`}>
+    <Link href={`/stores/${campaign.stores?.[0]?.id || 1}`}>
       <div 
         className="bg-card rounded-xl overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-shadow duration-200"
         style={{ aspectRatio: '1 / 1.618' }}
