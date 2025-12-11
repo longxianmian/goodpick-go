@@ -435,7 +435,7 @@ export default function ShuaShuaHome() {
   const [showAllCategories, setShowAllCategories] = useState(false);
   
   const FIRST_ROW_COUNT = 6;
-  const SECOND_ROW_COUNT = 6;
+  const SECOND_ROW_COUNT = 5;
   const firstRowCategories = CATEGORIES.slice(0, FIRST_ROW_COUNT);
   const secondRowCategories = CATEGORIES.slice(FIRST_ROW_COUNT, FIRST_ROW_COUNT + SECOND_ROW_COUNT);
   const moreCategories = CATEGORIES.slice(FIRST_ROW_COUNT + SECOND_ROW_COUNT);
