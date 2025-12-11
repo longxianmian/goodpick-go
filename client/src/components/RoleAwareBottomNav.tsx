@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'wouter';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth, UserRoleType } from '@/contexts/AuthContext';
-import { ScanLine, Info, User, Home, Settings, BarChart3, Shield, Upload, Megaphone, ShoppingBag, Calendar, Store, MessageCircle } from 'lucide-react';
+import { ScanLine, Info, User, Home, Settings, BarChart3, Shield, Upload, Megaphone, ShoppingBag, Calendar, Store } from 'lucide-react';
 
 interface NavItem {
   key: string;
@@ -10,7 +10,7 @@ interface NavItem {
   labelKey: string;
 }
 
-function EyeIcon({ className }: { className?: string }) {
+function ChatBubbleIcon({ className }: { className?: string }) {
   return (
     <svg
       className={className}
@@ -21,8 +21,25 @@ function EyeIcon({ className }: { className?: string }) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12z" />
-      <circle cx="12" cy="12" r="3" />
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    </svg>
+  );
+}
+
+function EyeCircleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="M6 12s2.5-3.5 6-3.5 6 3.5 6 3.5-2.5 3.5-6 3.5S6 12 6 12z" />
+      <circle cx="12" cy="12" r="1.5" />
     </svg>
   );
 }
@@ -54,8 +71,8 @@ function PersonIcon({ className }: { className?: string }) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <circle cx="12" cy="10" r="3.2" />
-      <path d="M5.5 19.5a6.5 6.5 0 0113 0" />
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" />
     </svg>
   );
 }
@@ -63,8 +80,8 @@ function PersonIcon({ className }: { className?: string }) {
 const roleNavConfigs: Record<UserRoleType, { items: NavItem[], activePath: (location: string) => string }> = {
   consumer: {
     items: [
-      { key: 'liaoliao', path: '/liaoliao', icon: MessageCircle, labelKey: 'bottomNav.liaoliao' },
-      { key: 'feed', path: '/', icon: EyeIcon as any, labelKey: 'bottomNav.feed' },
+      { key: 'liaoliao', path: '/liaoliao', icon: ChatBubbleIcon as any, labelKey: 'bottomNav.liaoliao' },
+      { key: 'feed', path: '/', icon: EyeCircleIcon as any, labelKey: 'bottomNav.feed' },
       { key: 'me', path: '/me', icon: PersonIcon as any, labelKey: 'bottomNav.me' },
     ],
     activePath: (location: string) => {
@@ -115,7 +132,7 @@ const roleNavConfigs: Record<UserRoleType, { items: NavItem[], activePath: (loca
   },
   sysadmin: {
     items: [
-      { key: 'shuashuaOps', path: '/ops/shuashua', icon: EyeIcon as any, labelKey: 'roleNav.shuashuaOps' },
+      { key: 'shuashuaOps', path: '/ops/shuashua', icon: EyeCircleIcon as any, labelKey: 'roleNav.shuashuaOps' },
       { key: 'discoverOps', path: '/ops/discover', icon: StarIcon as any, labelKey: 'roleNav.discoverOps' },
       { key: 'me', path: '/sysadmin', icon: PersonIcon as any, labelKey: 'bottomNav.me' },
     ],
@@ -143,8 +160,8 @@ const roleNavConfigs: Record<UserRoleType, { items: NavItem[], activePath: (loca
   member: {
     // 商户会员角色：与consumer一样使用刷刷发现平台，同时可以使用会员权益
     items: [
-      { key: 'liaoliao', path: '/liaoliao', icon: MessageCircle, labelKey: 'bottomNav.liaoliao' },
-      { key: 'feed', path: '/', icon: EyeIcon as any, labelKey: 'bottomNav.feed' },
+      { key: 'liaoliao', path: '/liaoliao', icon: ChatBubbleIcon as any, labelKey: 'bottomNav.liaoliao' },
+      { key: 'feed', path: '/', icon: EyeCircleIcon as any, labelKey: 'bottomNav.feed' },
       { key: 'me', path: '/me', icon: PersonIcon as any, labelKey: 'bottomNav.me' },
     ],
     activePath: (location: string) => {
