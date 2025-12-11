@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, shortVideoBookmarks, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints, chatConversations, chatMessages, discoverApplications, shuashuaApplications, insertDiscoverApplicationSchema, insertShuashuaApplicationSchema, carts, cartItems, deliveryAddresses, deliveryOrders, orderItems, deliveryAssignments, insertCartSchema, insertCartItemSchema, insertDeliveryAddressSchema, insertDeliveryOrderSchema, insertOrderItemSchema } from '@shared/schema';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, shortVideoBookmarks, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints, chatConversations, chatMessages, discoverApplications, shuashuaApplications, insertDiscoverApplicationSchema, insertShuashuaApplicationSchema, carts, cartItems, deliveryAddresses, deliveryOrders, orderItems, deliveryAssignments, insertCartSchema, insertCartItemSchema, insertDeliveryAddressSchema, insertDeliveryOrderSchema, insertOrderItemSchema, liaoliaoFriends, liaoliaoGroups, liaoliaoGroupMembers, liaoliaoMessages, liaoliaoTranslations, liaoliaoFavorites, insertLiaoliaoFriendSchema, insertLiaoliaoGroupSchema, insertLiaoliaoMessageSchema } from '@shared/schema';
 import { getPaymentProvider } from './services/paymentProvider';
 import QRCode from 'qrcode';
 import { eq, and, desc, sql, inArray, isNotNull, or, gte, gt } from 'drizzle-orm';
@@ -9827,6 +9827,598 @@ export function registerRoutes(app: Express): Server {
     } catch (error: any) {
       console.error('Complete order error:', error);
       res.status(500).json({ success: false, message: 'Failed to complete order' });
+    }
+  });
+
+  // ============================================
+  // 聊聊模块 API - LiaoLiao Social Chat
+  // ============================================
+
+  // 获取好友列表
+  app.get('/api/liaoliao/friends', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+
+      // 获取已接受的好友
+      const friendships = await db
+        .select({
+          friend: liaoliaoFriends,
+          user: users,
+        })
+        .from(liaoliaoFriends)
+        .innerJoin(users, eq(liaoliaoFriends.friendId, users.id))
+        .where(and(
+          eq(liaoliaoFriends.userId, userId),
+          eq(liaoliaoFriends.status, 'accepted')
+        ))
+        .orderBy(desc(liaoliaoFriends.updatedAt));
+
+      // 获取最后一条消息
+      const friendsWithLastMessage = await Promise.all(
+        friendships.map(async ({ friend, user }) => {
+          const [lastMessage] = await db
+            .select()
+            .from(liaoliaoMessages)
+            .where(or(
+              and(
+                eq(liaoliaoMessages.fromUserId, userId),
+                eq(liaoliaoMessages.toUserId, friend.friendId)
+              ),
+              and(
+                eq(liaoliaoMessages.fromUserId, friend.friendId),
+                eq(liaoliaoMessages.toUserId, userId)
+              )
+            ))
+            .orderBy(desc(liaoliaoMessages.createdAt))
+            .limit(1);
+
+          // 统计未读消息
+          const [unreadCount] = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(liaoliaoMessages)
+            .where(and(
+              eq(liaoliaoMessages.fromUserId, friend.friendId),
+              eq(liaoliaoMessages.toUserId, userId),
+              eq(liaoliaoMessages.isRead, false)
+            ));
+
+          return {
+            id: friend.friendId,
+            displayName: friend.remarkName || user.displayName || user.lineDisplayName,
+            avatarUrl: user.avatarUrl || user.lineAvatarUrl,
+            lastMessage: lastMessage?.content,
+            lastMessageAt: lastMessage?.createdAt,
+            unreadCount: unreadCount?.count || 0,
+            isOnline: false,
+          };
+        })
+      );
+
+      res.json(friendsWithLastMessage);
+    } catch (error: any) {
+      console.error('Get friends error:', error);
+      res.status(500).json({ message: 'Failed to get friends' });
+    }
+  });
+
+  // 获取好友请求列表
+  app.get('/api/liaoliao/friend-requests', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+
+      const requests = await db
+        .select({
+          request: liaoliaoFriends,
+          user: users,
+        })
+        .from(liaoliaoFriends)
+        .innerJoin(users, eq(liaoliaoFriends.userId, users.id))
+        .where(and(
+          eq(liaoliaoFriends.friendId, userId),
+          eq(liaoliaoFriends.status, 'pending')
+        ))
+        .orderBy(desc(liaoliaoFriends.createdAt));
+
+      res.json(requests.map(({ request, user }) => ({
+        id: request.id,
+        userId: request.userId,
+        displayName: user.displayName || user.lineDisplayName,
+        avatarUrl: user.avatarUrl || user.lineAvatarUrl,
+        createdAt: request.createdAt,
+      })));
+    } catch (error: any) {
+      console.error('Get friend requests error:', error);
+      res.status(500).json({ message: 'Failed to get friend requests' });
+    }
+  });
+
+  // 发送好友请求
+  app.post('/api/liaoliao/friends/request', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { friendId } = req.body;
+
+      if (!friendId || friendId === userId) {
+        return res.status(400).json({ message: 'Invalid friend ID' });
+      }
+
+      // 检查是否已经是好友
+      const [existing] = await db
+        .select()
+        .from(liaoliaoFriends)
+        .where(and(
+          eq(liaoliaoFriends.userId, userId),
+          eq(liaoliaoFriends.friendId, friendId)
+        ))
+        .limit(1);
+
+      if (existing) {
+        return res.status(400).json({ message: 'Friend request already exists' });
+      }
+
+      await db.insert(liaoliaoFriends).values({
+        userId,
+        friendId,
+        status: 'pending',
+      });
+
+      res.json({ success: true, message: 'Friend request sent' });
+    } catch (error: any) {
+      console.error('Send friend request error:', error);
+      res.status(500).json({ message: 'Failed to send friend request' });
+    }
+  });
+
+  // 接受好友请求
+  app.post('/api/liaoliao/friends/accept', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { requesterId } = req.body;
+
+      // 更新请求状态
+      await db
+        .update(liaoliaoFriends)
+        .set({ status: 'accepted', updatedAt: new Date() })
+        .where(and(
+          eq(liaoliaoFriends.userId, requesterId),
+          eq(liaoliaoFriends.friendId, userId),
+          eq(liaoliaoFriends.status, 'pending')
+        ));
+
+      // 创建双向好友关系
+      await db.insert(liaoliaoFriends).values({
+        userId,
+        friendId: requesterId,
+        status: 'accepted',
+      }).onConflictDoUpdate({
+        target: [liaoliaoFriends.userId, liaoliaoFriends.friendId],
+        set: { status: 'accepted', updatedAt: new Date() },
+      });
+
+      res.json({ success: true, message: 'Friend request accepted' });
+    } catch (error: any) {
+      console.error('Accept friend request error:', error);
+      res.status(500).json({ message: 'Failed to accept friend request' });
+    }
+  });
+
+  // 获取私聊消息
+  app.get('/api/liaoliao/messages/:friendId', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const friendId = parseInt(req.params.friendId);
+      const { before, limit = 50 } = req.query;
+
+      let query = db
+        .select({
+          message: liaoliaoMessages,
+          fromUser: users,
+        })
+        .from(liaoliaoMessages)
+        .innerJoin(users, eq(liaoliaoMessages.fromUserId, users.id))
+        .where(and(
+          or(
+            and(
+              eq(liaoliaoMessages.fromUserId, userId),
+              eq(liaoliaoMessages.toUserId, friendId)
+            ),
+            and(
+              eq(liaoliaoMessages.fromUserId, friendId),
+              eq(liaoliaoMessages.toUserId, userId)
+            )
+          ),
+          eq(liaoliaoMessages.isDeleted, false)
+        ))
+        .orderBy(desc(liaoliaoMessages.createdAt))
+        .limit(Number(limit));
+
+      const results = await query;
+
+      // 标记消息为已读
+      await db
+        .update(liaoliaoMessages)
+        .set({ isRead: true })
+        .where(and(
+          eq(liaoliaoMessages.fromUserId, friendId),
+          eq(liaoliaoMessages.toUserId, userId),
+          eq(liaoliaoMessages.isRead, false)
+        ));
+
+      res.json({
+        messages: results.reverse().map(({ message, fromUser }) => ({
+          id: message.id,
+          fromUserId: message.fromUserId,
+          toUserId: message.toUserId,
+          messageType: message.messageType,
+          content: message.content,
+          mediaUrl: message.mediaUrl,
+          createdAt: message.createdAt,
+          fromUser: {
+            id: fromUser.id,
+            displayName: fromUser.displayName || fromUser.lineDisplayName,
+            avatarUrl: fromUser.avatarUrl || fromUser.lineAvatarUrl,
+          },
+        })),
+        hasMore: results.length === Number(limit),
+      });
+    } catch (error: any) {
+      console.error('Get messages error:', error);
+      res.status(500).json({ message: 'Failed to get messages' });
+    }
+  });
+
+  // 发送私聊消息
+  app.post('/api/liaoliao/messages', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { toUserId, content, messageType = 'text', mediaUrl } = req.body;
+
+      if (!toUserId || !content) {
+        return res.status(400).json({ message: 'Missing required fields' });
+      }
+
+      const [message] = await db.insert(liaoliaoMessages).values({
+        fromUserId: userId,
+        toUserId,
+        content,
+        messageType,
+        mediaUrl,
+      }).returning();
+
+      // 获取发送者信息
+      const [sender] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      res.json({
+        id: message.id,
+        fromUserId: message.fromUserId,
+        toUserId: message.toUserId,
+        messageType: message.messageType,
+        content: message.content,
+        mediaUrl: message.mediaUrl,
+        createdAt: message.createdAt,
+        fromUser: {
+          id: sender.id,
+          displayName: sender.displayName || sender.lineDisplayName,
+          avatarUrl: sender.avatarUrl || sender.lineAvatarUrl,
+        },
+      });
+    } catch (error: any) {
+      console.error('Send message error:', error);
+      res.status(500).json({ message: 'Failed to send message' });
+    }
+  });
+
+  // 获取群组列表
+  app.get('/api/liaoliao/groups', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+
+      const groupList = await db
+        .select({
+          group: liaoliaoGroups,
+          member: liaoliaoGroupMembers,
+        })
+        .from(liaoliaoGroupMembers)
+        .innerJoin(liaoliaoGroups, eq(liaoliaoGroupMembers.groupId, liaoliaoGroups.id))
+        .where(eq(liaoliaoGroupMembers.userId, userId))
+        .orderBy(desc(liaoliaoGroups.updatedAt));
+
+      res.json(groupList.map(({ group, member }) => ({
+        id: group.id,
+        name: group.name,
+        avatarUrl: group.avatarUrl,
+        description: group.description,
+        role: member.role,
+        isMuted: member.isMuted,
+      })));
+    } catch (error: any) {
+      console.error('Get groups error:', error);
+      res.status(500).json({ message: 'Failed to get groups' });
+    }
+  });
+
+  // 创建群组
+  app.post('/api/liaoliao/groups', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { name, memberIds = [] } = req.body;
+
+      if (!name) {
+        return res.status(400).json({ message: 'Group name is required' });
+      }
+
+      // 创建群组
+      const [group] = await db.insert(liaoliaoGroups).values({
+        name,
+        ownerId: userId,
+      }).returning();
+
+      // 添加群主
+      await db.insert(liaoliaoGroupMembers).values({
+        groupId: group.id,
+        userId,
+        role: 'owner',
+      });
+
+      // 添加其他成员
+      for (const memberId of memberIds) {
+        if (memberId !== userId) {
+          await db.insert(liaoliaoGroupMembers).values({
+            groupId: group.id,
+            userId: memberId,
+            role: 'member',
+          });
+        }
+      }
+
+      res.json(group);
+    } catch (error: any) {
+      console.error('Create group error:', error);
+      res.status(500).json({ message: 'Failed to create group' });
+    }
+  });
+
+  // 获取群消息
+  app.get('/api/liaoliao/groups/:groupId/messages', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const groupId = parseInt(req.params.groupId);
+      const { limit = 50 } = req.query;
+
+      // 验证用户是否是群成员
+      const [member] = await db
+        .select()
+        .from(liaoliaoGroupMembers)
+        .where(and(
+          eq(liaoliaoGroupMembers.groupId, groupId),
+          eq(liaoliaoGroupMembers.userId, userId)
+        ))
+        .limit(1);
+
+      if (!member) {
+        return res.status(403).json({ message: 'Not a member of this group' });
+      }
+
+      const results = await db
+        .select({
+          message: liaoliaoMessages,
+          fromUser: users,
+        })
+        .from(liaoliaoMessages)
+        .innerJoin(users, eq(liaoliaoMessages.fromUserId, users.id))
+        .where(and(
+          eq(liaoliaoMessages.groupId, groupId),
+          eq(liaoliaoMessages.isDeleted, false)
+        ))
+        .orderBy(desc(liaoliaoMessages.createdAt))
+        .limit(Number(limit));
+
+      res.json({
+        messages: results.reverse().map(({ message, fromUser }) => ({
+          id: message.id,
+          fromUserId: message.fromUserId,
+          groupId: message.groupId,
+          messageType: message.messageType,
+          content: message.content,
+          mediaUrl: message.mediaUrl,
+          createdAt: message.createdAt,
+          fromUser: {
+            id: fromUser.id,
+            displayName: fromUser.displayName || fromUser.lineDisplayName,
+            avatarUrl: fromUser.avatarUrl || fromUser.lineAvatarUrl,
+          },
+        })),
+        hasMore: results.length === Number(limit),
+      });
+    } catch (error: any) {
+      console.error('Get group messages error:', error);
+      res.status(500).json({ message: 'Failed to get group messages' });
+    }
+  });
+
+  // 发送群消息
+  app.post('/api/liaoliao/groups/:groupId/messages', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const groupId = parseInt(req.params.groupId);
+      const { content, messageType = 'text', mediaUrl } = req.body;
+
+      // 验证用户是否是群成员
+      const [member] = await db
+        .select()
+        .from(liaoliaoGroupMembers)
+        .where(and(
+          eq(liaoliaoGroupMembers.groupId, groupId),
+          eq(liaoliaoGroupMembers.userId, userId)
+        ))
+        .limit(1);
+
+      if (!member) {
+        return res.status(403).json({ message: 'Not a member of this group' });
+      }
+
+      const [message] = await db.insert(liaoliaoMessages).values({
+        fromUserId: userId,
+        groupId,
+        content,
+        messageType,
+        mediaUrl,
+      }).returning();
+
+      const [sender] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      res.json({
+        id: message.id,
+        fromUserId: message.fromUserId,
+        groupId: message.groupId,
+        messageType: message.messageType,
+        content: message.content,
+        createdAt: message.createdAt,
+        fromUser: {
+          id: sender.id,
+          displayName: sender.displayName || sender.lineDisplayName,
+          avatarUrl: sender.avatarUrl || sender.lineAvatarUrl,
+        },
+      });
+    } catch (error: any) {
+      console.error('Send group message error:', error);
+      res.status(500).json({ message: 'Failed to send group message' });
+    }
+  });
+
+  // 搜索用户（添加好友用）
+  app.get('/api/liaoliao/users/search', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { q } = req.query;
+
+      if (!q || String(q).length < 2) {
+        return res.json([]);
+      }
+
+      const results = await db
+        .select()
+        .from(users)
+        .where(and(
+          sql`(${users.displayName} ILIKE ${'%' + q + '%'} OR ${users.lineDisplayName} ILIKE ${'%' + q + '%'} OR ${users.phone} = ${q})`,
+          sql`${users.id} != ${userId}`
+        ))
+        .limit(20);
+
+      res.json(results.map(user => ({
+        id: user.id,
+        displayName: user.displayName || user.lineDisplayName,
+        avatarUrl: user.avatarUrl || user.lineAvatarUrl,
+      })));
+    } catch (error: any) {
+      console.error('Search users error:', error);
+      res.status(500).json({ message: 'Failed to search users' });
+    }
+  });
+
+  // 获取聊天列表（好友+群组合并）
+  app.get('/api/liaoliao/chats', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const chats: any[] = [];
+
+      // 获取好友聊天
+      const friendships = await db
+        .select({
+          friend: liaoliaoFriends,
+          user: users,
+        })
+        .from(liaoliaoFriends)
+        .innerJoin(users, eq(liaoliaoFriends.friendId, users.id))
+        .where(and(
+          eq(liaoliaoFriends.userId, userId),
+          eq(liaoliaoFriends.status, 'accepted')
+        ));
+
+      for (const { friend, user } of friendships) {
+        const [lastMessage] = await db
+          .select()
+          .from(liaoliaoMessages)
+          .where(or(
+            and(
+              eq(liaoliaoMessages.fromUserId, userId),
+              eq(liaoliaoMessages.toUserId, friend.friendId)
+            ),
+            and(
+              eq(liaoliaoMessages.fromUserId, friend.friendId),
+              eq(liaoliaoMessages.toUserId, userId)
+            )
+          ))
+          .orderBy(desc(liaoliaoMessages.createdAt))
+          .limit(1);
+
+        const [unreadCount] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(liaoliaoMessages)
+          .where(and(
+            eq(liaoliaoMessages.fromUserId, friend.friendId),
+            eq(liaoliaoMessages.toUserId, userId),
+            eq(liaoliaoMessages.isRead, false)
+          ));
+
+        chats.push({
+          type: 'friend',
+          id: friend.friendId,
+          name: friend.remarkName || user.displayName || user.lineDisplayName,
+          avatarUrl: user.avatarUrl || user.lineAvatarUrl,
+          lastMessage: lastMessage?.content,
+          lastMessageAt: lastMessage?.createdAt,
+          unreadCount: unreadCount?.count || 0,
+        });
+      }
+
+      // 获取群组聊天
+      const groupList = await db
+        .select({
+          group: liaoliaoGroups,
+        })
+        .from(liaoliaoGroupMembers)
+        .innerJoin(liaoliaoGroups, eq(liaoliaoGroupMembers.groupId, liaoliaoGroups.id))
+        .where(eq(liaoliaoGroupMembers.userId, userId));
+
+      for (const { group } of groupList) {
+        const [lastMessage] = await db
+          .select()
+          .from(liaoliaoMessages)
+          .where(eq(liaoliaoMessages.groupId, group.id))
+          .orderBy(desc(liaoliaoMessages.createdAt))
+          .limit(1);
+
+        chats.push({
+          type: 'group',
+          id: group.id,
+          name: group.name,
+          avatarUrl: group.avatarUrl,
+          lastMessage: lastMessage?.content,
+          lastMessageAt: lastMessage?.createdAt,
+          unreadCount: 0,
+        });
+      }
+
+      // 按最后消息时间排序
+      chats.sort((a, b) => {
+        const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+        const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+        return timeB - timeA;
+      });
+
+      res.json(chats);
+    } catch (error: any) {
+      console.error('Get chats error:', error);
+      res.status(500).json({ message: 'Failed to get chats' });
     }
   });
 
