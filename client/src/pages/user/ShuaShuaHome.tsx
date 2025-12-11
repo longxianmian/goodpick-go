@@ -339,7 +339,7 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
   const hasDiscount = product.originalPrice && parseFloat(product.originalPrice) > parseFloat(product.price);
 
   return (
-    <Link href={`/products/${product.id}`}>
+    <Link href={`/stores/${product.storeId}`}>
       <div 
         className="bg-card rounded-xl overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-shadow duration-200"
         style={{ aspectRatio: '1 / 1.618' }}
