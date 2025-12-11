@@ -141,21 +141,40 @@ export default function LiaoliaoAiChat() {
         <div ref={messagesEndRef} />
       </main>
 
-      <footer className="sticky bottom-0 bg-background border-t p-3">
-        <div className="flex items-center gap-2">
-          <Input
-            placeholder={t('liaoliao.typeMessage')}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={handleKeyPress}
-            className="flex-1"
-            data-testid="input-message"
-          />
+      <footer className="sticky bottom-0 bg-background border-t px-3 py-2 pb-safe">
+        <div className="flex items-end gap-2">
+          <div className="flex-1 relative">
+            <textarea
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                const newHeight = Math.max(44, Math.min(target.scrollHeight, 120));
+                target.style.height = newHeight + 'px';
+              }}
+              placeholder={t('liaoliao.typeMessage')}
+              className="w-full bg-muted/50 rounded-xl px-4 py-3 text-sm border border-border focus:ring-1 focus:ring-[#38B03B] focus:outline-none resize-none min-h-[44px] max-h-[120px] overflow-y-auto leading-5"
+              rows={1}
+              data-testid="input-message"
+            />
+          </div>
+          
           <Button
             size="icon"
             onClick={handleSend}
             disabled={!inputValue.trim() || isLoading}
-            className="bg-[#38B03B] hover:bg-[#2e9632] text-white"
+            className={`rounded-lg shrink-0 transition-colors h-11 w-11 ${
+              inputValue.trim() 
+                ? "bg-[#38B03B] hover:bg-[#2e9632] text-white" 
+                : "bg-[#38B03B]/30 text-white/50"
+            }`}
             data-testid="button-send"
           >
             <Send className="w-5 h-5" />

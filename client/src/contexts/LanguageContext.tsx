@@ -286,6 +286,10 @@ const translations: Record<Language, Record<string, string>> = {
     'liaoliao.noContacts': '暂无联系人',
     'liaoliao.liaoliaoId': '聊聊号',
     'liaoliao.myLiaoliaoId': '我的聊聊号',
+    'liaoliao.actionPhoto': '相册',
+    'liaoliao.actionCamera': '拍摄',
+    'liaoliao.actionLocation': '位置',
+    'liaoliao.actionRedPacket': '红包',
     
     // 角色导航
     'roleNav.merchantHome': '商户首页',
@@ -2644,6 +2648,10 @@ const translations: Record<Language, Record<string, string>> = {
     'liaoliao.noContacts': 'No contacts yet',
     'liaoliao.liaoliaoId': 'LiaoLiao ID',
     'liaoliao.myLiaoliaoId': 'My LiaoLiao ID',
+    'liaoliao.actionPhoto': 'Photo',
+    'liaoliao.actionCamera': 'Camera',
+    'liaoliao.actionLocation': 'Location',
+    'liaoliao.actionRedPacket': 'Red Packet',
     
     // Role Navigation
     'roleNav.merchantHome': 'Store Home',
