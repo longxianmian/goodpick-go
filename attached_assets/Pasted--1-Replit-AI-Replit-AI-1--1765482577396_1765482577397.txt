@@ -1,0 +1,91 @@
+好，我们先只干 **第 1 步**。
+你把下面这一整段原封不动复制给 Replit AI：
+
+---
+
+**发给 Replit AI 的指令（第 1 轮：只做登录状态诊断）**
+
+> 任务背景：
+> 线上地址 `https://goodpickgo.com/me`，点击「LINE 一键登录」，选择账号后会跳回站点首页，但再次打开 `/me` 仍然显示“需要登录”。Console 日志有类似：
+>
+> ```text
+> [AUTH] bootstrap start
+> [AUTH] bootstrapTokenFromUrlAndStorage 开始
+> [AUTH] no token found
+> [AUTH] 无 token, 匿名用户状态
+> [LiffClient] SDK loaded
+> [LiffClient] Initialized successfully
+> [LineLoginButton] LIFF state: { isInClient: false, isLoggedIn: false }
+> ```
+>
+> 我想用“三进制思路”先确认 **LINE / LIFF 端到底有没登录成功**，请你只做【第 1 轮诊断】，不要直接改登录流程。
+
+请按下面步骤操作：
+
+1. **找到 LIFF 登录按钮的实现代码**
+
+   * 在前端项目中搜索 `LineLoginButton` 或“`LINE 一键登录`”这段文案。
+   * 打开对应的 React 组件（就是渲染 `/me` 页里这个登录卡片的组件）。
+
+2. **在登录前后加详细日志（只加日志，不改逻辑）**
+
+   在“点击登录”的函数里（调用 `liff.login` 或相关方法前后），加上：
+
+   ```ts
+   console.log('[LIFF] before login', {
+     href: window.location.href,
+     isInClient: typeof liff.isInClient === 'function' ? liff.isInClient() : undefined,
+     isLoggedIn: typeof liff.isLoggedIn === 'function' ? liff.isLoggedIn() : undefined,
+   });
+   ```
+
+   在 LIFF 初始化成功之后（现在已经有 `[LiffClient] Initialized successfully` 日志的地方），再加一段“登录后”的日志：
+
+   ```ts
+   console.log('[LIFF] after init', {
+     href: window.location.href,
+     isLoggedIn: typeof liff.isLoggedIn === 'function' ? liff.isLoggedIn() : undefined,
+     idToken: typeof liff.getIDToken === 'function'
+       ? String(liff.getIDToken() || '').slice(0, 16)
+       : undefined,
+     accessToken: typeof liff.getAccessToken === 'function'
+       ? String(liff.getAccessToken() || '').slice(0, 16)
+       : undefined,
+   });
+   ```
+
+   > 注意：这里只打印前 16 个字符，避免在 Console 里泄露完整 token。
+
+3. **本地或预览环境复现一次登录流程，并把日志打印出来**
+
+   * 打开 `/me` 页面；
+   * 打开浏览器 DevTools → Console；
+   * 点击「LINE 一键登录」→ 用实际 LINE 账号走完整授权流程 → 回到站点；
+   * 截取刚才新增的两条日志：`[LIFF] before login` 和 `[LIFF] after init`。
+
+4. **根据结果，用三进制方式给我一个结论，不要改代码逻辑**
+
+   在 Console 日志的基础上，判断并写在注释里：
+
+   * 若 `after init` 中 `isLoggedIn === true` 且 `idToken` 有值 → 记为 `Q1 = +1`（LIFF 登录成功）；
+   * 若 `isLoggedIn === true` 但 `idToken` 为空 / undefined → 记为 `Q1 = 0`（LIFF 状态异常）；
+   * 若 `isLoggedIn === false` → 记为 `Q1 = -1`（LIFF 根本没登录成功）。
+
+   然后请在你修改的组件文件顶部或相关位置，用注释写清楚：
+
+   ```ts
+   // [三进制诊断 Q1] 结果：Q1 = (+1 / 0 / -1) ，原因：……
+   // [LIFF] before login 日志：……
+   // [LIFF] after init 日志：……
+   ```
+
+5. **最后给我一个简短汇报**
+
+   * 贴出 `[LIFF] before login` 和 `[LIFF] after init` 的实际日志内容；
+   * 明确告诉我：你判定的 `Q1` 是 +1 / 0 / -1。
+   * 暂时不要去实现后端换 session，只做这一轮“状态确认”。
+
+---
+
+你先把这段发给 Replit AI，让它执行完并把日志 / 结论给你。
+等你拿到结果，我们再给它第二段指令。

@@ -100,6 +100,18 @@ export function LineLoginButton({ returnTo, className, children }: LineLoginButt
   const handleLogin = async () => {
     setLoading(true);
 
+    // [三进制诊断 Q1] 登录前状态日志
+    const liffBeforeLogin = getLiff();
+    console.log('[LIFF] before login', {
+      href: window.location.href,
+      isInClient: liffBeforeLogin && typeof liffBeforeLogin.isInClient === 'function' 
+        ? liffBeforeLogin.isInClient() : undefined,
+      isLoggedIn: liffBeforeLogin && typeof liffBeforeLogin.isLoggedIn === 'function' 
+        ? liffBeforeLogin.isLoggedIn() : undefined,
+      liffReady,
+      isInLineApp,
+    });
+
     try {
       // 只有在 LINE 应用内才使用 LIFF 登录
       if (isInLineApp && liffReady) {

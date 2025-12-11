@@ -107,6 +107,20 @@ export async function ensureLiffReady(): Promise<LiffClientState> {
         isLoggedIn: window.liff.isLoggedIn(),
       };
 
+      // [三进制诊断 Q1] LIFF 初始化后状态日志
+      console.log('[LIFF] after init', {
+        href: window.location.href,
+        isLoggedIn: typeof window.liff.isLoggedIn === 'function'
+          ? window.liff.isLoggedIn()
+          : undefined,
+        idToken: typeof window.liff.getIDToken === 'function'
+          ? String(window.liff.getIDToken() || '').slice(0, 16)
+          : undefined,
+        accessToken: typeof window.liff.getAccessToken === 'function'
+          ? String(window.liff.getAccessToken() || '').slice(0, 16)
+          : undefined,
+      });
+
       return cachedState;
     } catch (error) {
       // 初始化失败，清除 Promise 以便重试
