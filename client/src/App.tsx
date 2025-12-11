@@ -79,6 +79,9 @@ import LiaoliaoChatDetail from "@/pages/liaoliao/ChatDetail";
 import LiaoliaoAddFriend from "@/pages/liaoliao/AddFriend";
 import LiaoliaoAiChat from "@/pages/liaoliao/AiChat";
 import LiaoliaoContacts from "@/pages/liaoliao/Contacts";
+import SuperContacts from "@/pages/user/SuperContacts";
+import PhoneImport from "@/pages/user/PhoneImport";
+import InviteLanding from "@/pages/user/InviteLanding";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import { Store, Tag, LogOut, LayoutDashboard } from 'lucide-react';
@@ -235,6 +238,11 @@ function Router() {
         <ProtectedRoute showBottomNav><LiaoliaoAddFriend /></ProtectedRoute>
       </Route>
       <Route path="/liaoliao/contacts" component={LiaoliaoContacts} />
+      
+      {/* ========== 超级通讯录 ========== */}
+      <Route path="/super-contacts" component={SuperContacts} />
+      <Route path="/super-contacts/phone-import" component={PhoneImport} />
+      <Route path="/invite" component={InviteLanding} />
       
       {/* ========== 以下路由需要登录 ========== */}
       

@@ -2236,3 +2236,151 @@ export const liaoliaoFavorites = pgTable('liaoliao_favorites', {
 }, (table) => ({
   uniqueFavorite: unique().on(table.userId, table.messageId),
 }));
+
+export const insertLiaoliaoFavoriteSchema = createInsertSchema(liaoliaoFavorites).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertLiaoliaoFavorite = z.infer<typeof insertLiaoliaoFavoriteSchema>;
+export type LiaoliaoFavorite = typeof liaoliaoFavorites.$inferSelect;
+
+// ==================== 超级通讯录模块 ====================
+
+// 好友关系状态枚举
+export const friendStatusEnum = pgEnum('friend_status', [
+  'pending',    // 待确认
+  'accepted',   // 已接受
+  'blocked',    // 已拉黑
+]);
+
+// 邀请渠道枚举
+export const inviteChannelEnum = pgEnum('invite_channel', [
+  'line',       // LINE
+  'whatsapp',   // WhatsApp
+  'viber',      // Viber（缅甸重点）
+  'telegram',   // Telegram（缅甸重点）
+  'facebook',   // Facebook
+  'sms',        // 短信
+  'generic',    // 通用链接
+]);
+
+// 邀请场景枚举
+export const inviteSceneEnum = pgEnum('invite_scene', [
+  'contacts_import',  // 手机通讯录导入
+  'chat_share',       // 聊天分享名片
+  'face_to_face',     // 面对面扫码
+  'qr_poster',        // 海报/桌牌二维码
+  'super_contacts',   // 超级通讯录入口
+]);
+
+// 好友关系表
+export const ttFriends = pgTable('tt_friends', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  friendUserId: integer('friend_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  status: friendStatusEnum('status').notNull().default('pending'),
+  
+  // 备注名
+  nickname: text('nickname'),
+  
+  // 来源渠道
+  sourceChannel: inviteChannelEnum('source_channel'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqueFriend: unique().on(table.userId, table.friendUserId),
+}));
+
+export const insertTtFriendSchema = createInsertSchema(ttFriends).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertTtFriend = z.infer<typeof insertTtFriendSchema>;
+export type TtFriend = typeof ttFriends.$inferSelect;
+
+// 邀请表（裂变追踪）
+export const ttInvites = pgTable('tt_invites', {
+  id: serial('id').primaryKey(),
+  
+  // 发起邀请的用户
+  inviterUserId: integer('inviter_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  
+  // 邀请码（短字符串）
+  inviteCode: text('invite_code').notNull().unique(),
+  
+  // 邀请渠道
+  inviteChannel: inviteChannelEnum('invite_channel').notNull().default('generic'),
+  
+  // 邀请场景
+  scene: inviteSceneEnum('scene').notNull().default('super_contacts'),
+  
+  // 目标手机号哈希（短信邀请场景下使用）
+  phoneHash: text('phone_hash'),
+  
+  // 被邀请并完成注册的用户ID
+  usedByUserId: integer('used_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  
+  // 邀请链接被点击次数
+  clickedCount: integer('clicked_count').default(0),
+  
+  // 扩展信息（JSON）
+  meta: text('meta'),
+  
+  // 注册时间
+  registeredAt: timestamp('registered_at'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertTtInviteSchema = createInsertSchema(ttInvites).omit({
+  id: true,
+  usedByUserId: true,
+  clickedCount: true,
+  registeredAt: true,
+  createdAt: true,
+});
+export type InsertTtInvite = z.infer<typeof insertTtInviteSchema>;
+export type TtInvite = typeof ttInvites.$inferSelect;
+
+// 手机号哈希注册表（用于隐私保护的通讯录匹配）
+export const phoneHashRegistry = pgTable('phone_hash_registry', {
+  id: serial('id').primaryKey(),
+  phoneHash: text('phone_hash').notNull().unique(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertPhoneHashRegistrySchema = createInsertSchema(phoneHashRegistry).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertPhoneHashRegistry = z.infer<typeof insertPhoneHashRegistrySchema>;
+export type PhoneHashRegistry = typeof phoneHashRegistry.$inferSelect;
+
+// 超级通讯录联系人模型（前端类型/后端DTO）
+export interface UnifiedContactSource {
+  sourceType: 'platform' | 'phone' | 'im';
+  imChannel?: 'line' | 'whatsapp' | 'viber' | 'telegram' | 'sms' | 'other';
+  imHandle?: string;
+  phoneE164?: string;
+  phoneHash?: string;
+  status: 'not_known' | 'invited' | 'registered' | 'friend';
+  lastInvitedAt?: string;
+  inviteChannel?: 'line' | 'whatsapp' | 'viber' | 'telegram' | 'sms' | 'generic';
+}
+
+export interface UnifiedContact {
+  id: string;
+  displayName: string;
+  avatarUrl?: string;
+  contactType: 'user' | 'merchant' | 'agent' | 'system';
+  sources: UnifiedContactSource[];
+  isFriend: boolean;
+  isRegistered: boolean;
+  lastMessageAt?: string;
+  languages?: string[];
+}

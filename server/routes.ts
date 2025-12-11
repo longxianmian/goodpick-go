@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, shortVideoBookmarks, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints, chatConversations, chatMessages, discoverApplications, shuashuaApplications, insertDiscoverApplicationSchema, insertShuashuaApplicationSchema, carts, cartItems, deliveryAddresses, deliveryOrders, orderItems, deliveryAssignments, insertCartSchema, insertCartItemSchema, insertDeliveryAddressSchema, insertDeliveryOrderSchema, insertOrderItemSchema, liaoliaoFriends, liaoliaoGroups, liaoliaoGroupMembers, liaoliaoMessages, liaoliaoTranslations, liaoliaoFavorites, insertLiaoliaoFriendSchema, insertLiaoliaoGroupSchema, insertLiaoliaoMessageSchema } from '@shared/schema';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, shortVideoBookmarks, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints, chatConversations, chatMessages, discoverApplications, shuashuaApplications, insertDiscoverApplicationSchema, insertShuashuaApplicationSchema, carts, cartItems, deliveryAddresses, deliveryOrders, orderItems, deliveryAssignments, insertCartSchema, insertCartItemSchema, insertDeliveryAddressSchema, insertDeliveryOrderSchema, insertOrderItemSchema, liaoliaoFriends, liaoliaoGroups, liaoliaoGroupMembers, liaoliaoMessages, liaoliaoTranslations, liaoliaoFavorites, insertLiaoliaoFriendSchema, insertLiaoliaoGroupSchema, insertLiaoliaoMessageSchema, ttFriends, ttInvites, phoneHashRegistry, insertTtFriendSchema, insertTtInviteSchema, insertPhoneHashRegistrySchema } from '@shared/schema';
 import { getPaymentProvider } from './services/paymentProvider';
 import QRCode from 'qrcode';
 import { eq, and, desc, sql, inArray, isNotNull, or, gte, gt } from 'drizzle-orm';
@@ -10419,6 +10419,456 @@ export function registerRoutes(app: Express): Server {
     } catch (error: any) {
       console.error('Get chats error:', error);
       res.status(500).json({ message: 'Failed to get chats' });
+    }
+  });
+
+  // ==================== 超级通讯录 API ====================
+
+  // 获取超级通讯录列表
+  app.get('/api/contacts/super', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { type, status } = req.query;
+
+      // 获取所有好友关系
+      const friendships = await db
+        .select({
+          friend: ttFriends,
+          user: users,
+        })
+        .from(ttFriends)
+        .innerJoin(users, eq(ttFriends.friendUserId, users.id))
+        .where(eq(ttFriends.userId, userId));
+
+      // 获取用户发出的邀请记录
+      const invites = await db
+        .select()
+        .from(ttInvites)
+        .where(eq(ttInvites.inviterUserId, userId));
+
+      // 构建统一联系人列表
+      const contacts: any[] = [];
+
+      // 添加好友
+      for (const { friend, user } of friendships) {
+        const inviteForUser = invites.find(inv => inv.usedByUserId === user.id);
+        
+        contacts.push({
+          id: `user_${user.id}`,
+          displayName: friend.nickname || user.displayName || user.lineDisplayName || `User ${user.id}`,
+          avatarUrl: convertHttpToHttps(user.avatarUrl || user.lineAvatarUrl),
+          contactType: 'user',
+          sources: [
+            {
+              sourceType: 'platform',
+              status: friend.status === 'accepted' ? 'friend' : friend.status === 'pending' ? 'invited' : 'registered',
+              inviteChannel: friend.sourceChannel || undefined,
+            }
+          ],
+          isFriend: friend.status === 'accepted',
+          isRegistered: true,
+          lastMessageAt: null,
+          languages: user.preferredLang ? [user.preferredLang] : [],
+        });
+      }
+
+      // 添加已邀请但未注册的联系人
+      for (const invite of invites) {
+        if (!invite.usedByUserId) {
+          contacts.push({
+            id: `invite_${invite.id}`,
+            displayName: `Invited via ${invite.inviteChannel}`,
+            avatarUrl: null,
+            contactType: 'user',
+            sources: [
+              {
+                sourceType: 'im',
+                imChannel: invite.inviteChannel,
+                status: 'invited',
+                lastInvitedAt: invite.createdAt?.toISOString(),
+                inviteChannel: invite.inviteChannel,
+              }
+            ],
+            isFriend: false,
+            isRegistered: false,
+            lastMessageAt: null,
+            languages: [],
+          });
+        }
+      }
+
+      // 根据type和status过滤
+      let filteredContacts = contacts;
+      if (type && type !== 'all') {
+        filteredContacts = filteredContacts.filter(c => c.contactType === type);
+      }
+      if (status) {
+        filteredContacts = filteredContacts.filter(c => {
+          if (status === 'friend') return c.isFriend;
+          if (status === 'registered') return c.isRegistered && !c.isFriend;
+          if (status === 'invited') return !c.isRegistered;
+          return true;
+        });
+      }
+
+      res.json({ data: filteredContacts });
+    } catch (error: any) {
+      console.error('Get super contacts error:', error);
+      res.status(500).json({ message: 'Failed to get contacts' });
+    }
+  });
+
+  // 生成邀请链接
+  app.post('/api/invites/generate', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { channel = 'generic', scene = 'super_contacts', phoneHash, meta } = req.body;
+
+      // 生成唯一邀请码
+      const inviteCode = nanoid(8);
+
+      // 创建邀请记录
+      const [invite] = await db
+        .insert(ttInvites)
+        .values({
+          inviterUserId: userId,
+          inviteCode,
+          inviteChannel: channel,
+          scene: scene,
+          phoneHash: phoneHash || null,
+          meta: meta ? JSON.stringify(meta) : null,
+        })
+        .returning();
+
+      // 构建邀请URL
+      const baseUrl = process.env.APP_BASE_URL || 'https://shuashua.app';
+      const inviteUrl = `${baseUrl}/invite?code=${inviteCode}&channel=${channel}`;
+
+      // 生成二维码（可选）
+      let inviteQrImageUrl = null;
+      try {
+        const qrDataUrl = await QRCode.toDataURL(inviteUrl, {
+          width: 300,
+          margin: 2,
+          color: {
+            dark: '#38B03B',
+            light: '#FFFFFF',
+          }
+        });
+        inviteQrImageUrl = qrDataUrl;
+      } catch (qrError) {
+        console.warn('Failed to generate QR code:', qrError);
+      }
+
+      res.json({
+        inviteCode,
+        inviteUrl,
+        inviteQrImageUrl,
+      });
+    } catch (error: any) {
+      console.error('Generate invite error:', error);
+      res.status(500).json({ message: 'Failed to generate invite' });
+    }
+  });
+
+  // 获取邀请信息（公开接口，用于落地页）
+  app.get('/api/invites/:code', async (req: Request, res: Response) => {
+    try {
+      const { code } = req.params;
+
+      const [invite] = await db
+        .select({
+          invite: ttInvites,
+          inviter: users,
+        })
+        .from(ttInvites)
+        .innerJoin(users, eq(ttInvites.inviterUserId, users.id))
+        .where(eq(ttInvites.inviteCode, code))
+        .limit(1);
+
+      if (!invite) {
+        return res.status(404).json({ message: 'Invite not found' });
+      }
+
+      // 更新点击次数
+      await db
+        .update(ttInvites)
+        .set({ clickedCount: sql`${ttInvites.clickedCount} + 1` })
+        .where(eq(ttInvites.inviteCode, code));
+
+      res.json({
+        inviteCode: code,
+        channel: invite.invite.inviteChannel,
+        scene: invite.invite.scene,
+        inviter: {
+          id: invite.inviter.id,
+          displayName: invite.inviter.displayName || invite.inviter.lineDisplayName,
+          avatarUrl: convertHttpToHttps(invite.inviter.avatarUrl || invite.inviter.lineAvatarUrl),
+        },
+        isUsed: !!invite.invite.usedByUserId,
+      });
+    } catch (error: any) {
+      console.error('Get invite error:', error);
+      res.status(500).json({ message: 'Failed to get invite' });
+    }
+  });
+
+  // 接受邀请并建立好友关系
+  app.post('/api/invites/accept', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { inviteCode } = req.body;
+
+      if (!inviteCode) {
+        return res.status(400).json({ message: 'Invite code is required' });
+      }
+
+      // 查找邀请记录
+      const [invite] = await db
+        .select()
+        .from(ttInvites)
+        .where(eq(ttInvites.inviteCode, inviteCode))
+        .limit(1);
+
+      if (!invite) {
+        return res.status(404).json({ message: 'Invite not found' });
+      }
+
+      // 不能接受自己的邀请
+      if (invite.inviterUserId === userId) {
+        return res.status(400).json({ message: 'Cannot accept your own invite' });
+      }
+
+      // 更新邀请记录
+      await db
+        .update(ttInvites)
+        .set({
+          usedByUserId: userId,
+          registeredAt: new Date(),
+        })
+        .where(eq(ttInvites.inviteCode, inviteCode));
+
+      // 建立双向好友关系
+      // 邀请人 -> 被邀请人
+      await db
+        .insert(ttFriends)
+        .values({
+          userId: invite.inviterUserId,
+          friendUserId: userId,
+          status: 'accepted',
+          sourceChannel: invite.inviteChannel,
+        })
+        .onConflictDoNothing();
+
+      // 被邀请人 -> 邀请人
+      await db
+        .insert(ttFriends)
+        .values({
+          userId: userId,
+          friendUserId: invite.inviterUserId,
+          status: 'accepted',
+          sourceChannel: invite.inviteChannel,
+        })
+        .onConflictDoNothing();
+
+      // 获取邀请人信息返回
+      const [inviter] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, invite.inviterUserId))
+        .limit(1);
+
+      res.json({
+        success: true,
+        message: 'Invite accepted, you are now friends!',
+        inviter: inviter ? {
+          id: inviter.id,
+          displayName: inviter.displayName || inviter.lineDisplayName,
+          avatarUrl: convertHttpToHttps(inviter.avatarUrl || inviter.lineAvatarUrl),
+        } : null,
+      });
+    } catch (error: any) {
+      console.error('Accept invite error:', error);
+      res.status(500).json({ message: 'Failed to accept invite' });
+    }
+  });
+
+  // 手机通讯录哈希匹配
+  app.post('/api/contacts/phone-import/check', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { phoneHashes } = req.body;
+
+      if (!Array.isArray(phoneHashes) || phoneHashes.length === 0) {
+        return res.json({ matches: [] });
+      }
+
+      // 限制一次最多匹配500个
+      const limitedHashes = phoneHashes.slice(0, 500);
+
+      // 查找匹配的用户
+      const matches = await db
+        .select({
+          registry: phoneHashRegistry,
+          user: users,
+        })
+        .from(phoneHashRegistry)
+        .innerJoin(users, eq(phoneHashRegistry.userId, users.id))
+        .where(inArray(phoneHashRegistry.phoneHash, limitedHashes));
+
+      // 获取当前用户的好友列表
+      const friends = await db
+        .select()
+        .from(ttFriends)
+        .where(and(
+          eq(ttFriends.userId, userId),
+          eq(ttFriends.status, 'accepted')
+        ));
+
+      const friendIds = new Set(friends.map(f => f.friendUserId));
+
+      // 构建匹配结果
+      const result = matches
+        .filter(m => m.user.id !== userId) // 排除自己
+        .map(m => ({
+          phoneHash: m.registry.phoneHash,
+          userId: `user_${m.user.id}`,
+          displayName: m.user.displayName || m.user.lineDisplayName || `User ${m.user.id}`,
+          avatarUrl: convertHttpToHttps(m.user.avatarUrl || m.user.lineAvatarUrl),
+          isFriend: friendIds.has(m.user.id),
+        }));
+
+      res.json({ matches: result });
+    } catch (error: any) {
+      console.error('Phone import check error:', error);
+      res.status(500).json({ message: 'Failed to check phone hashes' });
+    }
+  });
+
+  // 添加好友（通过手机通讯录匹配）
+  app.post('/api/contacts/add-friend', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { friendUserId, sourceChannel } = req.body;
+
+      // 解析用户ID
+      const targetId = typeof friendUserId === 'string' && friendUserId.startsWith('user_') 
+        ? parseInt(friendUserId.replace('user_', ''))
+        : parseInt(friendUserId);
+
+      if (isNaN(targetId)) {
+        return res.status(400).json({ message: 'Invalid user ID' });
+      }
+
+      if (targetId === userId) {
+        return res.status(400).json({ message: 'Cannot add yourself as friend' });
+      }
+
+      // 检查目标用户是否存在
+      const [targetUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, targetId))
+        .limit(1);
+
+      if (!targetUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // 建立双向好友关系
+      await db
+        .insert(ttFriends)
+        .values({
+          userId: userId,
+          friendUserId: targetId,
+          status: 'accepted',
+          sourceChannel: sourceChannel || 'generic',
+        })
+        .onConflictDoNothing();
+
+      await db
+        .insert(ttFriends)
+        .values({
+          userId: targetId,
+          friendUserId: userId,
+          status: 'accepted',
+          sourceChannel: sourceChannel || 'generic',
+        })
+        .onConflictDoNothing();
+
+      res.json({
+        success: true,
+        message: 'Friend added successfully',
+        friend: {
+          id: targetUser.id,
+          displayName: targetUser.displayName || targetUser.lineDisplayName,
+          avatarUrl: convertHttpToHttps(targetUser.avatarUrl || targetUser.lineAvatarUrl),
+        },
+      });
+    } catch (error: any) {
+      console.error('Add friend error:', error);
+      res.status(500).json({ message: 'Failed to add friend' });
+    }
+  });
+
+  // 获取好友列表
+  app.get('/api/contacts/friends', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+
+      const friendships = await db
+        .select({
+          friend: ttFriends,
+          user: users,
+        })
+        .from(ttFriends)
+        .innerJoin(users, eq(ttFriends.friendUserId, users.id))
+        .where(and(
+          eq(ttFriends.userId, userId),
+          eq(ttFriends.status, 'accepted')
+        ));
+
+      const friends = friendships.map(({ friend, user }) => ({
+        id: user.id,
+        displayName: friend.nickname || user.displayName || user.lineDisplayName || `User ${user.id}`,
+        avatarUrl: convertHttpToHttps(user.avatarUrl || user.lineAvatarUrl),
+        sourceChannel: friend.sourceChannel,
+        createdAt: friend.createdAt,
+      }));
+
+      res.json({ friends });
+    } catch (error: any) {
+      console.error('Get friends error:', error);
+      res.status(500).json({ message: 'Failed to get friends' });
+    }
+  });
+
+  // 注册手机号哈希（用户登录/注册时调用）
+  app.post('/api/contacts/register-phone-hash', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { phoneHash } = req.body;
+
+      if (!phoneHash) {
+        return res.status(400).json({ message: 'Phone hash is required' });
+      }
+
+      // 注册或更新手机号哈希
+      await db
+        .insert(phoneHashRegistry)
+        .values({
+          phoneHash,
+          userId,
+        })
+        .onConflictDoUpdate({
+          target: phoneHashRegistry.phoneHash,
+          set: { userId, updatedAt: new Date() },
+        });
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Register phone hash error:', error);
+      res.status(500).json({ message: 'Failed to register phone hash' });
     }
   });
 

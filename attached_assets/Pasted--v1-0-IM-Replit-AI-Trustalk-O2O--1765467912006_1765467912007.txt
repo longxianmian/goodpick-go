@@ -1,0 +1,637 @@
+# 超级通讯录 v1.0 开发文档（聊聊 + 刷刷 + 多 IM 裂变）
+
+> 交付对象：Replit AI / 全栈工程师
+> 适用项目：聊聊即时沟通（Trustalk）+ 刷刷本地生活 O2O 统一账号体系
+> 目标：把「手机通讯录 + 多 IM 好友」高效转化为平台好友，并可用于刷刷本地生活的老带新裂变。
+
+---
+
+## 0. 核心设计思路
+
+### 0.1 超级通讯录要解决的问题
+
+1. **手机通讯录 → 平台好友**
+
+   * 从用户手机通讯录中导入手机号，利用现有 `igis_phone_hash_registry` 做 hash 匹配：
+
+     * 找出：已经在平台的用户（可直接加好友）；
+     * 找出：尚未注册的手机号（可发送邀请链接 / 短信）。
+
+2. **多 IM 好友 → 聊聊/刷刷好友**
+
+   * 支持从多 IM 渠道发出「聊聊/刷刷个人名片卡」：
+
+     * LINE
+     * WhatsApp
+     * Facebook
+     * Viber（缅甸重点）
+     * Telegram（缅甸重点）
+     * SMS（短信）
+   * 好友点击卡片 / 链接后：
+
+     * 引导注册 / 登录；
+     * 自动绑定渠道 ID（如 LINE user id / Telegram user id）；
+     * 自动与邀请人建立好友关系，并记录裂变来源。
+
+3. **统一视图管理联系人**
+
+   * 通讯录不仅展示“平台好友”，还要体现：
+
+     * 手机通讯录导入状态（已在平台 / 可邀请 / 已邀请）；
+     * 邀请渠道与结果（来自 LINE / Viber / Telegram 等）。
+
+### 0.2 核心原则
+
+* **隐私优先**：手机通讯录上传仅传手机号哈希值，不上传明文手机号。
+* **多渠道等权**：LINE / WhatsApp / Facebook/Viber / Telegram / SMS 在逻辑上都是平等的邀请渠道，区别仅在统计与前端呈现。
+* **统一邀请体系**：所有邀请入口统一使用 `invites` 表 + `/api/invites/generate` 接口，便于追踪和分析。
+
+---
+
+## 1. 数据模型设计
+
+### 1.1 联系人模型（平台层）
+
+> 用于超级通讯录页面展示的统一结构
+
+建议定义一个聚合模型 `UnifiedContact`（前端类型 / 后端 DTO）：
+
+```ts
+interface UnifiedContact {
+  id: string;               // 平台内部 contact_id 或 user_id
+  display_name: string;     // 展示名：优先用用户备注 / 通讯录名字 / 渠道昵称
+  avatar_url?: string;
+
+  contact_type: 'user' | 'merchant' | 'agent' | 'system';
+  // user: 平台普通用户
+  // merchant: 商户 / 店铺
+  // agent: 数字人助手
+  // system: 系统号 / 运营号
+
+  // 来源信息
+  sources: Array<{
+    source_type: 'platform' | 'phone' | 'im';
+    // platform: 平台内部（已注册用户）
+    // phone: 手机通讯录导入
+    // im: IM 邀请记录
+
+    im_channel?: 'line' | 'whatsapp' | 'viber' | 'telegram' | 'sms' | 'other';
+    im_handle?: string;     // 如 LINE user id / Telegram username
+
+    phone_e164?: string;    // 标准化后的手机号（仅在本地存明文，服务端可为空）
+    phone_hash?: string;    // SHA256(phone_e164)
+
+    status: 'not_known' | 'invited' | 'registered' | 'friend';
+    // not_known: 仅在本地联系人中，平台无记录
+    // invited: 已发出邀请链接/短信，对方未完成注册绑定
+    // registered: 对方已在平台注册，但尚未互为好友
+    // friend: 已建立好友关系
+
+    last_invited_at?: string;  // 最近一次邀请时间
+    invite_channel?: 'line' | 'whatsapp' | 'viber' | 'telegram' | 'sms' | 'generic';
+  }>;
+
+  // 好友关系与显示辅助
+  is_friend: boolean;
+  is_registered: boolean;      // 是否已注册平台
+  last_message_at?: string;    // 最近消息时间
+  languages?: string[];        // ['zh', 'th'] 等，表示多语言能力
+}
+```
+
+### 1.2 好友关系表（平台好友）
+
+表名建议：`tt_friends`（如已有类似表可复用）
+
+字段示例：
+
+* `id`
+* `user_id`             —— 邀请人 / 当前用户
+* `friend_user_id`      —— 好友用户
+* `status`              —— `pending` / `accepted` / `blocked`
+* `created_at`
+* `updated_at`
+
+规则：
+
+* 好友关系默认对称（可选：双向存两条，或存一条 + 逻辑对称）。
+* 当通过邀请链接完成注册时，直接插入 `accepted` 状态的记录。
+
+### 1.3 手机号哈希注册表（已存在）
+
+沿用：`igis_phone_hash_registry`
+
+字段示例（已在其他模块设计）：
+
+* `id`
+* `phone_hash`           —— SHA256(e164_phone)
+* `user_id`
+* `created_at`
+* `updated_at`
+
+用途：
+
+* 判断某手机号是否已在平台有账号。
+* 通过 `phone_hash` 与手机通讯录导入的 hash 列表进行匹配。
+
+### 1.4 邀请表（裂变追踪）
+
+表名建议：`tt_invites` / `ss_invites`
+
+字段示例：
+
+* `id`
+* `workspace_id`         —— 当前工作台 / 租户 id
+* `inviter_user_id`      —— 发起邀请的用户
+* `invite_code`          —— 邀请码（短字符串）
+* `invite_channel`       —— `'line' | 'whatsapp' | 'viber' | 'telegram' | 'sms' | 'generic'`
+* `scene`                —— `'contacts_import' | 'chat_share' | 'face_to_face' | 'qr_poster' | ...`
+* `phone_hash`           —— 可选：目标手机号哈希（仅在短信邀请场景下使用）
+* `used_by_user_id`      —— 被邀请并完成注册的用户 id
+* `created_at`
+* `clicked_count`        —— 邀请链接被点击次数（可选）
+* `registered_at`        —— 对方注册时间（可选）
+
+规则：
+
+* 同一个 `invite_code` 可以给多个 IM/短信好友使用（场景为单人）。
+* 或者按联系人生成不同 `invite_code`，由前端按需调用（多一层追踪维度）。
+
+---
+
+## 2. 后端接口设计
+
+### 2.1 获取超级通讯录列表
+
+> 用于超级通讯录主界面，展示平台好友 + 导入联系人状态。
+
+**Endpoint**
+
+```http
+GET /api/contacts/super
+```
+
+**Query 参数**
+
+* `type`（可选）：`all | user | merchant | agent | system`
+* `status`（可选）：`friend | registered | invited | not_known`
+
+**返回示例**
+
+```json
+{
+  "data": [
+    {
+      "id": "user_123",
+      "display_name": "Aung Min",
+      "avatar_url": "https://...",
+      "contact_type": "user",
+      "sources": [
+        {
+          "source_type": "platform",
+          "status": "friend"
+        },
+        {
+          "source_type": "phone",
+          "phone_hash": "...",
+          "status": "friend"
+        },
+        {
+          "source_type": "im",
+          "im_channel": "viber",
+          "status": "friend",
+          "last_invited_at": "2025-12-10T10:00:00Z"
+        }
+      ],
+      "is_friend": true,
+      "is_registered": true,
+      "last_message_at": "2025-12-10T10:05:00Z",
+      "languages": ["zh", "en", "my"]
+    }
+  ]
+}
+```
+
+> 前期可简化：只返回平台好友列表，手机通讯录和 IM 邀请状态可通过其他接口获取并在前端做 merge。
+
+### 2.2 生成邀请链接
+
+> 所有邀请（LINE/Viber/Telegram/SMS/QR）统一走这个接口。
+
+**Endpoint**
+
+```http
+POST /api/invites/generate
+```
+
+**请求体**
+
+```json
+{
+  "workspace_id": "ws_123",
+  "channel": "line",         
+  "scene": "chat_share",     
+  "phone_hash": "...",       
+  "meta": {
+    "from": "super_contacts",
+    "note": "手机通讯录导入批量邀请"
+  }
+}
+```
+
+说明：
+
+* `channel`：`line | whatsapp | viber | telegram | sms | generic`
+* `scene`：
+
+  * `contacts_import` —— 手机通讯录导入后发起的邀请
+  * `chat_share` —— 从聊聊聊天会话中分享名片
+  * `face_to_face` —— 当面扫码邀请
+  * `qr_poster` —— 线下海报 / 桌牌二维码
+* `phone_hash`：仅在对特定手机号邀请时填写（如短信场景）。
+* `meta`：预留扩展字段。
+
+**响应体**
+
+```json
+{
+  "invite_code": "abc123",
+  "invite_url": "https://trustalk.app/invite?code=abc123&channel=line&ws=ws_123",
+  "invite_qr_image_url": "https://cdn.xxx.com/invites/abc123.png"
+}
+```
+
+### 2.3 记录邀请点击与注册
+
+#### 2.3.1 邀请链接落地页
+
+当用户访问：
+
+```text
+GET https://trustalk.app/invite?code=abc123&channel=line
+```
+
+落地页逻辑：
+
+1. 后端根据 `invite_code` 查找 `tt_invites` 记录；
+2. 记录一次 `clicked_count ++`；
+3. 如果用户未登录：
+
+   * 引导登录/注册；
+4. 登录/注册完成后：
+
+   * 调 `POST /api/invites/accept`（或者在同一控制器中内部处理）。
+
+#### 2.3.2 接受邀请并建好友关系
+
+**Endpoint（示意）**
+
+```http
+POST /api/invites/accept
+```
+
+**请求体**
+
+```json
+{
+  "invite_code": "abc123"
+}
+```
+
+**逻辑**
+
+1. 获取当前登录用户 `current_user_id`；
+2. 查找对应 `invite_code` 记录：
+
+   * 若 `used_by_user_id` 为空：
+
+     * 设置 `used_by_user_id = current_user_id`；
+     * 设置 `registered_at = now()`；
+3. 建立好友关系：
+
+   * 在 `tt_friends` 表中插入 `inviter_user_id` 与 `current_user_id` 的 `accepted` 记录（若不存在）。
+4. 返回邀请信息（可用于发欢迎消息等）。
+
+### 2.4 手机通讯录哈希匹配
+
+> 仅上传手机号哈希到服务器，比对平台已有用户。
+
+**Endpoint**
+
+```http
+POST /api/contacts/phone-import/check
+```
+
+**请求体**
+
+```json
+{
+  "phone_hashes": [
+    "hash1",
+    "hash2",
+    "hash3"
+  ]
+}
+```
+
+**响应体**
+
+```json
+{
+  "matches": [
+    {
+      "phone_hash": "hash1",
+      "user_id": "user_111",
+      "is_friend": false
+    },
+    {
+      "phone_hash": "hash2",
+      "user_id": "user_222",
+      "is_friend": true
+    }
+  ]
+}
+```
+
+前端根据这份匹配信息，将本地通讯录联系人标记为：
+
+* 已在平台（可加好友 / 已是好友）；
+* 未在平台（可邀请）。
+
+> 注意：实际手机号明文不要上传，仅在本地保持。
+
+---
+
+## 3. 前端界面与交互
+
+### 3.1 超级通讯录主页面结构
+
+> 用于 H5 / App，同一交互逻辑。
+
+结构：
+
+1. 顶部导航栏：
+
+   * 标题：`超级通讯录`
+   * 右侧：搜索图标（搜索联系人 / 店铺 / 数字人）。
+
+2. 搜索框：
+
+   * 占位文案：`搜索联系人 / 店铺 / 数字人`
+
+3. 邀请工具条（上方卡片）：
+
+   * 左侧：标题 + 副标题：
+
+     * 标题：`从手机和 IM 导入好友`
+     * 副标题（小字链接）：`导入手机通讯录`
+   * 右侧：主按钮：`➕ 邀请`
+
+4. 过滤标签（可横向滚动）：
+
+   * `全部`
+   * `好友`
+   * `手机通讯录`
+   * `IM 邀请`
+   * `店铺`
+   * `数字人助手`
+
+5. 列表区域：
+
+   * 默认展示：平台好友 + 已匹配手机号的已注册用户。
+   * 当选择 `手机通讯录` 标签时，展示手机导入联系人列表。
+   * 当选择 `IM 邀请` 标签时，展示已邀请过的联系人（按渠道分组）。
+
+6. 空状态：
+
+   * 当列表为空时：
+
+     * 图标 + 文案：`还没有任何联系人，先从手机或 IM 导入几个试试。`
+     * 按钮：`立即导入手机通讯录`（等同于导入入口）。
+
+### 3.2 邀请工具条行为
+
+#### 3.2.1 导入手机通讯录
+
+* 点击副标题 `导入手机通讯录`：
+
+  1. 请求系统权限（仅 App / PWA 支持时）；
+  2. 读取本地通讯录手机号列表；
+  3. 本地标准化为 E.164；
+  4. 本地生成 SHA256 哈希；
+  5. 调用 `/api/contacts/phone-import/check`；
+  6. 拿到匹配结果 → 进入“手机通讯录导入结果页”。
+
+* 导入结果页面 UI 分为三段：
+
+  * 「可直接加为好友」
+
+    * 按钮：`全部加为好友`
+  * 「已是好友」
+
+    * 灰字列表，无操作按钮
+  * 「可邀请加入」
+
+    * 每行右侧有复选框
+    * 底部按钮：`发送邀请`（短信 / IM 分享）
+
+#### 3.2.2 点击【➕ 邀请】按钮
+
+弹出底部操作面板：
+
+```text
+邀请方式
+
+[ 从手机通讯录选择好友 ]
+[ 分享聊聊名片到 IM ]
+[ 面对面扫码加入 ]
+[ 复制通用邀请链接 ]
+
+取消
+```
+
+* `从手机通讯录选择好友`
+
+  * 跳到“手机通讯录导入结果页”（若尚未导入，则先导入）。
+
+* `分享聊聊名片到 IM`
+
+  * 打开第二级弹层：
+
+    * `分享到 LINE`
+    * `分享到 WhatsApp`
+    * `分享到 Viber`
+    * `分享到 Telegram`
+    * `通过短信邀请`
+  * 选择任一项：
+
+    1. 调 `POST /api/invites/generate`（带对应 `channel` 和 `scene='chat_share'`）；
+    2. 拿到 `invite_url`；
+    3. 使用 `navigator.share` 或复制文本到剪贴板；
+    4. 用户在对应 IM 会话中粘贴发送。
+
+* `面对面扫码加入`
+
+  * 全屏弹出邀请二维码：
+
+    * 调用 `POST /api/invites/generate`（`channel='generic'`、`scene='face_to_face'`）；
+    * 使用返回的 `invite_qr_image_url` 渲染二维码；
+    * 给出提示文案：`请对方使用浏览器或 IM 内置扫码功能扫描此码加入。`
+
+* `复制通用邀请链接`
+
+  * 调用 `POST /api/invites/generate`（`channel='generic'`、`scene='contacts_import'`）；
+  * 将 `invite_url` 复制到剪贴板；
+  * Toast 提示：`已复制邀请链接，可粘贴到任意聊天发送。`
+
+### 3.3 IM 分享文案（示例）
+
+> 多语言版本可从配置加载，前端只负责插入 `{url}`。
+
+#### 3.3.1 泰国 / 中文 / 英文三语模板（示例）
+
+```text
+中文：
+我在用「聊聊 & 刷刷」和你跨语言聊天，还能一起领附近好店优惠。
+点这里加入：{url}
+
+English:
+I'm using "LiaoLiao & BrushBrush" to chat with you across languages
+and get local shop discounts. Join here: {url}
+
+ภาษาไทย:
+ฉันใช้ "LiaoLiao & BrushBrush" เพื่อแชทข้ามภาษา
+และรับส่วนลดจากร้านค้าใกล้ตัว มาร่วมกันที่ลิงก์นี้: {url}
+```
+
+#### 3.3.2 缅甸市场模板（缅文占位）
+
+```text
+မြန်မာဘာသာ (示例占位，可后续替换为专业翻译)：
+
+{app_name} ကိုသုံးပြီး ဘာသာစကားမတူဘဲ လွယ်လင့်တကူ စကားပြောနိုင်တယ်၊
+အနီးအနား ဆိုင်တွေက လျော့ဈေးတွေ၊ promotion တွေပါ ရရှိနိုင်တယ်။
+ဤလင့်ကိုနှိပ်ပြီး ပါဝင်လိုက်ပါ：{url}
+```
+
+> Replit AI 只需在配置文件中声明不同 `channel` 和 `locale` 对应的文案模板，前端调用时用当前用户语言/地区选择合适模板即可。
+
+---
+
+## 4. IM 平台与系统分享策略
+
+### 4.1 实现优先级
+
+1. **统一使用系统分享（navigator.share）为主**
+
+   * 若浏览器/环境支持 `navigator.share`：
+
+     * 使用 `{ text, url }` 调用系统分享；
+     * 用户可从系统弹窗中选择 IM（LINE/Viber/Telegram 等）。
+
+2. **不支持系统分享时的降级方案**
+
+   * 前端将模板文本 + `invite_url` 拼成完整字符串；
+   * 写入剪贴板；
+   * 弹出提示：`邀请文案已复制，请到 Viber / Telegram 中粘贴发送。`
+
+3. **暂不强依赖各 IM 的 URL Scheme / SDK**
+
+   * 为保证兼容性和开发效率，不优先实现 `viber://`、`tg://` 这类深链接；
+   * 后续如需更深度集成，可再补充。
+
+### 4.2 Viber / Telegram 专属入口
+
+在超级通讯录中：
+
+* 当用户所在国家/地区为缅甸或东南亚：
+
+  * 在分享弹层中重点展示：`Viber`、`Telegram`；
+  * 在「手机通讯录导入结果」中，对于缅甸区号（+95）的手机号：
+
+    * 每一行右侧附加快捷按钮：`Viber 邀请` / `Telegram 邀请`，内部行为仍然是：
+
+      * 调 `/api/invites/generate(channel='viber' | 'telegram')`；
+      * 复制对应多语言模板文本 + `invite_url`。
+
+---
+
+## 5. 生命周期与状态变化
+
+### 5.1 手机联系人状态流转
+
+1. 初始状态：`not_known`
+
+   * 联系人只存在本地通讯录中。
+
+2. 手机导入 & hash 匹配：
+
+   * 若 `phone_hash` 在 `igis_phone_hash_registry` 中匹配到 `user_id`：
+
+     * 若当前用户与 `user_id` 不是好友：`status = registered`
+     * 若已经是好友：`status = friend`
+   * 若未匹配到：`status = not_known`（但可邀请）。
+
+3. 发起邀请（IM / SMS）：
+
+   * 本地标记：`status = invited`；
+   * 服务器记录 `tt_invites`。
+
+4. 对方通过邀请链接注册并接受：
+
+   * 后端设置 `used_by_user_id`；
+   * 在 `tt_friends` 中建立好友关系；
+   * 再次刷新联系人列表时：`status = friend`。
+
+### 5.2 IM 好友状态流转
+
+1. 用户从某个 IM（如 Viber）会话中手动分享邀请链接给对方。
+2. 对方点击链接 → 访问落地页 → 注册/登录。
+3. 若在落地页内还完成了某种绑定（比如 `telegram_user_id` / `line_user_id`）：
+
+   * 另一个模块（IGIS 渠道绑定）负责存储 `user_telegram` / `user_viber` 等表。
+4. 邀请接受后：
+
+   * `tt_invites` 中记录 `invite_channel = viber` / `telegram`；
+   * `tt_friends` 建立好友关系。
+
+---
+
+## 6. 实现建议与验收标准
+
+### 6.1 实现顺序建议（MVP 步骤）
+
+1. 实现 `/api/invites/generate` + `tt_invites` 表。
+2. 实现邀请落地页 + `/api/invites/accept`，完成好友关系建立。
+3. 超级通讯录页面：
+
+   * 初版只展示平台好友列表；
+   * 上方实现【➕ 邀请】按钮和分享弹层（含 LINE/WhatsApp/Viber/Telegram/SMS）；
+4. 手机通讯录导入：
+
+   * 前端先支持模拟数据 / 手动输入手机号列表；
+   * 后端实现 `/api/contacts/phone-import/check`；
+   * 再逐步接通原生 App 的通讯录读取能力。
+
+### 6.2 验收 Checklist
+
+1. 可以从超级通讯录中点击【➕ 邀请】：生成邀请链接，并通过至少一种 IM 渠道分享出去。
+2. 被邀请人在任意浏览器中打开 `invite_url`，完成注册/登录后：
+
+   * 在邀请人账户的超级通讯录中，看到此人作为“新好友”出现。
+3. 手机通讯录导入：
+
+   * 可模拟输入 3~5 个手机号；
+   * 若其中有已注册用户，对应联系人在导入结果页中被标记为“已在平台，可加好友”。
+4. Viber / Telegram 渠道：
+
+   * 分享弹层中显示 Viber / Telegram；
+   * 可通过复制文案 + 链接的方式，在 Viber / Telegram 聊天中发送邀请内容；
+   * 点击后能正确回到邀请落地页。
+
+---
+
+> 本文档为「超级通讯录 v1.0」开发说明，重点是打通：
+> 1）手机通讯录 → 平台好友；
+> 2）多 IM → 邀请链接 → 平台好友；
+> 后续如需增加“店铺联系人”“数字人助手联系人”等，可在 `contact_type` 和前端过滤视图上继续扩展。
