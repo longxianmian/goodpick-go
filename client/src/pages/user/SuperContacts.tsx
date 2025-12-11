@@ -7,8 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -73,7 +79,6 @@ export default function SuperContacts() {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
-  const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
   const [imShareSheetOpen, setImShareSheetOpen] = useState(false);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [currentInvite, setCurrentInvite] = useState<InviteResult | null>(null);
@@ -139,7 +144,6 @@ export default function SuperContacts() {
 
   const handleLineInvite = async () => {
     setIsLineInviting(true);
-    setInviteSheetOpen(false);
     
     try {
       const result = await generateInviteMutation.mutateAsync({ channel: 'line', scene: 'line_share' });
@@ -164,8 +168,6 @@ export default function SuperContacts() {
   };
 
   const handleInviteOption = async (option: 'qr' | 'link' | 'line' | 'im') => {
-    setInviteSheetOpen(false);
-    
     switch (option) {
       case 'line':
         handleLineInvite();
@@ -302,8 +304,8 @@ export default function SuperContacts() {
             <ChevronLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-lg font-semibold flex-1">{t('superContacts.title')}</h1>
-          <Sheet open={inviteSheetOpen} onOpenChange={setInviteSheetOpen}>
-            <SheetTrigger asChild>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
@@ -311,59 +313,51 @@ export default function SuperContacts() {
               >
                 <Plus className="w-5 h-5" />
               </Button>
-            </SheetTrigger>
-            <SheetContent side="bottom" className="rounded-t-2xl">
-              <SheetHeader className="pb-4">
-                <SheetTitle>{t('superContacts.inviteMethod')}</SheetTitle>
-              </SheetHeader>
-              <div className="space-y-2">
-                <Button
-                  className="w-full justify-start gap-3 h-12 bg-[#00B900] hover:bg-[#009900] text-white"
-                  onClick={() => handleInviteOption('line')}
-                  disabled={isLineInviting}
-                  data-testid="button-invite-line"
-                >
-                  {isLineInviting ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <SiLine className="w-5 h-5" />
-                  )}
-                  {t('superContacts.inviteLineFriends')}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-3 h-12"
-                  onClick={() => handleInviteOption('im')}
-                  data-testid="button-invite-im"
-                >
-                  <Share2 className="w-5 h-5 text-[#38B03B]" />
-                  {t('superContacts.shareToIM')}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-3 h-12"
-                  onClick={() => handleInviteOption('qr')}
-                  data-testid="button-invite-qr"
-                >
-                  <QrCode className="w-5 h-5 text-[#38B03B]" />
-                  {t('superContacts.faceToFace')}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-3 h-12"
-                  onClick={() => handleInviteOption('link')}
-                  data-testid="button-invite-link"
-                >
-                  {copiedLink ? (
-                    <Check className="w-5 h-5 text-[#38B03B]" />
-                  ) : (
-                    <Link2 className="w-5 h-5 text-[#38B03B]" />
-                  )}
-                  {t('superContacts.copyLink')}
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem
+                className="gap-3 py-3 cursor-pointer"
+                onClick={() => handleInviteOption('line')}
+                disabled={isLineInviting}
+                data-testid="button-invite-line"
+              >
+                {isLineInviting ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-[#00B900]" />
+                ) : (
+                  <SiLine className="w-5 h-5 text-[#00B900]" />
+                )}
+                <span>{t('superContacts.inviteLineFriends')}</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-3 py-3 cursor-pointer"
+                onClick={() => handleInviteOption('im')}
+                data-testid="button-invite-im"
+              >
+                <Share2 className="w-5 h-5 text-[#38B03B]" />
+                <span>{t('superContacts.shareToIM')}</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-3 py-3 cursor-pointer"
+                onClick={() => handleInviteOption('qr')}
+                data-testid="button-invite-qr"
+              >
+                <QrCode className="w-5 h-5 text-[#38B03B]" />
+                <span>{t('superContacts.faceToFace')}</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-3 py-3 cursor-pointer"
+                onClick={() => handleInviteOption('link')}
+                data-testid="button-invite-link"
+              >
+                {copiedLink ? (
+                  <Check className="w-5 h-5 text-[#38B03B]" />
+                ) : (
+                  <Link2 className="w-5 h-5 text-[#38B03B]" />
+                )}
+                <span>{t('superContacts.copyLink')}</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
@@ -468,14 +462,56 @@ export default function SuperContacts() {
             <p className="text-muted-foreground text-center mb-4 text-sm">
               {t('superContacts.emptyDesc')}
             </p>
-            <Button
-              onClick={() => setInviteSheetOpen(true)}
-              className="bg-[#38B03B] hover:bg-[#2d8f2f]"
-              data-testid="button-invite-empty"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              {t('superContacts.inviteFriends')}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  className="bg-[#38B03B] hover:bg-[#2d8f2f]"
+                  data-testid="button-invite-empty"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  {t('superContacts.inviteFriends')}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56">
+                <DropdownMenuItem
+                  className="gap-3 py-3 cursor-pointer"
+                  onClick={() => handleInviteOption('line')}
+                  disabled={isLineInviting}
+                >
+                  {isLineInviting ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-[#00B900]" />
+                  ) : (
+                    <SiLine className="w-5 h-5 text-[#00B900]" />
+                  )}
+                  <span>{t('superContacts.inviteLineFriends')}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-3 py-3 cursor-pointer"
+                  onClick={() => handleInviteOption('im')}
+                >
+                  <Share2 className="w-5 h-5 text-[#38B03B]" />
+                  <span>{t('superContacts.shareToIM')}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-3 py-3 cursor-pointer"
+                  onClick={() => handleInviteOption('qr')}
+                >
+                  <QrCode className="w-5 h-5 text-[#38B03B]" />
+                  <span>{t('superContacts.faceToFace')}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-3 py-3 cursor-pointer"
+                  onClick={() => handleInviteOption('link')}
+                >
+                  {copiedLink ? (
+                    <Check className="w-5 h-5 text-[#38B03B]" />
+                  ) : (
+                    <Link2 className="w-5 h-5 text-[#38B03B]" />
+                  )}
+                  <span>{t('superContacts.copyLink')}</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         ) : (
           <div className="space-y-2">
