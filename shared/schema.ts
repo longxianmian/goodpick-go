@@ -2058,3 +2058,181 @@ export const riderLocationHistory = pgTable('rider_location_history', {
   
   recordedAt: timestamp('recorded_at').notNull().defaultNow(),
 });
+
+// ============================================
+// 聊聊模块 - LiaoLiao Social Chat System
+// ============================================
+
+// 好友关系状态枚举
+export const liaoliaoFriendStatusEnum = pgEnum('liaoliao_friend_status', [
+  'pending',    // 待确认
+  'accepted',   // 已接受
+  'blocked',    // 已拉黑
+]);
+
+// 消息类型枚举
+export const liaoliaoMessageTypeEnum = pgEnum('liaoliao_message_type', [
+  'text',       // 文本
+  'image',      // 图片
+  'audio',      // 语音
+  'video',      // 视频
+  'file',       // 文件
+  'sticker',    // 贴纸
+  'location',   // 位置
+  'card',       // 名片
+  'call',       // 通话记录
+]);
+
+// 群组角色枚举
+export const liaoliaoGroupRoleEnum = pgEnum('liaoliao_group_role', [
+  'owner',      // 群主
+  'admin',      // 管理员
+  'member',     // 普通成员
+]);
+
+// 好友关系表
+export const liaoliaoFriends = pgTable('liaoliao_friends', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  friendId: integer('friend_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  status: liaoliaoFriendStatusEnum('status').notNull().default('pending'),
+  
+  // 好友备注名
+  remarkName: text('remark_name'),
+  
+  // 来源渠道
+  channel: text('channel').default('app'),  // app, line, whatsapp, etc.
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqueFriendship: unique().on(table.userId, table.friendId),
+}));
+
+export const insertLiaoliaoFriendSchema = createInsertSchema(liaoliaoFriends).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertLiaoliaoFriend = z.infer<typeof insertLiaoliaoFriendSchema>;
+export type LiaoliaoFriend = typeof liaoliaoFriends.$inferSelect;
+
+// 群组表
+export const liaoliaoGroups = pgTable('liaoliao_groups', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  avatarUrl: text('avatar_url'),
+  description: text('description'),
+  announcement: text('announcement'),  // 群公告
+  ownerId: integer('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  
+  // 群设置
+  isPublic: boolean('is_public').default(false),
+  maxMembers: integer('max_members').default(500),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertLiaoliaoGroupSchema = createInsertSchema(liaoliaoGroups).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertLiaoliaoGroup = z.infer<typeof insertLiaoliaoGroupSchema>;
+export type LiaoliaoGroup = typeof liaoliaoGroups.$inferSelect;
+
+// 群成员表
+export const liaoliaoGroupMembers = pgTable('liaoliao_group_members', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').notNull().references(() => liaoliaoGroups.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  role: liaoliaoGroupRoleEnum('role').notNull().default('member'),
+  
+  // 群内昵称
+  nickname: text('nickname'),
+  
+  // 是否免打扰
+  isMuted: boolean('is_muted').default(false),
+  
+  joinedAt: timestamp('joined_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqueMember: unique().on(table.groupId, table.userId),
+}));
+
+export const insertLiaoliaoGroupMemberSchema = createInsertSchema(liaoliaoGroupMembers).omit({
+  id: true,
+  joinedAt: true,
+});
+export type InsertLiaoliaoGroupMember = z.infer<typeof insertLiaoliaoGroupMemberSchema>;
+export type LiaoliaoGroupMember = typeof liaoliaoGroupMembers.$inferSelect;
+
+// 消息表
+export const liaoliaoMessages = pgTable('liaoliao_messages', {
+  id: serial('id').primaryKey(),
+  
+  // 发送者
+  fromUserId: integer('from_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  
+  // 接收者（私聊）或群组
+  toUserId: integer('to_user_id').references(() => users.id, { onDelete: 'cascade' }),
+  groupId: integer('group_id').references(() => liaoliaoGroups.id, { onDelete: 'cascade' }),
+  
+  // 消息内容
+  messageType: liaoliaoMessageTypeEnum('message_type').notNull().default('text'),
+  content: text('content'),             // 文本内容
+  mediaUrl: text('media_url'),          // 媒体URL
+  mediaDuration: integer('media_duration'),  // 语音/视频时长（秒）
+  mediaMetadata: text('media_metadata'),     // JSON: { width, height, fileSize, etc. }
+  
+  // 引用回复
+  replyToId: integer('reply_to_id'),
+  
+  // 原始语言（用于翻译）
+  originalLang: text('original_lang'),
+  
+  // 状态
+  isRead: boolean('is_read').default(false),
+  isDeleted: boolean('is_deleted').default(false),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertLiaoliaoMessageSchema = createInsertSchema(liaoliaoMessages).omit({
+  id: true,
+  isRead: true,
+  isDeleted: true,
+  createdAt: true,
+});
+export type InsertLiaoliaoMessage = z.infer<typeof insertLiaoliaoMessageSchema>;
+export type LiaoliaoMessage = typeof liaoliaoMessages.$inferSelect;
+
+// 消息翻译缓存表
+export const liaoliaoTranslations = pgTable('liaoliao_translations', {
+  id: serial('id').primaryKey(),
+  messageId: integer('message_id').notNull().references(() => liaoliaoMessages.id, { onDelete: 'cascade' }),
+  targetLang: text('target_lang').notNull(),
+  translatedContent: text('translated_content').notNull(),
+  ttsAudioUrl: text('tts_audio_url'),  // 翻译后的语音URL
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqueTranslation: unique().on(table.messageId, table.targetLang),
+}));
+
+export const insertLiaoliaoTranslationSchema = createInsertSchema(liaoliaoTranslations).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertLiaoliaoTranslation = z.infer<typeof insertLiaoliaoTranslationSchema>;
+export type LiaoliaoTranslation = typeof liaoliaoTranslations.$inferSelect;
+
+// 消息收藏表
+export const liaoliaoFavorites = pgTable('liaoliao_favorites', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  messageId: integer('message_id').notNull().references(() => liaoliaoMessages.id, { onDelete: 'cascade' }),
+  note: text('note'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqueFavorite: unique().on(table.userId, table.messageId),
+}));
