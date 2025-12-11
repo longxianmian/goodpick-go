@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { Search, Heart, Play, Eye, Image, Tag, Package, Percent, Store } from 'lucide-react';
+import { Search, Heart, Play, Eye, Image, Tag, Package, Percent, Store, ChevronDown, ChevronUp } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -432,6 +432,11 @@ export default function ShuaShuaHome() {
   const [activeFeedTab, setActiveFeedTab] = useState<FeedTabType>('recommend');
   const [activeCategory, setActiveCategory] = useState<CategoryType>('all');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showAllCategories, setShowAllCategories] = useState(false);
+  
+  const FIRST_ROW_COUNT = 7;
+  const firstRowCategories = CATEGORIES.slice(0, FIRST_ROW_COUNT);
+  const moreCategories = CATEGORIES.slice(FIRST_ROW_COUNT);
   
   const { data: feedData, isLoading: feedLoading } = useQuery<FeedResponse>({
     queryKey: ['/api/short-videos/feed', activeCategory],
@@ -556,13 +561,13 @@ export default function ShuaShuaHome() {
       </header>
 
       <div className="bg-background sticky top-14 z-30 border-b border-border/30">
-        <div className="px-3 py-2.5 overflow-x-auto scrollbar-hide">
-          <div className="flex gap-2 min-w-max">
-            {CATEGORIES.map((cat) => (
+        <div className="px-3 py-2 space-y-2">
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            {firstRowCategories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 ${
                   activeCategory === cat
                     ? 'bg-[#38B03B] text-white shadow-sm'
                     : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -572,7 +577,44 @@ export default function ShuaShuaHome() {
                 {categoryLabels[cat]}
               </button>
             ))}
+            {!showAllCategories && (
+              <button
+                onClick={() => setShowAllCategories(true)}
+                className="px-3 py-1.5 rounded-full text-xs font-medium bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-1 whitespace-nowrap"
+                data-testid="button-more-categories"
+              >
+                {t('common.more')}
+                <ChevronDown className="w-3 h-3" />
+              </button>
+            )}
           </div>
+          
+          {showAllCategories && (
+            <div className="flex flex-wrap gap-2">
+              {moreCategories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 ${
+                    activeCategory === cat
+                      ? 'bg-[#38B03B] text-white shadow-sm'
+                      : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                  data-testid={`category-${cat}`}
+                >
+                  {categoryLabels[cat]}
+                </button>
+              ))}
+              <button
+                onClick={() => setShowAllCategories(false)}
+                className="px-3 py-1.5 rounded-full text-xs font-medium bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-1 whitespace-nowrap"
+                data-testid="button-collapse-categories"
+              >
+                {t('merchant.collapse')}
+                <ChevronUp className="w-3 h-3" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
