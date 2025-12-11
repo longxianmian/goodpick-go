@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, PlusCircle, MoreVertical, MessageSquare, UserPlus, ScanLine, Wallet, Bot, Sparkles } from 'lucide-react';
+import { Search, PlusCircle, MoreVertical, MessageSquare, MessageCircle, UserPlus, ScanLine, Wallet, Bot, Sparkles } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
