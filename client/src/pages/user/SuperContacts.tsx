@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,8 +29,10 @@ import {
   Copy,
   Check,
   X,
+  Loader2,
 } from 'lucide-react';
 import { SiLine, SiWhatsapp, SiTelegram, SiFacebook } from 'react-icons/si';
+import { shareInviteToLineFriends, isShareTargetPickerAvailable } from '@/lib/liffClient';
 
 type FilterType = 'all' | 'friends' | 'phone' | 'im' | 'stores' | 'agents';
 type InviteChannel = 'line' | 'whatsapp' | 'viber' | 'telegram' | 'sms' | 'generic';
@@ -80,6 +82,12 @@ export default function SuperContacts() {
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [currentInvite, setCurrentInvite] = useState<InviteResult | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [isLineInviting, setIsLineInviting] = useState(false);
+  const [linePickerAvailable, setLinePickerAvailable] = useState(false);
+
+  useEffect(() => {
+    isShareTargetPickerAvailable().then(setLinePickerAvailable);
+  }, []);
 
   const { data: contactsData, isLoading } = useQuery<{ data: UnifiedContact[] }>({
     queryKey: ['/api/contacts/super'],
@@ -138,10 +146,39 @@ export default function SuperContacts() {
     }
   });
 
-  const handleInviteOption = async (option: 'phone' | 'im' | 'qr' | 'link') => {
+  const handleLineInvite = async () => {
+    setIsLineInviting(true);
+    setInviteSheetOpen(false);
+    
+    try {
+      const result = await generateInviteMutation.mutateAsync({ channel: 'line', scene: 'line_share' });
+      const inviterName = user?.displayName || user?.shuaName || 'ShuaShua';
+      const success = await shareInviteToLineFriends(result.inviteUrl, inviterName);
+      
+      if (success) {
+        toast({
+          title: t('superContacts.inviteSent'),
+          description: t('superContacts.lineInviteSentDesc'),
+        });
+      }
+    } catch (error) {
+      toast({
+        title: t('common.error'),
+        description: t('superContacts.inviteError'),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLineInviting(false);
+    }
+  };
+
+  const handleInviteOption = async (option: 'phone' | 'im' | 'qr' | 'link' | 'line') => {
     setInviteSheetOpen(false);
     
     switch (option) {
+      case 'line':
+        handleLineInvite();
+        break;
       case 'phone':
         navigate('/super-contacts/phone-import');
         break;
@@ -299,9 +336,23 @@ export default function SuperContacts() {
       </div>
 
       <Card className="mx-4 mb-3 p-4">
-        <div className="flex items-center justify-between gap-4">
+        <Button
+          className="w-full h-14 bg-[#00B900] hover:bg-[#009900] text-white gap-3 text-base font-medium"
+          onClick={handleLineInvite}
+          disabled={isLineInviting}
+          data-testid="button-line-invite-main"
+        >
+          {isLineInviting ? (
+            <Loader2 className="w-6 h-6 animate-spin" />
+          ) : (
+            <SiLine className="w-6 h-6" />
+          )}
+          {t('superContacts.inviteLineFriends')}
+        </Button>
+        
+        <div className="flex items-center justify-between gap-4 mt-4 pt-4 border-t border-border/50">
           <div className="flex-1">
-            <h3 className="font-medium text-sm">{t('superContacts.importTitle')}</h3>
+            <h3 className="font-medium text-sm">{t('superContacts.otherMethods')}</h3>
             <button
               onClick={() => navigate('/super-contacts/phone-import')}
               className="text-xs text-[#38B03B] hover:underline mt-1"
@@ -315,11 +366,11 @@ export default function SuperContacts() {
             <SheetTrigger asChild>
               <Button
                 size="sm"
-                className="bg-[#38B03B] hover:bg-[#2d8f2f]"
-                data-testid="button-invite"
+                variant="outline"
+                data-testid="button-invite-more"
               >
                 <Plus className="w-4 h-4 mr-1" />
-                {t('superContacts.invite')}
+                {t('superContacts.moreOptions')}
               </Button>
             </SheetTrigger>
             <SheetContent side="bottom" className="rounded-t-2xl">
@@ -327,6 +378,19 @@ export default function SuperContacts() {
                 <SheetTitle>{t('superContacts.inviteMethod')}</SheetTitle>
               </SheetHeader>
               <div className="space-y-2">
+                <Button
+                  className="w-full justify-start gap-3 h-12 bg-[#00B900] hover:bg-[#009900] text-white"
+                  onClick={() => handleInviteOption('line')}
+                  disabled={isLineInviting}
+                  data-testid="button-invite-line"
+                >
+                  {isLineInviting ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <SiLine className="w-5 h-5" />
+                  )}
+                  {t('superContacts.inviteLineFriends')}
+                </Button>
                 <Button
                   variant="outline"
                   className="w-full justify-start gap-3 h-12"

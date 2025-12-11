@@ -158,3 +158,96 @@ export function resetLiffState(): void {
   cachedState = null;
   initPromise = null;
 }
+
+/**
+ * 检查 shareTargetPicker 是否可用
+ */
+export async function isShareTargetPickerAvailable(): Promise<boolean> {
+  try {
+    const state = await ensureLiffReady();
+    return state.liff?.isApiAvailable?.('shareTargetPicker') ?? false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 使用 shareTargetPicker 发送邀请消息给LINE好友
+ */
+export async function shareInviteToLineFriends(inviteUrl: string, inviterName: string): Promise<boolean> {
+  try {
+    const state = await ensureLiffReady();
+    
+    if (!state.liff?.isApiAvailable?.('shareTargetPicker')) {
+      console.log('[LiffClient] shareTargetPicker not available');
+      return false;
+    }
+
+    const result = await state.liff.shareTargetPicker([
+      {
+        type: 'flex',
+        altText: `${inviterName} 邀请你加入刷刷`,
+        contents: {
+          type: 'bubble',
+          hero: {
+            type: 'image',
+            url: 'https://prodee-h5-assets.oss-ap-southeast-1.aliyuncs.com/app/shuashua-invite-banner.png',
+            size: 'full',
+            aspectRatio: '20:13',
+            aspectMode: 'cover'
+          },
+          body: {
+            type: 'box',
+            layout: 'vertical',
+            contents: [
+              {
+                type: 'text',
+                text: '刷刷邀请',
+                weight: 'bold',
+                size: 'xl',
+                color: '#38B03B'
+              },
+              {
+                type: 'text',
+                text: `${inviterName} 邀请你一起玩刷刷！`,
+                size: 'sm',
+                color: '#666666',
+                margin: 'md',
+                wrap: true
+              },
+              {
+                type: 'text',
+                text: '发现本地好店、领取优惠券、看短视频',
+                size: 'xs',
+                color: '#999999',
+                margin: 'sm',
+                wrap: true
+              }
+            ]
+          },
+          footer: {
+            type: 'box',
+            layout: 'vertical',
+            contents: [
+              {
+                type: 'button',
+                action: {
+                  type: 'uri',
+                  label: '立即加入',
+                  uri: inviteUrl
+                },
+                style: 'primary',
+                color: '#38B03B'
+              }
+            ]
+          }
+        }
+      }
+    ]);
+
+    return result?.status === 'success' || !!result;
+  } catch (error) {
+    console.error('[LiffClient] shareTargetPicker error:', error);
+    return false;
+  }
+}
