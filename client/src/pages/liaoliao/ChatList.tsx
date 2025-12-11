@@ -5,7 +5,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserPlus, Users, MessageCircle } from 'lucide-react';
+import { Search, UserPlus, Users, MessageCircle, Bot, Sparkles } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -13,13 +13,14 @@ import { zhCN, th, vi } from 'date-fns/locale';
 import { UserBottomNav } from '@/components/UserBottomNav';
 
 interface ChatItem {
-  type: 'friend' | 'group';
-  id: number;
+  type: 'friend' | 'group' | 'ai';
+  id: number | string;
   name: string;
   avatarUrl?: string;
   lastMessage?: string;
   lastMessageAt?: string;
   unreadCount: number;
+  isAI?: boolean;
 }
 
 function getDateLocale(lang: string) {
@@ -35,6 +36,16 @@ function getDateLocale(lang: string) {
       return undefined;
   }
 }
+
+const SYSTEM_AI_ASSISTANT: ChatItem = {
+  type: 'ai',
+  id: 'ai-assistant',
+  name: '',
+  avatarUrl: undefined,
+  lastMessage: '',
+  unreadCount: 0,
+  isAI: true,
+};
 
 export default function LiaoliaoChatList() {
   const { t, language } = useLanguage();
@@ -53,9 +64,27 @@ export default function LiaoliaoChatList() {
     enabled: isUserAuthenticated,
   });
 
+  const aiAssistant: ChatItem = {
+    ...SYSTEM_AI_ASSISTANT,
+    name: t('liaoliao.aiAssistant'),
+    lastMessage: t('liaoliao.aiWelcome'),
+  };
+
+  const allChats = isUserAuthenticated ? [aiAssistant, ...chats] : [aiAssistant];
+
   const filteredChats = searchQuery
-    ? chats.filter(chat => chat.name?.toLowerCase().includes(searchQuery.toLowerCase()))
-    : chats;
+    ? allChats.filter(chat => chat.name?.toLowerCase().includes(searchQuery.toLowerCase()))
+    : allChats;
+
+  const handleChatClick = (chat: ChatItem) => {
+    if (chat.isAI) {
+      navigate('/liaoliao/ai-chat');
+    } else if (chat.type === 'friend') {
+      navigate(`/liaoliao/chat/${chat.id}`);
+    } else if (chat.type === 'group') {
+      navigate(`/liaoliao/group/${chat.id}`);
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-background pb-14">
@@ -102,20 +131,7 @@ export default function LiaoliaoChatList() {
       </header>
 
       <main className="flex-1 overflow-y-auto">
-        {!isUserAuthenticated ? (
-          <div className="flex flex-col items-center justify-center h-64 text-muted-foreground px-4">
-            <MessageCircle className="w-16 h-16 mb-4 text-muted-foreground/50" />
-            <p className="text-center mb-4">{t('liaoliao.noChats')}</p>
-            <Button 
-              onClick={() => navigate('/login')} 
-              className="bg-[#38B03B] hover:bg-[#2e9632] text-white"
-              data-testid="button-login"
-            >
-              <UserPlus className="w-4 h-4 mr-2" />
-              {t('common.login')}
-            </Button>
-          </div>
-        ) : isLoading ? (
+        {isLoading && isUserAuthenticated ? (
           <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
             <MessageCircle className="w-8 h-8 mb-2 animate-pulse" />
             <p>{t('common.loading')}</p>
@@ -125,35 +141,51 @@ export default function LiaoliaoChatList() {
             <MessageCircle className="w-16 h-16 mb-4 text-muted-foreground/50" />
             <p className="text-center mb-4">{t('liaoliao.noChats')}</p>
             <Button 
-              onClick={() => navigate('/liaoliao/add-friend')} 
+              onClick={() => isUserAuthenticated ? navigate('/liaoliao/add-friend') : navigate('/login')} 
               className="bg-[#38B03B] hover:bg-[#2e9632] text-white"
               data-testid="button-start-chat"
             >
               <UserPlus className="w-4 h-4 mr-2" />
-              {t('liaoliao.addFriend')}
+              {isUserAuthenticated ? t('liaoliao.addFriend') : t('common.login')}
             </Button>
           </div>
         ) : (
           <div className="divide-y">
             {filteredChats.map((chat) => (
-              <Link 
-                key={`${chat.type}-${chat.id}`}
-                href={chat.type === 'friend' ? `/liaoliao/chat/${chat.id}` : `/liaoliao/group/${chat.id}`}
-                className="flex items-center gap-3 px-4 py-3 hover-elevate active-elevate-2"
-                data-testid={`chat-item-${chat.type}-${chat.id}`}
+              <div 
+                key={chat.isAI ? 'ai-assistant' : `${chat.type}-${chat.id}`}
+                onClick={() => handleChatClick(chat)}
+                className="flex items-center gap-3 px-4 py-3 hover-elevate active-elevate-2 cursor-pointer"
+                data-testid={chat.isAI ? 'chat-item-ai' : `chat-item-${chat.type}-${chat.id}`}
               >
-                <Avatar className="w-12 h-12">
-                  <AvatarImage src={chat.avatarUrl} />
-                  <AvatarFallback>
-                    {chat.type === 'group' ? <Users className="w-5 h-5" /> : chat.name?.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
+                {chat.isAI ? (
+                  <div className="relative w-12 h-12 rounded-full bg-gradient-to-br from-[#38B03B] to-[#2e9632] flex items-center justify-center">
+                    <Bot className="w-6 h-6 text-white" />
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-400 rounded-full flex items-center justify-center">
+                      <Sparkles className="w-2.5 h-2.5 text-amber-900" />
+                    </div>
+                  </div>
+                ) : (
+                  <Avatar className="w-12 h-12">
+                    <AvatarImage src={chat.avatarUrl} />
+                    <AvatarFallback>
+                      {chat.type === 'group' ? <Users className="w-5 h-5" /> : chat.name?.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
                 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium truncate" data-testid={`text-chat-name-${chat.id}`}>
-                      {chat.name}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium truncate" data-testid={chat.isAI ? 'text-ai-name' : `text-chat-name-${chat.id}`}>
+                        {chat.name}
+                      </span>
+                      {chat.isAI && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                          AI
+                        </Badge>
+                      )}
+                    </div>
                     {chat.lastMessageAt && (
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
                         {formatDistanceToNow(new Date(chat.lastMessageAt), {
@@ -174,7 +206,7 @@ export default function LiaoliaoChatList() {
                     )}
                   </div>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         )}

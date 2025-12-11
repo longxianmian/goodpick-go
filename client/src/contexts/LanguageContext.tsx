@@ -274,6 +274,9 @@ const translations: Record<Language, Record<string, string>> = {
     'liaoliao.requestSent': '请求已发送',
     'liaoliao.requestSentDesc': '等待对方确认',
     'liaoliao.friendAdded': '好友添加成功',
+    'liaoliao.aiAssistant': '刷刷小助手',
+    'liaoliao.aiWelcome': '你好！我是刷刷AI助手，有什么可以帮你的吗？',
+    'liaoliao.aiChatTitle': '刷刷小助手',
     
     // 角色导航
     'roleNav.merchantHome': '商户首页',
@@ -2620,6 +2623,9 @@ const translations: Record<Language, Record<string, string>> = {
     'liaoliao.requestSent': 'Request Sent',
     'liaoliao.requestSentDesc': 'Waiting for confirmation',
     'liaoliao.friendAdded': 'Friend Added',
+    'liaoliao.aiAssistant': 'ShuaShua Assistant',
+    'liaoliao.aiWelcome': 'Hi! I\'m your AI assistant. How can I help you?',
+    'liaoliao.aiChatTitle': 'ShuaShua Assistant',
     
     // Role Navigation
     'roleNav.merchantHome': 'Store Home',
