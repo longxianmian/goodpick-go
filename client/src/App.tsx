@@ -78,6 +78,7 @@ import PaySuccessPage from "@/pages/payment/PaySuccessPage";
 import LiaoliaoChatList from "@/pages/liaoliao/ChatList";
 import LiaoliaoChatDetail from "@/pages/liaoliao/ChatDetail";
 import LiaoliaoAddFriend from "@/pages/liaoliao/AddFriend";
+import LiaoliaoAiChat from "@/pages/liaoliao/AiChat";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import { Store, Tag, LogOut, LayoutDashboard } from 'lucide-react';
@@ -227,6 +228,7 @@ function Router() {
       
       {/* 聊聊模块 - 首页公开可见，聊天和添加好友需要登录 */}
       <Route path="/liaoliao" component={LiaoliaoChatList} />
+      <Route path="/liaoliao/ai-chat" component={LiaoliaoAiChat} />
       <Route path="/liaoliao/chat/:friendId">
         {() => <ProtectedRoute><LiaoliaoChatDetail /></ProtectedRoute>}
       </Route>
