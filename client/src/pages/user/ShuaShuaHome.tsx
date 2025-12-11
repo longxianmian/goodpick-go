@@ -434,9 +434,11 @@ export default function ShuaShuaHome() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
   
-  const FIRST_ROW_COUNT = 7;
+  const FIRST_ROW_COUNT = 6;
+  const SECOND_ROW_COUNT = 6;
   const firstRowCategories = CATEGORIES.slice(0, FIRST_ROW_COUNT);
-  const moreCategories = CATEGORIES.slice(FIRST_ROW_COUNT);
+  const secondRowCategories = CATEGORIES.slice(FIRST_ROW_COUNT, FIRST_ROW_COUNT + SECOND_ROW_COUNT);
+  const moreCategories = CATEGORIES.slice(FIRST_ROW_COUNT + SECOND_ROW_COUNT);
   
   const { data: feedData, isLoading: feedLoading } = useQuery<FeedResponse>({
     queryKey: ['/api/short-videos/feed', activeCategory],
@@ -577,7 +579,24 @@ export default function ShuaShuaHome() {
                 {categoryLabels[cat]}
               </button>
             ))}
-            {!showAllCategories && (
+          </div>
+          
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            {secondRowCategories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 ${
+                  activeCategory === cat
+                    ? 'bg-[#38B03B] text-white shadow-sm'
+                    : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+                data-testid={`category-${cat}`}
+              >
+                {categoryLabels[cat]}
+              </button>
+            ))}
+            {!showAllCategories && moreCategories.length > 0 && (
               <button
                 onClick={() => setShowAllCategories(true)}
                 className="px-3 py-1.5 rounded-full text-xs font-medium bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-1 whitespace-nowrap"
@@ -589,7 +608,7 @@ export default function ShuaShuaHome() {
             )}
           </div>
           
-          {showAllCategories && (
+          {showAllCategories && moreCategories.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {moreCategories.map((cat) => (
                 <button
