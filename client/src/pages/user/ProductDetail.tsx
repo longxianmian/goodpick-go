@@ -190,16 +190,47 @@ export default function ProductDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="flex items-center gap-3 p-3 border-b">
-          <Skeleton className="w-9 h-9 rounded-full" />
-          <Skeleton className="flex-1 h-6" />
-        </div>
+      <div className="min-h-screen bg-background animate-in fade-in duration-150">
+        <header className="fixed top-0 left-0 right-0 z-50 px-3 py-2 flex items-center justify-between">
+          <Link href="/shuashua">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="bg-background/60 backdrop-blur-sm rounded-full"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
+          </Link>
+          <div className="flex items-center gap-2">
+            <Skeleton className="w-9 h-9 rounded-full" />
+            <Skeleton className="w-9 h-9 rounded-full" />
+          </div>
+        </header>
         <Skeleton className="w-full" style={{ aspectRatio: '1/1' }} />
-        <div className="p-4 space-y-3">
-          <Skeleton className="h-8 w-32" />
-          <Skeleton className="h-6 w-full" />
-          <Skeleton className="h-4 w-2/3" />
+        <div className="p-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-5 w-16" />
+          </div>
+          <Skeleton className="h-5 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+          <div className="flex items-center gap-3 pt-2">
+            <Skeleton className="w-12 h-12 rounded-full" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-48" />
+            </div>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <Skeleton className="h-24 w-full" />
+        </div>
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 flex gap-3">
+          <Skeleton className="h-12 w-12" />
+          <Skeleton className="h-12 w-12" />
+          <Skeleton className="h-12 flex-1" />
+          <Skeleton className="h-12 flex-1" />
         </div>
       </div>
     );
