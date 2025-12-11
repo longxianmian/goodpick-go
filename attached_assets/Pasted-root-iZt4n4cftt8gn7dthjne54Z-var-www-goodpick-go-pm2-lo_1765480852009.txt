@@ -1,0 +1,206 @@
+root@iZt4n4cftt8gn7dthjne54Z:/var/www/goodpick-go# pm2 logs goodpick-go --lines 100
+[TAILING] Tailing last 100 lines for [goodpick-go] process (change the value with --lines option)
+/var/www/goodpick-go/logs/err.log last 100 lines:
+0|goodpick | 2025-12-12 03:16:24:       destroyed: false,
+0|goodpick | 2025-12-12 03:16:24:       _last: false,
+0|goodpick | 2025-12-12 03:16:24:       chunkedEncoding: false,
+0|goodpick | 2025-12-12 03:16:24:       shouldKeepAlive: false,
+0|goodpick | 2025-12-12 03:16:24:       maxRequestsOnConnectionReached: false,
+0|goodpick | 2025-12-12 03:16:24:       _defaultKeepAlive: true,
+0|goodpick | 2025-12-12 03:16:24:       useChunkedEncodingByDefault: true,
+0|goodpick | 2025-12-12 03:16:24:       sendDate: false,
+0|goodpick | 2025-12-12 03:16:24:       _removedConnection: false,
+0|goodpick | 2025-12-12 03:16:24:       _removedContLen: false,
+0|goodpick | 2025-12-12 03:16:24:       _removedTE: false,
+0|goodpick | 2025-12-12 03:16:24:       strictContentLength: false,
+0|goodpick | 2025-12-12 03:16:24:       _contentLength: 193,
+0|goodpick | 2025-12-12 03:16:24:       _hasBody: true,
+0|goodpick | 2025-12-12 03:16:24:       _trailer: '',
+0|goodpick | 2025-12-12 03:16:24:       finished: true,
+0|goodpick | 2025-12-12 03:16:24:       _headerSent: true,
+0|goodpick | 2025-12-12 03:16:24:       _closed: false,
+0|goodpick | 2025-12-12 03:16:24:       socket: [TLSSocket],
+0|goodpick | 2025-12-12 03:16:24:       _header: 'POST /oauth2/v2.1/token HTTP/1.1\r\n' +
+0|goodpick | 2025-12-12 03:16:24:         'Accept: application/json, text/plain, */*\r\n' +
+0|goodpick | 2025-12-12 03:16:24:         'Content-Type: application/x-www-form-urlencoded\r\n' +
+0|goodpick | 2025-12-12 03:16:24:         'User-Agent: axios/1.13.1\r\n' +
+0|goodpick | 2025-12-12 03:16:24:         'Content-Length: 193\r\n' +
+0|goodpick | 2025-12-12 03:16:24:         'Accept-Encoding: gzip, compress, deflate, br\r\n' +
+0|goodpick | 2025-12-12 03:16:24:         'Host: api.line.me\r\n' +
+0|goodpick | 2025-12-12 03:16:24:         'Connection: keep-alive\r\n' +
+0|goodpick | 2025-12-12 03:16:24:         '\r\n',
+0|goodpick | 2025-12-12 03:16:24:       _keepAliveTimeout: 0,
+0|goodpick | 2025-12-12 03:16:24:       _onPendingData: [Function: nop],
+0|goodpick | 2025-12-12 03:16:24:       agent: [Agent],
+0|goodpick | 2025-12-12 03:16:24:       socketPath: undefined,
+0|goodpick | 2025-12-12 03:16:24:       method: 'POST',
+0|goodpick | 2025-12-12 03:16:24:       maxHeaderSize: undefined,
+0|goodpick | 2025-12-12 03:16:24:       insecureHTTPParser: undefined,
+0|goodpick | 2025-12-12 03:16:24:       joinDuplicateHeaders: undefined,
+0|goodpick | 2025-12-12 03:16:24:       path: '/oauth2/v2.1/token',
+0|goodpick | 2025-12-12 03:16:24:       _ended: true,
+0|goodpick | 2025-12-12 03:16:24:       res: [IncomingMessage],
+0|goodpick | 2025-12-12 03:16:24:       aborted: false,
+0|goodpick | 2025-12-12 03:16:24:       timeoutCb: [Function: emitRequestTimeout],
+0|goodpick | 2025-12-12 03:16:24:       upgradeOrConnect: false,
+0|goodpick | 2025-12-12 03:16:24:       parser: null,
+0|goodpick | 2025-12-12 03:16:24:       maxHeadersCount: null,
+0|goodpick | 2025-12-12 03:16:24:       reusedSocket: false,
+0|goodpick | 2025-12-12 03:16:24:       host: 'api.line.me',
+0|goodpick | 2025-12-12 03:16:24:       protocol: 'https:',
+0|goodpick | 2025-12-12 03:16:24:       _redirectable: [Writable],
+0|goodpick | 2025-12-12 03:16:24:       [Symbol(shapeMode)]: false,
+0|goodpick | 2025-12-12 03:16:24:       [Symbol(kCapture)]: false,
+0|goodpick | 2025-12-12 03:16:24:       [Symbol(kBytesWritten)]: 0,
+0|goodpick | 2025-12-12 03:16:24:       [Symbol(kNeedDrain)]: false,
+0|goodpick | 2025-12-12 03:16:24:       [Symbol(corked)]: 0,
+0|goodpick | 2025-12-12 03:16:24:       [Symbol(kOutHeaders)]: [Object: null prototype],
+0|goodpick | 2025-12-12 03:16:24:       [Symbol(errored)]: null,
+0|goodpick | 2025-12-12 03:16:24:       [Symbol(kHighWaterMark)]: 16384,
+0|goodpick | 2025-12-12 03:16:24:       [Symbol(kRejectNonStandardBodyWrites)]: false,
+0|goodpick | 2025-12-12 03:16:24:       [Symbol(kUniqueHeaders)]: null
+0|goodpick | 2025-12-12 03:16:24:     },
+0|goodpick | 2025-12-12 03:16:24:     data: {
+0|goodpick | 2025-12-12 03:16:24:       error: 'invalid_client',
+0|goodpick | 2025-12-12 03:16:24:       error_description: 'invalid client_secret'
+0|goodpick | 2025-12-12 03:16:24:     }
+0|goodpick | 2025-12-12 03:16:24:   },
+0|goodpick | 2025-12-12 03:16:24:   status: 400
+0|goodpick | 2025-12-12 03:16:24: }
+0|goodpick | 2025-12-12 03:16:24: [OAUTH CB] token_exchange_failed, tokens= null
+0|goodpick | 2025-12-12 03:17:18: [OAUTH INIT] missing state from client, generated on server {
+0|goodpick | 2025-12-12 03:17:18:   state: '1yAQKYBldLEKZqVyvOTkX',
+0|goodpick | 2025-12-12 03:17:18:   campaignId: undefined,
+0|goodpick | 2025-12-12 03:17:18:   sessionID: '6BEg-SEluoSo7Do3WFCyQwct6ALpIdXM'
+0|goodpick | 2025-12-12 03:17:18: }
+0|goodpick | 2025-12-12 03:17:22: [OAUTH CB] state not found {
+0|goodpick | 2025-12-12 03:17:22:   state: '1yAQKYBldLEKZqVyvOTkX',
+0|goodpick | 2025-12-12 03:17:22:   sessionID: 'VJbBmg2hqPdGTYX9e5mzjXeSWFFXI902',
+0|goodpick | 2025-12-12 03:17:22:   hasStates: false,
+0|goodpick | 2025-12-12 03:17:22:   availableStates: []
+0|goodpick | 2025-12-12 03:17:22: }
+0|goodpick | 2025-12-12 03:19:02: [OAUTH INIT] missing state from client, generated on server {
+0|goodpick | 2025-12-12 03:19:02:   state: 'KqQzT1TFh19qIik0C1N6N',
+0|goodpick | 2025-12-12 03:19:02:   campaignId: undefined,
+0|goodpick | 2025-12-12 03:19:02:   sessionID: 'UtrCqcaPO8_6HY0ic_R3df1DuTQRxGZm'
+0|goodpick | 2025-12-12 03:19:02: }
+0|goodpick | 2025-12-12 03:19:05: [OAUTH CB] state not found {
+0|goodpick | 2025-12-12 03:19:05:   state: 'KqQzT1TFh19qIik0C1N6N',
+0|goodpick | 2025-12-12 03:19:05:   sessionID: 't2e0_iHmtbUe2ACf54bWDHe4xCfPvOHE',
+0|goodpick | 2025-12-12 03:19:05:   hasStates: false,
+0|goodpick | 2025-12-12 03:19:05:   availableStates: []
+0|goodpick | 2025-12-12 03:19:05: }
+0|goodpick | 2025-12-12 03:19:12: [OAUTH INIT] missing state from client, generated on server {
+0|goodpick | 2025-12-12 03:19:12:   state: 'oGUT9awc0rQ-RPNtgAHMo',
+0|goodpick | 2025-12-12 03:19:12:   campaignId: undefined,
+0|goodpick | 2025-12-12 03:19:12:   sessionID: 'r3EpkpG29mpVYmsujOY_vJaHyQBQX8aZ'
+0|goodpick | 2025-12-12 03:19:12: }
+0|goodpick | 2025-12-12 03:19:15: [OAUTH CB] state not found {
+0|goodpick | 2025-12-12 03:19:15:   state: 'oGUT9awc0rQ-RPNtgAHMo',
+0|goodpick | 2025-12-12 03:19:15:   sessionID: 'cwRNQEJQlIamUUJMpapKyO70VQwr0xKx',
+0|goodpick | 2025-12-12 03:19:15:   hasStates: false,
+0|goodpick | 2025-12-12 03:19:15:   availableStates: []
+0|goodpick | 2025-12-12 03:19:15: }
+
+/var/www/goodpick-go/logs/out.log last 100 lines:
+0|goodpick | 2025-12-12 03:16:24: [OAUTH CB] hasSession= true oauthStatesKeys= [ 'rNB7ARFU78EBXqTwt5azt' ]
+0|goodpick | 2025-12-12 03:16:24: [OAUTH CB] storedOAuthData= { campaignId: null, returnTo: '/me', timestamp: 1765480580742 }
+0|goodpick | 2025-12-12 03:16:24: [OAUTH CB] redirectUri for token exchange= https://goodpickgo.com/api/auth/line/callback
+0|goodpick | 2025-12-12 03:16:24: 3:16:24 AM [express] GET /api/auth/line/callback 302 in 186ms
+0|goodpick | 2025-12-12 03:16:24: 3:16:24 AM [express] GET /api/short-videos/feed 304 in 17ms :: {"success":true,"data":{"items":[{"id…
+0|goodpick | 2025-12-12 03:16:24: 3:16:24 AM [express] GET /api/campaigns 304 in 19ms :: {"success":true,"data":[]}
+0|goodpick | 2025-12-12 03:16:24: [API] 2025-12-11T19:16:24.616Z GET /api/config session= sess-1765480584427-664e24b67a7b38 ua= Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36
+0|goodpick | 2025-12-12 03:16:24: [API CONFIG] { liffId: '2008410104-YJ9V8QnR', lineChannelId: '2008410104' }
+0|goodpick | 2025-12-12 03:16:24: 3:16:24 AM [express] GET /api/config 304 in 8ms :: {"success":true,"data":{"liffId":"2008410104-YJ9V…
+0|goodpick | 2025-12-12 03:16:24: 3:16:24 AM [express] GET /api/products 304 in 19ms :: {"success":true,"data":[]}
+0|goodpick | 2025-12-12 03:17:15: [API] 2025-12-11T19:17:15.733Z GET /api/config session= sess-1765480635600-33a1c918e86db8 ua= Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Mobile Safari/537.36
+0|goodpick | 2025-12-12 03:17:15: [API CONFIG] { liffId: '2008410104-YJ9V8QnR', lineChannelId: '2008410104' }
+0|goodpick | 2025-12-12 03:17:15: 3:17:15 AM [express] GET /api/config 200 in 5ms :: {"success":true,"data":{"liffId":"2008410104-YJ9V…
+0|goodpick | 2025-12-12 03:17:15: 3:17:15 AM [express] GET /api/campaigns 200 in 68ms :: {"success":true,"data":[]}
+0|goodpick | 2025-12-12 03:17:15: 3:17:15 AM [express] GET /api/short-videos/feed 200 in 79ms :: {"success":true,"data":{"items":[{"id…
+0|goodpick | 2025-12-12 03:17:15: 3:17:15 AM [express] GET /api/products 200 in 79ms :: {"success":true,"data":[]}
+0|goodpick | 2025-12-12 03:17:17: [API] 2025-12-11T19:17:17.387Z GET /api/config session= no-session-id ua= Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Mobile Safari/537.36
+0|goodpick | 2025-12-12 03:17:17: [API CONFIG] { liffId: '2008410104-YJ9V8QnR', lineChannelId: '2008410104' }
+0|goodpick | 2025-12-12 03:17:17: 3:17:17 AM [express] GET /api/config 200 in 4ms :: {"success":true,"data":{"liffId":"2008410104-YJ9V…
+0|goodpick | 2025-12-12 03:17:18: [OAUTH INIT] no campaignId provided, will redirect to /me after login
+0|goodpick | 2025-12-12 03:17:18: [OAUTH INIT] stored state OK {
+0|goodpick | 2025-12-12 03:17:18:   sessionID: '6BEg-SEluoSo7Do3WFCyQwct6ALpIdXM',
+0|goodpick | 2025-12-12 03:17:18:   state: '1yAQKYBldLEKZqVyvOTkX',
+0|goodpick | 2025-12-12 03:17:18:   oauthStatesKeys: [ '1yAQKYBldLEKZqVyvOTkX' ]
+0|goodpick | 2025-12-12 03:17:18: }
+0|goodpick | 2025-12-12 03:17:18: [OAUTH INIT] response 200 redirectUrl= https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=2008410104&redirect_uri=https%3A%2F%2Fgoodpickgo.com%2Fapi%2Fauth%2Fline%2Fcallback&state=1yAQKYBldLEKZqVyvOTkX&scope=profile+openid
+0|goodpick | 2025-12-12 03:17:18: 3:17:18 AM [express] POST /api/auth/line/init-oauth 200 in 7ms :: {"success":true,"redirectUrl":"htt…
+0|goodpick | 2025-12-12 03:17:22: [OAUTH CB] query= { code: 'ignIn1rAOObYJf7ETzFx', state: '1yAQKYBldLEKZqVyvOTkX' }
+0|goodpick | 2025-12-12 03:17:22: [OAUTH CB] cookie= goodpickgo.sid=s%3A-HFwAUVAMeB92DtS63yoWwOR8tC_px8J.iltVJl4tjuWw%2Bdij2dkYrpOBl2E91rALBq52xtU%2BuwM; goodpickgo.sid=s%3A6BEg-SEluoSo7Do3WFCyQwct6ALpIdXM.peXXFBu6F09bFSQLS1Uxm79E8YmlQpjGTfXEIerxAAI
+0|goodpick | 2025-12-12 03:17:22: [OAUTH CB] sessionID= VJbBmg2hqPdGTYX9e5mzjXeSWFFXI902
+0|goodpick | 2025-12-12 03:17:22: [OAUTH CB] hasSession= true oauthStatesKeys= []
+0|goodpick | 2025-12-12 03:17:22: [OAUTH CB] storedOAuthData= undefined
+0|goodpick | 2025-12-12 03:17:22: 3:17:22 AM [express] GET /api/auth/line/callback 302 in 5ms
+0|goodpick | 2025-12-12 03:17:25: 3:17:25 AM [express] GET /api/short-videos/feed 200 in 16ms :: {"success":true,"data":{"items":[{"id…
+0|goodpick | 2025-12-12 03:17:25: 3:17:25 AM [express] GET /api/campaigns 200 in 15ms :: {"success":true,"data":[]}
+0|goodpick | 2025-12-12 03:17:25: [API] 2025-12-11T19:17:25.288Z GET /api/config session= sess-1765480645130-364aba28c8f2f ua= Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Mobile Safari/537.36
+0|goodpick | 2025-12-12 03:17:25: [API CONFIG] { liffId: '2008410104-YJ9V8QnR', lineChannelId: '2008410104' }
+0|goodpick | 2025-12-12 03:17:25: 3:17:25 AM [express] GET /api/config 200 in 3ms :: {"success":true,"data":{"liffId":"2008410104-YJ9V…
+0|goodpick | 2025-12-12 03:17:25: 3:17:25 AM [express] GET /api/products 200 in 15ms :: {"success":true,"data":[]}
+0|goodpick | 2025-12-12 03:17:26: [API] 2025-12-11T19:17:26.967Z GET /api/config session= no-session-id ua= Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Mobile Safari/537.36
+0|goodpick | 2025-12-12 03:17:26: [API CONFIG] { liffId: '2008410104-YJ9V8QnR', lineChannelId: '2008410104' }
+0|goodpick | 2025-12-12 03:17:26: 3:17:26 AM [express] GET /api/config 200 in 6ms :: {"success":true,"data":{"liffId":"2008410104-YJ9V…
+0|goodpick | 2025-12-12 03:18:58: [API] 2025-12-11T19:18:58.894Z GET /api/config session= sess-1765480738764-028c8c6050f478 ua= Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Mobile Safari/537.36
+0|goodpick | 2025-12-12 03:18:58: [API CONFIG] { liffId: '2008410104-YJ9V8QnR', lineChannelId: '2008410104' }
+0|goodpick | 2025-12-12 03:18:58: 3:18:58 AM [express] GET /api/config 200 in 6ms :: {"success":true,"data":{"liffId":"2008410104-YJ9V…
+0|goodpick | 2025-12-12 03:18:58: 3:18:58 AM [express] GET /api/campaigns 200 in 63ms :: {"success":true,"data":[]}
+0|goodpick | 2025-12-12 03:18:58: 3:18:58 AM [express] GET /api/products 200 in 62ms :: {"success":true,"data":[]}
+0|goodpick | 2025-12-12 03:18:58: 3:18:58 AM [express] GET /api/short-videos/feed 200 in 77ms :: {"success":true,"data":{"items":[{"id…
+0|goodpick | 2025-12-12 03:19:00: [API] 2025-12-11T19:19:00.909Z GET /api/config session= no-session-id ua= Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Mobile Safari/537.36
+0|goodpick | 2025-12-12 03:19:00: [API CONFIG] { liffId: '2008410104-YJ9V8QnR', lineChannelId: '2008410104' }
+0|goodpick | 2025-12-12 03:19:00: 3:19:00 AM [express] GET /api/config 200 in 3ms :: {"success":true,"data":{"liffId":"2008410104-YJ9V…
+0|goodpick | 2025-12-12 03:19:02: [OAUTH INIT] no campaignId provided, will redirect to /me after login
+0|goodpick | 2025-12-12 03:19:02: [OAUTH INIT] stored state OK {
+0|goodpick | 2025-12-12 03:19:02:   sessionID: 'UtrCqcaPO8_6HY0ic_R3df1DuTQRxGZm',
+0|goodpick | 2025-12-12 03:19:02:   state: 'KqQzT1TFh19qIik0C1N6N',
+0|goodpick | 2025-12-12 03:19:02:   oauthStatesKeys: [ 'KqQzT1TFh19qIik0C1N6N' ]
+0|goodpick | 2025-12-12 03:19:02: }
+0|goodpick | 2025-12-12 03:19:02: [OAUTH INIT] response 200 redirectUrl= https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=2008410104&redirect_uri=https%3A%2F%2Fwww.goodpickgo.com%2Fapi%2Fauth%2Fline%2Fcallback&state=KqQzT1TFh19qIik0C1N6N&scope=profile+openid
+0|goodpick | 2025-12-12 03:19:02: 3:19:02 AM [express] POST /api/auth/line/init-oauth 200 in 7ms :: {"success":true,"redirectUrl":"htt…
+0|goodpick | 2025-12-12 03:19:05: [OAUTH CB] query= { code: 'raXD2myHLM905FLRSEuV', state: 'KqQzT1TFh19qIik0C1N6N' }
+0|goodpick | 2025-12-12 03:19:05: [OAUTH CB] cookie= goodpickgo.sid=s%3A-HFwAUVAMeB92DtS63yoWwOR8tC_px8J.iltVJl4tjuWw%2Bdij2dkYrpOBl2E91rALBq52xtU%2BuwM; goodpickgo.sid=s%3AUtrCqcaPO8_6HY0ic_R3df1DuTQRxGZm.tAk%2FMOpqkJTkHKboEK69zF84y%2FfdbB19Oztp2zaldOI
+0|goodpick | 2025-12-12 03:19:05: [OAUTH CB] sessionID= t2e0_iHmtbUe2ACf54bWDHe4xCfPvOHE
+0|goodpick | 2025-12-12 03:19:05: [OAUTH CB] hasSession= true oauthStatesKeys= []
+0|goodpick | 2025-12-12 03:19:05: [OAUTH CB] storedOAuthData= undefined
+0|goodpick | 2025-12-12 03:19:05: 3:19:05 AM [express] GET /api/auth/line/callback 302 in 5ms
+0|goodpick | 2025-12-12 03:19:09: [API] 2025-12-11T19:19:09.102Z GET /api/config session= sess-1765480748949-8baba56b482ac8 ua= Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Mobile Safari/537.36
+0|goodpick | 2025-12-12 03:19:09: [API CONFIG] { liffId: '2008410104-YJ9V8QnR', lineChannelId: '2008410104' }
+0|goodpick | 2025-12-12 03:19:09: 3:19:09 AM [express] GET /api/config 200 in 5ms :: {"success":true,"data":{"liffId":"2008410104-YJ9V…
+0|goodpick | 2025-12-12 03:19:09: 3:19:09 AM [express] GET /api/short-videos/feed 200 in 66ms :: {"success":true,"data":{"items":[{"id…
+0|goodpick | 2025-12-12 03:19:09: 3:19:09 AM [express] GET /api/campaigns 200 in 66ms :: {"success":true,"data":[]}
+0|goodpick | 2025-12-12 03:19:09: 3:19:09 AM [express] GET /api/products 200 in 66ms :: {"success":true,"data":[]}
+0|goodpick | 2025-12-12 03:19:10: [API] 2025-12-11T19:19:10.740Z GET /api/config session= no-session-id ua= Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Mobile Safari/537.36
+0|goodpick | 2025-12-12 03:19:10: [API CONFIG] { liffId: '2008410104-YJ9V8QnR', lineChannelId: '2008410104' }
+0|goodpick | 2025-12-12 03:19:10: 3:19:10 AM [express] GET /api/config 200 in 4ms :: {"success":true,"data":{"liffId":"2008410104-YJ9V…
+0|goodpick | 2025-12-12 03:19:12: [OAUTH INIT] no campaignId provided, will redirect to /me after login
+0|goodpick | 2025-12-12 03:19:12: [OAUTH INIT] stored state OK {
+0|goodpick | 2025-12-12 03:19:12:   sessionID: 'r3EpkpG29mpVYmsujOY_vJaHyQBQX8aZ',
+0|goodpick | 2025-12-12 03:19:12:   state: 'oGUT9awc0rQ-RPNtgAHMo',
+0|goodpick | 2025-12-12 03:19:12:   oauthStatesKeys: [ 'oGUT9awc0rQ-RPNtgAHMo' ]
+0|goodpick | 2025-12-12 03:19:12: }
+0|goodpick | 2025-12-12 03:19:12: [OAUTH INIT] response 200 redirectUrl= https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=2008410104&redirect_uri=https%3A%2F%2Fwww.goodpickgo.com%2Fapi%2Fauth%2Fline%2Fcallback&state=oGUT9awc0rQ-RPNtgAHMo&scope=profile+openid
+0|goodpick | 2025-12-12 03:19:12: 3:19:12 AM [express] POST /api/auth/line/init-oauth 200 in 6ms :: {"success":true,"redirectUrl":"htt…
+0|goodpick | 2025-12-12 03:19:15: [OAUTH CB] query= { code: 'LDPMIN93Cp34OFcfjhNu', state: 'oGUT9awc0rQ-RPNtgAHMo' }
+0|goodpick | 2025-12-12 03:19:15: [OAUTH CB] cookie= goodpickgo.sid=s%3A-HFwAUVAMeB92DtS63yoWwOR8tC_px8J.iltVJl4tjuWw%2Bdij2dkYrpOBl2E91rALBq52xtU%2BuwM; goodpickgo.sid=s%3Ar3EpkpG29mpVYmsujOY_vJaHyQBQX8aZ.Caw4oj17GrvG9cARsR9O3RQS1xesyCdeYKxKRD4YddU
+0|goodpick | 2025-12-12 03:19:15: [OAUTH CB] sessionID= cwRNQEJQlIamUUJMpapKyO70VQwr0xKx
+0|goodpick | 2025-12-12 03:19:15: [OAUTH CB] hasSession= true oauthStatesKeys= []
+0|goodpick | 2025-12-12 03:19:15: [OAUTH CB] storedOAuthData= undefined
+0|goodpick | 2025-12-12 03:19:15: 3:19:15 AM [express] GET /api/auth/line/callback 302 in 4ms
+0|goodpick | 2025-12-12 03:19:18: 3:19:18 AM [express] GET /api/campaigns 200 in 11ms :: {"success":true,"data":[]}
+0|goodpick | 2025-12-12 03:19:18: 3:19:18 AM [express] GET /api/short-videos/feed 200 in 20ms :: {"success":true,"data":{"items":[{"id…
+0|goodpick | 2025-12-12 03:19:18: [API] 2025-12-11T19:19:18.472Z GET /api/config session= sess-1765480758314-bafd9014ee06e ua= Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Mobile Safari/537.36
+0|goodpick | 2025-12-12 03:19:18: [API CONFIG] { liffId: '2008410104-YJ9V8QnR', lineChannelId: '2008410104' }
+0|goodpick | 2025-12-12 03:19:18: 3:19:18 AM [express] GET /api/config 200 in 4ms :: {"success":true,"data":{"liffId":"2008410104-YJ9V…
+0|goodpick | 2025-12-12 03:19:18: 3:19:18 AM [express] GET /api/products 200 in 25ms :: {"success":true,"data":[]}
+0|goodpick | 2025-12-12 03:19:19: [API] 2025-12-11T19:19:19.691Z GET /api/config session= no-session-id ua= Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Mobile Safari/537.36
+0|goodpick | 2025-12-12 03:19:19: [API CONFIG] { liffId: '2008410104-YJ9V8QnR', lineChannelId: '2008410104' }
+0|goodpick | 2025-12-12 03:19:19: 3:19:19 AM [express] GET /api/config 200 in 5ms :: {"success":true,"data":{"liffId":"2008410104-YJ9V…
+0|goodpick | 2025-12-12 03:20:15: [API] 2025-12-11T19:20:15.054Z GET /api/config session= no-session-id ua= curl/8.14.1
+0|goodpick | 2025-12-12 03:20:15: [API CONFIG] { liffId: '2008410104-YJ9V8QnR', lineChannelId: '2008410104' }
+0|goodpick | 2025-12-12 03:20:15: 3:20:15 AM [express] GET /api/config 200 in 4ms :: {"success":true,"data":{"liffId":"2008410104-YJ9V…
+
