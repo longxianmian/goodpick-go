@@ -378,7 +378,7 @@ function Router() {
         <ProtectedRoute requiredRole="verifier"><StaffStats /></ProtectedRoute>
       </Route>
       <Route path="/staff/campaign/:id">
-        {(params) => <ProtectedRoute requiredRole="verifier"><StaffCampaignDetail /></ProtectedRoute>}
+        {(params: { id: string }) => <ProtectedRoute requiredRole="verifier"><StaffCampaignDetail params={params} /></ProtectedRoute>}
       </Route>
       <Route path="/staff/campaign">
         <ProtectedRoute requiredRole="verifier"><StaffCampaignList /></ProtectedRoute>
