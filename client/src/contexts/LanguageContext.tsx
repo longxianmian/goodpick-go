@@ -282,6 +282,8 @@ const translations: Record<Language, Record<string, string>> = {
     'liaoliao.scan': '扫一扫',
     'liaoliao.payment': '收付款',
     'liaoliao.contacts': '通讯录',
+    'liaoliao.searchContacts': '搜索通讯录',
+    'liaoliao.noContacts': '暂无联系人',
     
     // 角色导航
     'roleNav.merchantHome': '商户首页',
@@ -2636,6 +2638,8 @@ const translations: Record<Language, Record<string, string>> = {
     'liaoliao.scan': 'Scan',
     'liaoliao.payment': 'Payment',
     'liaoliao.contacts': 'Contacts',
+    'liaoliao.searchContacts': 'Search contacts',
+    'liaoliao.noContacts': 'No contacts yet',
     
     // Role Navigation
     'roleNav.merchantHome': 'Store Home',

@@ -79,6 +79,7 @@ import LiaoliaoChatList from "@/pages/liaoliao/ChatList";
 import LiaoliaoChatDetail from "@/pages/liaoliao/ChatDetail";
 import LiaoliaoAddFriend from "@/pages/liaoliao/AddFriend";
 import LiaoliaoAiChat from "@/pages/liaoliao/AiChat";
+import LiaoliaoContacts from "@/pages/liaoliao/Contacts";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import { Store, Tag, LogOut, LayoutDashboard } from 'lucide-react';
@@ -235,6 +236,7 @@ function Router() {
       <Route path="/liaoliao/add-friend">
         <ProtectedRoute showBottomNav><LiaoliaoAddFriend /></ProtectedRoute>
       </Route>
+      <Route path="/liaoliao/contacts" component={LiaoliaoContacts} />
       
       {/* ========== 以下路由需要登录 ========== */}
       
