@@ -229,13 +229,13 @@ function Router() {
       
       {/* 聊聊模块 - 需要登录 */}
       <Route path="/liaoliao">
-        <ProtectedRoute><LiaoliaoChatList /></ProtectedRoute>
+        <ProtectedRoute showBottomNav><LiaoliaoChatList /></ProtectedRoute>
       </Route>
       <Route path="/liaoliao/chat/:friendId">
         {() => <ProtectedRoute><LiaoliaoChatDetail /></ProtectedRoute>}
       </Route>
       <Route path="/liaoliao/add-friend">
-        <ProtectedRoute><LiaoliaoAddFriend /></ProtectedRoute>
+        <ProtectedRoute showBottomNav><LiaoliaoAddFriend /></ProtectedRoute>
       </Route>
       
       {/* 个人中心 - 需要登录 */}

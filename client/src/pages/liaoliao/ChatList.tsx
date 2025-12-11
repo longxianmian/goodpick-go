@@ -8,6 +8,7 @@ import { Search, UserPlus, Users, MessageCircle } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN, th, vi } from 'date-fns/locale';
+import { UserBottomNav } from '@/components/UserBottomNav';
 
 interface ChatItem {
   type: 'friend' | 'group';
@@ -49,7 +50,7 @@ export default function LiaoliaoChatList() {
   const totalUnread = chats.reduce((sum, chat) => sum + chat.unreadCount, 0);
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col min-h-screen bg-background pb-14">
       <header className="sticky top-0 z-10 bg-background border-b px-4 py-3">
         <div className="flex items-center justify-between gap-2 mb-3">
           <h1 className="text-xl font-bold" data-testid="text-liaoliao-title">
@@ -151,6 +152,8 @@ export default function LiaoliaoChatList() {
           </div>
         )}
       </main>
+      
+      <UserBottomNav />
     </div>
   );
 }
