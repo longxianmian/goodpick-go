@@ -65,13 +65,11 @@ const roleNavConfigs: Record<UserRoleType, { items: NavItem[], activePath: (loca
     items: [
       { key: 'liaoliao', path: '/liaoliao', icon: MessageCircle, labelKey: 'bottomNav.liaoliao' },
       { key: 'feed', path: '/', icon: EyeIcon as any, labelKey: 'bottomNav.feed' },
-      { key: 'discover', path: '/shop', icon: StarIcon as any, labelKey: 'bottomNav.discover' },
       { key: 'me', path: '/me', icon: PersonIcon as any, labelKey: 'bottomNav.me' },
     ],
     activePath: (location: string) => {
       if (location === '/liaoliao' || location.startsWith('/liaoliao/')) return '/liaoliao';
-      if (location === '/' || location.startsWith('/campaign/')) return '/';
-      if (location === '/shop' || location.startsWith('/shop/')) return '/shop';
+      if (location === '/' || location.startsWith('/campaign/') || location === '/shop' || location.startsWith('/shop/')) return '/';
       if (location === '/me' || location.startsWith('/me/') || location.startsWith('/my-')) return '/me';
       return location;
     }
@@ -145,13 +143,13 @@ const roleNavConfigs: Record<UserRoleType, { items: NavItem[], activePath: (loca
   member: {
     // 商户会员角色：与consumer一样使用刷刷发现平台，同时可以使用会员权益
     items: [
+      { key: 'liaoliao', path: '/liaoliao', icon: MessageCircle, labelKey: 'bottomNav.liaoliao' },
       { key: 'feed', path: '/', icon: EyeIcon as any, labelKey: 'bottomNav.feed' },
-      { key: 'discover', path: '/shop', icon: StarIcon as any, labelKey: 'bottomNav.discover' },
       { key: 'me', path: '/me', icon: PersonIcon as any, labelKey: 'bottomNav.me' },
     ],
     activePath: (location: string) => {
-      if (location === '/' || location.startsWith('/campaign/')) return '/';
-      if (location === '/shop' || location.startsWith('/shop/')) return '/shop';
+      if (location === '/liaoliao' || location.startsWith('/liaoliao/')) return '/liaoliao';
+      if (location === '/' || location.startsWith('/campaign/') || location === '/shop' || location.startsWith('/shop/')) return '/';
       if (location === '/me' || location.startsWith('/me/') || location.startsWith('/my-')) return '/me';
       return location;
     }

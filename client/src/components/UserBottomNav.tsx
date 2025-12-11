@@ -74,12 +74,6 @@ export function UserBottomNav({ className = '' }: UserBottomNavProps) {
       label: t('bottomNav.feed'),
     },
     {
-      key: 'discover',
-      path: '/shop',
-      Icon: StarIcon,
-      label: t('bottomNav.discover'),
-    },
-    {
       key: 'me',
       path: '/me',
       Icon: PersonIcon,
