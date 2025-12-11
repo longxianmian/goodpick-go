@@ -68,8 +68,8 @@ const IM_CHANNELS = [
 ];
 
 export default function SuperContacts() {
-  const { t, currentLang } = useLanguage();
-  const { user, isAuthenticated } = useAuth();
+  const { t, language: currentLang } = useLanguage();
+  const { user, isUserAuthenticated } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   
@@ -83,7 +83,7 @@ export default function SuperContacts() {
 
   const { data: contactsData, isLoading } = useQuery<{ data: UnifiedContact[] }>({
     queryKey: ['/api/contacts/super'],
-    enabled: isAuthenticated,
+    enabled: isUserAuthenticated,
   });
 
   const generateInviteMutation = useMutation({
@@ -251,7 +251,7 @@ export default function SuperContacts() {
     return null;
   };
 
-  if (!isAuthenticated) {
+  if (!isUserAuthenticated) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <Users className="w-16 h-16 text-muted-foreground mb-4" />
@@ -271,7 +271,7 @@ export default function SuperContacts() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(-1)}
+            onClick={() => window.history.back()}
             data-testid="button-back"
           >
             <ChevronLeft className="w-5 h-5" />
