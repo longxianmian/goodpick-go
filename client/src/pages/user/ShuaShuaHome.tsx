@@ -262,7 +262,7 @@ function CampaignCard({ campaign, index }: { campaign: Campaign; index: number }
   const storeAvatar = store?.imageUrl;
 
   return (
-    <Link href={`/stores/${campaign.stores?.[0]?.id || 1}`}>
+    <Link href={`/store/${campaign.stores?.[0]?.id || 1}`}>
       <div 
         className="bg-card rounded-xl overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-shadow duration-200"
         style={{ aspectRatio: '1 / 1.618' }}
@@ -339,7 +339,7 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
   const hasDiscount = product.originalPrice && parseFloat(product.originalPrice) > parseFloat(product.price);
 
   return (
-    <Link href={`/stores/${product.storeId}`}>
+    <Link href={`/store/${product.storeId}`}>
       <div 
         className="bg-card rounded-xl overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-shadow duration-200"
         style={{ aspectRatio: '1 / 1.618' }}
