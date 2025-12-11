@@ -278,6 +278,10 @@ const translations: Record<Language, Record<string, string>> = {
     'liaoliao.aiWelcome': '你好！我是刷刷AI助手，有什么可以帮你的吗？',
     'liaoliao.aiChatTitle': '刷刷小助手',
     'liaoliao.aiThinking': '正在思考中...',
+    'liaoliao.startGroup': '发起群聊',
+    'liaoliao.scan': '扫一扫',
+    'liaoliao.payment': '收付款',
+    'liaoliao.contacts': '通讯录',
     
     // 角色导航
     'roleNav.merchantHome': '商户首页',
@@ -2628,6 +2632,10 @@ const translations: Record<Language, Record<string, string>> = {
     'liaoliao.aiWelcome': 'Hi! I\'m your AI assistant. How can I help you?',
     'liaoliao.aiChatTitle': 'ShuaShua Assistant',
     'liaoliao.aiThinking': 'Thinking...',
+    'liaoliao.startGroup': 'Start Group',
+    'liaoliao.scan': 'Scan',
+    'liaoliao.payment': 'Payment',
+    'liaoliao.contacts': 'Contacts',
     
     // Role Navigation
     'roleNav.merchantHome': 'Store Home',

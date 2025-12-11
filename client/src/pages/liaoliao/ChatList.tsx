@@ -5,7 +5,13 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserPlus, Users, MessageCircle, Bot, Sparkles } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Search, PlusCircle, MoreVertical, MessageSquare, UserPlus, ScanLine, Wallet, Bot, Sparkles } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -90,32 +96,69 @@ export default function LiaoliaoChatList() {
     <div className="flex flex-col min-h-screen bg-background pb-14">
       <header className="sticky top-0 z-50 bg-background border-b px-4 py-3">
         <div className="flex items-center justify-between gap-2 mb-3">
-          <h1 className="text-xl font-bold" data-testid="text-liaoliao-title">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                size="icon" 
+                variant="ghost"
+                data-testid="button-plus-menu"
+              >
+                <PlusCircle className="w-5 h-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-40 bg-zinc-800 text-white border-zinc-700">
+              <DropdownMenuItem 
+                className="gap-3 py-3 cursor-pointer hover:bg-zinc-700"
+                onClick={() => navigate('/liaoliao/new-group')}
+                data-testid="menu-new-group"
+              >
+                <MessageSquare className="w-5 h-5" />
+                <span>{t('liaoliao.startGroup')}</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                className="gap-3 py-3 cursor-pointer hover:bg-zinc-700"
+                onClick={() => navigate('/liaoliao/add-friend')}
+                data-testid="menu-add-friend"
+              >
+                <UserPlus className="w-5 h-5" />
+                <span>{t('liaoliao.addFriend')}</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                className="gap-3 py-3 cursor-pointer hover:bg-zinc-700"
+                onClick={() => navigate('/liaoliao/scan')}
+                data-testid="menu-scan"
+              >
+                <ScanLine className="w-5 h-5" />
+                <span>{t('liaoliao.scan')}</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                className="gap-3 py-3 cursor-pointer hover:bg-zinc-700"
+                onClick={() => navigate('/liaoliao/payment')}
+                data-testid="menu-payment"
+              >
+                <Wallet className="w-5 h-5" />
+                <span>{t('liaoliao.payment')}</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          <h1 className="text-xl font-bold flex-1 text-center" data-testid="text-liaoliao-title">
             {t('liaoliao.title')}
-          </h1>
-          <div className="flex items-center gap-1">
             {friendRequests.length > 0 && (
-              <Badge variant="destructive" className="mr-1" data-testid="badge-friend-requests">
+              <Badge variant="destructive" className="ml-2" data-testid="badge-friend-requests">
                 {friendRequests.length}
               </Badge>
             )}
-            <Button 
-              size="icon" 
-              variant="ghost" 
-              onClick={() => navigate('/liaoliao/add-friend')}
-              data-testid="button-add-friend"
-            >
-              <UserPlus className="w-5 h-5" />
-            </Button>
-            <Button 
-              size="icon" 
-              variant="ghost" 
-              onClick={() => navigate('/liaoliao/new-group')}
-              data-testid="button-new-group"
-            >
-              <Users className="w-5 h-5" />
-            </Button>
-          </div>
+          </h1>
+          
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            onClick={() => navigate('/liaoliao/contacts')}
+            data-testid="button-contacts"
+          >
+            <MoreVertical className="w-5 h-5" />
+          </Button>
         </div>
         
         <div className="relative">
