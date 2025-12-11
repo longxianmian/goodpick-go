@@ -92,7 +92,12 @@ type UnifiedFeedItem =
 const FEED_TABS = ['recommend', 'local'] as const;
 type FeedTabType = typeof FEED_TABS[number];
 
-const CATEGORIES = ['all', 'funny', 'musicDance', 'drama', 'daily', 'healing', 'food', 'beauty', 'games'] as const;
+const CATEGORIES = [
+  'all', 'funny', 'musicDance', 'drama', 'daily', 'healing', 'games',
+  'dining', 'coffee', 'dessert', 'bbq', 'beauty', 'cosmetics', 'fashion',
+  'convenience', 'grocery', 'mother_baby', 'home', 'building', 'ktv',
+  'amusement', 'hotel', 'tourism', 'rental', 'training', 'education', 'other'
+] as const;
 type CategoryType = typeof CATEGORIES[number];
 
 const GRADIENT_COLORS = [
@@ -493,9 +498,27 @@ export default function ShuaShuaHome() {
     drama: t('categories.drama'),
     daily: t('categories.daily'),
     healing: t('categories.healing'),
-    food: t('categories.food'),
-    beauty: t('categories.beauty'),
     games: t('categories.games'),
+    dining: t('category.dining'),
+    coffee: t('category.coffee'),
+    dessert: t('category.dessert'),
+    bbq: t('category.bbq'),
+    beauty: t('category.beauty'),
+    cosmetics: t('category.cosmetics'),
+    fashion: t('category.fashion'),
+    convenience: t('category.convenience'),
+    grocery: t('category.grocery'),
+    mother_baby: t('category.mother_baby'),
+    home: t('category.home'),
+    building: t('category.building'),
+    ktv: t('category.ktv'),
+    amusement: t('category.amusement'),
+    hotel: t('category.hotel'),
+    tourism: t('category.tourism'),
+    rental: t('category.rental'),
+    training: t('category.training'),
+    education: t('category.education'),
+    other: t('category.other'),
   };
 
   return (
