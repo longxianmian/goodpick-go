@@ -33,7 +33,7 @@ const translations: Record<Language, Record<string, string>> = {
     'common.viewAll': '查看全部',
     
     // 角色名称
-    'roles.consumer': '个人账号',
+    'roles.consumer': '聊聊号',
     'roles.creator': '刷刷号',
     'roles.owner': '商户号',
     'roles.operator': '运营号',
@@ -284,6 +284,8 @@ const translations: Record<Language, Record<string, string>> = {
     'liaoliao.contacts': '通讯录',
     'liaoliao.searchContacts': '搜索通讯录',
     'liaoliao.noContacts': '暂无联系人',
+    'liaoliao.liaoliaoId': '聊聊号',
+    'liaoliao.myLiaoliaoId': '我的聊聊号',
     
     // 角色导航
     'roleNav.merchantHome': '商户首页',
@@ -2640,6 +2642,8 @@ const translations: Record<Language, Record<string, string>> = {
     'liaoliao.contacts': 'Contacts',
     'liaoliao.searchContacts': 'Search contacts',
     'liaoliao.noContacts': 'No contacts yet',
+    'liaoliao.liaoliaoId': 'LiaoLiao ID',
+    'liaoliao.myLiaoliaoId': 'My LiaoLiao ID',
     
     // Role Navigation
     'roleNav.merchantHome': 'Store Home',
