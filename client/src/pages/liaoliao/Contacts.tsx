@@ -3,12 +3,18 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, Users, UserPlus, Search, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Users, Search, ChevronRight, QrCode, Link2, Share2 } from 'lucide-react';
+import { SiLine } from 'react-icons/si';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserBottomNav } from '@/components/UserBottomNav';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
+import { shareInviteToLineFriends, isInLiffClient } from '@/lib/liffClient';
+import QRCode from 'qrcode';
 
 interface Friend {
   id: number;
@@ -19,9 +25,14 @@ interface Friend {
 
 export default function LiaoliaoContacts() {
   const { t } = useLanguage();
-  const { isUserAuthenticated } = useAuth();
+  const { isUserAuthenticated, user } = useAuth();
+  const { toast } = useToast();
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
+  const [showQRDialog, setShowQRDialog] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [inviteLink, setInviteLink] = useState('');
+  const [isInviting, setIsInviting] = useState(false);
 
   const { data: friends = [], isLoading } = useQuery<Friend[]>({
     queryKey: ['/api/liaoliao/friends'],
@@ -37,6 +48,71 @@ export default function LiaoliaoContacts() {
 
   const handleFriendClick = (friend: Friend) => {
     navigate(`/liaoliao/chat/${friend.id}`);
+  };
+
+  const generateInviteLink = async () => {
+    try {
+      const res = await apiRequest('POST', '/api/contacts/invite');
+      const data = await res.json();
+      const link = `${window.location.origin}/invite/${data.inviteCode}`;
+      setInviteLink(link);
+      return link;
+    } catch (error) {
+      console.error('Failed to generate invite link:', error);
+      return '';
+    }
+  };
+
+  const handleLineInvite = async () => {
+    setIsInviting(true);
+    try {
+      const link = inviteLink || await generateInviteLink();
+      if (!link) {
+        toast({ title: t('superContacts.inviteError'), variant: 'destructive' });
+        return;
+      }
+      
+      if (isInLiffClient()) {
+        const inviterName = user?.displayName || user?.shuaName || 'Friend';
+        const success = await shareInviteToLineFriends(link, inviterName);
+        if (success) {
+          toast({ 
+            title: t('superContacts.inviteSent'),
+            description: t('superContacts.lineInviteSentDesc'),
+          });
+        }
+      } else {
+        await navigator.clipboard.writeText(link);
+        toast({
+          title: t('superContacts.linkCopied'),
+          description: t('superContacts.linkCopiedDesc'),
+        });
+      }
+    } catch (error) {
+      console.error('LINE invite error:', error);
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
+  const handleShowQR = async () => {
+    const link = inviteLink || await generateInviteLink();
+    if (link) {
+      const qr = await QRCode.toDataURL(link, { width: 200, margin: 2 });
+      setQrCodeUrl(qr);
+      setShowQRDialog(true);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    const link = inviteLink || await generateInviteLink();
+    if (link) {
+      await navigator.clipboard.writeText(link);
+      toast({
+        title: t('superContacts.linkCopied'),
+        description: t('superContacts.linkCopiedDesc'),
+      });
+    }
   };
 
   return (
@@ -57,8 +133,8 @@ export default function LiaoliaoContacts() {
         </div>
       </header>
 
-      <div className="p-4">
-        <div className="relative mb-4">
+      <div className="p-4 space-y-4">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
             placeholder={t('liaoliao.searchContacts')}
@@ -69,16 +145,46 @@ export default function LiaoliaoContacts() {
           />
         </div>
 
-        <div 
-          className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 mb-4 cursor-pointer hover-elevate"
-          onClick={() => navigate('/liaoliao/add-friend')}
-          data-testid="button-new-friend"
-        >
-          <div className="w-10 h-10 rounded-full bg-[#38B03B] flex items-center justify-center">
-            <UserPlus className="w-5 h-5 text-white" />
+        <div className="space-y-2">
+          <Button
+            onClick={handleLineInvite}
+            disabled={isInviting}
+            className="w-full h-12 text-base font-semibold bg-[#06C755] hover:bg-[#05b34d] text-white"
+            data-testid="button-line-invite"
+          >
+            <SiLine className="w-5 h-5 mr-2" />
+            {t('superContacts.inviteLineFriends')}
+          </Button>
+          
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              variant="outline"
+              onClick={handleShowQR}
+              className="flex flex-col items-center gap-1 h-auto py-2"
+              data-testid="button-qr-invite"
+            >
+              <QrCode className="w-4 h-4" />
+              <span className="text-xs">{t('superContacts.faceToFace')}</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleCopyLink}
+              className="flex flex-col items-center gap-1 h-auto py-2"
+              data-testid="button-copy-link"
+            >
+              <Link2 className="w-4 h-4" />
+              <span className="text-xs">{t('superContacts.copyLink')}</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/liaoliao/add-friend')}
+              className="flex flex-col items-center gap-1 h-auto py-2"
+              data-testid="button-more-options"
+            >
+              <Share2 className="w-4 h-4" />
+              <span className="text-xs">{t('superContacts.moreOptions')}</span>
+            </Button>
           </div>
-          <span className="font-medium">{t('liaoliao.addFriend')}</span>
-          <ChevronRight className="w-5 h-5 ml-auto text-muted-foreground" />
         </div>
 
         {isLoading ? (
@@ -94,19 +200,11 @@ export default function LiaoliaoContacts() {
             ))}
           </div>
         ) : filteredFriends.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
               <Users className="w-8 h-8 text-muted-foreground" />
             </div>
-            <p className="text-muted-foreground mb-4">{t('liaoliao.noContacts')}</p>
-            <Button 
-              onClick={() => navigate('/liaoliao/add-friend')}
-              className="bg-[#38B03B] hover:bg-[#2e9632]"
-              data-testid="button-add-first-friend"
-            >
-              <UserPlus className="w-4 h-4 mr-2" />
-              {t('liaoliao.addFriend')}
-            </Button>
+            <p className="text-muted-foreground">{t('liaoliao.noContacts')}</p>
           </div>
         ) : (
           <div className="space-y-1">
@@ -142,6 +240,22 @@ export default function LiaoliaoContacts() {
           </div>
         )}
       </div>
+
+      <Dialog open={showQRDialog} onOpenChange={setShowQRDialog}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-center">{t('superContacts.scanToJoin')}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center py-4">
+            {qrCodeUrl && (
+              <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48" data-testid="img-qr-code" />
+            )}
+            <p className="text-sm text-muted-foreground mt-4 text-center">
+              {t('superContacts.scanQRDesc')}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <UserBottomNav />
     </div>
