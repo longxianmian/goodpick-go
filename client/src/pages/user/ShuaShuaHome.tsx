@@ -1,21 +1,22 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { Search, Heart, Play, Video, Eye, Image } from 'lucide-react';
+import { Search, Heart, Play, Eye, Image, Tag, Package, Percent, Store } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { UserBottomNav } from '@/components/UserBottomNav';
 import { DrawerMenu } from '@/components/DrawerMenu';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface FeedItem {
   id: number;
-  contentType: 'video' | 'article';  // 内容类型
+  contentType: 'video' | 'article';
   videoUrl?: string | null;
   hlsUrl?: string;
   coverImageUrl?: string;
   thumbnailUrl?: string;
-  mediaUrls?: string[] | null;  // 图文的多张图片
+  mediaUrls?: string[] | null;
   title?: string;
   description?: string;
   duration?: number;
@@ -29,6 +30,48 @@ interface FeedItem {
   isLiked?: boolean;
 }
 
+interface Campaign {
+  id: number;
+  storeId: number;
+  name: string;
+  nameEn?: string | null;
+  nameTh?: string | null;
+  nameVi?: string | null;
+  nameId?: string | null;
+  nameMy?: string | null;
+  description?: string | null;
+  descriptionEn?: string | null;
+  descriptionTh?: string | null;
+  descriptionVi?: string | null;
+  descriptionId?: string | null;
+  descriptionMy?: string | null;
+  bannerUrl?: string | null;
+  discountPercent?: number | null;
+  stores?: Array<{
+    id: number;
+    name: string;
+    imageUrl?: string | null;
+    category?: string | null;
+  }>;
+}
+
+interface Product {
+  id: number;
+  storeId: number;
+  name: string;
+  description?: string | null;
+  price: string;
+  originalPrice?: string | null;
+  coverImage?: string | null;
+  stock?: number | null;
+  store?: {
+    id: number;
+    name: string;
+    imageUrl?: string | null;
+    category?: string | null;
+  };
+}
+
 interface FeedResponse {
   success: boolean;
   data: {
@@ -37,6 +80,11 @@ interface FeedResponse {
     hasMore: boolean;
   };
 }
+
+type UnifiedFeedItem = 
+  | { type: 'video'; data: FeedItem; sortKey: number }
+  | { type: 'campaign'; data: Campaign; sortKey: number }
+  | { type: 'product'; data: Product; sortKey: number };
 
 const FEED_TABS = ['recommend', 'local'] as const;
 type FeedTabType = typeof FEED_TABS[number];
@@ -67,7 +115,17 @@ function MenuIcon({ onClick }: { onClick: () => void }) {
   );
 }
 
-function FeedItemCard({ item, index }: { item: FeedItem; index: number }) {
+function formatNumber(num: number) {
+  if (num >= 10000) {
+    return (num / 10000).toFixed(1) + 'w';
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'k';
+  }
+  return num.toString();
+}
+
+function VideoCard({ item, index }: { item: FeedItem; index: number }) {
   const { t } = useLanguage();
   const [liked, setLiked] = useState(item.isLiked || false);
   
@@ -79,16 +137,6 @@ function FeedItemCard({ item, index }: { item: FeedItem; index: number }) {
     e.preventDefault();
     e.stopPropagation();
     setLiked(!liked);
-  };
-
-  const formatNumber = (num: number) => {
-    if (num >= 10000) {
-      return (num / 10000).toFixed(1) + 'w';
-    }
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'k';
-    }
-    return num.toString();
   };
 
   const formatDuration = (seconds?: number) => {
@@ -123,53 +171,39 @@ function FeedItemCard({ item, index }: { item: FeedItem; index: number }) {
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                   <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center">
-                    <Play className="w-5 h-5 text-foreground ml-0.5" fill="currentColor" />
+                    <Play className="w-5 h-5 text-[#38B03B] ml-0.5" fill="#38B03B" />
                   </div>
+                </div>
+              )}
+              {!isArticle && item.duration && (
+                <div className="absolute bottom-1.5 right-1.5 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded">
+                  {formatDuration(item.duration)}
                 </div>
               )}
             </>
           ) : (
             <div className={`w-full h-full bg-gradient-to-br ${gradientClass} flex items-center justify-center`}>
-              <div className="text-center text-white/90">
-                {isArticle ? (
-                  <>
-                    <Image className="w-6 h-6 mx-auto mb-1 opacity-80" />
-                    <span className="text-[10px] font-medium opacity-70">{t('feed.article')}</span>
-                  </>
-                ) : (
-                  <>
-                    <Video className="w-6 h-6 mx-auto mb-1 opacity-80" />
-                    <span className="text-[10px] font-medium opacity-70">{t('feed.video')}</span>
-                  </>
-                )}
+              <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center">
+                <Play className="w-5 h-5 text-[#38B03B] ml-0.5" fill="#38B03B" />
               </div>
             </div>
           )}
-          
-          {!isArticle && item.duration && (
-            <div className="absolute bottom-1.5 right-1.5 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded">
-              {formatDuration(item.duration)}
-            </div>
-          )}
         </div>
-
+        
         <div className="h-[35%] p-2 flex flex-col justify-between">
-          <h3 
-            className="text-xs font-medium line-clamp-2 leading-tight"
-            data-testid={`text-title-${item.id}`}
-          >
-            {item.title || t('feed.untitled')}
+          <h3 className="text-[11px] font-medium text-foreground line-clamp-2 leading-tight">
+            {item.title || item.description || (isArticle ? t('feed.article') : t('feed.video'))}
           </h3>
-
-          <div className="flex items-center justify-between gap-1">
-            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          
+          <div className="flex items-center justify-between mt-auto">
+            <div className="flex items-center gap-1 min-w-0 flex-1">
               <Avatar className="w-4 h-4 flex-shrink-0">
-                <AvatarImage src={item.creatorAvatar} />
-                <AvatarFallback className="text-[8px] bg-muted">
-                  {(item.creatorName || 'U').charAt(0).toUpperCase()}
+                <AvatarImage src={item.creatorAvatar || undefined} />
+                <AvatarFallback className="text-[7px] bg-muted">
+                  {item.creatorName?.charAt(0) || 'U'}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-[10px] text-muted-foreground truncate">
+              <span className="text-[9px] text-muted-foreground truncate">
                 {item.creatorName || t('feed.anonymousUser')}
               </span>
             </div>
@@ -188,6 +222,173 @@ function FeedItemCard({ item, index }: { item: FeedItem; index: number }) {
                 <span className={liked ? 'text-red-500' : ''}>{formatNumber(item.likeCount + (liked ? 1 : 0))}</span>
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function CampaignCard({ campaign, index }: { campaign: Campaign; index: number }) {
+  const { language, t } = useLanguage();
+  const [liked, setLiked] = useState(false);
+  const [likeCount] = useState(() => Math.floor(Math.random() * 2000) + 100);
+  
+  const gradientClass = GRADIENT_COLORS[index % GRADIENT_COLORS.length];
+
+  const handleLike = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLiked(!liked);
+  };
+
+  const getTitle = () => {
+    switch (language) {
+      case 'en-us': return campaign.nameEn || campaign.name;
+      case 'th-th': return campaign.nameTh || campaign.name;
+      case 'vi-vn': return campaign.nameVi || campaign.name;
+      case 'id-id': return campaign.nameId || campaign.name;
+      case 'my-mm': return campaign.nameMy || campaign.name;
+      default: return campaign.name;
+    }
+  };
+
+  const store = campaign.stores?.[0];
+  const storeName = store?.name || t('feed.anonymousUser');
+  const storeAvatar = store?.imageUrl;
+
+  return (
+    <Link href={`/campaigns/${campaign.id}`}>
+      <div 
+        className="bg-card rounded-xl overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-shadow duration-200"
+        style={{ aspectRatio: '1 / 1.618' }}
+        data-testid={`card-campaign-${campaign.id}`}
+      >
+        <div className="relative w-full h-[65%] overflow-hidden">
+          {campaign.bannerUrl ? (
+            <img 
+              src={campaign.bannerUrl} 
+              alt={getTitle()} 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className={`w-full h-full bg-gradient-to-br ${gradientClass} flex items-center justify-center`}>
+              <Tag className="w-8 h-8 text-white/80" />
+            </div>
+          )}
+          {campaign.discountPercent && campaign.discountPercent > 0 && (
+            <Badge className="absolute top-1.5 left-1.5 bg-red-500 text-white text-[9px] px-1.5 py-0.5">
+              <Percent className="w-2.5 h-2.5 mr-0.5" />
+              {campaign.discountPercent}% OFF
+            </Badge>
+          )}
+          <div className="absolute top-1.5 right-1.5 bg-[#38B03B] text-white text-[8px] px-1.5 py-0.5 rounded">
+            {t('discover.campaign')}
+          </div>
+        </div>
+        
+        <div className="h-[35%] p-2 flex flex-col justify-between">
+          <h3 className="text-[11px] font-medium text-foreground line-clamp-2 leading-tight">
+            {getTitle()}
+          </h3>
+          
+          <div className="flex items-center justify-between mt-auto">
+            <div className="flex items-center gap-1 min-w-0 flex-1">
+              <Avatar className="w-4 h-4 flex-shrink-0">
+                <AvatarImage src={storeAvatar || undefined} />
+                <AvatarFallback className="text-[7px] bg-muted">
+                  <Store className="w-2.5 h-2.5" />
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-[9px] text-muted-foreground truncate">{storeName}</span>
+            </div>
+            
+            <button
+              onClick={handleLike}
+              className="flex items-center gap-0.5 text-[9px] text-muted-foreground"
+              data-testid={`button-like-campaign-${campaign.id}`}
+            >
+              <Heart className={`w-3 h-3 ${liked ? 'fill-red-500 text-red-500' : ''}`} />
+              <span className={liked ? 'text-red-500' : ''}>{formatNumber(likeCount + (liked ? 1 : 0))}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function ProductCard({ product, index }: { product: Product; index: number }) {
+  const { t } = useLanguage();
+  const [liked, setLiked] = useState(false);
+  const [likeCount] = useState(() => Math.floor(Math.random() * 1000) + 50);
+  
+  const gradientClass = GRADIENT_COLORS[index % GRADIENT_COLORS.length];
+
+  const handleLike = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLiked(!liked);
+  };
+
+  const storeName = product.store?.name || t('feed.anonymousUser');
+  const storeAvatar = product.store?.imageUrl;
+  const hasDiscount = product.originalPrice && parseFloat(product.originalPrice) > parseFloat(product.price);
+
+  return (
+    <Link href={`/products/${product.id}`}>
+      <div 
+        className="bg-card rounded-xl overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-shadow duration-200"
+        style={{ aspectRatio: '1 / 1.618' }}
+        data-testid={`card-product-${product.id}`}
+      >
+        <div className="relative w-full h-[65%] overflow-hidden">
+          {product.coverImage ? (
+            <img 
+              src={product.coverImage} 
+              alt={product.name} 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className={`w-full h-full bg-gradient-to-br ${gradientClass} flex items-center justify-center`}>
+              <Package className="w-8 h-8 text-white/80" />
+            </div>
+          )}
+          {hasDiscount && (
+            <Badge className="absolute top-1.5 left-1.5 bg-orange-500 text-white text-[9px] px-1.5 py-0.5">
+              {t('discover.discount')}
+            </Badge>
+          )}
+          <div className="absolute top-1.5 right-1.5 bg-blue-500 text-white text-[8px] px-1.5 py-0.5 rounded">
+            {t('discover.product')}
+          </div>
+        </div>
+        
+        <div className="h-[35%] p-2 flex flex-col justify-between">
+          <h3 className="text-[11px] font-medium text-foreground line-clamp-2 leading-tight">
+            {product.name}
+          </h3>
+          
+          <div className="flex items-center justify-between mt-auto">
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] font-bold text-[#38B03B]">
+                {t('common.currencySymbol')}{parseFloat(product.price).toFixed(0)}
+              </span>
+              {hasDiscount && (
+                <span className="text-[9px] text-muted-foreground line-through">
+                  {t('common.currencySymbol')}{parseFloat(product.originalPrice!).toFixed(0)}
+                </span>
+              )}
+            </div>
+            
+            <button
+              onClick={handleLike}
+              className="flex items-center gap-0.5 text-[9px] text-muted-foreground"
+              data-testid={`button-like-product-${product.id}`}
+            >
+              <Heart className={`w-3 h-3 ${liked ? 'fill-red-500 text-red-500' : ''}`} />
+              <span className={liked ? 'text-red-500' : ''}>{formatNumber(likeCount + (liked ? 1 : 0))}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -224,7 +425,7 @@ export default function ShuaShuaHome() {
   const [activeCategory, setActiveCategory] = useState<CategoryType>('all');
   const [drawerOpen, setDrawerOpen] = useState(false);
   
-  const { data: feedData, isLoading } = useQuery<FeedResponse>({
+  const { data: feedData, isLoading: feedLoading } = useQuery<FeedResponse>({
     queryKey: ['/api/short-videos/feed', activeCategory],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -240,7 +441,42 @@ export default function ShuaShuaHome() {
     },
   });
 
+  const { data: campaignsData, isLoading: campaignsLoading } = useQuery<{ success: boolean; data: Campaign[] }>({
+    queryKey: ['/api/campaigns'],
+  });
+
+  const { data: productsData, isLoading: productsLoading } = useQuery<{ success: boolean; data: Product[] }>({
+    queryKey: ['/api/products'],
+  });
+
   const feedItems = feedData?.data?.items || [];
+  const campaigns = campaignsData?.data || [];
+  const products = productsData?.data || [];
+  const isLoading = feedLoading || campaignsLoading || productsLoading;
+
+  const unifiedFeed = useMemo<UnifiedFeedItem[]>(() => {
+    const items: UnifiedFeedItem[] = [];
+    let sortKey = 0;
+    
+    feedItems.forEach((item) => {
+      items.push({ type: 'video', data: item, sortKey: sortKey++ });
+    });
+    
+    campaigns.forEach((campaign) => {
+      items.push({ type: 'campaign', data: campaign, sortKey: sortKey++ });
+    });
+    
+    products.forEach((product) => {
+      items.push({ type: 'product', data: product, sortKey: sortKey++ });
+    });
+    
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+    
+    return items;
+  }, [feedItems, campaigns, products]);
 
   const feedTabLabels: Record<FeedTabType, string> = {
     recommend: t('feed.tabRecommend'),
@@ -321,19 +557,26 @@ export default function ShuaShuaHome() {
               <ContentSkeleton key={i} />
             ))}
           </div>
-        ) : feedItems.length === 0 ? (
+        ) : unifiedFeed.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center mb-4">
-              <Video className="w-10 h-10 text-primary/60" />
+              <Search className="w-10 h-10 text-primary/60" />
             </div>
             <p className="text-muted-foreground text-sm font-medium">{t('feed.noContent')}</p>
             <p className="text-muted-foreground/70 text-xs mt-1">{t('feed.checkBackLater')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
-            {feedItems.map((item, index) => (
-              <FeedItemCard key={item.id} item={item} index={index} />
-            ))}
+            {unifiedFeed.map((item, index) => {
+              switch (item.type) {
+                case 'video':
+                  return <VideoCard key={`video-${item.data.id}`} item={item.data} index={index} />;
+                case 'campaign':
+                  return <CampaignCard key={`campaign-${item.data.id}`} campaign={item.data} index={index} />;
+                case 'product':
+                  return <ProductCard key={`product-${item.data.id}`} product={item.data} index={index} />;
+              }
+            })}
           </div>
         )}
       </main>

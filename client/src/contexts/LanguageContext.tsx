@@ -1426,6 +1426,9 @@ const translations: Record<Language, Record<string, string>> = {
     'discover.defaultCity': '曼谷',
     'discover.searchPlaceholder': '搜索店名 / 品类 / 商圈',
     'discover.nearby': '附近',
+    'discover.campaign': '活动',
+    'discover.product': '商品',
+    'discover.discount': '优惠',
     'discover.promoCoupon': '优惠券',
     
     'discover.promoGroupBuy': '团购',
@@ -3788,6 +3791,9 @@ const translations: Record<Language, Record<string, string>> = {
     'discover.defaultCity': 'Bangkok',
     'discover.searchPlaceholder': 'Search store / category / area',
     'discover.nearby': 'Nearby',
+    'discover.campaign': 'Campaign',
+    'discover.product': 'Product',
+    'discover.discount': 'Sale',
     'discover.promoCoupon': 'Coupon',
     
     'discover.promoGroupBuy': 'Group Buy',
