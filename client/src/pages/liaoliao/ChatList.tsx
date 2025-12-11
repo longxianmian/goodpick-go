@@ -154,10 +154,10 @@ export default function LiaoliaoChatList() {
           <Button 
             size="icon" 
             variant="ghost" 
-            onClick={() => navigate('/liaoliao/contacts')}
+            onClick={() => navigate('/super-contacts')}
             data-testid="button-contacts"
           >
-            <MoreVertical className="w-5 h-5" />
+            <Users className="w-5 h-5" />
           </Button>
         </div>
         
@@ -184,7 +184,7 @@ export default function LiaoliaoChatList() {
             <MessageCircle className="w-16 h-16 mb-4 text-muted-foreground/50" />
             <p className="text-center mb-4">{t('liaoliao.noChats')}</p>
             <Button 
-              onClick={() => isUserAuthenticated ? navigate('/liaoliao/add-friend') : navigate('/login')} 
+              onClick={() => isUserAuthenticated ? navigate('/super-contacts') : navigate('/login')} 
               className="bg-[#38B03B] hover:bg-[#2e9632] text-white"
               data-testid="button-start-chat"
             >
