@@ -32,21 +32,24 @@ interface FeedItem {
 
 interface Campaign {
   id: number;
-  storeId: number;
-  name: string;
-  nameEn?: string | null;
-  nameTh?: string | null;
-  nameVi?: string | null;
-  nameId?: string | null;
-  nameMy?: string | null;
-  description?: string | null;
+  titleSource?: string | null;
+  titleZh?: string | null;
+  titleEn?: string | null;
+  titleTh?: string | null;
+  titleVi?: string | null;
+  titleId?: string | null;
+  titleMy?: string | null;
+  descriptionSource?: string | null;
+  descriptionZh?: string | null;
   descriptionEn?: string | null;
   descriptionTh?: string | null;
   descriptionVi?: string | null;
   descriptionId?: string | null;
   descriptionMy?: string | null;
-  bannerUrl?: string | null;
-  discountPercent?: number | null;
+  bannerImageUrl?: string | null;
+  couponValue?: string | null;
+  discountType?: string | null;
+  originalPrice?: string | null;
   stores?: Array<{
     id: number;
     name: string;
@@ -243,13 +246,14 @@ function CampaignCard({ campaign, index }: { campaign: Campaign; index: number }
   };
 
   const getTitle = () => {
+    const fallback = campaign.titleSource || campaign.titleZh || '';
     switch (language) {
-      case 'en-us': return campaign.nameEn || campaign.name;
-      case 'th-th': return campaign.nameTh || campaign.name;
-      case 'vi-vn': return campaign.nameVi || campaign.name;
-      case 'id-id': return campaign.nameId || campaign.name;
-      case 'my-mm': return campaign.nameMy || campaign.name;
-      default: return campaign.name;
+      case 'en-us': return campaign.titleEn || fallback;
+      case 'th-th': return campaign.titleTh || fallback;
+      case 'vi-vn': return campaign.titleVi || fallback;
+      case 'id-id': return campaign.titleId || fallback;
+      case 'my-mm': return campaign.titleMy || fallback;
+      default: return campaign.titleZh || fallback;
     }
   };
 
@@ -265,9 +269,9 @@ function CampaignCard({ campaign, index }: { campaign: Campaign; index: number }
         data-testid={`card-campaign-${campaign.id}`}
       >
         <div className="relative w-full h-[65%] overflow-hidden">
-          {campaign.bannerUrl ? (
+          {campaign.bannerImageUrl ? (
             <img 
-              src={campaign.bannerUrl} 
+              src={campaign.bannerImageUrl} 
               alt={getTitle()} 
               className="w-full h-full object-cover"
             />
@@ -276,10 +280,9 @@ function CampaignCard({ campaign, index }: { campaign: Campaign; index: number }
               <Tag className="w-8 h-8 text-white/80" />
             </div>
           )}
-          {campaign.discountPercent && campaign.discountPercent > 0 && (
+          {campaign.couponValue && (
             <Badge className="absolute top-1.5 left-1.5 bg-red-500 text-white text-[9px] px-1.5 py-0.5">
-              <Percent className="w-2.5 h-2.5 mr-0.5" />
-              {campaign.discountPercent}% OFF
+              {t('common.currencySymbol')}{parseFloat(campaign.couponValue).toFixed(0)}
             </Badge>
           )}
           <div className="absolute top-1.5 right-1.5 bg-[#38B03B] text-white text-[8px] px-1.5 py-0.5 rounded">
