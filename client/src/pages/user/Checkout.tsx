@@ -192,7 +192,7 @@ export default function Checkout() {
         <Package className="w-16 h-16 text-muted-foreground mb-4" />
         <h2 className="text-lg font-medium mb-2">{t('checkout.noItems')}</h2>
         <p className="text-muted-foreground text-center mb-4">{t('checkout.noItemsDesc')}</p>
-        <Link href="/shop">
+        <Link href="/">
           <Button>{t('checkout.goShopping')}</Button>
         </Link>
       </div>
@@ -223,7 +223,7 @@ export default function Checkout() {
         <ShoppingCart className="w-16 h-16 text-muted-foreground mb-4" />
         <h2 className="text-lg font-medium mb-2">{t('checkout.emptyCart')}</h2>
         <p className="text-muted-foreground text-center mb-4">{t('checkout.emptyCartDesc')}</p>
-        <Link href="/shop">
+        <Link href="/">
           <Button>{t('checkout.goShopping')}</Button>
         </Link>
       </div>

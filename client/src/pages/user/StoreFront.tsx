@@ -298,7 +298,7 @@ function CouponSection({ campaigns }: { campaigns: Campaign[] }) {
             </Badge>
           </Link>
         ))}
-        <Link href="/shop">
+        <Link href="/">
           <Button variant="ghost" size="sm" className="flex-shrink-0 text-xs text-primary h-6 px-2">
             {t('storeFront.getCoupon')}
           </Button>
@@ -945,7 +945,7 @@ export default function StoreFront() {
         <div className="text-center">
           <StoreIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-lg font-semibold">{t('storeFront.notFound')}</h2>
-          <Link href="/shop">
+          <Link href="/">
             <Button className="mt-4">{t('storeFront.backToShop')}</Button>
           </Link>
         </div>

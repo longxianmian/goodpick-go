@@ -192,7 +192,7 @@ export default function ProductDetail() {
     return (
       <div className="min-h-screen bg-background animate-in fade-in duration-150">
         <header className="fixed top-0 left-0 right-0 z-50 px-3 py-2 flex items-center justify-between">
-          <Link href="/shuashua">
+          <Link href="/">
             <Button 
               variant="ghost" 
               size="icon" 
@@ -242,7 +242,7 @@ export default function ProductDetail() {
         <Package className="w-16 h-16 text-muted-foreground mb-4" />
         <h2 className="text-lg font-medium mb-2">{t('product.notFound')}</h2>
         <p className="text-muted-foreground text-center mb-4">{error || t('product.notFoundDesc')}</p>
-        <Link href="/shop">
+        <Link href="/">
           <Button>{t('common.back')}</Button>
         </Link>
       </div>
@@ -298,7 +298,7 @@ export default function ProductDetail() {
   return (
     <div className="min-h-screen bg-background flex flex-col pb-[120px]">
       <header className="fixed top-0 left-0 right-0 z-50 px-3 py-2 flex items-center justify-between">
-        <Link href="/shop">
+        <Link href="/">
           <Button 
             variant="ghost" 
             size="icon" 

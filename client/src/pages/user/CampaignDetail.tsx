@@ -259,7 +259,7 @@ export default function CampaignDetail() {
     return (
       <div className="min-h-screen bg-background animate-in fade-in duration-150">
         <header className="fixed top-0 left-0 right-0 z-50 px-3 py-2 flex items-center justify-between">
-          <Link href="/shuashua">
+          <Link href="/">
             <Button 
               variant="ghost" 
               size="icon" 
@@ -304,7 +304,7 @@ export default function CampaignDetail() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <p className="text-muted-foreground">{error || t('campaign.notFound')}</p>
-          <Link href="/shop">
+          <Link href="/">
             <Button variant="outline" className="mt-4">{t('common.back')}</Button>
           </Link>
         </div>
@@ -366,7 +366,7 @@ export default function CampaignDetail() {
     <div className="min-h-screen bg-background flex flex-col pb-[120px]">
       {/* Header - Floating over image */}
       <header className="fixed top-0 left-0 right-0 z-50 px-3 py-2 flex items-center justify-between">
-        <Link href="/shop">
+        <Link href="/">
           <Button 
             variant="ghost" 
             size="icon" 

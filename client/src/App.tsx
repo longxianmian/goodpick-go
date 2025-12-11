@@ -21,7 +21,6 @@ import CampaignDetail from "@/pages/user/CampaignDetail";
 import ProductDetail from "@/pages/user/ProductDetail";
 import MyCoupons from "@/pages/user/MyCoupons";
 import ShuaShuaHome from "@/pages/user/ShuaShuaHome";
-import ShopHome from "@/pages/user/ShopHome";
 import RoleBasedMe from "@/pages/user/RoleBasedMe";
 import UserCenter from "@/pages/user/UserCenter";
 import MeOwner from "@/pages/user/MeOwner";
@@ -208,7 +207,6 @@ function Router() {
       <Route path="/videos" component={ShortVideoFeed} />
       <Route path="/articles/:id" component={ArticleDetail} />
       <Route path="/user/:id" component={UserProfile} />
-      <Route path="/shop" component={ShopHome} />
       <Route path="/store/:id" component={StoreFront} />
       <Route path="/campaign/:id" component={CampaignDetail} />
       <Route path="/product/:id" component={ProductDetail} />
