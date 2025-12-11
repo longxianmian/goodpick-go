@@ -76,7 +76,6 @@ import PayEntryPage from "@/pages/payment/PayEntryPage";
 import PaySuccessPage from "@/pages/payment/PaySuccessPage";
 import LiaoliaoChatList from "@/pages/liaoliao/ChatList";
 import LiaoliaoChatDetail from "@/pages/liaoliao/ChatDetail";
-import LiaoliaoAddFriend from "@/pages/liaoliao/AddFriend";
 import LiaoliaoAiChat from "@/pages/liaoliao/AiChat";
 import LiaoliaoContacts from "@/pages/liaoliao/Contacts";
 import SuperContacts from "@/pages/user/SuperContacts";
@@ -233,9 +232,6 @@ function Router() {
       <Route path="/liaoliao/ai-chat" component={LiaoliaoAiChat} />
       <Route path="/liaoliao/chat/:friendId">
         {() => <ProtectedRoute><LiaoliaoChatDetail /></ProtectedRoute>}
-      </Route>
-      <Route path="/liaoliao/add-friend">
-        <ProtectedRoute showBottomNav><LiaoliaoAddFriend /></ProtectedRoute>
       </Route>
       <Route path="/liaoliao/contacts" component={LiaoliaoContacts} />
       

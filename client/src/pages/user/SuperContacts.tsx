@@ -5,7 +5,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -14,7 +13,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import {
-  Search,
   Plus,
   UserPlus,
   QrCode,
@@ -26,12 +24,10 @@ import {
   Bot,
   ChevronLeft,
   Share2,
-  Copy,
   Check,
-  X,
   Loader2,
 } from 'lucide-react';
-import { SiLine, SiWhatsapp, SiTelegram, SiFacebook } from 'react-icons/si';
+import { SiLine, SiWhatsapp, SiTelegram } from 'react-icons/si';
 import { shareInviteToLineFriends, isShareTargetPickerAvailable } from '@/lib/liffClient';
 
 type FilterType = 'all' | 'friends' | 'phone' | 'im' | 'stores' | 'agents';
@@ -83,11 +79,6 @@ export default function SuperContacts() {
   const [currentInvite, setCurrentInvite] = useState<InviteResult | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [isLineInviting, setIsLineInviting] = useState(false);
-  const [linePickerAvailable, setLinePickerAvailable] = useState(false);
-
-  useEffect(() => {
-    isShareTargetPickerAvailable().then(setLinePickerAvailable);
-  }, []);
 
   const { data: contactsData, isLoading } = useQuery<{ data: UnifiedContact[] }>({
     queryKey: ['/api/contacts/super'],
@@ -172,15 +163,12 @@ export default function SuperContacts() {
     }
   };
 
-  const handleInviteOption = async (option: 'phone' | 'im' | 'qr' | 'link' | 'line') => {
+  const handleInviteOption = async (option: 'qr' | 'link' | 'line' | 'im') => {
     setInviteSheetOpen(false);
     
     switch (option) {
       case 'line':
         handleLineInvite();
-        break;
-      case 'phone':
-        navigate('/super-contacts/phone-import');
         break;
       case 'im':
         setImShareSheetOpen(true);
@@ -314,63 +302,14 @@ export default function SuperContacts() {
             <ChevronLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-lg font-semibold flex-1">{t('superContacts.title')}</h1>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {}}
-            data-testid="button-search"
-          >
-            <Search className="w-5 h-5" />
-          </Button>
-        </div>
-      </header>
-
-      <div className="px-4 py-3">
-        <Input
-          placeholder={t('superContacts.searchPlaceholder')}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full"
-          data-testid="input-search"
-        />
-      </div>
-
-      <Card className="mx-4 mb-3 p-4">
-        <Button
-          className="w-full h-14 bg-[#00B900] hover:bg-[#009900] text-white gap-3 text-base font-medium"
-          onClick={handleLineInvite}
-          disabled={isLineInviting}
-          data-testid="button-line-invite-main"
-        >
-          {isLineInviting ? (
-            <Loader2 className="w-6 h-6 animate-spin" />
-          ) : (
-            <SiLine className="w-6 h-6" />
-          )}
-          {t('superContacts.inviteLineFriends')}
-        </Button>
-        
-        <div className="flex items-center justify-between gap-4 mt-4 pt-4 border-t border-border/50">
-          <div className="flex-1">
-            <h3 className="font-medium text-sm">{t('superContacts.otherMethods')}</h3>
-            <button
-              onClick={() => navigate('/super-contacts/phone-import')}
-              className="text-xs text-[#38B03B] hover:underline mt-1"
-              data-testid="link-import-phone"
-            >
-              {t('superContacts.importPhone')}
-            </button>
-          </div>
-          
           <Sheet open={inviteSheetOpen} onOpenChange={setInviteSheetOpen}>
             <SheetTrigger asChild>
               <Button
-                size="sm"
-                variant="outline"
+                variant="ghost"
+                size="icon"
                 data-testid="button-invite-more"
               >
-                <Plus className="w-4 h-4 mr-1" />
-                {t('superContacts.moreOptions')}
+                <Plus className="w-5 h-5" />
               </Button>
             </SheetTrigger>
             <SheetContent side="bottom" className="rounded-t-2xl">
@@ -390,15 +329,6 @@ export default function SuperContacts() {
                     <SiLine className="w-5 h-5" />
                   )}
                   {t('superContacts.inviteLineFriends')}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-3 h-12"
-                  onClick={() => handleInviteOption('phone')}
-                  data-testid="button-invite-phone"
-                >
-                  <Phone className="w-5 h-5 text-[#38B03B]" />
-                  {t('superContacts.fromPhoneContacts')}
                 </Button>
                 <Button
                   variant="outline"
@@ -435,7 +365,17 @@ export default function SuperContacts() {
             </SheetContent>
           </Sheet>
         </div>
-      </Card>
+      </header>
+
+      <div className="px-4 py-3">
+        <Input
+          placeholder={t('superContacts.searchPlaceholder')}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full"
+          data-testid="input-search"
+        />
+      </div>
 
       <Sheet open={imShareSheetOpen} onOpenChange={setImShareSheetOpen}>
         <SheetContent side="bottom" className="rounded-t-2xl">
@@ -529,11 +469,12 @@ export default function SuperContacts() {
               {t('superContacts.emptyDesc')}
             </p>
             <Button
-              onClick={() => navigate('/super-contacts/phone-import')}
+              onClick={() => setInviteSheetOpen(true)}
               className="bg-[#38B03B] hover:bg-[#2d8f2f]"
-              data-testid="button-import-empty"
+              data-testid="button-invite-empty"
             >
-              {t('superContacts.importNow')}
+              <Plus className="w-4 h-4 mr-2" />
+              {t('superContacts.inviteFriends')}
             </Button>
           </div>
         ) : (
