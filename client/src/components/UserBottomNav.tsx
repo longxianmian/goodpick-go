@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'wouter';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { MessageCircle } from 'lucide-react';
 
 interface UserBottomNavProps {
   className?: string;
@@ -60,6 +61,12 @@ export function UserBottomNav({ className = '' }: UserBottomNavProps) {
   const { t } = useLanguage();
   
   const navItems = [
+    {
+      key: 'liaoliao',
+      path: '/liaoliao',
+      Icon: MessageCircle,
+      label: t('bottomNav.liaoliao'),
+    },
     {
       key: 'feed',
       path: '/',

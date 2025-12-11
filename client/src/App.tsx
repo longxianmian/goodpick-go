@@ -75,6 +75,9 @@ import OperatorCenter from "@/pages/operator/OperatorCenter";
 import OperatorPreview from "@/pages/operator/OperatorPreview";
 import PayEntryPage from "@/pages/payment/PayEntryPage";
 import PaySuccessPage from "@/pages/payment/PaySuccessPage";
+import LiaoliaoChatList from "@/pages/liaoliao/ChatList";
+import LiaoliaoChatDetail from "@/pages/liaoliao/ChatDetail";
+import LiaoliaoAddFriend from "@/pages/liaoliao/AddFriend";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import { Store, Tag, LogOut, LayoutDashboard } from 'lucide-react';
@@ -223,6 +226,17 @@ function Router() {
       <Route path="/success/:paymentId" component={PaySuccessPage} />
       
       {/* ========== 以下路由需要登录 ========== */}
+      
+      {/* 聊聊模块 - 需要登录 */}
+      <Route path="/liaoliao">
+        <ProtectedRoute><LiaoliaoChatList /></ProtectedRoute>
+      </Route>
+      <Route path="/liaoliao/chat/:friendId">
+        {() => <ProtectedRoute><LiaoliaoChatDetail /></ProtectedRoute>}
+      </Route>
+      <Route path="/liaoliao/add-friend">
+        <ProtectedRoute><LiaoliaoAddFriend /></ProtectedRoute>
+      </Route>
       
       {/* 个人中心 - 需要登录 */}
       <Route path="/me">

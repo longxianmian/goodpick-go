@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'wouter';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth, UserRoleType } from '@/contexts/AuthContext';
-import { ScanLine, Info, User, Home, Settings, BarChart3, Shield, Upload, Megaphone, ShoppingBag, Calendar, Store } from 'lucide-react';
+import { ScanLine, Info, User, Home, Settings, BarChart3, Shield, Upload, Megaphone, ShoppingBag, Calendar, Store, MessageCircle } from 'lucide-react';
 
 interface NavItem {
   key: string;
@@ -63,11 +63,13 @@ function PersonIcon({ className }: { className?: string }) {
 const roleNavConfigs: Record<UserRoleType, { items: NavItem[], activePath: (location: string) => string }> = {
   consumer: {
     items: [
+      { key: 'liaoliao', path: '/liaoliao', icon: MessageCircle, labelKey: 'bottomNav.liaoliao' },
       { key: 'feed', path: '/', icon: EyeIcon as any, labelKey: 'bottomNav.feed' },
       { key: 'discover', path: '/shop', icon: StarIcon as any, labelKey: 'bottomNav.discover' },
       { key: 'me', path: '/me', icon: PersonIcon as any, labelKey: 'bottomNav.me' },
     ],
     activePath: (location: string) => {
+      if (location === '/liaoliao' || location.startsWith('/liaoliao/')) return '/liaoliao';
       if (location === '/' || location.startsWith('/campaign/')) return '/';
       if (location === '/shop' || location.startsWith('/shop/')) return '/shop';
       if (location === '/me' || location.startsWith('/me/') || location.startsWith('/my-')) return '/me';
