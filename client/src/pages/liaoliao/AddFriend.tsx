@@ -5,10 +5,15 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, Search, UserPlus, Check, X } from 'lucide-react';
+import { ArrowLeft, Search, UserPlus, Check, X, Share2, QrCode, Link2 } from 'lucide-react';
+import { SiLine } from 'react-icons/si';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { shareInviteToLineFriends, isInLiffClient } from '@/lib/liffClient';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import QRCode from 'qrcode';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SearchUser {
   id: number;
@@ -27,15 +32,85 @@ interface FriendRequest {
 export default function LiaoliaoAddFriend() {
   const { t } = useLanguage();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
+  const [showQRDialog, setShowQRDialog] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [inviteLink, setInviteLink] = useState('');
+  const [isInviting, setIsInviting] = useState(false);
+
+  const generateInviteLink = async () => {
+    try {
+      const res = await apiRequest('POST', '/api/contacts/invite');
+      const data = await res.json();
+      const link = `${window.location.origin}/invite/${data.inviteCode}`;
+      setInviteLink(link);
+      return link;
+    } catch (error) {
+      console.error('Failed to generate invite link:', error);
+      return '';
+    }
+  };
+
+  const handleLineInvite = async () => {
+    setIsInviting(true);
+    try {
+      const link = inviteLink || await generateInviteLink();
+      if (!link) {
+        toast({ title: t('superContacts.inviteError'), variant: 'destructive' });
+        return;
+      }
+      
+      if (isInLiffClient()) {
+        const inviterName = user?.displayName || user?.shuaName || 'Friend';
+        const success = await shareInviteToLineFriends(link, inviterName);
+        if (success) {
+          toast({ 
+            title: t('superContacts.inviteSent'),
+            description: t('superContacts.lineInviteSentDesc'),
+          });
+        }
+      } else {
+        await navigator.clipboard.writeText(link);
+        toast({
+          title: t('superContacts.linkCopied'),
+          description: t('superContacts.linkCopiedDesc'),
+        });
+      }
+    } catch (error) {
+      console.error('LINE invite error:', error);
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
+  const handleShowQR = async () => {
+    const link = inviteLink || await generateInviteLink();
+    if (link) {
+      const qr = await QRCode.toDataURL(link, { width: 200, margin: 2 });
+      setQrCodeUrl(qr);
+      setShowQRDialog(true);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    const link = inviteLink || await generateInviteLink();
+    if (link) {
+      await navigator.clipboard.writeText(link);
+      toast({
+        title: t('superContacts.linkCopied'),
+        description: t('superContacts.linkCopiedDesc'),
+      });
+    }
+  };
 
   const { data: searchResults = [], isLoading: isSearching } = useQuery<SearchUser[]>({
     queryKey: ['/api/liaoliao/users/search', { q: searchQuery }],
     enabled: searchQuery.length >= 2,
   });
 
-  const { data: friendRequests = [], isLoading: isLoadingRequests } = useQuery<FriendRequest[]>({
+  const { data: friendRequests = [] } = useQuery<FriendRequest[]>({
     queryKey: ['/api/liaoliao/friend-requests'],
   });
 
@@ -88,7 +163,50 @@ export default function LiaoliaoAddFriend() {
       </header>
 
       <main className="flex-1 px-4 py-4 space-y-6">
-        <div className="space-y-2">
+        <div className="space-y-3">
+          <Button
+            onClick={handleLineInvite}
+            disabled={isInviting}
+            className="w-full h-14 text-base font-semibold bg-[#06C755] hover:bg-[#05b34d] text-white"
+            data-testid="button-line-invite"
+          >
+            <SiLine className="w-6 h-6 mr-3" />
+            {t('superContacts.inviteLineFriends')}
+          </Button>
+          
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              variant="outline"
+              onClick={handleShowQR}
+              className="flex flex-col items-center gap-1 h-auto py-3"
+              data-testid="button-qr-invite"
+            >
+              <QrCode className="w-5 h-5" />
+              <span className="text-xs">{t('superContacts.faceToFace')}</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleCopyLink}
+              className="flex flex-col items-center gap-1 h-auto py-3"
+              data-testid="button-copy-link"
+            >
+              <Link2 className="w-5 h-5" />
+              <span className="text-xs">{t('superContacts.copyLink')}</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/super-contacts')}
+              className="flex flex-col items-center gap-1 h-auto py-3"
+              data-testid="button-more-options"
+            >
+              <Share2 className="w-5 h-5" />
+              <span className="text-xs">{t('superContacts.moreOptions')}</span>
+            </Button>
+          </div>
+        </div>
+
+        <div className="border-t pt-4 space-y-2">
+          <p className="text-sm text-muted-foreground">{t('liaoliao.searchByIdTitle')}</p>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -180,6 +298,22 @@ export default function LiaoliaoAddFriend() {
           </div>
         )}
       </main>
+
+      <Dialog open={showQRDialog} onOpenChange={setShowQRDialog}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-center">{t('superContacts.scanToJoin')}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center py-4">
+            {qrCodeUrl && (
+              <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48" data-testid="img-qr-code" />
+            )}
+            <p className="text-sm text-muted-foreground mt-4 text-center">
+              {t('superContacts.scanQRDesc')}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
