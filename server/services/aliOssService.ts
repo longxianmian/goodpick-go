@@ -99,6 +99,48 @@ export class AliOssService {
     }
   }
 
+  /**
+   * 生成 HLS 流式转码播放 URL（边转边播）
+   * 阿里云 OSS 配合 IMM 实现实时转码，无需预先转码整个视频
+   * 
+   * @param objectName 视频对象名称（原始 MP4 文件）
+   * @param expiresInSeconds URL 有效期（秒）
+   * @returns HLS m3u8 播放 URL
+   */
+  async getHlsStreamUrl(objectName: string, expiresInSeconds: number = 7200): Promise<string> {
+    try {
+      // 使用 OSS 的边转边播功能
+      // x-oss-process=hls/sign,live_1 表示启用 HLS 实时转码并签名
+      const url = this.client.signatureUrl(objectName, {
+        expires: expiresInSeconds,
+        process: 'hls/sign,live_1',
+      });
+      return url;
+    } catch (error) {
+      console.error('OSS HLS stream URL error:', error);
+      throw new Error(`Failed to generate HLS stream URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * 构建静态 HLS URL（用于存储到数据库）
+   * 此 URL 需要在播放时动态签名
+   * 
+   * @param objectName 视频对象名称
+   * @returns 基础 HLS URL（不含签名）
+   */
+  buildHlsBaseUrl(objectName: string): string {
+    if (this.publicBaseUrl) {
+      return `${this.publicBaseUrl}/${objectName}?x-oss-process=hls/sign,live_1`;
+    }
+    const bucket = process.env.OSS_BUCKET || process.env.ALI_OSS_BUCKET;
+    let region = process.env.OSS_REGION || process.env.ALI_OSS_REGION || 'oss-ap-southeast-1';
+    if (!region.startsWith('oss-')) {
+      region = `oss-${region}`;
+    }
+    return `https://${bucket}.${region}.aliyuncs.com/${objectName}?x-oss-process=hls/sign,live_1`;
+  }
+
   async getObject(objectName: string): Promise<OSS.GetObjectResult> {
     try {
       return await this.client.get(objectName);

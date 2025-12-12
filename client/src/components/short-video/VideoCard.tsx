@@ -1,8 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
+import Hls from 'hls.js';
 import { Heart, MessageCircle, Share2, Music2, UserCircle, Bookmark, Play } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 
 export interface ShortVideoData {
   id: number;
@@ -50,6 +50,7 @@ export function VideoCard({
   onUserClick 
 }: VideoCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showPlayButton, setShowPlayButton] = useState(true);
@@ -59,7 +60,80 @@ export function VideoCard({
   const [likeCount, setLikeCount] = useState(video.likeCount);
   const [bookmarked, setBookmarked] = useState(video.isBookmarked ?? false);
   const [bookmarkCount, setBookmarkCount] = useState(video.bookmarkCount ?? 0);
-  
+  const [usingHls, setUsingHls] = useState(false);
+
+  useEffect(() => {
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+
+    const hlsSource = video.hlsUrl;
+    const isHlsSource = hlsSource && (hlsSource.includes('.m3u8') || hlsSource.includes('hls/sign'));
+
+    if (isHlsSource && Hls.isSupported()) {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+      }
+
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+        backBufferLength: 30,
+        maxBufferLength: 15,
+        maxMaxBufferLength: 60,
+        startLevel: -1,
+      });
+
+      hls.loadSource(hlsSource);
+      hls.attachMedia(videoEl);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        setVideoLoaded(true);
+        setUsingHls(true);
+        console.log(`[HLS] Video ${video.id}: Manifest parsed, ready to play`);
+      });
+
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        console.warn(`[HLS] Video ${video.id} Error:`, data.type, data.details);
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              console.log(`[HLS] Video ${video.id}: Network error, trying to recover`);
+              hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.log(`[HLS] Video ${video.id}: Media error, trying to recover`);
+              hls.recoverMediaError();
+              break;
+            default:
+              console.log(`[HLS] Video ${video.id}: Fatal error, falling back to MP4`);
+              hls.destroy();
+              videoEl.src = video.videoUrl;
+              setUsingHls(false);
+              break;
+          }
+        }
+      });
+
+      hls.on(Hls.Events.FRAG_BUFFERED, () => {
+        setVideoLoaded(true);
+      });
+
+      hlsRef.current = hls;
+
+      return () => {
+        hls.destroy();
+        hlsRef.current = null;
+      };
+    } else if (isHlsSource && videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+      videoEl.src = hlsSource;
+      setUsingHls(true);
+      console.log(`[HLS] Video ${video.id}: Using native HLS support (Safari)`);
+    } else {
+      videoEl.src = video.videoUrl;
+      setUsingHls(false);
+    }
+  }, [video.hlsUrl, video.videoUrl, video.id]);
+
   useEffect(() => {
     const videoEl = videoRef.current;
     if (!videoEl) return;
@@ -86,9 +160,12 @@ export function VideoCard({
   }, []);
 
   const handleVideoError = useCallback(() => {
+    if (usingHls && hlsRef.current) {
+      return;
+    }
     setVideoError(true);
     setShowPlayButton(true);
-  }, []);
+  }, [usingHls]);
 
   const togglePlay = useCallback(() => {
     const videoEl = videoRef.current;
@@ -150,12 +227,12 @@ export function VideoCard({
       
       <video
         ref={videoRef}
-        src={video.videoUrl}
         poster={video.coverImageUrl || undefined}
         className={`absolute inset-0 h-full w-full object-contain z-10 ${
           videoLoaded ? 'opacity-100' : 'opacity-0'
         }`}
         loop
+        muted
         playsInline
         preload="auto"
         onTimeUpdate={handleTimeUpdate}

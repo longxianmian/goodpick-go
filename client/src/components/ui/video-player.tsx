@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, type MouseEvent } from 'react';
+import Hls from 'hls.js';
 import { 
   Play, 
   Pause, 
@@ -10,6 +11,7 @@ import { cn } from '@/lib/utils';
 
 interface VideoPlayerProps {
   src: string;
+  hlsSrc?: string;
   poster?: string;
   className?: string;
   autoPlay?: boolean;
@@ -20,6 +22,7 @@ interface VideoPlayerProps {
 
 export function VideoPlayer({
   src,
+  hlsSrc,
   poster,
   className,
   autoPlay = false,
@@ -30,6 +33,7 @@ export function VideoPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
   
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
@@ -42,6 +46,7 @@ export function VideoPlayer({
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [isEnded, setIsEnded] = useState(false);
+  const [usingHls, setUsingHls] = useState(false);
   
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -76,6 +81,81 @@ export function VideoPlayer({
       setShowControls(true);
     }
   }, [isPlaying, hideControlsWithDelay]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const videoSource = hlsSrc || src;
+    const isHlsSource = videoSource.includes('.m3u8') || videoSource.includes('hls/sign');
+
+    if (isHlsSource && Hls.isSupported()) {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+      }
+
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+        backBufferLength: 90,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 600,
+        startLevel: -1,
+      });
+
+      hls.loadSource(videoSource);
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        setIsLoading(false);
+        setUsingHls(true);
+        console.log('[HLS] Manifest parsed, ready to play');
+        if (autoPlay) {
+          video.play().catch(() => {});
+        }
+      });
+
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        console.error('[HLS] Error:', data.type, data.details);
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              console.log('[HLS] Fatal network error, trying to recover');
+              hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.log('[HLS] Fatal media error, trying to recover');
+              hls.recoverMediaError();
+              break;
+            default:
+              console.log('[HLS] Fatal error, falling back to direct source');
+              hls.destroy();
+              video.src = src;
+              setUsingHls(false);
+              break;
+          }
+        }
+      });
+
+      hls.on(Hls.Events.FRAG_BUFFERED, () => {
+        setIsLoading(false);
+      });
+
+      hlsRef.current = hls;
+
+      return () => {
+        hls.destroy();
+        hlsRef.current = null;
+      };
+    } else if (isHlsSource && video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = videoSource;
+      setUsingHls(true);
+      console.log('[HLS] Using native HLS support (Safari)');
+    } else {
+      video.src = src;
+      setUsingHls(false);
+    }
+  }, [src, hlsSrc, autoPlay]);
 
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
@@ -158,10 +238,13 @@ export function VideoPlayer({
   }, [onEnded]);
 
   const handleError = useCallback(() => {
+    if (usingHls && hlsRef.current) {
+      return;
+    }
     setHasError(true);
     setIsLoading(false);
     onError?.();
-  }, [onError]);
+  }, [onError, usingHls]);
 
   const handleProgressClick = useCallback((e: MouseEvent) => {
     e.stopPropagation();
@@ -224,7 +307,6 @@ export function VideoPlayer({
 
       <video
         ref={videoRef}
-        src={src}
         poster={poster}
         className="w-full h-full object-contain"
         muted={isMuted}

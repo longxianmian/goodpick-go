@@ -5713,6 +5713,10 @@ export function registerRoutes(app: Express): Server {
         videoFile.mimetype
       );
 
+      // 生成 HLS 流式转码 URL（边转边播）
+      const hlsUrl = getOssService().buildHlsBaseUrl(videoObjectName);
+      console.log('[Short Video] Generated HLS URL:', hlsUrl);
+
       // 上传封面图（如果有）
       let coverImageUrl: string | undefined;
       if (coverFile) {
@@ -5744,6 +5748,7 @@ export function registerRoutes(app: Express): Server {
       const [newVideo] = await db.insert(shortVideos).values({
         creatorUserId: userId,
         videoUrl,
+        hlsUrl,
         coverImageUrl,
         thumbnailUrl,
         title: title || null,
@@ -5752,7 +5757,7 @@ export function registerRoutes(app: Express): Server {
         locationName: locationName || null,
         storeId: storeId ? parseInt(storeId) : null,
         campaignId: campaignId ? parseInt(campaignId) : null,
-        status: 'ready', // 临时直接设为ready，后续接入MPS转码后改为processing
+        status: 'ready',
         isPublic: isPublic !== 'false',
         publishedAt: new Date(),
         fileSize: videoFile.size,
