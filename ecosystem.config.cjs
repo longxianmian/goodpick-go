@@ -11,6 +11,7 @@ module.exports = {
       env_production: {
         NODE_ENV: "production",
         PORT: 5000,
+        APP_BASE_URL: "https://www.goodpickgo.com",
 
         // 数据库（已经真实存在）
         DATABASE_URL: "postgresql://goodpick_user:Goodpick!2025@localhost:5432/goodpick_prod",
