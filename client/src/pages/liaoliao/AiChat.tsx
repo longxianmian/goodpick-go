@@ -150,7 +150,7 @@ export default function LiaoliaoAiChat() {
             className="shrink-0 h-10 w-10 rounded-full"
             data-testid="button-voice"
           >
-            <VoiceInputIcon className="w-5 h-5 text-muted-foreground" />
+            <VoiceInputIcon className="w-6 h-6 text-muted-foreground" />
           </Button>
 
           <div className="flex-1 relative">
@@ -194,7 +194,7 @@ export default function LiaoliaoAiChat() {
                 className="shrink-0 h-10 w-10 rounded-full"
                 data-testid="button-mic"
               >
-                <Mic className="w-5 h-5 text-muted-foreground" />
+                <Mic className="w-6 h-6 text-muted-foreground" />
               </Button>
               <Button 
                 size="icon"
@@ -202,7 +202,7 @@ export default function LiaoliaoAiChat() {
                 className="shrink-0 h-10 w-10 rounded-full"
                 data-testid="button-emoji"
               >
-                <Smile className="w-5 h-5 text-muted-foreground" />
+                <Smile className="w-6 h-6 text-muted-foreground" />
               </Button>
               <Button 
                 size="icon"
@@ -210,7 +210,7 @@ export default function LiaoliaoAiChat() {
                 className="shrink-0 h-10 w-10 rounded-full"
                 data-testid="button-more"
               >
-                <Plus className="w-5 h-5 text-muted-foreground" />
+                <Plus className="w-6 h-6 text-muted-foreground" />
               </Button>
             </>
           )}
