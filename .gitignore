@@ -7,3 +7,19 @@ vite.config.ts.*
 # Local prod env & logs
 .env.production*
 logs/
+
+# ====== DO NOT COMMIT SECRETS / SERVER STUFF ======
+.env
+.env.*
+logs/
+*.log
+*.pid
+
+# nginx / ssl / cert
+/etc/nginx/
+/etc/letsencrypt/
+/var/lib/letsencrypt/
+
+# pm2
+ecosystem.config.*.local
+ecosystem.config.*.production.local

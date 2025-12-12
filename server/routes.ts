@@ -370,6 +370,33 @@ export function registerRoutes(app: Express): Server {
     saveUninitialized: false,
   }));
 
+  // ============ Health Check Endpoint ============
+  app.get("/api/health", async (_req: Request, res: Response) => {
+    try {
+      // DB connectivity check (lightweight)
+      await db.execute(sql`select 1 as ok`);
+      return res.json({
+        success: true,
+        service: "goodpick-go",
+        env: process.env.NODE_ENV || "unknown",
+        version: process.env.APP_VERSION || "1.0.0",
+        time: new Date().toISOString(),
+        db: "ok",
+      });
+    } catch (e: any) {
+      return res.status(500).json({
+        success: false,
+        service: "goodpick-go",
+        env: process.env.NODE_ENV || "unknown",
+        version: process.env.APP_VERSION || "1.0.0",
+        time: new Date().toISOString(),
+        db: "fail",
+        error: e?.message || String(e),
+      });
+    }
+  });
+
+
      // ============ Config Endpoint ============
   app.get('/api/config', (req: Request, res: Response) => {
     const sessionId = req.headers['x-gpgo-session'] || 'no-session-id';
