@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import Hls from 'hls.js';
-import { Heart, MessageCircle, Share2, Music2, UserCircle, Bookmark, Play } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Music2, UserCircle, Bookmark, Play, Volume2, VolumeX } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 
@@ -61,6 +61,7 @@ export function VideoCard({
   const [bookmarked, setBookmarked] = useState(video.isBookmarked ?? false);
   const [bookmarkCount, setBookmarkCount] = useState(video.bookmarkCount ?? 0);
   const [usingHls, setUsingHls] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
 
   useEffect(() => {
     const videoEl = videoRef.current;
@@ -202,6 +203,15 @@ export function VideoCard({
     setBookmarkCount(prev => bookmarked ? prev - 1 : prev + 1);
     onBookmark?.(video.id);
   }, [bookmarked, video.id, onBookmark]);
+
+  const toggleMute = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    const videoEl = videoRef.current;
+    if (videoEl) {
+      videoEl.muted = !videoEl.muted;
+      setIsMuted(videoEl.muted);
+    }
+  }, []);
 
   const formatCount = (count: number): string => {
     if (count >= 10000) {
@@ -355,6 +365,23 @@ export function VideoCard({
           </div>
           <span className="text-white text-xs font-medium drop-shadow-lg">
             {formatCount(video.shareCount)}
+          </span>
+        </button>
+
+        <button
+          className="flex flex-col items-center gap-1"
+          onClick={toggleMute}
+          data-testid={`button-mute-${video.id}`}
+        >
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isMuted ? 'bg-white/20' : 'bg-green-500'} backdrop-blur`}>
+            {isMuted ? (
+              <VolumeX className="w-5 h-5 text-white" />
+            ) : (
+              <Volume2 className="w-5 h-5 text-white" />
+            )}
+          </div>
+          <span className="text-white text-xs font-medium drop-shadow-lg">
+            {isMuted ? '静音' : '有声'}
           </span>
         </button>
       </div>
