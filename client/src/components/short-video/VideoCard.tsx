@@ -61,7 +61,7 @@ export function VideoCard({
   const [bookmarked, setBookmarked] = useState(video.isBookmarked ?? false);
   const [bookmarkCount, setBookmarkCount] = useState(video.bookmarkCount ?? 0);
   const [usingHls, setUsingHls] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
 
   useEffect(() => {
     const videoEl = videoRef.current;
@@ -242,7 +242,7 @@ export function VideoCard({
           videoLoaded ? 'opacity-100' : 'opacity-0'
         }`}
         loop
-        muted
+        muted={isMuted}
         playsInline
         preload="auto"
         onTimeUpdate={handleTimeUpdate}
