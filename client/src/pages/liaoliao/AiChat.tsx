@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Send, Bot, Sparkles, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Send, Bot, Sparkles, MoreVertical, Mic, Smile, Plus } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserBottomNav } from '@/components/UserBottomNav';
@@ -142,7 +142,16 @@ export default function LiaoliaoAiChat() {
       </main>
 
       <footer className="sticky bottom-0 bg-background border-t px-3 py-2 pb-safe">
-        <div className="flex items-end gap-2">
+        <div className="flex items-center gap-2">
+          <Button 
+            size="icon"
+            variant="ghost"
+            className="shrink-0 h-10 w-10 rounded-full"
+            data-testid="button-voice"
+          >
+            <Mic className="w-5 h-5 text-muted-foreground" />
+          </Button>
+
           <div className="flex-1 relative">
             <textarea
               value={inputValue}
@@ -156,29 +165,54 @@ export default function LiaoliaoAiChat() {
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement;
                 target.style.height = 'auto';
-                const newHeight = Math.max(44, Math.min(target.scrollHeight, 120));
+                const newHeight = Math.max(40, Math.min(target.scrollHeight, 120));
                 target.style.height = newHeight + 'px';
               }}
               placeholder={t('liaoliao.typeMessage')}
-              className="w-full bg-muted/50 rounded-xl px-4 py-3 text-sm border border-border focus:ring-1 focus:ring-[#38B03B] focus:outline-none resize-none min-h-[44px] max-h-[120px] overflow-y-auto leading-5"
+              className="w-full bg-muted/50 rounded-full px-4 py-2.5 text-sm border border-border focus:ring-1 focus:ring-[#38B03B] focus:outline-none resize-none min-h-[40px] max-h-[120px] overflow-y-auto leading-5"
               rows={1}
               data-testid="input-message"
             />
           </div>
-          
-          <Button
-            size="icon"
-            onClick={handleSend}
-            disabled={!inputValue.trim() || isLoading}
-            className={`rounded-lg shrink-0 transition-colors h-11 w-11 ${
-              inputValue.trim() 
-                ? "bg-[#38B03B] hover:bg-[#2e9632] text-white" 
-                : "bg-[#38B03B]/30 text-white/50"
-            }`}
-            data-testid="button-send"
-          >
-            <Send className="w-5 h-5" />
-          </Button>
+
+          {inputValue.trim() ? (
+            <Button
+              size="icon"
+              onClick={handleSend}
+              disabled={isLoading}
+              className="rounded-full shrink-0 h-10 w-10 bg-[#38B03B] hover:bg-[#2e9632] text-white"
+              data-testid="button-send"
+            >
+              <Send className="w-5 h-5" />
+            </Button>
+          ) : (
+            <>
+              <Button 
+                size="icon"
+                variant="ghost"
+                className="shrink-0 h-10 w-10 rounded-full"
+                data-testid="button-mic"
+              >
+                <Mic className="w-5 h-5 text-muted-foreground" />
+              </Button>
+              <Button 
+                size="icon"
+                variant="ghost"
+                className="shrink-0 h-10 w-10 rounded-full"
+                data-testid="button-emoji"
+              >
+                <Smile className="w-5 h-5 text-muted-foreground" />
+              </Button>
+              <Button 
+                size="icon"
+                variant="ghost"
+                className="shrink-0 h-10 w-10 rounded-full"
+                data-testid="button-more"
+              >
+                <Plus className="w-5 h-5 text-muted-foreground" />
+              </Button>
+            </>
+          )}
         </div>
       </footer>
     </div>
