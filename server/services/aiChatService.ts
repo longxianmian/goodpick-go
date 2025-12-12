@@ -3,17 +3,28 @@ import OpenAI from 'openai';
 let openai: OpenAI | null = null;
 
 try {
-  const apiKey = process.env.OPENAI_API_KEY;
-  const baseURL = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+  // 优先使用 Replit AI Integrations（不需要自己的API Key）
+  const replitApiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  const replitBaseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+  
+  // 备用：使用自己的 OpenAI API Key（用于阿里云ECS部署）
+  const ownApiKey = process.env.OPENAI_API_KEY;
+  const ownBaseURL = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
 
-  if (apiKey && apiKey.trim()) {
+  if (replitApiKey && replitBaseURL) {
     openai = new OpenAI({
-      apiKey,
-      baseURL,
+      apiKey: replitApiKey,
+      baseURL: replitBaseURL,
     });
-    console.log('✅ AI Chat 服务已启用');
+    console.log('✅ AI Chat 服务已启用 (Replit AI Integrations)');
+  } else if (ownApiKey && ownApiKey.trim()) {
+    openai = new OpenAI({
+      apiKey: ownApiKey,
+      baseURL: ownBaseURL,
+    });
+    console.log('✅ AI Chat 服务已启用 (自有 API Key)');
   } else {
-    console.warn('⚠️ 未配置 OPENAI_API_KEY，AI Chat 功能已禁用');
+    console.warn('⚠️ 未配置 OpenAI，AI Chat 功能已禁用');
   }
 } catch (error) {
   console.error('❌ OpenAI 初始化失败，AI Chat 功能已禁用:', error);
