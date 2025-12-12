@@ -3,6 +3,80 @@
  * 集中管理 LIFF SDK 的加载和初始化，避免多个组件重复初始化导致的问题
  */
 
+/**
+ * 通过 User Agent 检测当前是否在 LINE App 内部浏览器
+ * 注意：这是一个轻量级检测，不依赖 LIFF SDK 初始化
+ */
+export function isInLineApp(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  return /Line\/[\d.]+/i.test(ua);
+}
+
+/**
+ * 构建 LINE OAuth 授权地址
+ * 用于外部 H5 环境（非 LINE 内部浏览器）
+ */
+export interface LineAuthParams {
+  redirectPath?: string;    // 登录完成后需要跳回的 H5 路径，如 /campaign/xxx
+  fromChannel?: string;     // 推广来源，如 tiktok / fb / ig / wechat 等
+  returnTo?: string;        // 兼容旧参数
+}
+
+export function buildLineAuthorizeUrl(params: LineAuthParams = {}): string {
+  const base = 'https://access.line.me/oauth2/v2.1/authorize';
+  
+  // 从 URL 中提取推广来源
+  const urlParams = new URLSearchParams(window.location.search);
+  const fromChannel = params.fromChannel || urlParams.get('from') || urlParams.get('utm_source') || 'direct';
+  const redirectPath = params.redirectPath || params.returnTo || window.location.pathname || '/';
+  
+  // 构建 state，包含 redirectPath 和 fromChannel
+  const statePayload = {
+    redirectPath,
+    fromChannel,
+    timestamp: Date.now(),
+  };
+  
+  // Base64URL 编码 state（浏览器端兼容方式）
+  const stateJson = JSON.stringify(statePayload);
+  const stateBase64 = btoa(stateJson)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+  
+  // 获取当前域名作为 redirect_uri
+  const redirectUri = `${window.location.origin}/api/auth/line/callback`;
+  
+  const query = new URLSearchParams({
+    response_type: 'code',
+    client_id: import.meta.env.VITE_LINE_CHANNEL_ID || '2008410104', // 可配置
+    redirect_uri: redirectUri,
+    scope: 'openid profile',
+    state: stateBase64,
+  });
+
+  return `${base}?${query.toString()}`;
+}
+
+/**
+ * 从 URL 参数获取推广来源渠道
+ */
+export function getCampaignFromQuery(): string {
+  if (typeof window === 'undefined') return 'direct';
+  const params = new URLSearchParams(window.location.search);
+  return params.get('from') || params.get('utm_source') || params.get('channel') || 'direct';
+}
+
+/**
+ * 跳转到 LINE 登录（用于外部 H5 环境）
+ */
+export function redirectToLineLogin(params: LineAuthParams = {}): void {
+  const url = buildLineAuthorizeUrl(params);
+  console.log('[LINE OAuth] Redirecting to:', url);
+  window.location.href = url;
+}
+
 declare global {
   interface Window {
     liff: any;

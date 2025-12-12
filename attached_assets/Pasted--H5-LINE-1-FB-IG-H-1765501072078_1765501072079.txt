@@ -1,0 +1,150 @@
+请为我们的 H5 登录流程，增加「第三方平台推广入口」的 LINE 登录优化，具体要求如下：
+
+1. 场景与目标
+
+场景：用户从第三方平台（抖音、FB、IG、微信、浏览器广告等）点击链接进入我们的 H5。
+
+目标：
+
+不在 LIFF/LINE 内时，不要直接出现账号密码登录页面。
+
+改为显示一个大号按钮「用 LINE 登录（将跳转到 LINE App）」；
+
+用户点击按钮后跳转 LINE OAuth 授权地址，自动拉起 LINE App 完成授权。
+
+2. 环境检测逻辑
+
+新增一个工具方法 isInLineApp() 用来检测当前是否在 LINE 内：
+
+export function isInLineApp() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  return /Line\/[\d.]+/.test(ua);
+}
+
+
+在登录页逻辑中：
+
+如果在 LIFF 环境（window.liff 存在 或 isInLineApp() 为 true） → 走原来的 liff.login() 一键登录流程；
+
+否则视为「外部 H5 环境」，进入第三方推广登录流程（见下一条）。
+
+3. 外部 H5 环境下的 UI & 流程
+
+1）UI 调整：
+
+在登录页中：
+
+不显示账号密码输入框；
+
+显示一个醒目的主按钮：
+
+文案：用 LINE 登录（跳转到 LINE App）
+
+下方小字提示：从抖音 / FB / IG 打开的用户，请点击上方按钮，用 LINE 授权后继续使用本服务。
+
+2）点击按钮时行为：
+
+调用一个函数 redirectToLineLogin()，内部：
+
+const authorizeUrl = buildLineAuthorizeUrl({
+  redirectPath: getCurrentRedirectPath(),   // 登录后要回到的页面
+  fromChannel: getCampaignFromQuery(),      // 记录是抖音 / FB 等推广来源
+});
+window.location.href = authorizeUrl;
+
+4. LINE OAuth 地址封装
+
+新增一个工具函数 buildLineAuthorizeUrl(params)：
+
+interface LineAuthParams {
+  redirectPath?: string;    // 登录完成后需要跳回的 H5 路径，如 /campaign/xxx
+  fromChannel?: string;     // 推广来源，如 tiktok / fb / ig / wechat 等
+}
+
+export function buildLineAuthorizeUrl(params: LineAuthParams) {
+  const base = 'https://access.line.me/oauth2/v2.1/authorize';
+  const redirectUri = encodeURIComponent(process.env.LINE_LOGIN_CALLBACK_URL!);
+  const statePayload = {
+    redirectPath: params.redirectPath || '/',
+    fromChannel: params.fromChannel || 'direct',
+  };
+  const state = encodeURIComponent(
+    Buffer.from(JSON.stringify(statePayload)).toString('base64url')
+  );
+
+  const query = new URLSearchParams({
+    response_type: 'code',
+    client_id: process.env.LINE_LOGIN_CHANNEL_ID!,
+    redirect_uri: redirectUri,
+    scope: 'openid profile',
+    state,
+  });
+
+  return `${base}?${query.toString()}`;
+}
+
+
+说明：
+
+LINE_LOGIN_CALLBACK_URL 和 LINE_LOGIN_CHANNEL_ID 从环境变量读取。
+
+state 里携带 redirectPath 和 fromChannel，用于登录回调后做跳转和统计。
+
+5. 登录回调处理（后端）
+
+在 LINE 登录回调接口（/api/auth/line/callback 或现有回调路径）中：
+
+解析 state：
+
+base64url → JSON → 拿到 redirectPath 和 fromChannel；
+
+完成用户创建 / 登录 / session / token 设置；
+
+最终重定向到前端：
+
+前端地址 = FRONTEND_BASE_URL + redirectPath；
+
+可以在 URL 上附带 fromChannel 用于埋点，如 ?from=fb；
+
+确保：
+
+没有把用户留在一个“空白回调页”；
+
+登录完成后能回到对应的营销落地页（比如活动详情、商户页面等）。
+
+6. 测试用例（务必自测）
+
+1）外部 H5（模拟第三方平台）：
+
+使用 Chrome 打开 H5 登录页（非 LINE 内部）；
+
+预期效果：
+
+看不到账号密码输入框；
+
+能看到「用 LINE 登录（跳转到 LINE App）」按钮；
+
+点击后跳转到 https://access.line.me/... 并拉起 LINE App；
+
+完成授权后自动回到指定 H5 页面（redirectPath 生效）。
+
+2）LINE 内部（LIFF）：
+
+在 LINE OA 菜单里打开同一个 H5；
+
+预期效果：
+
+页面不显示“跳转到 LINE App”按钮；
+
+直接走 LIFF 一键登录流程；
+
+登录后正常进入首页或对应页面。
+
+请按以上步骤实现，并在完成后给出：
+
+修改的前端文件列表（含路径）；
+
+新增 / 变更的环境变量名；
+
+测试用访问链接和操作步骤。
