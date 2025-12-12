@@ -220,10 +220,10 @@ export default function LiaoliaoChatDetail() {
           <Button 
             size="icon"
             variant="ghost"
-            className="shrink-0 h-10 w-10 rounded-full"
+            className="shrink-0 h-10 w-10 rounded-full [&_svg]:size-6"
             data-testid="button-voice"
           >
-            <VoiceInputIcon className="w-6 h-6 text-muted-foreground" />
+            <VoiceInputIcon className="text-muted-foreground" />
           </Button>
 
           <div className="flex-1 relative">
@@ -259,27 +259,27 @@ export default function LiaoliaoChatDetail() {
               <Button 
                 size="icon"
                 variant="ghost"
-                className="shrink-0 h-10 w-10 rounded-full"
+                className="shrink-0 h-10 w-10 rounded-full [&_svg]:size-6"
                 data-testid="button-mic"
               >
-                <Mic className="w-6 h-6 text-muted-foreground" />
+                <Mic className="text-muted-foreground" />
               </Button>
               <Button 
                 size="icon"
                 variant="ghost"
-                className="shrink-0 h-10 w-10 rounded-full"
+                className="shrink-0 h-10 w-10 rounded-full [&_svg]:size-6"
                 data-testid="button-emoji"
               >
-                <Smile className="w-6 h-6 text-muted-foreground" />
+                <Smile className="text-muted-foreground" />
               </Button>
               <Button 
                 size="icon"
                 variant="ghost"
-                className="shrink-0 h-10 w-10 rounded-full"
+                className="shrink-0 h-10 w-10 rounded-full [&_svg]:size-6"
                 onClick={() => setShowActionPanel(!showActionPanel)}
                 data-testid="button-more"
               >
-                <Plus className="w-6 h-6 text-muted-foreground" />
+                <Plus className="text-muted-foreground" />
               </Button>
             </>
           )}
