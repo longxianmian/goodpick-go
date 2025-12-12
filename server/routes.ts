@@ -995,6 +995,9 @@ export function registerRoutes(app: Express): Server {
 
   // LINE OAuth callback endpoint (GET)
   // Used for traditional OAuth flow with authorization code
+  // Supports two state formats:
+  // 1. Session-based: state is a random string, OAuth data stored in session
+  // 2. Encoded-in-state: state is base64url-encoded JSON with redirectPath and fromChannel (for external H5)
   app.get('/api/auth/line/callback', async (req: Request, res: Response) => {
     try {
       console.log('[OAUTH CB] query=', req.query);
@@ -1016,37 +1019,79 @@ export function registerRoutes(app: Express): Server {
         return res.redirect("/?error=missing_params");
       }
 
-      if (!req.session) {
-        console.error('[OAUTH CB] req.session is undefined');
-        return res.redirect('/?error=session_missing');
+      // Try to decode state as base64url JSON (external H5 flow)
+      let decodedStatePayload: { redirectPath?: string; fromChannel?: string; timestamp?: number } | null = null;
+      let isEncodedState = false;
+      
+      try {
+        // Add padding if needed for base64url
+        const base64 = state.replace(/-/g, '+').replace(/_/g, '/');
+        const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+        const decoded = Buffer.from(padded, 'base64').toString('utf8');
+        const parsed = JSON.parse(decoded);
+        
+        // Validate it looks like our expected format
+        if (parsed && typeof parsed === 'object' && (parsed.redirectPath || parsed.fromChannel)) {
+          decodedStatePayload = parsed;
+          isEncodedState = true;
+          console.log('[OAUTH CB] Decoded state payload (external H5):', decodedStatePayload);
+        }
+      } catch (e) {
+        // Not a valid base64url JSON, treat as session-based state
+        console.log('[OAUTH CB] State is not encoded JSON, using session-based validation');
       }
 
-      // CSRF Protection: Validate state against server-side stored value
-      const storedStates = req.session.oauthStates || {};
-      const storedOAuthData = storedStates[state];
+      let storedOAuthData: { returnTo?: string; campaignId?: string; timestamp?: number; fromChannel?: string } | null = null;
+      
+      if (isEncodedState && decodedStatePayload) {
+        // External H5 flow: state contains redirect info directly
+        // Validate timestamp to prevent replay attacks (valid for 5 minutes)
+        const fiveMinutes = 5 * 60 * 1000;
+        if (decodedStatePayload.timestamp && Date.now() - decodedStatePayload.timestamp > fiveMinutes) {
+          console.warn('[OAUTH CB] External H5 state expired');
+          return res.redirect(`/?error=oauth_expired`);
+        }
+        
+        storedOAuthData = {
+          returnTo: decodedStatePayload.redirectPath || '/',
+          fromChannel: decodedStatePayload.fromChannel || 'direct',
+          timestamp: decodedStatePayload.timestamp,
+        };
+        console.log('[OAUTH CB] Using external H5 state:', storedOAuthData);
+      } else {
+        // Session-based flow: validate state against server-side stored value
+        if (!req.session) {
+          console.error('[OAUTH CB] req.session is undefined');
+          return res.redirect('/?error=session_missing');
+        }
 
-      console.log('[OAUTH CB] storedOAuthData=', storedOAuthData);
+        // CSRF Protection: Validate state against server-side stored value
+        const storedStates = req.session.oauthStates || {};
+        storedOAuthData = storedStates[state] || null;
 
-      if (!req.session.oauthStates || !storedOAuthData) {
-        console.error('[OAUTH CB] state not found', {
-          state,
-          sessionID: (req as any).sessionID,
-          hasStates: !!req.session.oauthStates,
-          availableStates: req.session.oauthStates ? Object.keys(req.session.oauthStates) : [],
-        });
-        return res.redirect(`/?error=csrf_invalid_state`);
-      }
+        console.log('[OAUTH CB] storedOAuthData=', storedOAuthData);
 
-      // Check timestamp to prevent replay attacks (valid for 5 minutes)
-      const fiveMinutes = 5 * 60 * 1000;
-      if (Date.now() - storedOAuthData.timestamp > fiveMinutes) {
-        console.warn('[OAUTH CB] oauth state expired, state=', state);
+        if (!req.session.oauthStates || !storedOAuthData) {
+          console.error('[OAUTH CB] state not found', {
+            state,
+            sessionID: (req as any).sessionID,
+            hasStates: !!req.session.oauthStates,
+            availableStates: req.session.oauthStates ? Object.keys(req.session.oauthStates) : [],
+          });
+          return res.redirect(`/?error=csrf_invalid_state`);
+        }
+
+        // Check timestamp to prevent replay attacks (valid for 5 minutes)
+        const fiveMinutes = 5 * 60 * 1000;
+        if (storedOAuthData.timestamp && Date.now() - storedOAuthData.timestamp > fiveMinutes) {
+          console.warn('[OAUTH CB] oauth state expired, state=', state);
+          delete storedStates[state];
+          return res.redirect(`/?error=oauth_expired`);
+        }
+
+        // Clear the used state to prevent replay
         delete storedStates[state];
-        return res.redirect(`/?error=oauth_expired`);
       }
-
-      // Clear the used state to prevent replay
-      delete storedStates[state];
 
       // Build redirect URI (must match what was used in OAuth request)
       const redirectUri = `https://${req.get('host')}/api/auth/line/callback`;
