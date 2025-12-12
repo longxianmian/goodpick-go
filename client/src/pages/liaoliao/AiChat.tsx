@@ -4,6 +4,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, Send, Bot, Sparkles, MoreVertical, Mic, Smile, Plus } from 'lucide-react';
+import { VoiceInputIcon } from '@/components/icons/VoiceInputIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserBottomNav } from '@/components/UserBottomNav';
@@ -149,7 +150,7 @@ export default function LiaoliaoAiChat() {
             className="shrink-0 h-10 w-10 rounded-full"
             data-testid="button-voice"
           >
-            <Mic className="w-5 h-5 text-muted-foreground" />
+            <VoiceInputIcon className="w-5 h-5 text-muted-foreground" />
           </Button>
 
           <div className="flex-1 relative">

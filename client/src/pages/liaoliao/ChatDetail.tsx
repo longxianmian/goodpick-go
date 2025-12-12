@@ -4,6 +4,7 @@ import { useParams, useLocation } from 'wouter';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift } from 'lucide-react';
+import { VoiceInputIcon } from '@/components/icons/VoiceInputIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -222,7 +223,7 @@ export default function LiaoliaoChatDetail() {
             className="shrink-0 h-10 w-10 rounded-full"
             data-testid="button-voice"
           >
-            <Mic className="w-5 h-5 text-muted-foreground" />
+            <VoiceInputIcon className="w-5 h-5 text-muted-foreground" />
           </Button>
 
           <div className="flex-1 relative">
