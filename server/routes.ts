@@ -9884,6 +9884,38 @@ export function registerRoutes(app: Express): Server {
   // 聊聊模块 API - LiaoLiao Social Chat
   // ============================================
 
+  // AI聊天接口
+  app.post('/api/liaoliao/ai-chat', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { chat, isAiChatEnabled } = await import('./services/aiChatService');
+      
+      if (!isAiChatEnabled()) {
+        return res.status(503).json({ 
+          success: false, 
+          message: 'AI服务暂不可用',
+          reply: '抱歉，AI服务暂时不可用。请稍后再试。'
+        });
+      }
+
+      const { messages } = req.body;
+      
+      if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        return res.status(400).json({ success: false, message: '消息不能为空' });
+      }
+
+      const reply = await chat(messages);
+      
+      res.json({ success: true, reply });
+    } catch (error: any) {
+      console.error('AI Chat error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'AI服务出错',
+        reply: '抱歉，AI服务暂时出错。请稍后再试。'
+      });
+    }
+  });
+
   // 获取好友列表
   app.get('/api/liaoliao/friends', userAuthMiddleware, async (req: Request, res: Response) => {
     try {

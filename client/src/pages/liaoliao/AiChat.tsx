@@ -8,6 +8,7 @@ import { VoiceInputIcon } from '@/components/icons/VoiceInputIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserBottomNav } from '@/components/UserBottomNav';
+import { apiRequest } from '@/lib/queryClient';
 
 interface Message {
   id: string;
@@ -51,16 +52,37 @@ export default function LiaoliaoAiChat() {
     setInputValue('');
     setIsLoading(true);
 
-    setTimeout(() => {
+    try {
+      const chatHistory = [...messages, userMessage].map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const response = await apiRequest('POST', '/api/liaoliao/ai-chat', {
+        messages: chatHistory,
+      });
+
+      const data = await response.json();
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: t('liaoliao.aiThinking'),
+        content: data.reply || t('liaoliao.aiError'),
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, aiMessage]);
+    } catch (error) {
+      console.error('AI Chat error:', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: t('liaoliao.aiError'),
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
