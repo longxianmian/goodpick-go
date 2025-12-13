@@ -3,22 +3,20 @@ import { shortVideos } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
 let Mts20140618: any = null;
-let SubmitJobsRequest: any = null;
 let OpenApiConfig: any = null;
 
 async function loadMtsModule() {
   if (!Mts20140618) {
     const MtsModule = await import('@alicloud/mts20140618');
     const OpenApi = await import('@alicloud/openapi-client');
-    Mts20140618 = MtsModule.default;
-    SubmitJobsRequest = MtsModule.SubmitJobsRequest;
+    Mts20140618 = MtsModule;
     OpenApiConfig = OpenApi.Config;
   }
 }
 
 interface TranscodeJobResult {
   success: boolean;
-  jobId?: string;
+  mediaId?: string;
   error?: string;
 }
 
@@ -26,32 +24,23 @@ interface TranscodeConfig {
   accessKeyId: string;
   accessKeySecret: string;
   regionId: string;
-  pipelineId: string;
-  templateId: string;
   inputBucket: string;
-  outputBucket: string;
-  callbackUrl: string;
+  workflowId: string;
 }
 
 function getConfig(): TranscodeConfig {
   const accessKeyId = process.env.MPS_ACCESS_KEY_ID || process.env.ALI_OSS_ACCESS_KEY_ID || '';
   const accessKeySecret = process.env.MPS_ACCESS_KEY_SECRET || process.env.ALI_OSS_ACCESS_KEY_SECRET || '';
   const regionId = process.env.MPS_REGION_ID || 'ap-southeast-1';
-  const pipelineId = process.env.MPS_PIPELINE_ID || '';
-  const templateId = process.env.MPS_TEMPLATE_ID || '';
-  const inputBucket = process.env.OSS_BUCKET || process.env.ALI_OSS_BUCKET || '';
-  const outputBucket = process.env.OSS_BUCKET || process.env.ALI_OSS_BUCKET || '';
-  const callbackUrl = process.env.MPS_CALLBACK_URL || 'https://www.goodpickgo.com/api/transcode/callback';
+  const inputBucket = process.env.OSS_VIDEO_BUCKET || 'shuashua-video';
+  const workflowId = process.env.MPS_WORKFLOW_ID || '1991fa795ff14d29aefc26e340107ea0';
 
   return {
     accessKeyId,
     accessKeySecret,
     regionId,
-    pipelineId,
-    templateId,
     inputBucket,
-    outputBucket,
-    callbackUrl,
+    workflowId,
   };
 }
 
@@ -64,7 +53,7 @@ async function createClient(config: TranscodeConfig) {
   
   clientConfig.endpoint = `mts.${config.regionId}.aliyuncs.com`;
   
-  return new Mts20140618(clientConfig);
+  return new Mts20140618.default(clientConfig);
 }
 
 export async function submitTranscodeJob(
@@ -78,82 +67,55 @@ export async function submitTranscodeJob(
     return { success: false, error: 'Missing Aliyun credentials' };
   }
 
-  if (!config.pipelineId || !config.templateId) {
-    console.warn('[Transcode] Missing MPS pipeline or template ID, skipping transcode job');
-    return { success: false, error: 'Missing MPS pipeline or template ID' };
-  }
-
   try {
+    await loadMtsModule();
     const client = await createClient(config);
 
-    const inputData = {
-      Bucket: config.inputBucket,
-      Location: `oss-${config.regionId}`,
-      Object: inputObjectKey,
-    };
-
-    const outputObjectKey = inputObjectKey.replace(/\.[^/.]+$/, '.m3u8');
+    const fileURL = `http://${config.inputBucket}.oss-${config.regionId}.aliyuncs.com/${inputObjectKey}`;
     
-    const outputs = [{
-      OutputObject: outputObjectKey,
-      TemplateId: config.templateId,
-    }];
+    console.log(`[Transcode] Adding media for video ${videoId}`);
+    console.log(`[Transcode] FileURL: ${fileURL}`);
+    console.log(`[Transcode] WorkflowId: ${config.workflowId}`);
 
-    const submitJobsRequest = new SubmitJobsRequest({
-      input: JSON.stringify(inputData),
-      outputs: JSON.stringify(outputs),
-      outputBucket: config.outputBucket,
-      outputLocation: `oss-${config.regionId}`,
-      pipelineId: config.pipelineId,
+    const addMediaRequest = new Mts20140618.AddMediaRequest({
+      mediaWorkflowId: config.workflowId,
+      fileURL: fileURL,
+      title: `video-${videoId}`,
+      description: `Short video ${videoId}`,
     });
 
-    console.log(`[Transcode] Submitting job for video ${videoId}, input: ${inputObjectKey}`);
-    console.log(`[Transcode] Input: ${JSON.stringify(inputData)}`);
-    console.log(`[Transcode] Outputs: ${JSON.stringify(outputs)}`);
-    console.log(`[Transcode] Config check - AccessKeyId length: ${config.accessKeyId?.length || 0}, AccessKeySecret length: ${config.accessKeySecret?.length || 0}`);
-    console.log(`[Transcode] Endpoint: mts.${config.regionId}.aliyuncs.com`);
-
-    const response = await client.submitJobs(submitJobsRequest);
+    const response = await client.addMedia(addMediaRequest);
     
-    console.log('[Transcode] API Response:', JSON.stringify(response.body, null, 2));
+    console.log('[Transcode] AddMedia Response:', JSON.stringify(response.body, null, 2));
 
-    const jobResult = response.body?.jobResultList?.jobResult?.[0];
+    const media = response.body?.media;
+    const mediaId = media?.mediaId;
     
-    if (jobResult?.success && jobResult?.job?.jobId) {
-      const jobId = jobResult.job.jobId;
-      console.log(`[Transcode] Job submitted successfully, JobId: ${jobId}`);
+    if (mediaId) {
+      console.log(`[Transcode] Media added successfully, MediaId: ${mediaId}`);
+      
+      const runIdList = media?.runIdList?.runId;
+      const runId = Array.isArray(runIdList) ? runIdList[0] : runIdList;
       
       await db.update(shortVideos)
         .set({ 
-          transcodeJobId: jobId,
+          transcodeJobId: runId || mediaId,
           transcodeStatus: 'SUBMITTED',
         })
         .where(eq(shortVideos.id, videoId));
       
-      return { success: true, jobId };
+      return { success: true, mediaId };
     }
 
-    const errorCode = jobResult?.code || 'Unknown';
-    const errorMessage = jobResult?.message || 'Unknown error';
-    console.error(`[Transcode] API Error: ${errorCode} - ${errorMessage}`);
-    
-    await db.update(shortVideos)
-      .set({ 
-        transcodeStatus: 'FAILED',
-        transcodeError: `${errorCode}: ${errorMessage}`,
-      })
-      .where(eq(shortVideos.id, videoId));
-    
-    return { success: false, error: `${errorCode}: ${errorMessage}` };
+    console.error('[Transcode] No MediaId returned from API');
+    return { success: false, error: 'No MediaId returned' };
   } catch (error: any) {
     const errMsg = error.message || 'Unknown error';
-    console.error('[Transcode] Submit job error:', errMsg);
-    console.error('[Transcode] Full error details:', JSON.stringify({
+    console.error('[Transcode] AddMedia error:', errMsg);
+    console.error('[Transcode] Full error:', JSON.stringify({
       code: error.code,
       statusCode: error.statusCode,
       data: error.data,
-      description: error.description,
-      accessDeniedDetail: error.accessDeniedDetail,
     }, null, 2));
     
     await db.update(shortVideos)
@@ -172,8 +134,6 @@ export function isTranscodeConfigured(): boolean {
   return !!(
     config.accessKeyId &&
     config.accessKeySecret &&
-    config.pipelineId &&
-    config.templateId &&
     config.inputBucket
   );
 }
@@ -190,7 +150,7 @@ export async function triggerTranscodeAfterUpload(
   try {
     const result = await submitTranscodeJob(videoObjectKey, videoId);
     if (!result.success) {
-      console.warn(`[Transcode] Failed to submit job for video ${videoId}: ${result.error}`);
+      console.warn(`[Transcode] Failed to add media for video ${videoId}: ${result.error}`);
     }
   } catch (error) {
     console.error(`[Transcode] Error triggering transcode for video ${videoId}:`, error);
@@ -224,11 +184,42 @@ export async function batchTranscodePendingVideos(): Promise<number> {
       }
     }
 
-    console.log(`[Transcode] Triggered ${triggered} transcode jobs`);
+    console.log(`[Transcode] Triggered ${triggered} media additions`);
     return triggered;
   } catch (error) {
     console.error('[Transcode] Batch transcode error:', error);
     return 0;
+  }
+}
+
+export async function checkTranscodeStatus(mediaId: string): Promise<string> {
+  const config = getConfig();
+  
+  if (!config.accessKeyId || !config.accessKeySecret) {
+    return 'UNKNOWN';
+  }
+
+  try {
+    await loadMtsModule();
+    const client = await createClient(config);
+    
+    const request = new Mts20140618.QueryMediaListRequest({
+      mediaIds: mediaId,
+    });
+    
+    const response = await client.queryMediaList(request);
+    
+    const mediaList = response.body?.mediaList?.media;
+    if (mediaList && mediaList.length > 0) {
+      const media = mediaList[0];
+      console.log(`[Transcode] Media ${mediaId} status: ${media.publishState}`);
+      return media.publishState || 'UNKNOWN';
+    }
+    
+    return 'UNKNOWN';
+  } catch (error: any) {
+    console.error('[Transcode] Check status error:', error.message);
+    return 'ERROR';
   }
 }
 
