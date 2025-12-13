@@ -177,10 +177,8 @@ function VideoCard({ item, index }: { item: FeedItem; index: number }) {
                   <span>{imageCount}</span>
                 </div>
               ) : (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                  <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center">
-                    <Play className="w-5 h-5 text-[#38B03B] ml-0.5" fill="#38B03B" />
-                  </div>
+                <div className="absolute top-1.5 right-1.5 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                  <Play className="w-2.5 h-2.5" fill="currentColor" />
                 </div>
               )}
               {!isArticle && item.duration && (
@@ -190,9 +188,9 @@ function VideoCard({ item, index }: { item: FeedItem; index: number }) {
               )}
             </>
           ) : (
-            <div className={`w-full h-full bg-gradient-to-br ${gradientClass} flex items-center justify-center`}>
-              <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center">
-                <Play className="w-5 h-5 text-[#38B03B] ml-0.5" fill="#38B03B" />
+            <div className={`w-full h-full bg-gradient-to-br ${gradientClass} relative`}>
+              <div className="absolute top-1.5 right-1.5 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                <Play className="w-2.5 h-2.5" fill="currentColor" />
               </div>
             </div>
           )}
