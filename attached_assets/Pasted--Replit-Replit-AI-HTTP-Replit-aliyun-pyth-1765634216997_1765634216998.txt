@@ -1,0 +1,88 @@
+下面是一个面向 Replit 环境的执行说明文档，你可以复制粘贴给 Replit AI 来完成提交转码任务并设置 HTTP 回调地址。该文档假设你已经在 Replit 中安装了 aliyun-python-sdk-core 包（可通过 pip install aliyun-python-sdk-core 安装），并且已经有了阿里云的 AccessKeyId、AccessKeySecret、所在地域、输入/输出 OSS 存储信息以及转码模板和管道 ID。
+
+一、安装依赖
+# 如果尚未安装阿里云 Python SDK，可以先运行：
+pip install aliyun-python-sdk-core
+
+二、设置必要的参数
+
+在代码中填入以下信息（需要自行替换）：
+
+AccessKeyId：你的阿里云访问密钥 ID
+
+AccessKeySecret：你的阿里云访问密钥 Secret
+
+RegionId：媒体处理服务所在的地域，例如 cn-hangzhou
+
+InputBucket：存放待转码文件的 OSS Bucket 名称
+
+InputObject：待转码文件在 OSS 中的对象键，例如 video/input.mp4
+
+OutputBucket：存放转码结果的 OSS Bucket（通常与 InputBucket 相同）
+
+OutputObject：转码后的输出文件名，例如 video/output.mp4
+
+PipelineId：已启用的转码管道 ID
+
+TemplateId：需要使用的转码模板 ID
+
+CallbackUrl：回调地址，这里填写 https://www.goodpickgo.com/api/transcode/callback
+
+三、提交转码任务并设置回调
+
+下面的 Python 代码通过阿里云 SDK 调用 SubmitJobs 接口，提交单个转码任务，并将回调方式设置为 HTTP：
+
+from aliyunsdkcore.client import AcsClient
+from aliyunsdkcore.request import CommonRequest
+import json
+
+# 1. 初始化客户端
+access_key_id = "你的AccessKeyId"
+access_key_secret = "你的AccessKeySecret"
+region_id = "cn-hangzhou"  # 根据实际地域修改
+client = AcsClient(access_key_id, access_key_secret, region_id)
+
+# 2. 构建 SubmitJobs 请求
+request = CommonRequest()
+request.set_accept_format('json')
+request.set_domain('mts.aliyuncs.com')
+request.set_version('2014-06-18')
+request.set_action_name('SubmitJobs')
+
+# 3. 设置输入文件信息（Input）
+input_data = {
+    "Bucket": "your-input-bucket",
+    "Location": region_id,
+    "Object": "input/video.mp4"
+}
+
+# 4. 设置输出文件信息及转码模板（Outputs）
+outputs = [{
+    "OutputObject": "output/video.m3u8",
+    "TemplateId": "your-template-id"
+}]
+
+# 5. 设置回调配置（NotifyConfig）
+notify_config = {
+    "NotifyType": "URL",
+    "NotifyUrl": "https://www.goodpickgo.com/api/transcode/callback"
+}
+
+# 6. 填入必要的请求参数
+request.add_query_param('Input', json.dumps(input_data))
+request.add_query_param('Outputs', json.dumps(outputs))
+request.add_query_param('PipelineId', "your-pipeline-id")
+request.add_query_param('NotifyConfig', json.dumps(notify_config))
+
+# 7. 发送请求并处理响应
+response = client.do_action(request)
+print(str(response, encoding='utf-8'))
+
+
+说明：
+
+NotifyType 设置为 URL，NotifyUrl 填写你的回调接口地址，这样在任务处理完成后，阿里云将通过 HTTP POST 请求向该地址发送任务状态信息。
+
+Outputs 列表可以包含多个输出，如果需要生成不同格式或分辨率的视频，可在列表中添加多个字典并指定对应的 TemplateId 和 OutputObject。
+
+调用成功后，返回值中会包含任务的 JobId，可用于查询任务状态或结果。
