@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLocation, useRoute } from 'wouter';
 import { VerticalSwiper } from '@/components/short-video/VerticalSwiper';
@@ -10,6 +10,7 @@ import { Loader2, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { videoPreloader } from '@/lib/videoPreloader';
 
 interface FeedItem extends ShortVideoData {
   contentType?: 'video' | 'article';
@@ -39,6 +40,38 @@ export default function ShortVideoFeed() {
   const [isReady, setIsReady] = useState(false);
   const [commentDrawerOpen, setCommentDrawerOpen] = useState(false);
   const [activeCommentVideoId, setActiveCommentVideoId] = useState<number | null>(null);
+  const [debugInfo, setDebugInfo] = useState<{ id: number; isReady: boolean; bufferedSeconds: number }[]>([]);
+  const debugMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debugVideo') === '1';
+
+  const preloadVideos = useCallback((videos: FeedItem[], centerIndex: number) => {
+    const indicesToPreload = [centerIndex, centerIndex + 1, centerIndex - 1].filter(i => i >= 0 && i < videos.length);
+    const idsToKeep: number[] = [];
+
+    for (const idx of indicesToPreload) {
+      const item = videos[idx];
+      if (item && item.contentType !== 'article' && item.videoUrl) {
+        idsToKeep.push(item.id);
+        videoPreloader.preload({
+          id: item.id,
+          videoUrl: item.videoUrl,
+          hlsUrl: item.hlsUrl,
+        });
+      }
+    }
+
+    videoPreloader.releaseExcept(idsToKeep);
+
+    if (debugMode) {
+      setTimeout(() => {
+        setDebugInfo(videoPreloader.getDebugInfo());
+      }, 100);
+    }
+  }, [debugMode]);
+
+  const handleIndexChange = useCallback((newIndex: number) => {
+    setCurrentIndex(newIndex);
+    preloadVideos(allVideos, newIndex);
+  }, [allVideos, preloadVideos]);
 
   const { data, isLoading, isError, error } = useQuery<FeedResponse>({
     queryKey: ['/api/short-videos/feed'],
@@ -52,15 +85,19 @@ export default function ShortVideoFeed() {
       setCursor(data.data.nextCursor);
       setHasMore(data.data.hasMore);
       
+      let startIndex = 0;
       if (videoId) {
         const index = items.findIndex(v => v.id === videoId);
         if (index >= 0) {
+          startIndex = index;
           setCurrentIndex(index);
         }
       }
+      
+      preloadVideos(items, startIndex);
       setIsReady(true);
     }
-  }, [data, videoId, isReady]);
+  }, [data, videoId, isReady, preloadVideos]);
 
   const loadMore = useCallback(async () => {
     if (!hasMore || cursor === null) return;
@@ -243,7 +280,7 @@ export default function ShortVideoFeed() {
 
       <VerticalSwiper
         currentIndex={currentIndex}
-        onIndexChange={setCurrentIndex}
+        onIndexChange={handleIndexChange}
         onReachEnd={handleReachEnd}
       >
         {allVideos.map((item, index) => {
@@ -299,6 +336,20 @@ export default function ShortVideoFeed() {
           }}
           commentCount={allVideos.find(v => v.id === activeCommentVideoId)?.commentCount || 0}
         />
+      )}
+
+      {debugMode && (
+        <div className="absolute top-16 left-4 z-50 bg-black/80 text-white text-xs p-2 rounded max-w-[200px]">
+          <div className="font-bold mb-1">Debug Info</div>
+          <div>Index: {currentIndex}</div>
+          <div>Total: {allVideos.length}</div>
+          <div className="mt-1 font-bold">Preload:</div>
+          {debugInfo.map(info => (
+            <div key={info.id} className="text-[10px]">
+              #{info.id}: {info.isReady ? 'Ready' : 'Loading'} ({info.bufferedSeconds.toFixed(1)}s)
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

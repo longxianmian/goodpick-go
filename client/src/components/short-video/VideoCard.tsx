@@ -3,6 +3,7 @@ import Hls from 'hls.js';
 import { Heart, MessageCircle, Share2, Music2, UserCircle, Bookmark, Play, Volume2, VolumeX } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { videoPreloader } from '@/lib/videoPreloader';
 
 export interface ShortVideoData {
   id: number;
@@ -67,6 +68,27 @@ export function VideoCard({
     const videoEl = videoRef.current;
     if (!videoEl) return;
 
+    const preloaded = videoPreloader.transferToElement(video.id, videoEl);
+    
+    if (preloaded) {
+      if (preloaded.hls) {
+        hlsRef.current = preloaded.hls;
+        setUsingHls(true);
+        setVideoLoaded(true);
+        console.log(`[VideoCard] Video ${video.id}: Using preloaded HLS, first frame in ${preloaded.firstFrameTime.toFixed(0)}ms`);
+      } else {
+        setUsingHls(video.hlsUrl ? true : false);
+        setVideoLoaded(true);
+        console.log(`[VideoCard] Video ${video.id}: Using preloaded source, first frame in ${preloaded.firstFrameTime.toFixed(0)}ms`);
+      }
+      return () => {
+        if (hlsRef.current) {
+          hlsRef.current.destroy();
+          hlsRef.current = null;
+        }
+      };
+    }
+
     const hlsSource = video.hlsUrl;
     const isHlsSource = hlsSource && (hlsSource.includes('.m3u8') || hlsSource.includes('hls/sign'));
 
@@ -108,6 +130,7 @@ export function VideoCard({
             default:
               console.log(`[HLS] Video ${video.id}: Fatal error, falling back to MP4`);
               hls.destroy();
+              hlsRef.current = null;
               videoEl.src = video.videoUrl;
               setUsingHls(false);
               break;
@@ -133,6 +156,13 @@ export function VideoCard({
       videoEl.src = video.videoUrl;
       setUsingHls(false);
     }
+    
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
   }, [video.hlsUrl, video.videoUrl, video.id]);
 
   useEffect(() => {
