@@ -68,6 +68,42 @@ export default function ShortVideoFeed() {
     }
   }, [debugMode]);
 
+  const handleVideoProgress = useCallback((videoId: number, progressPercent: number) => {
+    if (progressPercent === 25) {
+      const currentVideo = allVideos.find(v => v.id === videoId);
+      if (!currentVideo) return;
+      
+      const currentIdx = allVideos.indexOf(currentVideo);
+      const nextItem = allVideos[currentIdx + 1];
+      
+      if (nextItem && nextItem.contentType !== 'article' && nextItem.videoUrl) {
+        if (debugMode) {
+          console.log(`[Feed] Video ${videoId} at 25%, preloading next: ${nextItem.id}`);
+        }
+        videoPreloader.preload({
+          id: nextItem.id,
+          videoUrl: nextItem.videoUrl,
+          hlsUrl: nextItem.hlsUrl,
+        });
+        
+        if (debugMode) {
+          setTimeout(() => {
+            setDebugInfo(videoPreloader.getDebugInfo());
+          }, 100);
+        }
+      }
+    }
+  }, [allVideos, debugMode]);
+
+  const [ttffMetrics, setTtffMetrics] = useState<{ videoId: number; ttff: number }[]>([]);
+  
+  const handleFirstFrame = useCallback((videoId: number, ttff: number) => {
+    setTtffMetrics(prev => [...prev.slice(-9), { videoId, ttff }]);
+    if (debugMode) {
+      console.log(`[Feed] Video ${videoId} TTFF: ${ttff.toFixed(0)}ms`);
+    }
+  }, [debugMode]);
+
   const handleIndexChange = useCallback((newIndex: number) => {
     setCurrentIndex(newIndex);
     preloadVideos(allVideos, newIndex);
@@ -305,6 +341,8 @@ export default function ShortVideoFeed() {
               onShare={handleShare}
               onBookmark={handleBookmark}
               onUserClick={handleUserClick}
+              onProgress={handleVideoProgress}
+              onFirstFrame={handleFirstFrame}
             />
           );
         })}
@@ -349,6 +387,19 @@ export default function ShortVideoFeed() {
               #{info.id}: {info.isReady ? 'Ready' : 'Loading'} ({info.bufferedSeconds.toFixed(1)}s)
             </div>
           ))}
+          {ttffMetrics.length > 0 && (
+            <>
+              <div className="mt-1 font-bold">TTFF:</div>
+              {ttffMetrics.slice(-3).map(m => (
+                <div key={m.videoId} className="text-[10px]">
+                  #{m.videoId}: {m.ttff.toFixed(0)}ms
+                </div>
+              ))}
+              <div className="text-[10px] text-green-400">
+                Avg: {(ttffMetrics.reduce((a, b) => a + b.ttff, 0) / ttffMetrics.length).toFixed(0)}ms
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

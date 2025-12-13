@@ -39,6 +39,8 @@ interface VideoCardProps {
   onShare?: (videoId: number) => void;
   onBookmark?: (videoId: number) => void;
   onUserClick?: (userId: number) => void;
+  onProgress?: (videoId: number, progress: number) => void;
+  onFirstFrame?: (videoId: number, ttff: number) => void;
 }
 
 export function VideoCard({ 
@@ -48,10 +50,15 @@ export function VideoCard({
   onComment, 
   onShare,
   onBookmark,
-  onUserClick 
+  onUserClick,
+  onProgress,
+  onFirstFrame,
 }: VideoCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const loadStartTimeRef = useRef<number>(0);
+  const firstFrameTriggeredRef = useRef<boolean>(false);
+  const progressTriggeredRef = useRef<Set<number>>(new Set());
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showPlayButton, setShowPlayButton] = useState(true);
@@ -67,6 +74,10 @@ export function VideoCard({
   useEffect(() => {
     const videoEl = videoRef.current;
     if (!videoEl) return;
+
+    loadStartTimeRef.current = performance.now();
+    firstFrameTriggeredRef.current = false;
+    progressTriggeredRef.current.clear();
 
     const preloaded = videoPreloader.transferToElement(video.id, videoEl);
     
@@ -228,8 +239,24 @@ export function VideoCard({
   const handleTimeUpdate = useCallback(() => {
     const videoEl = videoRef.current;
     if (!videoEl || !videoEl.duration) return;
-    setProgress((videoEl.currentTime / videoEl.duration) * 100);
-  }, []);
+    const currentProgress = (videoEl.currentTime / videoEl.duration) * 100;
+    setProgress(currentProgress);
+    
+    if (!firstFrameTriggeredRef.current && videoEl.currentTime > 0) {
+      firstFrameTriggeredRef.current = true;
+      const ttff = performance.now() - loadStartTimeRef.current;
+      console.log(`[VideoCard] Video ${video.id}: First frame in ${ttff.toFixed(0)}ms`);
+      onFirstFrame?.(video.id, ttff);
+    }
+    
+    const thresholds = [25, 50, 75];
+    for (const threshold of thresholds) {
+      if (currentProgress >= threshold && !progressTriggeredRef.current.has(threshold)) {
+        progressTriggeredRef.current.add(threshold);
+        onProgress?.(video.id, threshold);
+      }
+    }
+  }, [video.id, onProgress, onFirstFrame]);
 
   const handleLike = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
