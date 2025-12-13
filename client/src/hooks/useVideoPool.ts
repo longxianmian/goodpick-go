@@ -77,7 +77,7 @@ export function useVideoPool() {
     };
   }, []);
 
-  const loadVideo = useCallback((pooled: PooledVideo, video: VideoInfo): void => {
+  const loadVideo = useCallback((pooled: PooledVideo, video: VideoInfo, isPreload: boolean = false): void => {
     const { element } = pooled;
     
     if (pooled.hls) {
@@ -97,12 +97,12 @@ export function useVideoPool() {
       element.addEventListener('loadeddata', () => {
         pooled.isReady = true;
         const ttff = performance.now() - pooled.loadStartTime;
-        log(`Video ${video.id} ready in ${ttff.toFixed(0)}ms (mobile MP4)`);
+        log(`Video ${video.id} ready in ${ttff.toFixed(0)}ms (mobile MP4, preload: ${isPreload})`);
         ttffMetricsRef.current.push({
           videoId: video.id,
           ttff,
           source: 'mp4',
-          preloaded: false,
+          preloaded: isPreload,
         });
       }, { once: true });
     } else if (isHlsSource && Hls.isSupported()) {
@@ -113,12 +113,12 @@ export function useVideoPool() {
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         pooled.isReady = true;
         const ttff = performance.now() - pooled.loadStartTime;
-        log(`Video ${video.id} HLS ready in ${ttff.toFixed(0)}ms`);
+        log(`Video ${video.id} HLS ready in ${ttff.toFixed(0)}ms (preload: ${isPreload})`);
         ttffMetricsRef.current.push({
           videoId: video.id,
           ttff,
           source: 'hls',
-          preloaded: false,
+          preloaded: isPreload,
         });
       });
       
@@ -131,12 +131,12 @@ export function useVideoPool() {
           element.addEventListener('loadeddata', () => {
             pooled.isReady = true;
             const ttff = performance.now() - pooled.loadStartTime;
-            log(`Video ${video.id} MP4 fallback ready in ${ttff.toFixed(0)}ms`);
+            log(`Video ${video.id} MP4 fallback ready in ${ttff.toFixed(0)}ms (preload: ${isPreload})`);
             ttffMetricsRef.current.push({
               videoId: video.id,
               ttff,
               source: 'mp4',
-              preloaded: true,
+              preloaded: isPreload,
             });
           }, { once: true });
         }
@@ -148,12 +148,12 @@ export function useVideoPool() {
       element.addEventListener('loadeddata', () => {
         pooled.isReady = true;
         const ttff = performance.now() - pooled.loadStartTime;
-        log(`Video ${video.id} native HLS ready in ${ttff.toFixed(0)}ms`);
+        log(`Video ${video.id} native HLS ready in ${ttff.toFixed(0)}ms (preload: ${isPreload})`);
         ttffMetricsRef.current.push({
           videoId: video.id,
           ttff,
           source: 'native-hls',
-          preloaded: false,
+          preloaded: isPreload,
         });
       }, { once: true });
     } else {
@@ -161,12 +161,12 @@ export function useVideoPool() {
       element.addEventListener('loadeddata', () => {
         pooled.isReady = true;
         const ttff = performance.now() - pooled.loadStartTime;
-        log(`Video ${video.id} MP4 ready in ${ttff.toFixed(0)}ms`);
+        log(`Video ${video.id} MP4 ready in ${ttff.toFixed(0)}ms (preload: ${isPreload})`);
         ttffMetricsRef.current.push({
           videoId: video.id,
           ttff,
           source: 'mp4',
-          preloaded: false,
+          preloaded: isPreload,
         });
       }, { once: true });
     }
@@ -192,7 +192,7 @@ export function useVideoPool() {
     }
     
     log(`Preloading next video: ${video.id}`);
-    loadVideo(nextVideoRef.current, video);
+    loadVideo(nextVideoRef.current, video, true);
   }, [loadVideo, log]);
 
   const playCurrent = useCallback((video: VideoInfo, onFirstFrame?: () => void): HTMLVideoElement | null => {
@@ -201,7 +201,7 @@ export function useVideoPool() {
     const pooled = currentVideoRef.current;
     
     if (pooled.videoId !== video.id) {
-      loadVideo(pooled, video);
+      loadVideo(pooled, video, false);
     }
     
     pooled.element.style.opacity = '1';
