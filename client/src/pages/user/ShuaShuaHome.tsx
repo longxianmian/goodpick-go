@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { Search, Heart, Play, Eye, Image, Tag, Package, Percent, Store, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Heart, Play, Eye, Image, Tag, Package, Percent, Store, ChevronDown, ChevronUp, Megaphone, ShoppingBag } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -288,8 +288,8 @@ function CampaignCard({ campaign, index }: { campaign: Campaign; index: number }
               {t('common.currencySymbol')}{parseFloat(campaign.couponValue).toFixed(0)}
             </Badge>
           )}
-          <div className="absolute top-1.5 right-1.5 bg-[#38B03B] text-white text-[8px] px-1.5 py-0.5 rounded">
-            {t('discover.campaign')}
+          <div className="absolute top-1.5 right-1.5 bg-[#38B03B] text-white text-[9px] px-1.5 py-0.5 rounded flex items-center gap-0.5">
+            <Megaphone className="w-2.5 h-2.5" />
           </div>
         </div>
         
@@ -365,8 +365,8 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
               {t('discover.discount')}
             </Badge>
           )}
-          <div className="absolute top-1.5 right-1.5 bg-blue-500 text-white text-[8px] px-1.5 py-0.5 rounded">
-            {t('discover.product')}
+          <div className="absolute top-1.5 right-1.5 bg-blue-500 text-white text-[9px] px-1.5 py-0.5 rounded flex items-center gap-0.5">
+            <ShoppingBag className="w-2.5 h-2.5" />
           </div>
         </div>
         
