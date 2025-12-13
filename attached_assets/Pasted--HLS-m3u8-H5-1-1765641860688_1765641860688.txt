@@ -1,0 +1,154 @@
+好，**HLS（m3u8）一旦做对了，你的 H5 体验很容易从“卡”直接跳到“接近抖音”**。下面给你一份“正在开发中就能立刻对照落地”的清单（含可复制命令/代码），按优先级做。
+
+---
+
+## 1）先把 HLS 输出规格定死（决定你“顺不顺”）
+
+**推荐（体感最稳的）参数：**
+
+* 分片时长：`2s`
+* 关键帧间隔（GOP）：`2s`（= 分片时长，保证切片边界是关键帧）
+* 至少 2～3 档码率：`480p / 720p / 1080p`（弱网自动降档）
+* 音频：AAC 48k 或 64k（别太高）
+
+### 本地快速验证用 ffmpeg（你让 ReplitAI 用这个先产一版对照）
+
+```bash
+# 720p 单码率（先把链路跑通）
+ffmpeg -i input.mp4 \
+  -vf "scale=-2:720" -c:v libx264 -profile:v main -preset veryfast -crf 23 \
+  -g 50 -keyint_min 50 -sc_threshold 0 \
+  -c:a aac -b:a 64k -ar 44100 \
+  -hls_time 2 -hls_playlist_type vod \
+  -hls_flags independent_segments \
+  -hls_segment_filename "720p_%03d.ts" \
+  720p.m3u8
+```
+
+> `-g` 这里要按帧率算：25fps → 50；30fps → 60。核心是：**GOP≈2秒**，并且 `sc_threshold 0` 防止乱插关键帧导致切片不齐。
+
+后续做自适应（master.m3u8）可以再加两档输出。
+
+---
+
+## 2）前端播放：iOS 原生 + 其它用 hls.js（别硬兼容）
+
+* **iPhone/Safari**：原生就能播 HLS（不要强塞 hls.js）
+* **Android/Chrome**：用 `hls.js`
+
+### React/Next 可直接用的播放器代码（最小可跑）
+
+```ts
+import Hls from "hls.js";
+import { useEffect, useRef } from "react";
+
+export function HlsVideo({ src, autoplay = true }: { src: string; autoplay?: boolean }) {
+  const ref = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = ref.current!;
+    if (!video || !src) return;
+
+    // iOS Safari 原生 HLS
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = src;
+      if (autoplay) video.play().catch(() => {});
+      return;
+    }
+
+    // 其他浏览器：hls.js
+    if (Hls.isSupported()) {
+      const hls = new Hls({
+        // 降低首帧时间 + 提前缓冲
+        startLevel: -1,
+        maxBufferLength: 6,
+        maxMaxBufferLength: 12,
+        backBufferLength: 6,
+        lowLatencyMode: false,
+      });
+
+      hls.loadSource(src);
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (autoplay) video.play().catch(() => {});
+      });
+
+      return () => hls.destroy();
+    }
+  }, [src, autoplay]);
+
+  return (
+    <video
+      ref={ref}
+      playsInline
+      muted
+      preload="metadata"
+      controls={false}
+      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+    />
+  );
+}
+```
+
+---
+
+## 3）丝滑的关键：做“播放器池 + 下一条预加载”
+
+你现在卡的 90% 原因：**切换时创建/销毁 video 或重新挂载页面**。
+
+### 必做规则（做到就接近抖音）
+
+1. 永远只保留 **2 个 `<video>`**：`current` + `next`（可加 `prev` 但先别）
+2. 当前播放到 **25%** 时，就把下一条塞进 `next` 去加载
+3. 用户滑到下一条时，只做“交换角色”，不要新建 DOM
+
+**给 ReplitAI 的任务描述（直接复制发它）：**
+
+* 实现 `useVideoPool()`：维护 `currentVideoEl` 和 `nextVideoEl`
+* `onProgress` 到 25% 调用 `preload(nextUrl)`：让 nextVideo 开始缓冲
+* 切换时：`swap(current, next)`，并立刻预加载新的 next
+
+---
+
+## 4）OSS/Nginx/接口头：不对会“能播但不顺”
+
+你要确保 m3u8 和 ts 的 **CORS + Cache + Content-Type** 正确，否则会反复请求、首帧慢、甚至跨域报错。
+
+### 必要响应头（OSS 或 Nginx）
+
+* `Access-Control-Allow-Origin: *`
+* `Access-Control-Allow-Methods: GET,HEAD,OPTIONS`
+* `Access-Control-Allow-Headers: Range, Origin, Accept, Referer, User-Agent`
+* `Accept-Ranges: bytes`
+
+### Cache 建议
+
+* `master.m3u8 / index.m3u8`：`Cache-Control: no-cache`（更新快）
+* `*.ts`：`Cache-Control: public, max-age=31536000, immutable`（分片可长期缓存）
+
+---
+
+## 5）你现在就该加的“体验指标”（用数据判断是不是到 80%）
+
+加一个简单埋点：每次切换统计 **TTFF（切到下一条到首帧的时间）**。
+
+* 目标：同城正常网 **< 300ms**；弱网 **< 800ms** 体感就很好。
+
+**实现要点：**
+
+* 切换开始记 `t0`
+* 监听 video 的 `loadeddata` 或 `playing` 记 `t1`
+* 上报 `t1 - t0`
+
+---
+
+### 你接下来最该做的顺序（别乱）
+
+1. 先用 ffmpeg 产一版 `2s切片 + 2s GOP` 的 HLS 对照验证“链路本身是否顺”
+2. 前端按 **iOS 原生 + hls.js** 播通
+3. 上 **播放器池 + 预加载下一条**
+4. 补齐 OSS/Nginx 头与缓存策略
+5. 加 TTFF 埋点，用数据调优
+
+如果你把你现在的 **m3u8 示例链接（或一段播放页面代码）**贴出来，我可以直接指出：你卡顿主要是「转码参数」还是「前端切换策略」还是「缓存/CORS」导致的，并给你对应的最小改动方案。
