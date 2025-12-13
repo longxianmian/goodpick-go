@@ -110,6 +110,8 @@ export async function submitTranscodeJob(
     console.log(`[Transcode] Submitting job for video ${videoId}, input: ${inputObjectKey}`);
     console.log(`[Transcode] Input: ${JSON.stringify(inputData)}`);
     console.log(`[Transcode] Outputs: ${JSON.stringify(outputs)}`);
+    console.log(`[Transcode] Config check - AccessKeyId length: ${config.accessKeyId?.length || 0}, AccessKeySecret length: ${config.accessKeySecret?.length || 0}`);
+    console.log(`[Transcode] Endpoint: mts.${config.regionId}.aliyuncs.com`);
 
     const response = await client.submitJobs(submitJobsRequest);
     
@@ -146,6 +148,13 @@ export async function submitTranscodeJob(
   } catch (error: any) {
     const errMsg = error.message || 'Unknown error';
     console.error('[Transcode] Submit job error:', errMsg);
+    console.error('[Transcode] Full error details:', JSON.stringify({
+      code: error.code,
+      statusCode: error.statusCode,
+      data: error.data,
+      description: error.description,
+      accessDeniedDetail: error.accessDeniedDetail,
+    }, null, 2));
     
     await db.update(shortVideos)
       .set({ 
