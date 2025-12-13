@@ -62,7 +62,7 @@ export function VideoCard({
   const [bookmarked, setBookmarked] = useState(video.isBookmarked ?? false);
   const [bookmarkCount, setBookmarkCount] = useState(video.bookmarkCount ?? 0);
   const [usingHls, setUsingHls] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
 
   useEffect(() => {
     const videoEl = videoRef.current;
@@ -170,20 +170,31 @@ export function VideoCard({
     if (!videoEl) return;
 
     if (isActive) {
-      videoEl.play().then(() => {
-        setIsPlaying(true);
-        setShowPlayButton(false);
-      }).catch(() => {
-        setIsPlaying(false);
-        setShowPlayButton(true);
-      });
+      videoEl.muted = isMuted;
+      const playPromise = videoEl.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          setIsPlaying(true);
+          setShowPlayButton(false);
+        }).catch(() => {
+          videoEl.muted = true;
+          setIsMuted(true);
+          videoEl.play().then(() => {
+            setIsPlaying(true);
+            setShowPlayButton(false);
+          }).catch(() => {
+            setIsPlaying(false);
+            setShowPlayButton(true);
+          });
+        });
+      }
     } else {
       videoEl.pause();
       videoEl.currentTime = 0;
       setIsPlaying(false);
       setProgress(0);
     }
-  }, [isActive]);
+  }, [isActive, isMuted]);
 
   const handleVideoLoaded = useCallback(() => {
     setVideoLoaded(true);

@@ -16,79 +16,93 @@ export function VerticalSwiper({
   className = '',
 }: VerticalSwiperProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchMove, setTouchMove] = useState<number | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
+  
+  const touchStartRef = useRef<{ y: number; time: number } | null>(null);
+  const velocityRef = useRef(0);
 
-  const threshold = 80;
-  const baseTranslateY = -currentIndex * (100 / children.length);
-  const translateY = baseTranslateY + dragOffset;
+  const threshold = 50;
+  const velocityThreshold = 0.3;
+  const translateY = -currentIndex * 100 + dragOffset;
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (isAnimating) return;
-    setTouchStart(e.touches[0].clientY);
-    setTouchMove(null);
+    touchStartRef.current = {
+      y: e.touches[0].clientY,
+      time: Date.now(),
+    };
+    velocityRef.current = 0;
   }, [isAnimating]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (touchStart === null || isAnimating) return;
+    if (!touchStartRef.current || isAnimating) return;
+    
+    e.preventDefault();
     
     const currentTouch = e.touches[0].clientY;
-    const diff = currentTouch - touchStart;
-    setTouchMove(currentTouch);
+    const diff = currentTouch - touchStartRef.current.y;
+    const timeDiff = Date.now() - touchStartRef.current.time;
+    
+    if (timeDiff > 0) {
+      velocityRef.current = diff / timeDiff;
+    }
 
     const container = containerRef.current;
     if (!container) return;
 
     const containerHeight = container.clientHeight;
-    const movePercent = (diff / containerHeight) * (100 / children.length);
+    const movePercent = (diff / containerHeight) * 100;
     
-    const dampingFactor = 0.3;
-    const dampedMove = movePercent * dampingFactor;
+    const atStart = currentIndex === 0 && diff > 0;
+    const atEnd = currentIndex === children.length - 1 && diff < 0;
+    const dampingFactor = (atStart || atEnd) ? 0.2 : 0.6;
     
-    setDragOffset(dampedMove);
-  }, [touchStart, isAnimating, children.length]);
+    setDragOffset(movePercent * dampingFactor);
+  }, [isAnimating, currentIndex, children.length]);
 
   const handleTouchEnd = useCallback(() => {
-    if (touchStart === null || touchMove === null || isAnimating) {
-      setTouchStart(null);
-      setTouchMove(null);
+    if (!touchStartRef.current || isAnimating) {
+      touchStartRef.current = null;
       setDragOffset(0);
       return;
     }
 
-    const diff = touchMove - touchStart;
     const container = containerRef.current;
-    
     if (!container) {
-      setTouchStart(null);
-      setTouchMove(null);
+      touchStartRef.current = null;
       setDragOffset(0);
       return;
     }
+
+    const containerHeight = container.clientHeight;
+    const dragPixels = (dragOffset / 100) * containerHeight;
+    const velocity = velocityRef.current;
+    
+    const shouldSwipe = Math.abs(dragPixels) > threshold || Math.abs(velocity) > velocityThreshold;
+    const direction = dragPixels !== 0 ? Math.sign(dragPixels) : Math.sign(velocity);
 
     setIsAnimating(true);
     setDragOffset(0);
 
-    if (Math.abs(diff) > threshold) {
-      if (diff < 0 && currentIndex < children.length - 1) {
+    if (shouldSwipe) {
+      if (direction < 0 && currentIndex < children.length - 1) {
         onIndexChange(currentIndex + 1);
         if (currentIndex + 1 === children.length - 1) {
           onReachEnd?.();
         }
-      } else if (diff > 0 && currentIndex > 0) {
+      } else if (direction > 0 && currentIndex > 0) {
         onIndexChange(currentIndex - 1);
       }
     }
 
     setTimeout(() => {
       setIsAnimating(false);
-    }, 300);
+    }, 280);
 
-    setTouchStart(null);
-    setTouchMove(null);
-  }, [touchStart, touchMove, currentIndex, children.length, onIndexChange, onReachEnd, isAnimating]);
+    touchStartRef.current = null;
+    velocityRef.current = 0;
+  }, [dragOffset, currentIndex, children.length, onIndexChange, onReachEnd, isAnimating]);
 
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
@@ -152,25 +166,27 @@ export function VerticalSwiper({
   return (
     <div
       ref={containerRef}
-      className={`h-full w-full overflow-hidden ${className}`}
+      className={`h-full w-full overflow-hidden touch-none ${className}`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       data-testid="vertical-swiper"
     >
       <div
-        className="h-full w-full"
+        className="w-full"
         style={{
-          transform: `translateY(${translateY}%)`,
-          height: `${children.length * 100}%`,
-          transition: isAnimating ? 'transform 300ms ease-out' : 'none',
+          transform: `translate3d(0, ${translateY}vh, 0)`,
+          height: `${children.length * 100}vh`,
+          transition: isAnimating ? 'transform 280ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
+          willChange: 'transform',
+          pointerEvents: isAnimating ? 'none' : 'auto',
         }}
       >
         {children.map((child, index) => (
           <div
             key={index}
-            className="w-full h-full"
-            style={{ height: `${100 / children.length}%` }}
+            className="w-full"
+            style={{ height: '100vh' }}
             data-testid={`swiper-slide-${index}`}
           >
             {child}

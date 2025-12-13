@@ -18,15 +18,22 @@ interface VideoInfo {
 
 const DEBUG_KEY = 'debugVideo';
 
+const isMobile = () => {
+  if (typeof window === 'undefined') return false;
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+};
+
 class VideoPreloader {
   private cache = new Map<number, PreloadedVideo>();
   private maxCacheSize = 3;
   private debugMode = false;
+  private isMobileDevice = false;
 
   constructor() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       this.debugMode = params.get(DEBUG_KEY) === '1';
+      this.isMobileDevice = isMobile();
     }
   }
 
@@ -42,13 +49,13 @@ class VideoPreloader {
       return;
     }
 
-    this.log(`Starting preload for video ${video.id}`);
+    this.log(`Starting preload for video ${video.id} (mobile: ${this.isMobileDevice})`);
     const loadStartTime = performance.now();
 
     const videoEl = document.createElement('video');
     videoEl.muted = true;
     videoEl.playsInline = true;
-    videoEl.preload = 'auto';
+    videoEl.preload = this.isMobileDevice ? 'metadata' : 'auto';
     videoEl.style.position = 'absolute';
     videoEl.style.left = '-9999px';
     videoEl.style.width = '1px';
@@ -68,7 +75,13 @@ class VideoPreloader {
     const hlsSource = video.hlsUrl;
     const isHlsSource = hlsSource && (hlsSource.includes('.m3u8') || hlsSource.includes('hls/sign'));
 
-    if (isHlsSource && Hls.isSupported()) {
+    if (this.isMobileDevice) {
+      videoEl.src = video.videoUrl;
+      videoEl.addEventListener('loadedmetadata', () => {
+        preloaded.isReady = true;
+        this.log(`Video ${video.id} metadata ready in ${(performance.now() - loadStartTime).toFixed(0)}ms (mobile)`);
+      }, { once: true });
+    } else if (isHlsSource && Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
@@ -99,6 +112,9 @@ class VideoPreloader {
           hls.destroy();
           preloaded.hls = null;
           videoEl.src = video.videoUrl;
+          videoEl.addEventListener('loadeddata', () => {
+            preloaded.isReady = true;
+          }, { once: true });
         }
       });
 
