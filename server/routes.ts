@@ -16,6 +16,7 @@ import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService'
 import { translateText } from './services/translationService';
 import { sendWelcomeMessageIfNeeded } from './services/welcomeService';
 import { createCampaignBroadcast, runBroadcastTask } from './services/broadcastService';
+import { triggerTranscodeAfterUpload } from './services/transcodeService';
 import { mapLineLangToPreferredLang } from './utils/language';
 import type { Admin, User } from '@shared/schema';
 import { nanoid } from 'nanoid';
@@ -5764,6 +5765,10 @@ export function registerRoutes(app: Express): Server {
         fileSize: videoFile.size,
         transcodeStatus: 'PENDING',
       }).returning();
+
+      triggerTranscodeAfterUpload(videoObjectName, newVideo.id).catch(err => {
+        console.error('[Short Video] Transcode trigger error:', err);
+      });
 
       res.json({
         success: true,

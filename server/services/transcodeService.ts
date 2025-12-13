@@ -79,19 +79,11 @@ export async function submitTranscodeJob(
       Object: inputObjectKey,
     };
 
-    const outputObjectKey = inputObjectKey.replace(/\.[^/.]+$/, '');
+    const outputObjectKey = inputObjectKey.replace(/\.[^/.]+$/, '.m3u8');
     
     const outputs = [{
-      OutputObject: `${outputObjectKey}/{Count}.ts`,
+      OutputObject: outputObjectKey,
       TemplateId: config.templateId,
-      Container: {
-        Format: 'm3u8',
-      },
-      MuxConfig: {
-        Segment: {
-          Duration: '10',
-        },
-      },
     }];
 
     const submitJobsRequest = new SubmitJobsRequest({
