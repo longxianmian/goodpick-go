@@ -11103,6 +11103,64 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // 手动触发单个视频转码
+  app.post('/api/transcode/trigger/:videoId', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const videoId = parseInt(req.params.videoId);
+      const [video] = await db
+        .select()
+        .from(shortVideos)
+        .where(eq(shortVideos.id, videoId))
+        .limit(1);
+
+      if (!video) {
+        return res.status(404).json({ success: false, message: '视频不存在' });
+      }
+
+      if (!video.videoObjectKey) {
+        return res.status(400).json({ success: false, message: '视频缺少OSS路径信息' });
+      }
+
+      triggerTranscodeAfterUpload(video.videoObjectKey, video.id);
+      
+      res.json({ success: true, message: '转码任务已提交' });
+    } catch (error) {
+      console.error('Trigger transcode error:', error);
+      res.status(500).json({ success: false, message: '触发转码失败' });
+    }
+  });
+
+  // 批量触发待转码视频
+  app.post('/api/transcode/batch', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const pendingVideos = await db
+        .select()
+        .from(shortVideos)
+        .where(and(
+          eq(shortVideos.transcodeStatus, 'PENDING'),
+          isNotNull(shortVideos.videoObjectKey)
+        ))
+        .limit(10);
+
+      let triggered = 0;
+      for (const video of pendingVideos) {
+        if (video.videoObjectKey) {
+          triggerTranscodeAfterUpload(video.videoObjectKey, video.id);
+          triggered++;
+        }
+      }
+
+      res.json({ 
+        success: true, 
+        message: `已触发 ${triggered} 个视频的转码任务`,
+        count: triggered 
+      });
+    } catch (error) {
+      console.error('Batch transcode error:', error);
+      res.status(500).json({ success: false, message: '批量转码失败' });
+    }
+  });
+
   // 手动触发转码状态检查（调试用）
   app.get('/api/transcode/status/:videoId', userAuthMiddleware, async (req: Request, res: Response) => {
     try {
