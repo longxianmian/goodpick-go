@@ -5749,6 +5749,7 @@ export function registerRoutes(app: Express): Server {
         creatorUserId: userId,
         videoUrl,
         hlsUrl,
+        videoObjectKey: videoObjectName,
         coverImageUrl,
         thumbnailUrl,
         title: title || null,
@@ -5761,6 +5762,7 @@ export function registerRoutes(app: Express): Server {
         isPublic: isPublic !== 'false',
         publishedAt: new Date(),
         fileSize: videoFile.size,
+        transcodeStatus: 'PENDING',
       }).returning();
 
       res.json({
@@ -10951,6 +10953,178 @@ export function registerRoutes(app: Express): Server {
     } catch (error: any) {
       console.error('Register phone hash error:', error);
       res.status(500).json({ message: 'Failed to register phone hash' });
+    }
+  });
+
+  // ============ 阿里云MPS转码回调接口 ============
+  app.post('/api/transcode/callback', async (req: Request, res: Response) => {
+    try {
+      const payload = req.body;
+      console.log('[Transcode Callback] 收到回调:', JSON.stringify(payload, null, 2));
+
+      // 解析阿里云MPS/VOD转码回调payload（兼容多种格式）
+      // Aliyun MPS格式: InputFile.Object, Output.OutputFiles.File[].Object
+      // 简化格式: input.object, outputs[].object
+      const jobId = payload.JobId || payload.jobId || payload.RunId || payload.MediaWorkflowExecution?.RunId || '';
+      const status = payload.State || payload.Status || payload.status || 
+                     payload.MediaWorkflowExecution?.State || '';
+      
+      // 解析输入文件路径（支持多种Aliyun格式）
+      let inputObject = '';
+      if (payload.InputFile?.Object) {
+        inputObject = payload.InputFile.Object;
+      } else if (payload.Input?.Object) {
+        inputObject = payload.Input.Object;
+      } else if (payload.input?.object) {
+        inputObject = payload.input.object;
+      } else if (payload.MediaWorkflowExecution?.Input?.InputFile?.Object) {
+        inputObject = payload.MediaWorkflowExecution.Input.InputFile.Object;
+      }
+
+      // 解析输出文件路径（获取m3u8）
+      let m3u8ObjectKey = '';
+      
+      // Aliyun MPS标准格式（按优先级检查多种可能的路径）
+      let outputFiles: any[] = [];
+      
+      // MediaWorkflowExecution格式（最常见的工作流回调格式）
+      if (payload.MediaWorkflowExecution?.Output?.OutputFiles?.File) {
+        const mweFiles = payload.MediaWorkflowExecution.Output.OutputFiles.File;
+        outputFiles = Array.isArray(mweFiles) ? mweFiles : [mweFiles];
+      }
+      // 直接Output格式
+      else if (payload.Output?.OutputFiles?.File) {
+        const outFiles = payload.Output.OutputFiles.File;
+        outputFiles = Array.isArray(outFiles) ? outFiles : [outFiles];
+      }
+      // OutputFiles格式
+      else if (payload.OutputFiles?.File) {
+        const files = payload.OutputFiles.File;
+        outputFiles = Array.isArray(files) ? files : [files];
+      }
+      // 简化格式
+      else if (payload.outputs) {
+        outputFiles = Array.isArray(payload.outputs) ? payload.outputs : [payload.outputs];
+      }
+      
+      if (outputFiles.length > 0) {
+        // 优先找m3u8文件
+        const hlsOutput = outputFiles.find((o: any) => 
+          (o.Object || o.object || '').endsWith('.m3u8')
+        );
+        m3u8ObjectKey = hlsOutput?.Object || hlsOutput?.object || '';
+        
+        // 如果没找到m3u8，取第一个输出
+        if (!m3u8ObjectKey && outputFiles[0]) {
+          m3u8ObjectKey = outputFiles[0].Object || outputFiles[0].object || '';
+        }
+      } else if (payload.Output?.OutputFile?.Object) {
+        m3u8ObjectKey = payload.Output.OutputFile.Object;
+      } else if (payload.MediaWorkflowExecution?.Output?.OutputFile?.Object) {
+        m3u8ObjectKey = payload.MediaWorkflowExecution.Output.OutputFile.Object;
+      }
+
+      console.log('[Transcode Callback] 解析结果:', { jobId, status, inputObject, m3u8ObjectKey });
+
+      if (!inputObject) {
+        console.warn('[Transcode Callback] 无法识别输入文件，忽略');
+        return res.json({ success: true, message: 'Callback received but input not recognized' });
+      }
+
+      // 通过videoObjectKey关联数据库记录
+      const [video] = await db
+        .select()
+        .from(shortVideos)
+        .where(eq(shortVideos.videoObjectKey, inputObject))
+        .limit(1);
+
+      if (!video) {
+        console.warn('[Transcode Callback] 未找到匹配视频记录:', inputObject);
+        return res.json({ success: true, message: 'Video record not found' });
+      }
+
+      const isSuccess = status.toUpperCase() === 'SUCCESS' || status === 'Succeed';
+      const isFailed = status.toUpperCase() === 'FAILED' || status === 'Fail';
+
+      if (isSuccess && m3u8ObjectKey) {
+        // 构建HLS URL
+        const ossRegion = process.env.OSS_REGION || 'oss-ap-southeast-1';
+        const ossBucket = process.env.OSS_BUCKET || 'prodee-h5-assets';
+        const hlsUrl = `https://${ossBucket}.${ossRegion}.aliyuncs.com/${m3u8ObjectKey}`;
+
+        await db
+          .update(shortVideos)
+          .set({
+            hlsUrl,
+            transcodeStatus: 'SUCCESS',
+            transcodeJobId: jobId,
+            transcodedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(shortVideos.id, video.id));
+
+        console.log('[Transcode Callback] 转码成功，已更新视频:', video.id, hlsUrl);
+      } else if (isFailed) {
+        const errorMsg = payload.message || payload.Message || payload.FailReason || 'Unknown error';
+        await db
+          .update(shortVideos)
+          .set({
+            transcodeStatus: 'FAILED',
+            transcodeJobId: jobId,
+            transcodeError: errorMsg,
+            updatedAt: new Date(),
+          })
+          .where(eq(shortVideos.id, video.id));
+
+        console.log('[Transcode Callback] 转码失败:', video.id, errorMsg);
+      } else {
+        // 处理中状态
+        await db
+          .update(shortVideos)
+          .set({
+            transcodeStatus: 'PROCESSING',
+            transcodeJobId: jobId,
+            updatedAt: new Date(),
+          })
+          .where(eq(shortVideos.id, video.id));
+
+        console.log('[Transcode Callback] 转码处理中:', video.id);
+      }
+
+      res.json({ success: true, message: 'Callback processed' });
+    } catch (error) {
+      console.error('[Transcode Callback] 处理错误:', error);
+      res.status(500).json({ success: false, message: 'Callback processing failed' });
+    }
+  });
+
+  // 手动触发转码状态检查（调试用）
+  app.get('/api/transcode/status/:videoId', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const videoId = parseInt(req.params.videoId);
+      const [video] = await db
+        .select({
+          id: shortVideos.id,
+          videoUrl: shortVideos.videoUrl,
+          hlsUrl: shortVideos.hlsUrl,
+          videoObjectKey: shortVideos.videoObjectKey,
+          transcodeStatus: shortVideos.transcodeStatus,
+          transcodeJobId: shortVideos.transcodeJobId,
+          transcodeError: shortVideos.transcodeError,
+          transcodedAt: shortVideos.transcodedAt,
+        })
+        .from(shortVideos)
+        .where(eq(shortVideos.id, videoId))
+        .limit(1);
+
+      if (!video) {
+        return res.status(404).json({ success: false, message: '视频不存在' });
+      }
+
+      res.json({ success: true, data: video });
+    } catch (error) {
+      console.error('Get transcode status error:', error);
+      res.status(500).json({ success: false, message: '获取转码状态失败' });
     }
   });
 

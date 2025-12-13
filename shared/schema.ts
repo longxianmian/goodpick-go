@@ -769,8 +769,15 @@ export const shortVideos = pgTable('short_videos', {
   // 视频媒体资源（视频类型必填）
   videoUrl: text('video_url'),                    // 原始视频URL（MP4）
   hlsUrl: text('hls_url'),                        // HLS流URL (m3u8)，由阿里云MPS转码生成
+  videoObjectKey: text('video_object_key'),       // OSS对象键（用于转码回调关联）
   coverImageUrl: text('cover_image_url'),         // 封面图（大图）
   thumbnailUrl: text('thumbnail_url'),            // 缩略图（列表用小图）
+  
+  // 转码状态跟踪
+  transcodeStatus: text('transcode_status').notNull().default('PENDING'),  // PENDING|PROCESSING|SUCCESS|FAILED
+  transcodeJobId: text('transcode_job_id'),       // 阿里云转码任务ID
+  transcodeError: text('transcode_error'),        // 转码失败原因
+  transcodedAt: timestamp('transcoded_at'),       // 转码完成时间
   
   // 图文媒体资源（图文类型使用）
   mediaUrls: text('media_urls').array(),          // 图文的多张图片URL数组
