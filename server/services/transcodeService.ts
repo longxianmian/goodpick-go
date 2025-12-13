@@ -1,8 +1,20 @@
-import Mts20140618, { SubmitJobsRequest } from '@alicloud/mts20140618';
-import * as OpenApi from '@alicloud/openapi-client';
 import { db } from '../db';
 import { shortVideos } from '@shared/schema';
 import { eq } from 'drizzle-orm';
+
+let Mts20140618: any = null;
+let SubmitJobsRequest: any = null;
+let OpenApiConfig: any = null;
+
+async function loadMtsModule() {
+  if (!Mts20140618) {
+    const MtsModule = await import('@alicloud/mts20140618');
+    const OpenApi = await import('@alicloud/openapi-client');
+    Mts20140618 = MtsModule.default;
+    SubmitJobsRequest = MtsModule.SubmitJobsRequest;
+    OpenApiConfig = OpenApi.Config;
+  }
+}
 
 interface TranscodeJobResult {
   success: boolean;
@@ -43,8 +55,9 @@ function getConfig(): TranscodeConfig {
   };
 }
 
-function createClient(config: TranscodeConfig): Mts20140618 {
-  const clientConfig = new OpenApi.Config({
+async function createClient(config: TranscodeConfig) {
+  await loadMtsModule();
+  const clientConfig = new OpenApiConfig({
     accessKeyId: config.accessKeyId,
     accessKeySecret: config.accessKeySecret,
   });
@@ -71,7 +84,7 @@ export async function submitTranscodeJob(
   }
 
   try {
-    const client = createClient(config);
+    const client = await createClient(config);
 
     const inputData = {
       Bucket: config.inputBucket,
@@ -174,3 +187,42 @@ export async function triggerTranscodeAfterUpload(
     console.error(`[Transcode] Error triggering transcode for video ${videoId}:`, error);
   }
 }
+
+export async function batchTranscodePendingVideos(): Promise<number> {
+  if (!isTranscodeConfigured()) {
+    console.log('[Transcode] Not configured, skipping batch transcode');
+    return 0;
+  }
+
+  try {
+    const { and, eq, isNotNull } = await import('drizzle-orm');
+    const pendingVideos = await db
+      .select()
+      .from(shortVideos)
+      .where(and(
+        eq(shortVideos.transcodeStatus, 'PENDING'),
+        isNotNull(shortVideos.videoObjectKey)
+      ));
+
+    console.log(`[Transcode] Found ${pendingVideos.length} pending videos to transcode`);
+
+    let triggered = 0;
+    for (const video of pendingVideos) {
+      if (video.videoObjectKey) {
+        await submitTranscodeJob(video.videoObjectKey, video.id);
+        triggered++;
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    console.log(`[Transcode] Triggered ${triggered} transcode jobs`);
+    return triggered;
+  } catch (error) {
+    console.error('[Transcode] Batch transcode error:', error);
+    return 0;
+  }
+}
+
+setTimeout(() => {
+  batchTranscodePendingVideos().catch(console.error);
+}, 5000);
