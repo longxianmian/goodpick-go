@@ -293,9 +293,9 @@ export function VideoCard({
       />
 
       {(showPlayButton && !isPlaying) && (
-        <div className="absolute inset-0 flex items-center justify-center z-20">
-          <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
-            <Play className="w-8 h-8 text-white fill-white" />
+        <div className="absolute top-3 right-3 z-20">
+          <div className="w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+            <Play className="w-4 h-4 text-white fill-white" />
           </div>
         </div>
       )}
