@@ -1,5 +1,35 @@
-import { useRef, useCallback, useEffect } from 'react';
+/**
+ * useVideoPool - 视频播放器池 Hook
+ * 
+ * ⚠️ EXPERIMENTAL - 默认禁用
+ * 
+ * 此 Hook 实现了视频播放器池管理，使用固定数量的 video 元素复用，
+ * 避免 DOM 频繁创建销毁，理论上可以提升视频切换流畅度。
+ * 
+ * ## 当前状态
+ * - 默认使用 videoPreloader 方案（稳定）
+ * - useVideoPool 作为实验性备选方案
+ * 
+ * ## 启用方式
+ * 1. URL 参数: 添加 ?videoStrategy=pool
+ * 2. 控制台: 执行 setVideoStrategy('pool') 然后刷新页面
+ * 3. localStorage: localStorage.setItem('videoStrategy', 'pool') 然后刷新
+ * 
+ * ## 切换回默认方案
+ * 1. URL 参数: 添加 ?videoStrategy=preloader 或移除参数
+ * 2. 控制台: 执行 setVideoStrategy('preloader') 然后刷新页面
+ * 
+ * ## 调试模式
+ * 添加 ?debugVideo=1 可查看详细日志和性能指标面板
+ * 
+ * ## 适用场景
+ * - 低端设备出现卡顿时可尝试开启
+ * - 需要对比两种方案性能时使用
+ */
+
+import { useRef, useCallback } from 'react';
 import Hls from 'hls.js';
+import { recordVideoMetrics, getVideoConfig, VideoMetrics } from '@/lib/videoConfig';
 
 interface VideoInfo {
   id: number;
@@ -13,6 +43,8 @@ interface PooledVideo {
   videoId: number | null;
   isReady: boolean;
   loadStartTime: number;
+  canplayTime: number;
+  waitingCount: number;
 }
 
 interface TTFFMetric {
@@ -21,8 +53,6 @@ interface TTFFMetric {
   source: 'hls' | 'mp4' | 'native-hls';
   preloaded: boolean;
 }
-
-const DEBUG_KEY = 'debugVideo';
 
 const HLS_CONFIG = {
   enableWorker: true,
@@ -41,16 +71,15 @@ const isMobile = () => {
 export function useVideoPool() {
   const currentVideoRef = useRef<PooledVideo | null>(null);
   const nextVideoRef = useRef<PooledVideo | null>(null);
-  const debugMode = typeof window !== 'undefined' && 
-    new URLSearchParams(window.location.search).get(DEBUG_KEY) === '1';
+  const config = getVideoConfig();
   const isMobileDevice = isMobile();
   const ttffMetricsRef = useRef<TTFFMetric[]>([]);
 
   const log = useCallback((...args: any[]) => {
-    if (debugMode) {
+    if (config.debugMode) {
       console.log('[VideoPool]', ...args);
     }
-  }, [debugMode]);
+  }, [config.debugMode]);
 
   const createPooledVideo = useCallback((container: HTMLElement): PooledVideo => {
     const element = document.createElement('video');
@@ -74,8 +103,67 @@ export function useVideoPool() {
       videoId: null,
       isReady: false,
       loadStartTime: 0,
+      canplayTime: 0,
+      waitingCount: 0,
     };
   }, []);
+
+  const recordMetrics = useCallback((
+    pooled: PooledVideo, 
+    source: 'hls' | 'mp4' | 'native-hls', 
+    isPreload: boolean
+  ) => {
+    const firstFrameMs = performance.now() - pooled.loadStartTime;
+    
+    // 尝试获取 droppedFrames
+    let droppedFrames = 0;
+    const videoEl = pooled.element as any;
+    if (videoEl.getVideoPlaybackQuality) {
+      const quality = videoEl.getVideoPlaybackQuality();
+      droppedFrames = quality.droppedVideoFrames || 0;
+    }
+    
+    const metrics: VideoMetrics = {
+      videoId: pooled.videoId!,
+      firstFrameMs,
+      canplayMs: pooled.canplayTime > 0 ? pooled.canplayTime - pooled.loadStartTime : firstFrameMs,
+      waitingCount: pooled.waitingCount,
+      droppedFrames,
+      source,
+      preloaded: isPreload,
+      timestamp: Date.now(),
+    };
+    
+    recordVideoMetrics(metrics);
+    
+    ttffMetricsRef.current.push({
+      videoId: pooled.videoId!,
+      ttff: firstFrameMs,
+      source,
+      preloaded: isPreload,
+    });
+  }, []);
+
+  const setupEventListeners = useCallback((pooled: PooledVideo) => {
+    const { element } = pooled;
+    
+    const handleCanplay = () => {
+      pooled.canplayTime = performance.now();
+    };
+    
+    const handleWaiting = () => {
+      pooled.waitingCount++;
+      log(`Video ${pooled.videoId} waiting event (count: ${pooled.waitingCount})`);
+    };
+    
+    element.addEventListener('canplay', handleCanplay);
+    element.addEventListener('waiting', handleWaiting);
+    
+    return () => {
+      element.removeEventListener('canplay', handleCanplay);
+      element.removeEventListener('waiting', handleWaiting);
+    };
+  }, [log]);
 
   const loadVideo = useCallback((pooled: PooledVideo, video: VideoInfo, isPreload: boolean = false): void => {
     const { element } = pooled;
@@ -88,6 +176,10 @@ export function useVideoPool() {
     pooled.videoId = video.id;
     pooled.isReady = false;
     pooled.loadStartTime = performance.now();
+    pooled.canplayTime = 0;
+    pooled.waitingCount = 0;
+    
+    setupEventListeners(pooled);
     
     const hlsSource = video.hlsUrl;
     const isHlsSource = hlsSource && (hlsSource.includes('.m3u8') || hlsSource.includes('hls/sign'));
@@ -96,14 +188,8 @@ export function useVideoPool() {
       element.src = video.videoUrl;
       element.addEventListener('loadeddata', () => {
         pooled.isReady = true;
-        const ttff = performance.now() - pooled.loadStartTime;
-        log(`Video ${video.id} ready in ${ttff.toFixed(0)}ms (mobile MP4, preload: ${isPreload})`);
-        ttffMetricsRef.current.push({
-          videoId: video.id,
-          ttff,
-          source: 'mp4',
-          preloaded: isPreload,
-        });
+        recordMetrics(pooled, 'mp4', isPreload);
+        log(`Video ${video.id} ready (mobile MP4, preload: ${isPreload})`);
       }, { once: true });
     } else if (isHlsSource && Hls.isSupported()) {
       const hls = new Hls(HLS_CONFIG);
@@ -112,14 +198,8 @@ export function useVideoPool() {
       
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         pooled.isReady = true;
-        const ttff = performance.now() - pooled.loadStartTime;
-        log(`Video ${video.id} HLS ready in ${ttff.toFixed(0)}ms (preload: ${isPreload})`);
-        ttffMetricsRef.current.push({
-          videoId: video.id,
-          ttff,
-          source: 'hls',
-          preloaded: isPreload,
-        });
+        recordMetrics(pooled, 'hls', isPreload);
+        log(`Video ${video.id} HLS ready (preload: ${isPreload})`);
       });
       
       hls.on(Hls.Events.ERROR, (_, data) => {
@@ -130,14 +210,7 @@ export function useVideoPool() {
           element.src = video.videoUrl;
           element.addEventListener('loadeddata', () => {
             pooled.isReady = true;
-            const ttff = performance.now() - pooled.loadStartTime;
-            log(`Video ${video.id} MP4 fallback ready in ${ttff.toFixed(0)}ms (preload: ${isPreload})`);
-            ttffMetricsRef.current.push({
-              videoId: video.id,
-              ttff,
-              source: 'mp4',
-              preloaded: isPreload,
-            });
+            recordMetrics(pooled, 'mp4', isPreload);
           }, { once: true });
         }
       });
@@ -147,30 +220,18 @@ export function useVideoPool() {
       element.src = hlsSource;
       element.addEventListener('loadeddata', () => {
         pooled.isReady = true;
-        const ttff = performance.now() - pooled.loadStartTime;
-        log(`Video ${video.id} native HLS ready in ${ttff.toFixed(0)}ms (preload: ${isPreload})`);
-        ttffMetricsRef.current.push({
-          videoId: video.id,
-          ttff,
-          source: 'native-hls',
-          preloaded: isPreload,
-        });
+        recordMetrics(pooled, 'native-hls', isPreload);
+        log(`Video ${video.id} native HLS ready (preload: ${isPreload})`);
       }, { once: true });
     } else {
       element.src = video.videoUrl;
       element.addEventListener('loadeddata', () => {
         pooled.isReady = true;
-        const ttff = performance.now() - pooled.loadStartTime;
-        log(`Video ${video.id} MP4 ready in ${ttff.toFixed(0)}ms (preload: ${isPreload})`);
-        ttffMetricsRef.current.push({
-          videoId: video.id,
-          ttff,
-          source: 'mp4',
-          preloaded: isPreload,
-        });
+        recordMetrics(pooled, 'mp4', isPreload);
+        log(`Video ${video.id} MP4 ready (preload: ${isPreload})`);
       }, { once: true });
     }
-  }, [isMobileDevice, log]);
+  }, [isMobileDevice, log, recordMetrics, setupEventListeners]);
 
   const initPool = useCallback((container: HTMLElement): void => {
     if (!currentVideoRef.current) {
@@ -309,11 +370,13 @@ export function useVideoPool() {
         videoId: currentVideoRef.current.videoId,
         isReady: currentVideoRef.current.isReady,
         hasHls: !!currentVideoRef.current.hls,
+        waitingCount: currentVideoRef.current.waitingCount,
       } : null,
       next: nextVideoRef.current ? {
         videoId: nextVideoRef.current.videoId,
         isReady: nextVideoRef.current.isReady,
         hasHls: !!nextVideoRef.current.hls,
+        waitingCount: nextVideoRef.current.waitingCount,
       } : null,
       avgTTFF: getAverageTTFF(),
       metricsCount: ttffMetricsRef.current.length,

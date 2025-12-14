@@ -4,6 +4,7 @@ import { Heart, MessageCircle, Share2, Music2, UserCircle, Bookmark, Play, Volum
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { videoPreloader } from '@/lib/videoPreloader';
+import { recordVideoMetrics, getVideoConfig, VideoMetrics } from '@/lib/videoConfig';
 
 export interface ShortVideoData {
   id: number;
@@ -57,8 +58,14 @@ export function VideoCard({
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const loadStartTimeRef = useRef<number>(0);
+  const canplayTimeRef = useRef<number>(0);
+  const waitingCountRef = useRef<number>(0);
   const firstFrameTriggeredRef = useRef<boolean>(false);
+  const metricsRecordedRef = useRef<boolean>(false);
   const progressTriggeredRef = useRef<Set<number>>(new Set());
+  const sourceTypeRef = useRef<'hls' | 'mp4' | 'native-hls'>('mp4');
+  const preloadedRef = useRef<boolean>(false);
+  const config = getVideoConfig();
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showPlayButton, setShowPlayButton] = useState(true);
@@ -76,21 +83,32 @@ export function VideoCard({
     if (!videoEl) return;
 
     loadStartTimeRef.current = performance.now();
+    canplayTimeRef.current = 0;
+    waitingCountRef.current = 0;
     firstFrameTriggeredRef.current = false;
+    metricsRecordedRef.current = false;
     progressTriggeredRef.current.clear();
+    preloadedRef.current = false;
 
     const preloaded = videoPreloader.transferToElement(video.id, videoEl);
     
     if (preloaded) {
+      preloadedRef.current = true;
       if (preloaded.hls) {
         hlsRef.current = preloaded.hls;
         setUsingHls(true);
         setVideoLoaded(true);
-        console.log(`[VideoCard] Video ${video.id}: Using preloaded HLS, first frame in ${preloaded.firstFrameTime.toFixed(0)}ms`);
+        sourceTypeRef.current = 'hls';
+        if (config.debugMode) {
+          console.log(`[VideoCard] Video ${video.id}: Using preloaded HLS, first frame in ${preloaded.firstFrameTime.toFixed(0)}ms`);
+        }
       } else {
         setUsingHls(video.hlsUrl ? true : false);
         setVideoLoaded(true);
-        console.log(`[VideoCard] Video ${video.id}: Using preloaded source, first frame in ${preloaded.firstFrameTime.toFixed(0)}ms`);
+        sourceTypeRef.current = video.hlsUrl ? 'native-hls' : 'mp4';
+        if (config.debugMode) {
+          console.log(`[VideoCard] Video ${video.id}: Using preloaded source, first frame in ${preloaded.firstFrameTime.toFixed(0)}ms`);
+        }
       }
       return () => {
         if (hlsRef.current) {
@@ -123,7 +141,10 @@ export function VideoCard({
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setVideoLoaded(true);
         setUsingHls(true);
-        console.log(`[HLS] Video ${video.id}: Manifest parsed, ready to play`);
+        sourceTypeRef.current = 'hls';
+        if (config.debugMode) {
+          console.log(`[HLS] Video ${video.id}: Manifest parsed, ready to play`);
+        }
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
@@ -212,6 +233,49 @@ export function VideoCard({
     setVideoError(false);
   }, []);
 
+  const handleCanplay = useCallback(() => {
+    if (canplayTimeRef.current === 0) {
+      canplayTimeRef.current = performance.now();
+    }
+  }, []);
+
+  const handleWaiting = useCallback(() => {
+    waitingCountRef.current++;
+    if (config.debugMode) {
+      console.log(`[VideoCard] Video ${video.id}: waiting event (count: ${waitingCountRef.current})`);
+    }
+  }, [video.id, config.debugMode]);
+
+  const recordFinalMetrics = useCallback(() => {
+    if (metricsRecordedRef.current) return;
+    metricsRecordedRef.current = true;
+    
+    const videoEl = videoRef.current;
+    let droppedFrames = 0;
+    if (videoEl && (videoEl as any).getVideoPlaybackQuality) {
+      const quality = (videoEl as any).getVideoPlaybackQuality();
+      droppedFrames = quality.droppedVideoFrames || 0;
+    }
+    
+    const firstFrameMs = performance.now() - loadStartTimeRef.current;
+    const canplayMs = canplayTimeRef.current > 0 
+      ? canplayTimeRef.current - loadStartTimeRef.current 
+      : firstFrameMs;
+    
+    const metrics: VideoMetrics = {
+      videoId: video.id,
+      firstFrameMs,
+      canplayMs,
+      waitingCount: waitingCountRef.current,
+      droppedFrames,
+      source: sourceTypeRef.current,
+      preloaded: preloadedRef.current,
+      timestamp: Date.now(),
+    };
+    
+    recordVideoMetrics(metrics);
+  }, [video.id]);
+
   const handleVideoError = useCallback(() => {
     if (usingHls && hlsRef.current) {
       return;
@@ -245,8 +309,11 @@ export function VideoCard({
     if (!firstFrameTriggeredRef.current && videoEl.currentTime > 0) {
       firstFrameTriggeredRef.current = true;
       const ttff = performance.now() - loadStartTimeRef.current;
-      console.log(`[VideoCard] Video ${video.id}: First frame in ${ttff.toFixed(0)}ms`);
+      if (config.debugMode) {
+        console.log(`[VideoCard] Video ${video.id}: First frame in ${ttff.toFixed(0)}ms`);
+      }
       onFirstFrame?.(video.id, ttff);
+      recordFinalMetrics();
     }
     
     const thresholds = [25, 50, 75];
@@ -256,7 +323,7 @@ export function VideoCard({
         onProgress?.(video.id, threshold);
       }
     }
-  }, [video.id, onProgress, onFirstFrame]);
+  }, [video.id, onProgress, onFirstFrame, config.debugMode, recordFinalMetrics]);
 
   const handleLike = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -315,6 +382,8 @@ export function VideoCard({
         preload="auto"
         onTimeUpdate={handleTimeUpdate}
         onLoadedData={handleVideoLoaded}
+        onCanPlay={handleCanplay}
+        onWaiting={handleWaiting}
         onError={handleVideoError}
         data-testid={`video-player-${video.id}`}
       />
