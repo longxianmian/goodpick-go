@@ -41,7 +41,12 @@ export default function ShortVideoFeed() {
   const [commentDrawerOpen, setCommentDrawerOpen] = useState(false);
   const [activeCommentVideoId, setActiveCommentVideoId] = useState<number | null>(null);
   const [debugInfo, setDebugInfo] = useState<{ id: number; isReady: boolean; bufferedSeconds: number }[]>([]);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const debugMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debugVideo') === '1';
+
+  const handleUserInteract = useCallback(() => {
+    setHasUserInteracted(true);
+  }, []);
 
   const preloadVideos = useCallback((videos: FeedItem[], centerIndex: number) => {
     const indicesToPreload = [centerIndex, centerIndex + 1, centerIndex - 1].filter(i => i >= 0 && i < videos.length);
@@ -318,6 +323,7 @@ export default function ShortVideoFeed() {
         currentIndex={currentIndex}
         onIndexChange={handleIndexChange}
         onReachEnd={handleReachEnd}
+        onUserInteract={handleUserInteract}
       >
         {allVideos.map((item, index) => {
           if (item.contentType === 'article') {
@@ -336,6 +342,7 @@ export default function ShortVideoFeed() {
               key={item.id}
               video={item}
               isActive={index === currentIndex}
+              shouldAttemptUnmute={hasUserInteracted}
               onLike={handleLike}
               onComment={handleComment}
               onShare={handleShare}

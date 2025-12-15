@@ -5,6 +5,7 @@ interface VerticalSwiperProps {
   currentIndex: number;
   onIndexChange: (index: number) => void;
   onReachEnd?: () => void;
+  onUserInteract?: () => void;
   className?: string;
 }
 
@@ -13,6 +14,7 @@ export function VerticalSwiper({
   currentIndex,
   onIndexChange,
   onReachEnd,
+  onUserInteract,
   className = '',
 }: VerticalSwiperProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -21,6 +23,7 @@ export function VerticalSwiper({
   
   const touchStartRef = useRef<{ y: number; time: number } | null>(null);
   const velocityRef = useRef(0);
+  const userInteractedRef = useRef(false);
 
   const threshold = 50;
   const velocityThreshold = 0.3;
@@ -102,7 +105,12 @@ export function VerticalSwiper({
 
     touchStartRef.current = null;
     velocityRef.current = 0;
-  }, [dragOffset, currentIndex, children.length, onIndexChange, onReachEnd, isAnimating]);
+    
+    if (!userInteractedRef.current) {
+      userInteractedRef.current = true;
+      onUserInteract?.();
+    }
+  }, [dragOffset, currentIndex, children.length, onIndexChange, onReachEnd, onUserInteract, isAnimating]);
 
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {

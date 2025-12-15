@@ -35,6 +35,7 @@ export interface ShortVideoData {
 interface VideoCardProps {
   video: ShortVideoData;
   isActive: boolean;
+  shouldAttemptUnmute?: boolean;
   onLike?: (videoId: number) => void;
   onComment?: (videoId: number) => void;
   onShare?: (videoId: number) => void;
@@ -47,6 +48,7 @@ interface VideoCardProps {
 export function VideoCard({ 
   video, 
   isActive, 
+  shouldAttemptUnmute = false,
   onLike, 
   onComment, 
   onShare,
@@ -201,8 +203,9 @@ export function VideoCard({
     if (!videoEl) return;
 
     if (isActive) {
-      videoEl.muted = false;
-      setIsMuted(false);
+      const attemptUnmute = shouldAttemptUnmute;
+      videoEl.muted = !attemptUnmute;
+      setIsMuted(!attemptUnmute);
       const playPromise = videoEl.play();
       if (playPromise !== undefined) {
         playPromise.then(() => {
@@ -223,7 +226,7 @@ export function VideoCard({
       setIsPlaying(false);
       setProgress(0);
     }
-  }, [isActive]);
+  }, [isActive, shouldAttemptUnmute]);
 
   const handleVideoLoaded = useCallback(() => {
     setVideoLoaded(true);
