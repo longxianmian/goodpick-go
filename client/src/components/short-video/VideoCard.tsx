@@ -65,10 +65,10 @@ export function VideoCard({
   const progressTriggeredRef = useRef<Set<number>>(new Set());
   const sourceTypeRef = useRef<'hls' | 'mp4' | 'native-hls'>('mp4');
   const preloadedRef = useRef<boolean>(false);
+  const hasUnmutedRef = useRef<boolean>(false);
   const config = getVideoConfig();
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [showPlayButton, setShowPlayButton] = useState(true);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [liked, setLiked] = useState(video.isLiked ?? false);
@@ -77,6 +77,10 @@ export function VideoCard({
   const [bookmarkCount, setBookmarkCount] = useState(video.bookmarkCount ?? 0);
   const [usingHls, setUsingHls] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+
+  useEffect(() => {
+    hasUnmutedRef.current = false;
+  }, [video.id]);
 
   useEffect(() => {
     const videoEl = videoRef.current;
@@ -202,22 +206,14 @@ export function VideoCard({
     if (!videoEl) return;
 
     if (isActive) {
-      videoEl.muted = isMuted;
+      videoEl.muted = true;
+      setIsMuted(true);
       const playPromise = videoEl.play();
       if (playPromise !== undefined) {
         playPromise.then(() => {
           setIsPlaying(true);
-          setShowPlayButton(false);
         }).catch(() => {
-          videoEl.muted = true;
-          setIsMuted(true);
-          videoEl.play().then(() => {
-            setIsPlaying(true);
-            setShowPlayButton(false);
-          }).catch(() => {
-            setIsPlaying(false);
-            setShowPlayButton(true);
-          });
+          setIsPlaying(false);
         });
       }
     } else {
@@ -225,8 +221,10 @@ export function VideoCard({
       videoEl.currentTime = 0;
       setIsPlaying(false);
       setProgress(0);
+      hasUnmutedRef.current = false;
+      setIsMuted(true);
     }
-  }, [isActive, isMuted]);
+  }, [isActive]);
 
   const handleVideoLoaded = useCallback(() => {
     setVideoLoaded(true);
@@ -281,22 +279,30 @@ export function VideoCard({
       return;
     }
     setVideoError(true);
-    setShowPlayButton(true);
   }, [usingHls]);
 
-  const togglePlay = useCallback(() => {
+  const handleVideoAreaTap = useCallback(() => {
     const videoEl = videoRef.current;
     if (!videoEl) return;
 
-    if (isPlaying) {
-      videoEl.pause();
-      setIsPlaying(false);
-      setShowPlayButton(true);
+    if (!hasUnmutedRef.current) {
+      hasUnmutedRef.current = true;
+      videoEl.muted = false;
+      setIsMuted(false);
+      if (videoEl.paused) {
+        videoEl.play().then(() => {
+          setIsPlaying(true);
+        }).catch(() => {});
+      }
     } else {
-      videoEl.play().then(() => {
-        setIsPlaying(true);
-        setShowPlayButton(false);
-      }).catch(() => {});
+      if (isPlaying) {
+        videoEl.pause();
+        setIsPlaying(false);
+      } else {
+        videoEl.play().then(() => {
+          setIsPlaying(true);
+        }).catch(() => {});
+      }
     }
   }, [isPlaying]);
 
@@ -325,26 +331,30 @@ export function VideoCard({
     }
   }, [video.id, onProgress, onFirstFrame, config.debugMode, recordFinalMetrics]);
 
-  const handleLike = useCallback((e: React.MouseEvent) => {
+  const handleLike = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
     setLiked(!liked);
     setLikeCount(prev => liked ? prev - 1 : prev + 1);
     onLike?.(video.id);
   }, [liked, video.id, onLike]);
 
-  const handleBookmark = useCallback((e: React.MouseEvent) => {
+  const handleBookmark = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
     setBookmarked(!bookmarked);
     setBookmarkCount(prev => bookmarked ? prev - 1 : prev + 1);
     onBookmark?.(video.id);
   }, [bookmarked, video.id, onBookmark]);
 
-  const toggleMute = useCallback((e: React.MouseEvent) => {
+  const toggleMute = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
     const videoEl = videoRef.current;
     if (videoEl) {
-      videoEl.muted = !videoEl.muted;
-      setIsMuted(videoEl.muted);
+      const newMuted = !videoEl.muted;
+      videoEl.muted = newMuted;
+      setIsMuted(newMuted);
+      if (!newMuted) {
+        hasUnmutedRef.current = true;
+      }
     }
   }, []);
 
@@ -359,12 +369,15 @@ export function VideoCard({
   };
 
   return (
-    <div className="relative h-full w-full bg-black" onClick={togglePlay}>
+    <div 
+      className="relative h-full w-full bg-black"
+      onPointerUp={handleVideoAreaTap}
+    >
       {video.coverImageUrl && (
         <img
           src={video.coverImageUrl}
           alt={video.title || 'Video cover'}
-          className={`absolute inset-0 h-full w-full object-contain z-0 transition-opacity duration-300 ${
+          className={`absolute inset-0 h-full w-full object-cover z-0 transition-opacity duration-300 ${
             videoLoaded && isPlaying ? 'opacity-0' : 'opacity-100'
           }`}
         />
@@ -373,7 +386,7 @@ export function VideoCard({
       <video
         ref={videoRef}
         poster={video.coverImageUrl || undefined}
-        className={`absolute inset-0 h-full w-full object-contain z-10 ${
+        className={`absolute inset-0 h-full w-full object-cover z-10 ${
           videoLoaded ? 'opacity-100' : 'opacity-0'
         }`}
         loop
@@ -388,27 +401,37 @@ export function VideoCard({
         data-testid={`video-player-${video.id}`}
       />
 
-      {(showPlayButton && !isPlaying) && (
-        <div className="absolute top-3 right-3 z-20">
-          <div className="w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
-            <Play className="w-4 h-4 text-white fill-white" />
+      {!isPlaying && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+          <div className="w-16 h-16 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
+            <Play className="w-8 h-8 text-white fill-white ml-1" />
           </div>
         </div>
       )}
 
-      {isPlaying && (
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-30">
-          <div 
-            className="h-full bg-white transition-all duration-100"
-            style={{ width: `${progress}%` }}
-          />
+      {isMuted && isPlaying && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+          <div className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm flex items-center gap-2">
+            <VolumeX className="w-4 h-4 text-white" />
+            <span className="text-white text-xs">点击屏幕开启声音</span>
+          </div>
         </div>
       )}
 
-      <div className="absolute bottom-20 left-4 right-16 text-white z-30">
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/20 z-30" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+        <div 
+          className="h-full bg-white transition-all duration-100"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      <div 
+        className="absolute left-4 right-16 text-white z-30"
+        style={{ bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
+      >
         <div 
           className="flex items-center gap-3 mb-3"
-          onClick={(e) => {
+          onPointerUp={(e) => {
             e.stopPropagation();
             onUserClick?.(video.creatorUserId);
           }}
@@ -452,10 +475,13 @@ export function VideoCard({
         )}
       </div>
 
-      <div className="absolute right-3 bottom-24 flex flex-col items-center gap-5 z-30">
+      <div 
+        className="absolute right-3 flex flex-col items-center gap-5 z-30"
+        style={{ bottom: 'calc(96px + env(safe-area-inset-bottom, 0px))', paddingRight: 'env(safe-area-inset-right, 0px)' }}
+      >
         <button
           className="flex flex-col items-center gap-1"
-          onClick={handleLike}
+          onPointerUp={handleLike}
           data-testid={`button-like-${video.id}`}
         >
           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${liked ? 'bg-red-500' : 'bg-white/20'} backdrop-blur`}>
@@ -468,7 +494,7 @@ export function VideoCard({
 
         <button
           className="flex flex-col items-center gap-1"
-          onClick={(e) => { e.stopPropagation(); onComment?.(video.id); }}
+          onPointerUp={(e) => { e.stopPropagation(); onComment?.(video.id); }}
           data-testid={`button-comment-${video.id}`}
         >
           <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
@@ -481,7 +507,7 @@ export function VideoCard({
 
         <button
           className="flex flex-col items-center gap-1"
-          onClick={handleBookmark}
+          onPointerUp={handleBookmark}
           data-testid={`button-bookmark-${video.id}`}
         >
           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${bookmarked ? 'bg-yellow-500' : 'bg-white/20'} backdrop-blur`}>
@@ -494,7 +520,7 @@ export function VideoCard({
 
         <button
           className="flex flex-col items-center gap-1"
-          onClick={(e) => { e.stopPropagation(); onShare?.(video.id); }}
+          onPointerUp={(e) => { e.stopPropagation(); onShare?.(video.id); }}
           data-testid={`button-share-${video.id}`}
         >
           <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
@@ -507,7 +533,7 @@ export function VideoCard({
 
         <button
           className="flex flex-col items-center gap-1"
-          onClick={toggleMute}
+          onPointerUp={toggleMute}
           data-testid={`button-mute-${video.id}`}
         >
           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isMuted ? 'bg-white/20' : 'bg-green-500'} backdrop-blur`}>
