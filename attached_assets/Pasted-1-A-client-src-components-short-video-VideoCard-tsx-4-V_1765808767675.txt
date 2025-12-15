@@ -1,0 +1,142 @@
+1）服务器端我们动过哪些文件（已知）
+A. client/src/components/short-video/VideoCard.tsx
+
+你已经有 4 个备份（很关键）：
+
+VideoCard.tsx.bak_20251215-215024
+
+...214135
+
+...212049
+
+...210912
+
+我们在这个文件里做过的改动方向：
+
+静音/出声逻辑：
+
+初始 isMuted = true（你现在还是这样）
+
+toggleMute 被你改成了“切到非静音时 try set volume + play()”
+
+点击手势逻辑（出过严重事故）：
+
+你贴的代码里，handleVideoError 和 togglePlay 之间出现了括号/函数块被破坏的情况（你那段 nl -ba 输出里能看到：handleVideoError 少了闭合，togglePlay 被“塞进去了”）。
+
+一旦这里语法/结构错了，页面可能还能编译过，但运行时事件绑定/状态会异常（比如“点了没反应”“暂停不了”）。
+
+UI 位置：
+
+播放按钮现在在右上角，是因为代码本来就写在：
+
+<div className="absolute top-3 right-3 z-20">
+
+
+这不是抖音体验（抖音一般是中心浮层）。
+
+B. client/src/pages/short-video/ShortVideoFeed.tsx
+
+你执行过：
+
+把 h-screen 全局替换成 h-[100svh]（为了解决移动端地址栏导致的高度问题）
+
+这条改动一般是正确方向（但要配套 safe-area）。
+
+2）哪些问题“已经改过但仍要 replitAI 继续修复”
+
+你现在的现象：移动端有声、PC 无声；按钮乱；点击暂停不符合主流；适配仍不对。
+
+必须继续修复（核心）
+
+PC 无声
+
+这通常不是“苹果策略”的问题，因为你说 PC 也无声。
+
+根因大概率是：默认静音 + 首次点击没有真正触发“解除静音”（事件没触发 / 被覆盖 / 逻辑没跑 / 状态没更新）。
+
+replitAI 需要做：
+
+确保 PC 端点击视频区域能触发一次 userGesture：muted=false + play()
+
+并且 UI 上给一个明显的“点击开启声音”的提示/按钮。
+
+点击无效 / 不能暂停（抖音式手势没实现）
+
+现在点击无效，最常见原因是：
+
+外层 onClick 没触发（被子元素 stopPropagation / 覆盖层挡住 / pointer-events）
+
+或者你的 handleVideoError/togglePlay 那段结构被破坏，导致 togglePlay 实际不是你以为的版本
+
+replitAI 需要做：
+
+统一用 onPointerUp（兼容 PC/移动）
+
+并确保右侧按钮区域不影响视频区域点击（按钮本身 stopPropagation，其它 overlay 不要挡）。
+
+视频适配不对（画面没铺满 / 按钮被刘海遮住）
+
+你现在 object-contain 会导致“留黑边+画面不铺满”，抖音是 object-cover。
+
+还要加 safe-area：padding-bottom: env(safe-area-inset-bottom) 之类，让右侧按钮不被 iPhone 刘海/底部条遮挡。
+
+播放按钮位置和样式不符合主流
+
+目前右上角是反直觉的。主流：
+
+中心播放/暂停浮层（仅暂停时显示）
+
+声音按钮通常在右侧或右下，但不要抢主交互。
+
+3）哪些问题“可以不用继续修复/暂时别动”
+
+ShortVideoFeed.tsx 的 h-[100svh] 替换 可以保留（这是为了解决移动端地址栏高度抖动，方向没错）。
+
+toggleMute 里 volume=1 + play() 这类尝试 可以保留思路，但需要 replitAI 最终统一整理为“主流交互方案”，不要散落在多个地方互相打架。
+
+4）你现在在服务器上要做的 3 个核对动作（复制执行，一条一条来）
+第1条：对比“当前文件”和“最近一次备份”到底改了啥
+cd /var/www/goodpick-go && \
+diff -u client/src/components/short-video/VideoCard.tsx.bak_20251215-215024 client/src/components/short-video/VideoCard.tsx | sed -n '1,200p'
+
+第2条：检查 handleVideoError 这一段有没有结构破坏（非常关键）
+cd /var/www/goodpick-go && \
+nl -ba client/src/components/short-video/VideoCard.tsx | sed -n '240,330p'
+
+
+你要重点看：
+
+const handleVideoError = ... { ... } 有没有完整闭合
+
+const togglePlay = ... 是否在正确位置、正确闭合
+
+有没有多余的 }, [isPlaying]); 这种“残留括号”
+
+第3条：确认线上 bundle 里是否真的包含你以为的逻辑（避免“改了但没生效”）
+cd /var/www/goodpick-go && \
+HTML="$(curl -s https://goodpickgo.com/ | tr -d '\n')" && \
+ASSET="$(echo "$HTML" | sed -n 's/.*\(\/assets\/index-[^"]*\.js\).*/\1/p' | head -n 1)" && \
+echo "ASSET=$ASSET" && \
+curl -s "https://goodpickgo.com${ASSET}" | grep -n "First user tap" -n | head
+
+5）给 replitAI 的“继续修复任务”应该怎么写（你直接丢给它）
+
+你就按下面 5 点丢过去（它就知道哪些不用再争论）：
+
+以抖音为准：
+
+默认自动播放静音
+
+第一次点击视频区域：解除静音并继续播放
+
+之后点击：暂停/播放切换
+
+暂停时显示中心播放按钮；播放时隐藏
+
+PC/安卓/iOS 统一：用 onPointerUp 做主交互；不要 onClick/onTouchEnd 混用导致重复触发
+
+修复 VideoCard.tsx 的函数结构：确保 handleVideoError / togglePlay / handleTimeUpdate 全部闭合正确，没有残留括号
+
+画面适配：视频改为 object-cover（抖音效果），并处理 safe-area（底部/右侧按钮不被遮）
+
+声音状态一致：UI 音量按钮状态与 videoEl.muted、isMuted 必须一致；PC 点击能可靠解除静音
