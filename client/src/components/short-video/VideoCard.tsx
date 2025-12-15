@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import Hls from 'hls.js';
-import { Heart, MessageCircle, Share2, Music2, UserCircle, Bookmark, Play, Volume2, VolumeX } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Music2, UserCircle, Bookmark, Play, VolumeX } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { videoPreloader } from '@/lib/videoPreloader';
@@ -65,7 +65,6 @@ export function VideoCard({
   const progressTriggeredRef = useRef<Set<number>>(new Set());
   const sourceTypeRef = useRef<'hls' | 'mp4' | 'native-hls'>('mp4');
   const preloadedRef = useRef<boolean>(false);
-  const hasUnmutedRef = useRef<boolean>(false);
   const config = getVideoConfig();
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -76,11 +75,7 @@ export function VideoCard({
   const [bookmarked, setBookmarked] = useState(video.isBookmarked ?? false);
   const [bookmarkCount, setBookmarkCount] = useState(video.bookmarkCount ?? 0);
   const [usingHls, setUsingHls] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
-
-  useEffect(() => {
-    hasUnmutedRef.current = false;
-  }, [video.id]);
+  const [isMuted, setIsMuted] = useState(false);
 
   useEffect(() => {
     const videoEl = videoRef.current;
@@ -206,14 +201,20 @@ export function VideoCard({
     if (!videoEl) return;
 
     if (isActive) {
-      videoEl.muted = true;
-      setIsMuted(true);
+      videoEl.muted = false;
+      setIsMuted(false);
       const playPromise = videoEl.play();
       if (playPromise !== undefined) {
         playPromise.then(() => {
           setIsPlaying(true);
         }).catch(() => {
-          setIsPlaying(false);
+          videoEl.muted = true;
+          setIsMuted(true);
+          videoEl.play().then(() => {
+            setIsPlaying(true);
+          }).catch(() => {
+            setIsPlaying(false);
+          });
         });
       }
     } else {
@@ -221,8 +222,6 @@ export function VideoCard({
       videoEl.currentTime = 0;
       setIsPlaying(false);
       setProgress(0);
-      hasUnmutedRef.current = false;
-      setIsMuted(true);
     }
   }, [isActive]);
 
@@ -285,24 +284,13 @@ export function VideoCard({
     const videoEl = videoRef.current;
     if (!videoEl) return;
 
-    if (!hasUnmutedRef.current) {
-      hasUnmutedRef.current = true;
-      videoEl.muted = false;
-      setIsMuted(false);
-      if (videoEl.paused) {
-        videoEl.play().then(() => {
-          setIsPlaying(true);
-        }).catch(() => {});
-      }
+    if (isPlaying) {
+      videoEl.pause();
+      setIsPlaying(false);
     } else {
-      if (isPlaying) {
-        videoEl.pause();
-        setIsPlaying(false);
-      } else {
-        videoEl.play().then(() => {
-          setIsPlaying(true);
-        }).catch(() => {});
-      }
+      videoEl.play().then(() => {
+        setIsPlaying(true);
+      }).catch(() => {});
     }
   }, [isPlaying]);
 
@@ -352,9 +340,6 @@ export function VideoCard({
       const newMuted = !videoEl.muted;
       videoEl.muted = newMuted;
       setIsMuted(newMuted);
-      if (!newMuted) {
-        hasUnmutedRef.current = true;
-      }
     }
   }, []);
 
@@ -410,15 +395,15 @@ export function VideoCard({
       )}
 
       {isMuted && isPlaying && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-          <div className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm flex items-center gap-2">
-            <VolumeX className="w-4 h-4 text-white" />
-            <span className="text-white text-xs">点击屏幕开启声音</span>
+        <div className="absolute top-4 left-4 z-20 pointer-events-none" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+          <div className="px-2 py-1 rounded-full bg-black/50 backdrop-blur-sm flex items-center gap-1.5">
+            <VolumeX className="w-3.5 h-3.5 text-white" />
+            <span className="text-white text-xs">点击屏幕恢复声音</span>
           </div>
         </div>
       )}
 
-      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/20 z-30" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/20 z-30">
         <div 
           className="h-full bg-white transition-all duration-100"
           style={{ width: `${progress}%` }}
@@ -427,7 +412,7 @@ export function VideoCard({
 
       <div 
         className="absolute left-4 right-16 text-white z-30"
-        style={{ bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
+        style={{ bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))' }}
       >
         <div 
           className="flex items-center gap-3 mb-3"
@@ -477,7 +462,7 @@ export function VideoCard({
 
       <div 
         className="absolute right-3 flex flex-col items-center gap-5 z-30"
-        style={{ bottom: 'calc(96px + env(safe-area-inset-bottom, 0px))', paddingRight: 'env(safe-area-inset-right, 0px)' }}
+        style={{ bottom: 'calc(100px + env(safe-area-inset-bottom, 0px))', paddingRight: 'env(safe-area-inset-right, 0px)' }}
       >
         <button
           className="flex flex-col items-center gap-1"
@@ -531,22 +516,20 @@ export function VideoCard({
           </span>
         </button>
 
-        <button
-          className="flex flex-col items-center gap-1"
-          onPointerUp={toggleMute}
-          data-testid={`button-mute-${video.id}`}
-        >
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isMuted ? 'bg-white/20' : 'bg-green-500'} backdrop-blur`}>
-            {isMuted ? (
+        {isMuted && (
+          <button
+            className="flex flex-col items-center gap-1"
+            onPointerUp={toggleMute}
+            data-testid={`button-mute-${video.id}`}
+          >
+            <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
               <VolumeX className="w-5 h-5 text-white" />
-            ) : (
-              <Volume2 className="w-5 h-5 text-white" />
-            )}
-          </div>
-          <span className="text-white text-xs font-medium drop-shadow-lg">
-            {isMuted ? '静音' : '有声'}
-          </span>
-        </button>
+            </div>
+            <span className="text-white text-xs font-medium drop-shadow-lg">
+              静音
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );
