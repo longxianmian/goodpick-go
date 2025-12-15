@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
-import { Heart, MessageCircle, Share2, Bookmark, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { useLocation } from 'wouter';
 
 export interface ArticleCardData {
@@ -40,6 +39,8 @@ export function ArticleCard({
   const [liked, setLiked] = useState(article.isLiked ?? false);
   const [likeCount, setLikeCount] = useState(article.likeCount);
   const imageContainerRef = useRef<HTMLDivElement>(null);
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const isSwipingRef = useRef(false);
 
   const images = article.mediaUrls?.length 
     ? article.mediaUrls 
@@ -74,7 +75,36 @@ export function ArticleCard({
     onLike?.(article.id);
   }, [liked, article.id, onLike]);
 
-  const handleCardClick = useCallback(() => {
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+    isSwipingRef.current = false;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const touch = e.touches[0];
+    const deltaX = Math.abs(touch.clientX - touchStartRef.current.x);
+    const deltaY = Math.abs(touch.clientY - touchStartRef.current.y);
+    if (deltaX > 10 || deltaY > 10) {
+      isSwipingRef.current = true;
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!touchStartRef.current) return;
+    const elapsed = Date.now() - touchStartRef.current.time;
+    if (!isSwipingRef.current && elapsed < 300) {
+      setLocation(`/articles/${article.id}`);
+    }
+    touchStartRef.current = null;
+  }, [article.id, setLocation]);
+
+  const handleCardClick = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('[data-no-navigate]')) {
+      return;
+    }
     setLocation(`/articles/${article.id}`);
   }, [article.id, setLocation]);
 
@@ -96,8 +126,11 @@ export function ArticleCard({
 
   return (
     <div 
-      className="relative h-full w-full bg-black flex flex-col"
+      className="relative h-full w-full bg-black flex flex-col cursor-pointer"
       onClick={handleCardClick}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       data-testid={`article-card-${article.id}`}
     >
       {imageCount > 0 && (
@@ -195,17 +228,9 @@ export function ArticleCard({
           </p>
         )}
 
-        <div className="flex items-center gap-2 mt-2">
-          <Button 
-            size="sm" 
-            className="bg-[#38B03B] hover:bg-[#2d8f2f] text-white text-xs h-7 px-4"
-            onClick={(e) => {
-              e.stopPropagation();
-              setLocation(`/articles/${article.id}`);
-            }}
-          >
-            查看详情
-          </Button>
+        <div className="flex items-center gap-2 mt-2 text-white/60 text-xs">
+          <FileText className="w-3.5 h-3.5" />
+          <span>点击查看全文</span>
         </div>
       </div>
 
