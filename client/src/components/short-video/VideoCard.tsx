@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import Hls from 'hls.js';
-import { Heart, MessageCircle, Share2, Music2, UserCircle, Bookmark, Play, VolumeX } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Music2, UserCircle, Bookmark, Play } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { videoPreloader } from '@/lib/videoPreloader';
@@ -287,15 +287,29 @@ export function VideoCard({
     const videoEl = videoRef.current;
     if (!videoEl) return;
 
+    if (isMuted && isPlaying) {
+      videoEl.muted = false;
+      setIsMuted(false);
+      return;
+    }
+
     if (isPlaying) {
       videoEl.pause();
       setIsPlaying(false);
     } else {
+      videoEl.muted = false;
+      setIsMuted(false);
       videoEl.play().then(() => {
         setIsPlaying(true);
-      }).catch(() => {});
+      }).catch(() => {
+        videoEl.muted = true;
+        setIsMuted(true);
+        videoEl.play().then(() => {
+          setIsPlaying(true);
+        }).catch(() => {});
+      });
     }
-  }, [isPlaying]);
+  }, [isPlaying, isMuted]);
 
   const handleTimeUpdate = useCallback(() => {
     const videoEl = videoRef.current;
@@ -335,16 +349,6 @@ export function VideoCard({
     setBookmarkCount(prev => bookmarked ? prev - 1 : prev + 1);
     onBookmark?.(video.id);
   }, [bookmarked, video.id, onBookmark]);
-
-  const toggleMute = useCallback((e: React.PointerEvent) => {
-    e.stopPropagation();
-    const videoEl = videoRef.current;
-    if (videoEl) {
-      const newMuted = !videoEl.muted;
-      videoEl.muted = newMuted;
-      setIsMuted(newMuted);
-    }
-  }, []);
 
   const formatCount = (count: number): string => {
     if (count >= 10000) {
@@ -397,14 +401,6 @@ export function VideoCard({
         </div>
       )}
 
-      {isMuted && isPlaying && (
-        <div className="absolute top-4 left-4 z-20 pointer-events-none" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-          <div className="px-2 py-1 rounded-full bg-black/50 backdrop-blur-sm flex items-center gap-1.5">
-            <VolumeX className="w-3.5 h-3.5 text-white" />
-            <span className="text-white text-xs">点击屏幕恢复声音</span>
-          </div>
-        </div>
-      )}
 
       <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/20 z-30">
         <div 
@@ -518,21 +514,6 @@ export function VideoCard({
             {formatCount(video.shareCount)}
           </span>
         </button>
-
-        {isMuted && (
-          <button
-            className="flex flex-col items-center gap-1"
-            onPointerUp={toggleMute}
-            data-testid={`button-mute-${video.id}`}
-          >
-            <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
-              <VolumeX className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-white text-xs font-medium drop-shadow-lg">
-              静音
-            </span>
-          </button>
-        )}
       </div>
     </div>
   );
