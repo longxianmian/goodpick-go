@@ -175,8 +175,8 @@ export function VerticalSwiper({
       <div
         className="w-full"
         style={{
-          transform: `translate3d(0, ${translateY}vh, 0)`,
-          height: `${children.length * 100}vh`,
+          transform: `translate3d(0, ${translateY}svh, 0)`,
+          height: `${children.length * 100}svh`,
           transition: isAnimating ? 'transform 280ms cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
           willChange: 'transform',
           pointerEvents: isAnimating ? 'none' : 'auto',
@@ -186,7 +186,7 @@ export function VerticalSwiper({
           <div
             key={index}
             className="w-full"
-            style={{ height: '100vh' }}
+            style={{ height: '100svh' }}
             data-testid={`swiper-slide-${index}`}
           >
             {child}

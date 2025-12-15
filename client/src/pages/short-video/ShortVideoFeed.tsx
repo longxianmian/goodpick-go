@@ -296,8 +296,8 @@ export default function ShortVideoFeed() {
   }
 
   return (
-    <div className="h-screen w-full bg-black relative">
-      <div className="absolute top-4 left-4 z-50">
+    <div className="w-full bg-black relative" style={{ height: '100svh' }}>
+      <div className="absolute z-50" style={{ top: 'calc(12px + env(safe-area-inset-top, 0px))', left: 'calc(16px + env(safe-area-inset-left, 0px))' }}>
         <Button
           size="icon"
           variant="ghost"
@@ -309,7 +309,7 @@ export default function ShortVideoFeed() {
         </Button>
       </div>
 
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex gap-4">
+      <div className="absolute left-1/2 -translate-x-1/2 z-50 flex gap-4" style={{ top: 'calc(16px + env(safe-area-inset-top, 0px))' }}>
         <button className="text-white/60 text-sm font-medium">关注</button>
         <button className="text-white text-sm font-medium border-b-2 border-white pb-1">推荐</button>
       </div>
@@ -347,22 +347,6 @@ export default function ShortVideoFeed() {
           );
         })}
       </VerticalSwiper>
-
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50">
-        <div className="flex gap-1">
-          {allVideos.slice(Math.max(0, currentIndex - 2), currentIndex + 3).map((_, idx) => {
-            const actualIdx = Math.max(0, currentIndex - 2) + idx;
-            return (
-              <div
-                key={actualIdx}
-                className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                  actualIdx === currentIndex ? 'bg-white' : 'bg-white/30'
-                }`}
-              />
-            );
-          })}
-        </div>
-      </div>
 
       {activeCommentVideoId && (
         <CommentDrawer
