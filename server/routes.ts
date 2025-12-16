@@ -10420,8 +10420,9 @@ export function registerRoutes(app: Express): Server {
     try {
       const userId = req.user!.id;
       const chats: any[] = [];
+      const addedFriendIds = new Set<number>();
 
-      // 获取好友聊天
+      // 获取liaoliao_friends表中的好友
       const friendships = await db
         .select({
           friend: liaoliaoFriends,
@@ -10435,6 +10436,7 @@ export function registerRoutes(app: Express): Server {
         ));
 
       for (const { friend, user } of friendships) {
+        addedFriendIds.add(friend.friendId);
         const [lastMessage] = await db
           .select()
           .from(liaoliaoMessages)
@@ -10465,6 +10467,60 @@ export function registerRoutes(app: Express): Server {
           id: friend.friendId,
           name: friend.remarkName || user.displayName || user.lineDisplayName,
           avatarUrl: user.avatarUrl || user.lineAvatarUrl,
+          lastMessage: lastMessage?.content,
+          lastMessageAt: lastMessage?.createdAt,
+          unreadCount: unreadCount?.count || 0,
+        });
+      }
+
+      // 获取tt_friends表中的好友（邀请系统创建的好友）
+      const ttFriendships = await db
+        .select({
+          friend: ttFriends,
+          user: users,
+        })
+        .from(ttFriends)
+        .innerJoin(users, eq(ttFriends.friendUserId, users.id))
+        .where(and(
+          eq(ttFriends.userId, userId),
+          eq(ttFriends.status, 'accepted')
+        ));
+
+      for (const { friend, user } of ttFriendships) {
+        // 跳过已添加的好友（避免重复）
+        if (addedFriendIds.has(friend.friendUserId)) continue;
+        addedFriendIds.add(friend.friendUserId);
+
+        const [lastMessage] = await db
+          .select()
+          .from(liaoliaoMessages)
+          .where(or(
+            and(
+              eq(liaoliaoMessages.fromUserId, userId),
+              eq(liaoliaoMessages.toUserId, friend.friendUserId)
+            ),
+            and(
+              eq(liaoliaoMessages.fromUserId, friend.friendUserId),
+              eq(liaoliaoMessages.toUserId, userId)
+            )
+          ))
+          .orderBy(desc(liaoliaoMessages.createdAt))
+          .limit(1);
+
+        const [unreadCount] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(liaoliaoMessages)
+          .where(and(
+            eq(liaoliaoMessages.fromUserId, friend.friendUserId),
+            eq(liaoliaoMessages.toUserId, userId),
+            eq(liaoliaoMessages.isRead, false)
+          ));
+
+        chats.push({
+          type: 'friend',
+          id: friend.friendUserId,
+          name: friend.nickname || user.displayName || (user as any).lineDisplayName,
+          avatarUrl: user.avatarUrl || (user as any).lineAvatarUrl,
           lastMessage: lastMessage?.content,
           lastMessageAt: lastMessage?.createdAt,
           unreadCount: unreadCount?.count || 0,
