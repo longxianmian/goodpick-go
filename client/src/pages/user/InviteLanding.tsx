@@ -39,9 +39,21 @@ interface LiffProfile {
   pictureUrl?: string;
 }
 
+// 解析JWT获取lineUserId（不验证签名，仅解码payload）
+function decodeJwtPayload(token: string): { lineUserId?: string } | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1]));
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
 export default function InviteLanding() {
   const { t } = useLanguage();
-  const { user, isUserAuthenticated, loginUser, logoutUser } = useAuth();
+  const { isUserAuthenticated, loginUser, logoutUser } = useAuth();
   const [, navigate] = useLocation();
   const searchString = useSearch();
   const { toast } = useToast();
@@ -55,14 +67,25 @@ export default function InviteLanding() {
   const params = new URLSearchParams(searchString);
   const inviteCode = params.get('code');
 
-  // 【关键】初始化LIFF，检查身份是否匹配，如果不匹配就清除旧token
+  // 【关键】初始化LIFF，直接从localStorage读取token并比较，不依赖React状态
   useEffect(() => {
     if (liffInitDone.current) return;
     liffInitDone.current = true;
 
     async function initAndCheckIdentity() {
       console.log('[InviteLanding] ========== 开始身份验证流程 ==========');
-      console.log('[InviteLanding] 当前已登录用户:', user?.displayName, user?.lineUserId);
+      
+      // 直接从localStorage读取token，不依赖React状态
+      const storedToken = localStorage.getItem('userToken');
+      let storedLineUserId: string | null = null;
+      
+      if (storedToken) {
+        const decoded = decodeJwtPayload(storedToken);
+        storedLineUserId = decoded?.lineUserId || null;
+        console.log('[InviteLanding] localStorage中的token对应用户:', storedLineUserId);
+      } else {
+        console.log('[InviteLanding] localStorage中没有token');
+      }
       
       try {
         const liffState = await ensureLiffReady();
@@ -91,21 +114,21 @@ export default function InviteLanding() {
                 pictureUrl: profile.pictureUrl
               });
 
-              // 【核心修复】检查当前登录的用户是否与扫码的LINE用户匹配
-              if (user && user.lineUserId !== profile.userId) {
-                console.log('[InviteLanding] ⚠️ 身份不匹配！');
-                console.log('[InviteLanding] 已登录用户:', user.lineUserId);
-                console.log('[InviteLanding] 扫码用户:', profile.userId);
+              // 【核心修复】比较LIFF用户ID和localStorage中token的用户ID
+              if (storedLineUserId && storedLineUserId !== profile.userId) {
+                console.log('[InviteLanding] ⚠️⚠️⚠️ 身份不匹配！⚠️⚠️⚠️');
+                console.log('[InviteLanding] localStorage中的用户:', storedLineUserId);
+                console.log('[InviteLanding] 当前扫码用户:', profile.userId);
                 console.log('[InviteLanding] 正在清除旧登录...');
                 
-                // 清除旧的登录状态
+                // 立即清除旧的登录状态
                 localStorage.removeItem('userToken');
                 resetLiffState();
                 logoutUser();
                 
-                console.log('[InviteLanding] 旧登录已清除，现在可以查询邀请信息');
-              } else if (user) {
-                console.log('[InviteLanding] ✓ 身份匹配，用户:', user.displayName);
+                console.log('[InviteLanding] ✓ 旧登录已清除');
+              } else if (storedLineUserId) {
+                console.log('[InviteLanding] ✓ 身份匹配');
               } else {
                 console.log('[InviteLanding] 用户未登录，将显示登录按钮');
               }
@@ -124,12 +147,12 @@ export default function InviteLanding() {
     }
 
     initAndCheckIdentity();
-  }, [user, logoutUser]);
+  }, [logoutUser]);
 
   // 【关键】只有在身份验证完成后才查询邀请信息
   const { data: inviteInfo, isLoading, error } = useQuery<InviteInfo>({
     queryKey: ['/api/invites', inviteCode],
-    enabled: !!inviteCode && identityResolved, // 必须等身份验证完成
+    enabled: !!inviteCode && identityResolved,
   });
 
   const acceptInviteMutation = useMutation({
