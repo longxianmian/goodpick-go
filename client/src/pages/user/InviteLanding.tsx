@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,6 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import { redirectToLineLogin, ensureLiffReady, isInLineApp } from '@/lib/liffClient';
+
+const INVITE_PENDING_KEY = 'inviteAcceptPending';
 import {
   Users,
   UserPlus,
@@ -43,6 +45,7 @@ export default function InviteLanding() {
   const [accepted, setAccepted] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [isOwnInviteError, setIsOwnInviteError] = useState(false);
+  const [autoAccepting, setAutoAccepting] = useState(false);
 
   const params = new URLSearchParams(searchString);
   const inviteCode = params.get('code');
@@ -53,33 +56,69 @@ export default function InviteLanding() {
     enabled: !!inviteCode,
   });
 
-  // 接受邀请 - 简化流程
-  const handleAcceptInvite = async () => {
-    setLoginLoading(true);
-    setIsOwnInviteError(false);
+  // 执行接受邀请的核心逻辑
+  const doAcceptInvite = async (token: string, code: string) => {
+    console.log('[InviteLanding] 执行接受邀请...');
+    const acceptRes = await fetch('/api/invites/accept', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ inviteCode: code }),
+    });
+
+    const acceptData = await acceptRes.json();
+
+    if (!acceptRes.ok) {
+      if (acceptData.message === 'Cannot accept your own invite') {
+        setIsOwnInviteError(true);
+        return false;
+      }
+      throw new Error(acceptData.message || '接受邀请失败');
+    }
+
+    // 成功！
+    setAccepted(true);
+    queryClient.invalidateQueries({ queryKey: ['/api/contacts/super'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/contacts/friends'] });
     
-    try {
-      // 清除可能错误的旧token（因为LIFF localStorage共享问题）
-      localStorage.removeItem('userToken');
-      localStorage.removeItem('user');
-      logoutUser();
+    toast({
+      title: t('inviteLanding.success'),
+      description: t('inviteLanding.successDesc'),
+    });
+    return true;
+  };
 
-      let token: string;
+  // 页面加载时：检查是否有待处理的邀请（LIFF登录后自动继续）
+  useEffect(() => {
+    const checkPendingInvite = async () => {
+      const pendingData = sessionStorage.getItem(INVITE_PENDING_KEY);
+      if (!pendingData) return;
 
-      // 判断是否在LINE环境
-      if (isInLineApp()) {
-        // 在LINE内：使用LIFF一键登录
-        console.log('[InviteLanding] 在LINE环境，使用LIFF登录');
-        const liffState = await ensureLiffReady();
+      try {
+        const { code, timestamp } = JSON.parse(pendingData);
         
-        // 如果LIFF未登录，触发登录
-        if (!liffState.isLoggedIn) {
-          console.log('[InviteLanding] LIFF未登录，触发登录');
-          liffState.liff.login();
+        // 检查是否过期（5分钟）
+        if (Date.now() - timestamp > 5 * 60 * 1000) {
+          console.log('[InviteLanding] 待处理邀请已过期');
+          sessionStorage.removeItem(INVITE_PENDING_KEY);
           return;
         }
 
-        // 获取idToken并登录
+        // 只在LINE环境中自动处理
+        if (!isInLineApp()) return;
+
+        console.log('[InviteLanding] 检测到待处理邀请，自动继续...');
+        setAutoAccepting(true);
+
+        const liffState = await ensureLiffReady();
+        if (!liffState.isLoggedIn) {
+          console.log('[InviteLanding] LIFF仍未登录');
+          return;
+        }
+
+        // 获取idToken并登录后端
         const idToken = liffState.liff.getIDToken();
         if (!idToken) {
           throw new Error('无法获取LINE ID Token');
@@ -95,9 +134,78 @@ export default function InviteLanding() {
         if (!loginData.success) {
           throw new Error(loginData.message || '登录失败');
         }
+
+        localStorage.setItem('userToken', loginData.token);
+
+        // 接受邀请
+        await doAcceptInvite(loginData.token, code);
         
-        token = loginData.token;
-        localStorage.setItem('userToken', token);
+        // 清除标记
+        sessionStorage.removeItem(INVITE_PENDING_KEY);
+
+      } catch (err: any) {
+        console.error('[InviteLanding] 自动接受邀请失败:', err);
+        toast({
+          title: '操作失败',
+          description: err.message || '请稍后重试',
+          variant: 'destructive',
+        });
+      } finally {
+        setAutoAccepting(false);
+        sessionStorage.removeItem(INVITE_PENDING_KEY);
+      }
+    };
+
+    checkPendingInvite();
+  }, []);
+
+  // 点击"接受邀请"按钮
+  const handleAcceptInvite = async () => {
+    setLoginLoading(true);
+    setIsOwnInviteError(false);
+    
+    try {
+      // 清除可能错误的旧token
+      localStorage.removeItem('userToken');
+      localStorage.removeItem('user');
+      logoutUser();
+
+      // 判断是否在LINE环境
+      if (isInLineApp()) {
+        console.log('[InviteLanding] 在LINE环境，使用LIFF登录');
+        const liffState = await ensureLiffReady();
+        
+        // 如果LIFF未登录，保存状态后触发登录
+        if (!liffState.isLoggedIn) {
+          console.log('[InviteLanding] LIFF未登录，保存状态并触发登录');
+          // 使用sessionStorage保存待处理状态（不受LIFF localStorage共享影响）
+          sessionStorage.setItem(INVITE_PENDING_KEY, JSON.stringify({
+            code: inviteCode,
+            timestamp: Date.now(),
+          }));
+          liffState.liff.login();
+          return;
+        }
+
+        // LIFF已登录，获取idToken
+        const idToken = liffState.liff.getIDToken();
+        if (!idToken) {
+          throw new Error('无法获取LINE ID Token');
+        }
+
+        const loginRes = await fetch('/api/auth/line/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken }),
+        });
+        const loginData = await loginRes.json();
+        
+        if (!loginData.success) {
+          throw new Error(loginData.message || '登录失败');
+        }
+
+        localStorage.setItem('userToken', loginData.token);
+        await doAcceptInvite(loginData.token, inviteCode!);
         
       } else {
         // 不在LINE内：跳转LINE OAuth登录
@@ -105,37 +213,6 @@ export default function InviteLanding() {
         redirectToLineLogin({ redirectPath: `/invite?code=${inviteCode}` });
         return;
       }
-
-      // 接受邀请
-      console.log('[InviteLanding] 登录成功，接受邀请...');
-      const acceptRes = await fetch('/api/invites/accept', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ inviteCode }),
-      });
-
-      const acceptData = await acceptRes.json();
-
-      if (!acceptRes.ok) {
-        if (acceptData.message === 'Cannot accept your own invite') {
-          setIsOwnInviteError(true);
-          return;
-        }
-        throw new Error(acceptData.message || '接受邀请失败');
-      }
-
-      // 成功！
-      setAccepted(true);
-      queryClient.invalidateQueries({ queryKey: ['/api/contacts/super'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/contacts/friends'] });
-      
-      toast({
-        title: t('inviteLanding.success'),
-        description: t('inviteLanding.successDesc'),
-      });
 
     } catch (err: any) {
       console.error('[InviteLanding] 处理失败:', err);
@@ -303,11 +380,14 @@ export default function InviteLanding() {
         <Button
           className="w-full bg-[#38B03B] hover:bg-[#2d8f2f] h-12"
           onClick={handleAcceptInvite}
-          disabled={loginLoading}
+          disabled={loginLoading || autoAccepting}
           data-testid="button-accept"
         >
-          {loginLoading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
+          {(loginLoading || autoAccepting) ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin mr-2" />
+              {autoAccepting ? '正在处理...' : '登录中...'}
+            </>
           ) : (
             <>
               <UserPlus className="w-5 h-5 mr-2" />
