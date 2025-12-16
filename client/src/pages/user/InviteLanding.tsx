@@ -70,19 +70,23 @@ export default function InviteLanding() {
       const liffState = await ensureLiffReady();
       console.log('[InviteLanding] LIFF状态:', {
         isInClient: liffState.isInClient,
-        isLoggedIn: liffState.isLoggedIn
+        isLoggedIn: liffState.isLoggedIn,
+        isInLineApp: isInLineApp()
       });
 
-      // 如果在LINE App内但LIFF未登录，触发LIFF登录
-      if (liffState.isInClient && !liffState.isLoggedIn) {
-        console.log('[InviteLanding] 在LINE内但LIFF未登录，触发登录');
-        liffState.liff.login();
+      // 如果LIFF未登录，触发LIFF登录
+      if (!liffState.isLoggedIn) {
+        console.log('[InviteLanding] LIFF未登录，触发登录流程');
+        // 保存当前URL以便登录后返回
+        const currentUrl = window.location.href;
+        localStorage.setItem('invite_return_url', currentUrl);
+        liffState.liff.login({ redirectUri: currentUrl });
         return;
       }
 
       // 获取LIFF用户信息
-      if (!liffState.liff || !liffState.isLoggedIn) {
-        throw new Error('请在LINE App中打开此链接');
+      if (!liffState.liff) {
+        throw new Error('LIFF初始化失败，请稍后重试');
       }
 
       const profile = await liffState.liff.getProfile();
