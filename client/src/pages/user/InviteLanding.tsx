@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { ensureLiffReady, isInLineApp, resetLiffState } from '@/lib/liffClient';
+import { ensureLiffReady, isInLineApp, resetLiffState, redirectToLineLogin } from '@/lib/liffClient';
 import {
   Users,
   UserPlus,
@@ -74,13 +74,11 @@ export default function InviteLanding() {
         isInLineApp: isInLineApp()
       });
 
-      // 如果LIFF未登录，触发LIFF登录
+      // 如果LIFF未登录，触发登录
       if (!liffState.isLoggedIn) {
-        console.log('[InviteLanding] LIFF未登录，触发登录流程');
-        // 保存当前URL以便登录后返回
-        const currentUrl = window.location.href;
-        localStorage.setItem('invite_return_url', currentUrl);
-        liffState.liff.login({ redirectUri: currentUrl });
+        console.log('[InviteLanding] LIFF未登录，触发LINE OAuth登录');
+        // 使用LINE OAuth登录（不依赖LIFF login，避免redirectUri白名单问题）
+        redirectToLineLogin({ redirectPath: `/invite?code=${inviteCode}` });
         return;
       }
 
