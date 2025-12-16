@@ -3,12 +3,15 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams, useLocation } from 'wouter';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder, Loader2, Check, Navigation } from 'lucide-react';
 import { VoiceInputIcon } from '@/components/icons/VoiceInputIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface Message {
   id: number;
@@ -45,6 +48,7 @@ const COMMON_EMOJIS = [
 export default function LiaoliaoChatDetail() {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [, navigate] = useLocation();
   const params = useParams<{ friendId: string }>();
   const friendId = parseInt(params.friendId || '0');
@@ -57,6 +61,24 @@ export default function LiaoliaoChatDetail() {
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [voiceInputMode, setVoiceInputMode] = useState(false);
   
+  const [showRedPacketDialog, setShowRedPacketDialog] = useState(false);
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [showLocationDialog, setShowLocationDialog] = useState(false);
+  const [showContactDialog, setShowContactDialog] = useState(false);
+  const [showCouponDialog, setShowCouponDialog] = useState(false);
+  const [showFavoriteDialog, setShowFavoriteDialog] = useState(false);
+  const [showMusicDialog, setShowMusicDialog] = useState(false);
+  const [showCallDialog, setShowCallDialog] = useState<'voice' | 'video' | null>(null);
+  
+  const [redPacketAmount, setRedPacketAmount] = useState('');
+  const [redPacketMessage, setRedPacketMessage] = useState('');
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferNote, setTransferNote] = useState('');
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{lat: number; lng: number; address: string} | null>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -64,6 +86,9 @@ export default function LiaoliaoChatDetail() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const baseInputValueRef = useRef<string>('');
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: chatData, isLoading } = useQuery<ChatData>({
     queryKey: ['/api/liaoliao/messages', friendId],
@@ -272,19 +297,173 @@ export default function LiaoliaoChatDetail() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handlePhotoSelect = () => {
+    photoInputRef.current?.click();
+    setShowActionPanel(false);
+  };
+
+  const handleCameraCapture = () => {
+    cameraInputRef.current?.click();
+    setShowActionPanel(false);
+  };
+
+  const handleFileSelect = () => {
+    fileInputRef.current?.click();
+    setShowActionPanel(false);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'photo' | 'camera' | 'file') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      
+      const messageContent = type === 'file' 
+        ? `[${t('liaoliao.fileMessage')}] ${file.name}`
+        : `[${t('liaoliao.imageMessage')}]`;
+      
+      sendMutation.mutate({ content: messageContent, messageType: type === 'file' ? 'file' : 'image' });
+      toast({ title: t('liaoliao.messageSent'), description: file.name });
+    }
+    e.target.value = '';
+  };
+
+  const handleGetLocation = async () => {
+    setIsGettingLocation(true);
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+        });
+      });
+      
+      const { latitude, longitude } = position.coords;
+      setCurrentLocation({
+        lat: latitude,
+        lng: longitude,
+        address: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+      });
+    } catch (error) {
+      toast({ title: t('liaoliao.locationError'), variant: 'destructive' });
+    } finally {
+      setIsGettingLocation(false);
+    }
+  };
+
+  const handleSendLocation = () => {
+    if (currentLocation) {
+      sendMutation.mutate({ 
+        content: `[${t('liaoliao.locationMessage')}] ${currentLocation.address}`, 
+        messageType: 'location' 
+      });
+      setShowLocationDialog(false);
+      setCurrentLocation(null);
+    }
+  };
+
+  const handleSendRedPacket = () => {
+    const amount = parseFloat(redPacketAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({ title: t('liaoliao.invalidAmount'), variant: 'destructive' });
+      return;
+    }
+    sendMutation.mutate({ 
+      content: `[${t('liaoliao.redPacketMessage')}] ${amount.toFixed(2)} THB${redPacketMessage ? ` - ${redPacketMessage}` : ''}`, 
+      messageType: 'redpacket' 
+    });
+    setShowRedPacketDialog(false);
+    setRedPacketAmount('');
+    setRedPacketMessage('');
+  };
+
+  const handleSendTransfer = () => {
+    const amount = parseFloat(transferAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({ title: t('liaoliao.invalidAmount'), variant: 'destructive' });
+      return;
+    }
+    sendMutation.mutate({ 
+      content: `[${t('liaoliao.transferMessage')}] ${amount.toFixed(2)} THB${transferNote ? ` - ${transferNote}` : ''}`, 
+      messageType: 'transfer' 
+    });
+    setShowTransferDialog(false);
+    setTransferAmount('');
+    setTransferNote('');
+  };
+
+  const handleVoiceCall = () => {
+    setShowCallDialog('voice');
+    setShowActionPanel(false);
+  };
+
+  const handleVideoCall = () => {
+    setShowCallDialog('video');
+    setShowActionPanel(false);
+  };
+
+  const handleStartCall = () => {
+    const callType = showCallDialog;
+    setShowCallDialog(null);
+    sendMutation.mutate({ 
+      content: `[${callType === 'voice' ? t('liaoliao.voiceCallMessage') : t('liaoliao.videoCallMessage')}]`, 
+      messageType: callType === 'voice' ? 'voicecall' : 'videocall' 
+    });
+    toast({ 
+      title: callType === 'voice' ? t('liaoliao.voiceCallStarted') : t('liaoliao.videoCallStarted'),
+      description: t('liaoliao.callFeatureDemo')
+    });
+  };
+
+  const handleSendContact = () => {
+    sendMutation.mutate({ 
+      content: `[${t('liaoliao.contactCard')}] ${user?.displayName || 'User'}`, 
+      messageType: 'contact' 
+    });
+    setShowContactDialog(false);
+  };
+
+  const handleSendFavorite = () => {
+    sendMutation.mutate({ 
+      content: `[${t('liaoliao.favoriteMessage')}]`, 
+      messageType: 'favorite' 
+    });
+    setShowFavoriteDialog(false);
+  };
+
+  const handleSendMusic = () => {
+    sendMutation.mutate({ 
+      content: `[${t('liaoliao.musicMessage')}]`, 
+      messageType: 'music' 
+    });
+    setShowMusicDialog(false);
+  };
+
+  const handleSendCoupon = () => {
+    sendMutation.mutate({ 
+      content: `[${t('liaoliao.couponMessage')}]`, 
+      messageType: 'coupon' 
+    });
+    setShowCouponDialog(false);
+  };
+
   const actionItems = [
-    { icon: ImageIcon, label: t('liaoliao.actionPhoto'), color: 'bg-blue-500' },
-    { icon: Camera, label: t('liaoliao.actionCamera'), color: 'bg-green-500' },
-    { icon: MapPin, label: t('liaoliao.actionLocation'), color: 'bg-orange-500' },
-    { icon: Gift, label: t('liaoliao.actionRedPacket'), color: 'bg-red-500' },
-    { icon: Folder, label: t('liaoliao.actionFolder'), color: 'bg-purple-500' },
-    { icon: UserCircle, label: t('liaoliao.actionContact'), color: 'bg-cyan-500' },
-    { icon: Phone, label: t('liaoliao.actionVoiceCall'), color: 'bg-emerald-500' },
-    { icon: Video, label: t('liaoliao.actionVideoCall'), color: 'bg-pink-500' },
-    { icon: Star, label: t('liaoliao.actionFavorite'), color: 'bg-amber-500' },
-    { icon: Wallet, label: t('liaoliao.actionTransfer'), color: 'bg-teal-500' },
-    { icon: Music, label: t('liaoliao.actionMusic'), color: 'bg-rose-500' },
-    { icon: FileText, label: t('liaoliao.actionCoupon'), color: 'bg-indigo-500' },
+    { icon: ImageIcon, label: t('liaoliao.actionPhoto'), color: 'bg-blue-500', action: handlePhotoSelect },
+    { icon: Camera, label: t('liaoliao.actionCamera'), color: 'bg-green-500', action: handleCameraCapture },
+    { icon: MapPin, label: t('liaoliao.actionLocation'), color: 'bg-orange-500', action: () => { setShowLocationDialog(true); setShowActionPanel(false); } },
+    { icon: Gift, label: t('liaoliao.actionRedPacket'), color: 'bg-red-500', action: () => { setShowRedPacketDialog(true); setShowActionPanel(false); } },
+    { icon: Folder, label: t('liaoliao.actionFolder'), color: 'bg-purple-500', action: handleFileSelect },
+    { icon: UserCircle, label: t('liaoliao.actionContact'), color: 'bg-cyan-500', action: () => { setShowContactDialog(true); setShowActionPanel(false); } },
+    { icon: Phone, label: t('liaoliao.actionVoiceCall'), color: 'bg-emerald-500', action: handleVoiceCall },
+    { icon: Video, label: t('liaoliao.actionVideoCall'), color: 'bg-pink-500', action: handleVideoCall },
+    { icon: Star, label: t('liaoliao.actionFavorite'), color: 'bg-amber-500', action: () => { setShowFavoriteDialog(true); setShowActionPanel(false); } },
+    { icon: Wallet, label: t('liaoliao.actionTransfer'), color: 'bg-teal-500', action: () => { setShowTransferDialog(true); setShowActionPanel(false); } },
+    { icon: Music, label: t('liaoliao.actionMusic'), color: 'bg-rose-500', action: () => { setShowMusicDialog(true); setShowActionPanel(false); } },
+    { icon: FileText, label: t('liaoliao.actionCoupon'), color: 'bg-indigo-500', action: () => { setShowCouponDialog(true); setShowActionPanel(false); } },
   ];
 
   const closeAllPanels = () => {
@@ -547,7 +726,7 @@ export default function LiaoliaoChatDetail() {
               <button
                 key={index}
                 className="flex flex-col items-center gap-2"
-                onClick={() => setShowActionPanel(false)}
+                onClick={item.action}
                 data-testid={`action-${index}`}
               >
                 <div className={cn("w-14 h-14 rounded-xl flex items-center justify-center", item.color)}>
@@ -559,6 +738,279 @@ export default function LiaoliaoChatDetail() {
           </div>
         </div>
       )}
+
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => handleFileChange(e, 'photo')}
+        data-testid="input-photo"
+      />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => handleFileChange(e, 'camera')}
+        data-testid="input-camera"
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="*/*"
+        className="hidden"
+        onChange={(e) => handleFileChange(e, 'file')}
+        data-testid="input-file"
+      />
+
+      <Dialog open={showRedPacketDialog} onOpenChange={setShowRedPacketDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center">{t('liaoliao.sendRedPacket')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-red-500 rounded-lg p-6 text-white text-center">
+              <Gift className="w-12 h-12 mx-auto mb-2" />
+              <Input
+                type="number"
+                placeholder={t('liaoliao.enterAmount')}
+                value={redPacketAmount}
+                onChange={(e) => setRedPacketAmount(e.target.value)}
+                className="bg-white/20 border-0 text-white placeholder:text-white/70 text-center text-2xl font-bold"
+                data-testid="input-redpacket-amount"
+              />
+              <p className="text-sm mt-2 opacity-80">THB</p>
+            </div>
+            <Input
+              placeholder={t('liaoliao.redPacketWish')}
+              value={redPacketMessage}
+              onChange={(e) => setRedPacketMessage(e.target.value)}
+              data-testid="input-redpacket-message"
+            />
+            <Button 
+              className="w-full bg-red-500 hover:bg-red-600" 
+              onClick={handleSendRedPacket}
+              disabled={!redPacketAmount || sendMutation.isPending}
+              data-testid="button-send-redpacket"
+            >
+              {sendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t('liaoliao.sendRedPacket')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center">{t('liaoliao.transfer')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-teal-500 rounded-lg p-6 text-white text-center">
+              <Wallet className="w-12 h-12 mx-auto mb-2" />
+              <Input
+                type="number"
+                placeholder={t('liaoliao.enterAmount')}
+                value={transferAmount}
+                onChange={(e) => setTransferAmount(e.target.value)}
+                className="bg-white/20 border-0 text-white placeholder:text-white/70 text-center text-2xl font-bold"
+                data-testid="input-transfer-amount"
+              />
+              <p className="text-sm mt-2 opacity-80">THB</p>
+            </div>
+            <Input
+              placeholder={t('liaoliao.transferNote')}
+              value={transferNote}
+              onChange={(e) => setTransferNote(e.target.value)}
+              data-testid="input-transfer-note"
+            />
+            <Button 
+              className="w-full bg-teal-500 hover:bg-teal-600" 
+              onClick={handleSendTransfer}
+              disabled={!transferAmount || sendMutation.isPending}
+              data-testid="button-send-transfer"
+            >
+              {sendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t('liaoliao.confirmTransfer')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showLocationDialog} onOpenChange={setShowLocationDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center">{t('liaoliao.shareLocation')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-orange-100 dark:bg-orange-900/30 rounded-lg p-6 text-center">
+              <MapPin className="w-12 h-12 mx-auto mb-2 text-orange-500" />
+              {currentLocation ? (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">{t('liaoliao.locationObtained')}</p>
+                  <p className="text-xs text-muted-foreground">{currentLocation.address}</p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">{t('liaoliao.clickToGetLocation')}</p>
+              )}
+            </div>
+            {!currentLocation ? (
+              <Button 
+                className="w-full" 
+                onClick={handleGetLocation}
+                disabled={isGettingLocation}
+                data-testid="button-get-location"
+              >
+                {isGettingLocation ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Navigation className="w-4 h-4 mr-2" />}
+                {t('liaoliao.getCurrentLocation')}
+              </Button>
+            ) : (
+              <Button 
+                className="w-full bg-orange-500 hover:bg-orange-600" 
+                onClick={handleSendLocation}
+                disabled={sendMutation.isPending}
+                data-testid="button-send-location"
+              >
+                {sendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t('liaoliao.sendLocation')}
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCallDialog !== null} onOpenChange={() => setShowCallDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center">
+              {showCallDialog === 'voice' ? t('liaoliao.voiceCall') : t('liaoliao.videoCall')}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4 text-center">
+            <Avatar className="w-20 h-20 mx-auto">
+              <AvatarImage src={friendInfo.avatarUrl} />
+              <AvatarFallback className="text-2xl">{friendInfo.displayName?.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <p className="font-medium">{friendInfo.displayName}</p>
+            <p className="text-sm text-muted-foreground">{t('liaoliao.callConfirmation')}</p>
+            <div className="flex gap-4 justify-center pt-4">
+              <Button 
+                size="icon"
+                variant="outline"
+                className="w-14 h-14 rounded-full"
+                onClick={() => setShowCallDialog(null)}
+                data-testid="button-cancel-call"
+              >
+                <X className="w-6 h-6" />
+              </Button>
+              <Button 
+                size="icon"
+                className={cn(
+                  "w-14 h-14 rounded-full",
+                  showCallDialog === 'voice' ? "bg-emerald-500 hover:bg-emerald-600" : "bg-pink-500 hover:bg-pink-600"
+                )}
+                onClick={handleStartCall}
+                data-testid="button-start-call"
+              >
+                {showCallDialog === 'voice' ? <Phone className="w-6 h-6" /> : <Video className="w-6 h-6" />}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showContactDialog} onOpenChange={setShowContactDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center">{t('liaoliao.shareContact')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-cyan-100 dark:bg-cyan-900/30 rounded-lg p-4 flex items-center gap-3">
+              <Avatar className="w-12 h-12">
+                <AvatarImage src={user?.avatarUrl || undefined} />
+                <AvatarFallback>{user?.displayName?.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-medium">{user?.displayName}</p>
+                <p className="text-sm text-muted-foreground">{t('liaoliao.myContact')}</p>
+              </div>
+            </div>
+            <Button 
+              className="w-full bg-cyan-500 hover:bg-cyan-600" 
+              onClick={handleSendContact}
+              disabled={sendMutation.isPending}
+              data-testid="button-send-contact"
+            >
+              {sendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t('liaoliao.sendContact')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showFavoriteDialog} onOpenChange={setShowFavoriteDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center">{t('liaoliao.favorites')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-amber-100 dark:bg-amber-900/30 rounded-lg p-6 text-center">
+              <Star className="w-12 h-12 mx-auto mb-2 text-amber-500" />
+              <p className="text-sm text-muted-foreground">{t('liaoliao.noFavorites')}</p>
+            </div>
+            <Button 
+              className="w-full bg-amber-500 hover:bg-amber-600" 
+              onClick={handleSendFavorite}
+              disabled={sendMutation.isPending}
+              data-testid="button-send-favorite"
+            >
+              {sendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t('liaoliao.sendFromFavorites')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showMusicDialog} onOpenChange={setShowMusicDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center">{t('liaoliao.shareMusic')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-rose-100 dark:bg-rose-900/30 rounded-lg p-6 text-center">
+              <Music className="w-12 h-12 mx-auto mb-2 text-rose-500" />
+              <p className="text-sm text-muted-foreground">{t('liaoliao.noMusic')}</p>
+            </div>
+            <Button 
+              className="w-full bg-rose-500 hover:bg-rose-600" 
+              onClick={handleSendMusic}
+              disabled={sendMutation.isPending}
+              data-testid="button-send-music"
+            >
+              {sendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t('liaoliao.sendMusic')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCouponDialog} onOpenChange={setShowCouponDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center">{t('liaoliao.myCoupons')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-lg p-6 text-center">
+              <FileText className="w-12 h-12 mx-auto mb-2 text-indigo-500" />
+              <p className="text-sm text-muted-foreground">{t('liaoliao.noCoupons')}</p>
+            </div>
+            <Button 
+              className="w-full bg-indigo-500 hover:bg-indigo-600" 
+              onClick={handleSendCoupon}
+              disabled={sendMutation.isPending}
+              data-testid="button-send-coupon"
+            >
+              {sendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t('liaoliao.sendCoupon')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
