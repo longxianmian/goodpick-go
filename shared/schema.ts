@@ -430,7 +430,7 @@ export const mediaFiles = pgTable('media_files', {
   fileUrl: text('file_url').notNull(),
   fileType: text('file_type').notNull(),
   fileSize: integer('file_size').notNull(),
-  uploadedBy: integer('uploaded_by').references(() => admins.id),
+  uploadedBy: integer('uploaded_by').references(() => users.id),
   isPublic: boolean('is_public').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });

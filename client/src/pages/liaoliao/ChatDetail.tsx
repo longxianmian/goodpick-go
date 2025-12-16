@@ -733,6 +733,46 @@ export default function LiaoliaoChatDetail() {
                         </div>
                       </div>
                     )}
+                    {message.messageType === 'location' && (
+                      <div className={`rounded-lg p-3 min-w-[200px] ${isOwn ? 'bg-white/10' : 'bg-primary/10'}`} data-testid={`location-message-${message.id}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <MapPin className={`w-4 h-4 ${isOwn ? 'text-white' : 'text-primary'}`} />
+                          <p className={`text-sm font-medium ${isOwn ? 'text-white' : 'text-foreground'}`}>{t('liaoliao.location')}</p>
+                        </div>
+                        <p className={`text-xs ${isOwn ? 'text-white/70' : 'text-muted-foreground'}`}>
+                          {message.content?.replace(/^\[位置\]\s*/, '').replace(/^\[Location\]\s*/, '')}
+                        </p>
+                      </div>
+                    )}
+                    {message.messageType === 'card' && (
+                      <div className={`rounded-lg p-4 min-w-[200px] ${isOwn ? 'bg-white/10' : 'bg-primary/10'}`} data-testid={`card-message-${message.id}`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isOwn ? 'bg-white/20' : 'bg-primary/20'}`}>
+                            <UserCircle className={`w-8 h-8 ${isOwn ? 'text-white' : 'text-primary'}`} />
+                          </div>
+                          <div className="flex-1">
+                            <p className={`text-sm font-medium ${isOwn ? 'text-white' : 'text-foreground'}`}>
+                              {message.content?.replace(/^\[名片\]\s*/, '').replace(/^\[Card\]\s*/, '') || t('liaoliao.contactCard')}
+                            </p>
+                            <p className={`text-xs ${isOwn ? 'text-white/70' : 'text-muted-foreground'}`}>{t('liaoliao.tapToAddFriend')}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {message.messageType === 'call' && (
+                      <div className={`rounded-lg p-3 min-w-[200px] flex items-center gap-3 ${isOwn ? 'bg-white/10' : 'bg-primary/10'}`} data-testid={`call-message-${message.id}`}>
+                        {message.content?.includes('video') ? (
+                          <Video className={`w-5 h-5 flex-shrink-0 ${isOwn ? 'text-white' : 'text-primary'}`} />
+                        ) : (
+                          <Phone className={`w-5 h-5 flex-shrink-0 ${isOwn ? 'text-white' : 'text-primary'}`} />
+                        )}
+                        <div className="flex-1">
+                          <p className={`text-sm ${isOwn ? 'text-white' : 'text-foreground'}`}>
+                            {message.content?.replace(/^\[通话\]\s*/, '').replace(/^\[Call\]\s*/, '') || (message.content?.includes('video') ? t('liaoliao.videoCall') : t('liaoliao.voiceCall'))}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                     {!['text', 'audio', 'image', 'file', 'location', 'card', 'call'].includes(message.messageType || 'text') && (
                       <p className="text-sm whitespace-pre-wrap break-words">
                         {message.content}
