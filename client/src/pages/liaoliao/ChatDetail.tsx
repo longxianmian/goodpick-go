@@ -13,6 +13,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 interface Message {
   id: number;
@@ -734,44 +736,13 @@ export default function LiaoliaoChatDetail() {
                       </div>
                     )}
                     {message.messageType === 'location' && (
-                      <div className={`rounded-lg p-3 min-w-[200px] ${isOwn ? 'bg-white/10' : 'bg-primary/10'}`} data-testid={`location-message-${message.id}`}>
-                        <div className="flex items-center gap-2 mb-2">
-                          <MapPin className={`w-4 h-4 ${isOwn ? 'text-white' : 'text-primary'}`} />
-                          <p className={`text-sm font-medium ${isOwn ? 'text-white' : 'text-foreground'}`}>{t('liaoliao.location')}</p>
-                        </div>
-                        <p className={`text-xs ${isOwn ? 'text-white/70' : 'text-muted-foreground'}`}>
-                          {message.content?.replace(/^\[位置\]\s*/, '').replace(/^\[Location\]\s*/, '')}
-                        </p>
-                      </div>
+                      <LocationMapCard message={message} isOwn={isOwn} />
                     )}
                     {message.messageType === 'card' && (
-                      <div className={`rounded-lg p-4 min-w-[200px] ${isOwn ? 'bg-white/10' : 'bg-primary/10'}`} data-testid={`card-message-${message.id}`}>
-                        <div className="flex items-center gap-3">
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isOwn ? 'bg-white/20' : 'bg-primary/20'}`}>
-                            <UserCircle className={`w-8 h-8 ${isOwn ? 'text-white' : 'text-primary'}`} />
-                          </div>
-                          <div className="flex-1">
-                            <p className={`text-sm font-medium ${isOwn ? 'text-white' : 'text-foreground'}`}>
-                              {message.content?.replace(/^\[名片\]\s*/, '').replace(/^\[Card\]\s*/, '') || t('liaoliao.contactCard')}
-                            </p>
-                            <p className={`text-xs ${isOwn ? 'text-white/70' : 'text-muted-foreground'}`}>{t('liaoliao.tapToAddFriend')}</p>
-                          </div>
-                        </div>
-                      </div>
+                      <CardMessage message={message} isOwn={isOwn} />
                     )}
                     {message.messageType === 'call' && (
-                      <div className={`rounded-lg p-3 min-w-[200px] flex items-center gap-3 ${isOwn ? 'bg-white/10' : 'bg-primary/10'}`} data-testid={`call-message-${message.id}`}>
-                        {message.content?.includes('video') ? (
-                          <Video className={`w-5 h-5 flex-shrink-0 ${isOwn ? 'text-white' : 'text-primary'}`} />
-                        ) : (
-                          <Phone className={`w-5 h-5 flex-shrink-0 ${isOwn ? 'text-white' : 'text-primary'}`} />
-                        )}
-                        <div className="flex-1">
-                          <p className={`text-sm ${isOwn ? 'text-white' : 'text-foreground'}`}>
-                            {message.content?.replace(/^\[通话\]\s*/, '').replace(/^\[Call\]\s*/, '') || (message.content?.includes('video') ? t('liaoliao.videoCall') : t('liaoliao.voiceCall'))}
-                          </p>
-                        </div>
-                      </div>
+                      <CallRecordMessage message={message} isOwn={isOwn} />
                     )}
                     {!['text', 'audio', 'image', 'file', 'location', 'card', 'call'].includes(message.messageType || 'text') && (
                       <p className="text-sm whitespace-pre-wrap break-words">
@@ -1244,4 +1215,191 @@ export default function LiaoliaoChatDetail() {
       />
     </div>
   );
+
+  // Location Map Card Component
+  function LocationMapCard({ message, isOwn }: { message: Message; isOwn: boolean }) {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+
+  const locationMeta = (message as any)?.metadata || {};
+  let lat = locationMeta?.latitude;
+  let lng = locationMeta?.longitude;
+  let title = locationMeta?.title || locationMeta?.address || '位置';
+
+  if ((!lat || !lng) && message.content) {
+    const latMatch = message.content.match(/纬度[：:]\s*([\d.-]+)/);
+    const lngMatch = message.content.match(/经度[：:]\s*([\d.-]+)/);
+    if (latMatch && lngMatch) {
+      lat = parseFloat(latMatch[1]);
+      lng = parseFloat(lngMatch[1]);
+    }
+  }
+
+  const googleMapsUrl = lat && lng ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}` : null;
+  const coordsDisplay = lat && lng ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : null;
+
+  useEffect(() => {
+    if (!mapContainerRef.current || !lat || !lng || mapRef.current) return;
+
+    const map = L.map(mapContainerRef.current, {
+      center: [lat, lng],
+      zoom: 15,
+      zoomControl: false,
+      attributionControl: false,
+      dragging: false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      touchZoom: false,
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+    }).addTo(map);
+
+    const redIcon = L.icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+    });
+
+    L.marker([lat, lng], { icon: redIcon }).addTo(map);
+    mapRef.current = map;
+    setMapReady(true);
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [lat, lng]);
+
+    return (
+      <div 
+        className="relative cursor-pointer max-w-[280px]"
+        onClick={() => googleMapsUrl && window.open(googleMapsUrl, '_blank', 'noopener,noreferrer')}
+        data-testid={`location-${message.id}`}
+      >
+        <div className={cn(
+          "rounded-lg overflow-hidden shadow-sm",
+          isOwn ? "bg-[#38B03B]" : "bg-muted"
+        )}>
+          <div className="relative w-[280px] h-[150px] bg-gradient-to-br from-blue-100 to-green-100 dark:from-slate-700 dark:to-slate-600">
+            {lat && lng ? (
+              <>
+                <div 
+                  ref={mapContainerRef} 
+                  className="w-full h-full"
+                  style={{ zIndex: 0 }}
+                />
+                {!mapReady && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-100 to-green-100 dark:from-slate-700 dark:to-slate-600">
+                    <div className="text-center">
+                      <MapPin className="w-8 h-8 text-red-500 mx-auto animate-pulse" />
+                      <p className="text-xs text-slate-500 mt-1">加载中...</p>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <MapPin className="w-10 h-10 text-red-500 drop-shadow-lg" />
+              </div>
+            )}
+            <div className="absolute bottom-2 right-2 bg-white/90 dark:bg-slate-800/90 rounded-full p-2 shadow z-10">
+              <Navigation className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+            </div>
+          </div>
+          
+          <div className={cn("p-3", isOwn ? "bg-[#38B03B] text-white" : "bg-white dark:bg-slate-800")}>
+            <p className={cn("text-[14px] font-medium", isOwn ? "text-white" : "text-slate-900 dark:text-slate-100")}>
+              {title}
+            </p>
+            {coordsDisplay && (
+              <p className={cn("text-xs mt-0.5", isOwn ? "text-white/70" : "text-slate-500 dark:text-slate-400")}>
+                {coordsDisplay}
+              </p>
+            )}
+            <div className={cn("flex items-center gap-1 mt-1.5 text-xs", isOwn ? "text-white/80" : "text-emerald-600 dark:text-emerald-400")}>
+              <MapPin className="w-3 h-3" />
+              <span>点击打开地图</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Card Message Component
+  function CardMessage({ message, isOwn }: { message: Message; isOwn: boolean }) {
+  const cardMeta = (message as any)?.metadata || {};
+  let contactInfo: any = {
+    id: cardMeta?.contactId || '',
+    username: cardMeta?.contactUsername || '',
+    name: cardMeta?.contactName || cardMeta?.contactUsername || message.content || '联系人',
+    avatar: cardMeta?.contactAvatar || null
+  };
+
+    return (
+      <div 
+        className={cn(
+          "rounded-lg overflow-hidden w-[240px] cursor-pointer hover:opacity-90 transition-opacity",
+          isOwn ? "bg-[#38B03B]" : "bg-muted"
+        )}
+        data-testid={`card-${message.id}`}
+      >
+        <div className={cn("p-4", isOwn ? "bg-gradient-to-r from-green-600 to-green-500" : "bg-gradient-to-r from-blue-600 to-blue-500")}>
+          <div className="flex items-center gap-3">
+            <div className="w-14 h-14 rounded-full border-2 border-white/30 bg-white/20 flex items-center justify-center overflow-hidden">
+              {contactInfo.avatar ? (
+                <img src={contactInfo.avatar} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <UserCircle className="w-full h-full text-white/40" />
+              )}
+            </div>
+            <div>
+              <div className="text-white font-semibold text-lg">{contactInfo.name}</div>
+              {contactInfo.username && (
+                <div className="text-white/70 text-sm">@{contactInfo.username}</div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className={cn("p-3 text-center", isOwn ? "bg-green-50 dark:bg-green-900/20" : "bg-blue-50 dark:bg-blue-900/20")}>
+          <p className={cn("text-xs font-medium", isOwn ? "text-green-700 dark:text-green-300" : "text-blue-700 dark:text-blue-300")}>点击添加朋友</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Call Record Message Component
+  function CallRecordMessage({ message, isOwn }: { message: Message; isOwn: boolean }) {
+  const isVideo = message.content?.includes('video') || message.content?.includes('视频');
+  const duration = message.content?.match(/\d+/)?.[0] || '0';
+
+    return (
+      <div 
+        className={cn(
+          "rounded-lg p-3 min-w-[200px] flex items-center gap-3",
+          isOwn ? "bg-white/10" : "bg-primary/10"
+        )}
+        data-testid={`call-${message.id}`}
+      >
+        {isVideo ? (
+          <Video className={cn("w-5 h-5 flex-shrink-0", isOwn ? "text-white" : "text-primary")} />
+        ) : (
+          <Phone className={cn("w-5 h-5 flex-shrink-0", isOwn ? "text-white" : "text-primary")} />
+        )}
+        <div className="flex-1">
+          <p className={cn("text-sm", isOwn ? "text-white" : "text-foreground")}>
+            {isVideo ? '视频通话' : '语音通话'} {duration}s
+          </p>
+        </div>
+      </div>
+    );
+  }
 }
