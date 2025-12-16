@@ -595,10 +595,22 @@ export default function LiaoliaoChatDetail() {
                       )
                     )}
                     {message.messageType === 'file' && (
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4" />
-                        <span className="text-sm">{message.content}</span>
-                      </div>
+                      message.mediaUrl ? (
+                        <a 
+                          href={message.mediaUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 underline"
+                        >
+                          <FileText className="w-4 h-4" />
+                          <span className="text-sm">{message.content}</span>
+                        </a>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          <span className="text-sm">{message.content}</span>
+                        </div>
+                      )
                     )}
                     {!['text', 'voice', 'image', 'file'].includes(message.messageType || 'text') && (
                       <p className="text-sm whitespace-pre-wrap break-words">
