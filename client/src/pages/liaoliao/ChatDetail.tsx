@@ -548,12 +548,30 @@ export default function LiaoliaoChatDetail() {
                         <span className="text-sm">{message.content}</span>
                       </div>
                     )}
-                    {message.messageType === 'image' && message.mediaUrl && (
-                      <img 
-                        src={message.mediaUrl} 
-                        alt="Image" 
-                        className="max-w-full rounded-lg"
-                      />
+                    {message.messageType === 'image' && (
+                      message.mediaUrl ? (
+                        <img 
+                          src={message.mediaUrl} 
+                          alt="Image" 
+                          className="max-w-full rounded-lg"
+                        />
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <ImageIcon className="w-4 h-4" />
+                          <span className="text-sm">{message.content}</span>
+                        </div>
+                      )
+                    )}
+                    {message.messageType === 'file' && (
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        <span className="text-sm">{message.content}</span>
+                      </div>
+                    )}
+                    {!['text', 'voice', 'image', 'file'].includes(message.messageType || 'text') && (
+                      <p className="text-sm whitespace-pre-wrap break-words">
+                        {message.content}
+                      </p>
                     )}
                   </div>
                 </div>
