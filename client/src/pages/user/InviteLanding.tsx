@@ -90,9 +90,33 @@ export default function InviteLanding() {
     return true;
   };
 
-  // 页面加载时：检查是否有待处理的邀请（LIFF登录后自动继续）
+  // 页面加载时：检查是否有待处理的邀请（登录后自动继续）
   useEffect(() => {
     const checkPendingInvite = async () => {
+      // 方式1: 检查URL中是否有token（LINE OAuth登录返回）
+      const urlToken = params.get('token');
+      if (urlToken && inviteCode) {
+        console.log('[InviteLanding] 检测到URL中的token，自动接受邀请...');
+        setAutoAccepting(true);
+        try {
+          localStorage.setItem('userToken', urlToken);
+          await doAcceptInvite(urlToken, inviteCode);
+          // 清理URL中的token参数
+          window.history.replaceState({}, '', `/invite?code=${inviteCode}`);
+        } catch (err: any) {
+          console.error('[InviteLanding] 自动接受邀请失败:', err);
+          toast({
+            title: '操作失败',
+            description: err.message || '请稍后重试',
+            variant: 'destructive',
+          });
+        } finally {
+          setAutoAccepting(false);
+        }
+        return;
+      }
+
+      // 方式2: 检查sessionStorage（LIFF登录返回）
       const pendingData = sessionStorage.getItem(INVITE_PENDING_KEY);
       if (!pendingData) return;
 
@@ -106,7 +130,7 @@ export default function InviteLanding() {
           return;
         }
 
-        // 只在LINE环境中自动处理
+        // 只在LINE环境中自动处理LIFF登录
         if (!isInLineApp()) return;
 
         console.log('[InviteLanding] 检测到待处理邀请，自动继续...');
@@ -157,7 +181,7 @@ export default function InviteLanding() {
     };
 
     checkPendingInvite();
-  }, []);
+  }, [inviteCode]);
 
   // 点击"接受邀请"按钮
   const handleAcceptInvite = async () => {
