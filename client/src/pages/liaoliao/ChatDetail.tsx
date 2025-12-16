@@ -3,7 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams, useLocation } from 'wouter';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder } from 'lucide-react';
 import { VoiceInputIcon } from '@/components/icons/VoiceInputIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -277,6 +277,14 @@ export default function LiaoliaoChatDetail() {
     { icon: Camera, label: t('liaoliao.actionCamera'), color: 'bg-green-500' },
     { icon: MapPin, label: t('liaoliao.actionLocation'), color: 'bg-orange-500' },
     { icon: Gift, label: t('liaoliao.actionRedPacket'), color: 'bg-red-500' },
+    { icon: FileText, label: t('liaoliao.actionFile'), color: 'bg-purple-500' },
+    { icon: UserCircle, label: t('liaoliao.actionContact'), color: 'bg-cyan-500' },
+    { icon: Phone, label: t('liaoliao.actionVoiceCall'), color: 'bg-emerald-500' },
+    { icon: Video, label: t('liaoliao.actionVideoCall'), color: 'bg-pink-500' },
+    { icon: Star, label: t('liaoliao.actionFavorite'), color: 'bg-amber-500' },
+    { icon: Wallet, label: t('liaoliao.actionTransfer'), color: 'bg-teal-500' },
+    { icon: Music, label: t('liaoliao.actionMusic'), color: 'bg-rose-500' },
+    { icon: Folder, label: t('liaoliao.actionFolder'), color: 'bg-indigo-500' },
   ];
 
   const closeAllPanels = () => {
