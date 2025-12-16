@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Send, Bot, Sparkles, MoreVertical, Mic, Smile, Plus, X, Image as ImageIcon, Camera, MapPin, Gift } from 'lucide-react';
+import { ArrowLeft, Send, Bot, Sparkles, MoreVertical, Mic, Smile, Plus, X, Image as ImageIcon, Camera, MapPin, Gift, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder } from 'lucide-react';
 import { VoiceInputIcon } from '@/components/icons/VoiceInputIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -255,6 +255,14 @@ export default function LiaoliaoAiChat() {
     { icon: Camera, label: t('liaoliao.actionCamera'), color: 'bg-green-500' },
     { icon: MapPin, label: t('liaoliao.actionLocation'), color: 'bg-orange-500' },
     { icon: Gift, label: t('liaoliao.actionRedPacket'), color: 'bg-red-500' },
+    { icon: FileText, label: t('liaoliao.actionFile'), color: 'bg-purple-500' },
+    { icon: UserCircle, label: t('liaoliao.actionContact'), color: 'bg-cyan-500' },
+    { icon: Phone, label: t('liaoliao.actionVoiceCall'), color: 'bg-emerald-500' },
+    { icon: Video, label: t('liaoliao.actionVideoCall'), color: 'bg-pink-500' },
+    { icon: Star, label: t('liaoliao.actionFavorite'), color: 'bg-amber-500' },
+    { icon: Wallet, label: t('liaoliao.actionTransfer'), color: 'bg-teal-500' },
+    { icon: Music, label: t('liaoliao.actionMusic'), color: 'bg-rose-500' },
+    { icon: Folder, label: t('liaoliao.actionFolder'), color: 'bg-indigo-500' },
   ];
 
   const closeAllPanels = () => {
@@ -334,44 +342,7 @@ export default function LiaoliaoAiChat() {
         <div ref={messagesEndRef} />
       </main>
 
-      {showEmojiPanel && (
-        <div className="bg-muted/50 border-t px-2 py-3">
-          <div className="grid grid-cols-8 gap-1 max-h-48 overflow-y-auto">
-            {COMMON_EMOJIS.map((emoji, index) => (
-              <button
-                key={index}
-                className="w-10 h-10 flex items-center justify-center text-xl hover:bg-muted rounded-lg transition-colors"
-                onClick={() => handleEmojiSelect(emoji)}
-                data-testid={`emoji-${index}`}
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {showActionPanel && (
-        <div className="bg-muted/50 border-t px-4 py-4">
-          <div className="grid grid-cols-4 gap-4">
-            {actionItems.map((item, index) => (
-              <button
-                key={index}
-                className="flex flex-col items-center gap-2"
-                onClick={() => setShowActionPanel(false)}
-                data-testid={`action-${index}`}
-              >
-                <div className={cn("w-14 h-14 rounded-xl flex items-center justify-center", item.color)}>
-                  <item.icon className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-xs text-muted-foreground">{item.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <footer className="sticky bottom-0 bg-background border-t px-3 py-2 pb-safe">
+      <footer className="sticky bottom-0 bg-background border-t px-3 py-2">
         {isRecordingVoice ? (
           <div className="flex items-center justify-center gap-4 py-2">
             <Button 
@@ -515,6 +486,43 @@ export default function LiaoliaoAiChat() {
           </div>
         )}
       </footer>
+
+      {showEmojiPanel && (
+        <div className="bg-muted/50 border-t px-2 py-3 pb-safe">
+          <div className="grid grid-cols-8 gap-1 max-h-48 overflow-y-auto">
+            {COMMON_EMOJIS.map((emoji, index) => (
+              <button
+                key={index}
+                className="w-10 h-10 flex items-center justify-center text-xl hover:bg-muted rounded-lg transition-colors"
+                onClick={() => handleEmojiSelect(emoji)}
+                data-testid={`emoji-${index}`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showActionPanel && (
+        <div className="bg-muted/50 border-t px-4 py-4 pb-safe">
+          <div className="grid grid-cols-4 gap-4">
+            {actionItems.map((item, index) => (
+              <button
+                key={index}
+                className="flex flex-col items-center gap-2"
+                onClick={() => setShowActionPanel(false)}
+                data-testid={`action-${index}`}
+              >
+                <div className={cn("w-14 h-14 rounded-xl flex items-center justify-center", item.color)}>
+                  <item.icon className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-xs text-muted-foreground">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

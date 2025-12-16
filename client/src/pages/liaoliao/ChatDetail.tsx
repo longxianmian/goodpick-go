@@ -385,44 +385,7 @@ export default function LiaoliaoChatDetail() {
         )}
       </main>
 
-      {showEmojiPanel && (
-        <div className="bg-muted/50 border-t px-2 py-3">
-          <div className="grid grid-cols-8 gap-1 max-h-48 overflow-y-auto">
-            {COMMON_EMOJIS.map((emoji, index) => (
-              <button
-                key={index}
-                className="w-10 h-10 flex items-center justify-center text-xl hover:bg-muted rounded-lg transition-colors"
-                onClick={() => handleEmojiSelect(emoji)}
-                data-testid={`emoji-${index}`}
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {showActionPanel && (
-        <div className="bg-muted/50 border-t px-4 py-4">
-          <div className="grid grid-cols-4 gap-4">
-            {actionItems.map((item, index) => (
-              <button
-                key={index}
-                className="flex flex-col items-center gap-2"
-                onClick={() => setShowActionPanel(false)}
-                data-testid={`action-${index}`}
-              >
-                <div className={cn("w-14 h-14 rounded-xl flex items-center justify-center", item.color)}>
-                  <item.icon className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-xs text-muted-foreground">{item.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <footer className="sticky bottom-0 bg-background border-t px-3 py-2 pb-safe">
+      <footer className="sticky bottom-0 bg-background border-t px-3 py-2">
         {isRecordingVoice ? (
           <div className="flex items-center justify-center gap-4 py-2">
             <Button 
@@ -559,6 +522,43 @@ export default function LiaoliaoChatDetail() {
           </div>
         )}
       </footer>
+
+      {showEmojiPanel && (
+        <div className="bg-muted/50 border-t px-2 py-3 pb-safe">
+          <div className="grid grid-cols-8 gap-1 max-h-48 overflow-y-auto">
+            {COMMON_EMOJIS.map((emoji, index) => (
+              <button
+                key={index}
+                className="w-10 h-10 flex items-center justify-center text-xl hover:bg-muted rounded-lg transition-colors"
+                onClick={() => handleEmojiSelect(emoji)}
+                data-testid={`emoji-${index}`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showActionPanel && (
+        <div className="bg-muted/50 border-t px-4 py-4 pb-safe">
+          <div className="grid grid-cols-4 gap-4">
+            {actionItems.map((item, index) => (
+              <button
+                key={index}
+                className="flex flex-col items-center gap-2"
+                onClick={() => setShowActionPanel(false)}
+                data-testid={`action-${index}`}
+              >
+                <div className={cn("w-14 h-14 rounded-xl flex items-center justify-center", item.color)}>
+                  <item.icon className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-xs text-muted-foreground">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
