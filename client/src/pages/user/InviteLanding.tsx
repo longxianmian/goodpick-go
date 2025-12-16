@@ -91,6 +91,12 @@ export default function InviteLanding() {
     }
   }, [isUserAuthenticated, inviteCode, inviteInfo]);
 
+  useEffect(() => {
+    if (inviteInfo?.isOwnInvite) {
+      navigate('/');
+    }
+  }, [inviteInfo?.isOwnInvite, navigate]);
+
   if (!inviteCode) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
@@ -130,12 +136,6 @@ export default function InviteLanding() {
       </div>
     );
   }
-
-  useEffect(() => {
-    if (inviteInfo?.isOwnInvite) {
-      navigate('/');
-    }
-  }, [inviteInfo?.isOwnInvite, navigate]);
 
   if (accepted || inviteInfo.isUsed) {
     return (
