@@ -6,6 +6,26 @@ ShuaShua (刷刷) is a multi-merchant O2O local life platform connecting consume
 ## User Preferences
 语言要求: 必须使用中文沟通（用户不懂英文，这是强制要求）
 
+## 开发天条（最高准则，不可违反）
+
+### 聊聊(LiaoLiao)模块开发规范
+**凡是聊聊相关的功能模块，要求100%原样恢复源代码的功能！不能有一丝一点偏差！**
+
+具体要求：
+1. **必须复用现有组件**: 使用 `client/src/components/ui/image-preview.tsx` 处理图片预览，禁止自行实现
+2. **必须复用现有工具函数**: 使用项目中已有的下载、上传、预览等工具函数，禁止自行编写
+3. **禁止偷工减料**: 每个功能必须完整实现，包括所有交互细节、错误处理、加载状态
+4. **严格遵循现有设计模式**: 先彻底阅读理解现有代码，再进行任何修改
+5. **功能验证**: 每个功能修改后必须完整测试，确保与原设计一致
+
+聊聊相关文件：
+- `client/src/pages/liaoliao/ChatDetail.tsx` - 好友聊天详情
+- `client/src/pages/liaoliao/AiChat.tsx` - AI助手聊天
+- `client/src/pages/liaoliao/LiaoliaoHome.tsx` - 聊聊首页
+- `client/src/pages/liaoliao/FriendList.tsx` - 好友列表
+- `client/src/components/ui/image-preview.tsx` - 图片预览组件（必须复用）
+- `client/src/components/MediaUploader.tsx` - 媒体上传组件（必须复用）
+
 ## System Architecture
 
 ### Frontend
