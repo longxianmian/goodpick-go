@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { ensureLiffReady, isInLineApp } from '@/lib/liffClient';
+import { ensureLiffReady, isInLineApp, resetLiffState } from '@/lib/liffClient';
 import {
   Users,
   UserPlus,
@@ -35,7 +35,7 @@ interface InviteInfo {
 
 export default function InviteLanding() {
   const { t } = useLanguage();
-  const { user, isUserAuthenticated, reloadAuth } = useAuth();
+  const { user, isUserAuthenticated, logoutUser } = useAuth();
   const [, navigate] = useLocation();
   const searchString = useSearch();
   const { toast } = useToast();
@@ -72,15 +72,35 @@ export default function InviteLanding() {
           console.log('[InviteLanding] LIFF用户ID:', currentLineUserId);
           console.log('[InviteLanding] 已登录用户:', user?.lineUserId);
           
-          // 如果已有用户登录，但LINE用户ID不匹配，需要清除旧登录
+          // 如果已有用户登录，但LINE用户ID不匹配，需要完全清除旧登录
           if (user && user.lineUserId !== currentLineUserId) {
-            console.log('[InviteLanding] LINE身份不匹配，清除旧登录');
-            localStorage.removeItem('userToken');
-            localStorage.removeItem('user');
+            console.log('[InviteLanding] LINE身份不匹配，执行完整登出');
+            
             // 保存邀请码，登录后自动接受
             localStorage.setItem('pendingInviteCode', inviteCode || '');
-            // 重新加载认证状态
-            reloadAuth?.();
+            
+            // 1. 调用AuthContext的登出函数
+            logoutUser();
+            
+            // 2. 重置LIFF缓存状态
+            resetLiffState();
+            
+            // 3. 调用LIFF登出
+            try {
+              if (liffState.liff.isLoggedIn()) {
+                liffState.liff.logout();
+              }
+            } catch (e) {
+              console.log('[InviteLanding] LIFF登出失败:', e);
+            }
+            
+            // 4. 重新初始化LIFF并触发登录
+            const newLiffState = await ensureLiffReady();
+            if (newLiffState.liff && !newLiffState.liff.isLoggedIn()) {
+              console.log('[InviteLanding] 触发LIFF重新登录');
+              newLiffState.liff.login();
+              return; // 登录会跳转页面，不需要继续
+            }
           }
         }
       } catch (err) {
@@ -91,7 +111,7 @@ export default function InviteLanding() {
     }
 
     checkLiffIdentity();
-  }, [user, inviteCode, reloadAuth]);
+  }, [user, inviteCode, logoutUser]);
 
   const { data: inviteInfo, isLoading, error } = useQuery<InviteInfo>({
     queryKey: ['/api/invites', inviteCode],
