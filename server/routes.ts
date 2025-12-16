@@ -1273,7 +1273,9 @@ export function registerRoutes(app: Express): Server {
 
       let redirectUrl: string;
       if (storedOAuthData.returnTo) {
-        redirectUrl = `${storedOAuthData.returnTo}?token=${encodeURIComponent(
+        // 检查returnTo是否已有query参数，决定用?还是&
+        const separator = storedOAuthData.returnTo.includes('?') ? '&' : '?';
+        redirectUrl = `${storedOAuthData.returnTo}${separator}token=${encodeURIComponent(
           token
         )}&firstLogin=true`;
       } else if (storedOAuthData.campaignId) {
