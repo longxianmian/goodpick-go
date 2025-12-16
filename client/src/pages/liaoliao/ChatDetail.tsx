@@ -104,11 +104,12 @@ export default function LiaoliaoChatDetail() {
   };
 
   const sendMutation = useMutation({
-    mutationFn: async (data: { content: string; messageType: string }) => {
+    mutationFn: async (data: { content: string; messageType: string; mediaUrl?: string }) => {
       return apiRequest('POST', '/api/liaoliao/messages', {
         toUserId: friendId,
         content: data.content,
         messageType: data.messageType,
+        mediaUrl: data.mediaUrl,
       });
     },
     onSuccess: () => {
@@ -312,7 +313,7 @@ export default function LiaoliaoChatDetail() {
     setShowActionPanel(false);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'photo' | 'camera' | 'file') => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: 'photo' | 'camera' | 'file') => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedImage(file);
@@ -322,12 +323,41 @@ export default function LiaoliaoChatDetail() {
       };
       reader.readAsDataURL(file);
       
-      const messageContent = type === 'file' 
-        ? `[${t('liaoliao.fileMessage')}] ${file.name}`
-        : `[${t('liaoliao.imageMessage')}]`;
+      toast({ title: t('liaoliao.uploading'), description: file.name });
       
-      sendMutation.mutate({ content: messageContent, messageType: type === 'file' ? 'file' : 'image' });
-      toast({ title: t('liaoliao.messageSent'), description: file.name });
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const uploadEndpoint = '/api/user/upload';
+        
+        const response = await fetch(uploadEndpoint, {
+          method: 'POST',
+          body: formData,
+          credentials: 'include',
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && (result.url || result.fileUrl)) {
+          const fileUrl = result.url || result.fileUrl;
+          const messageContent = type === 'file' 
+            ? `[${t('liaoliao.fileMessage')}] ${file.name}`
+            : `[${t('liaoliao.imageMessage')}]`;
+          
+          sendMutation.mutate({ 
+            content: messageContent, 
+            messageType: type === 'file' ? 'file' : 'image',
+            mediaUrl: fileUrl
+          });
+          toast({ title: t('liaoliao.messageSent'), description: file.name });
+        } else {
+          toast({ title: t('liaoliao.uploadFailed'), variant: 'destructive' });
+        }
+      } catch (error) {
+        console.error('Upload error:', error);
+        toast({ title: t('liaoliao.uploadFailed'), variant: 'destructive' });
+      }
     }
     e.target.value = '';
   };
