@@ -80,6 +80,11 @@ export default function LiaoliaoChatDetail() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   
+  // 图片预览状态 - 使用现有的ImagePreview组件
+  const [showImagePreview, setShowImagePreview] = useState(false);
+  const [previewImageIndex, setPreviewImageIndex] = useState(0);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -178,6 +183,40 @@ export default function LiaoliaoChatDetail() {
     setShowEmojiPanel(false);
     setShowActionPanel(false);
   };
+
+  // 处理图片预览 - 使用现有的ImagePreview组件
+  const handleImagePreview = useCallback((imageUrl: string) => {
+    // 收集所有图片消息的URL
+    const allImageUrls = messages
+      .filter(m => m.messageType === 'image' && m.mediaUrl)
+      .map(m => m.mediaUrl as string);
+    
+    const index = allImageUrls.indexOf(imageUrl);
+    setPreviewImages(allImageUrls);
+    setPreviewImageIndex(index >= 0 ? index : 0);
+    setShowImagePreview(true);
+  }, [messages]);
+
+  // 处理文件下载
+  const handleFileDownload = useCallback((url: string, filename: string) => {
+    if (!url) {
+      toast({
+        title: t('liaoliao.uploadFailed'),
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    // 创建隐藏的a标签进行下载
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [toast]);
 
   const startVoiceRecording = useCallback(async () => {
     try {
@@ -588,7 +627,8 @@ export default function LiaoliaoChatDetail() {
                             src={message.mediaUrl} 
                             alt="Image" 
                             className="max-w-[200px] max-h-[200px] object-cover cursor-pointer"
-                            onClick={() => window.open(message.mediaUrl, '_blank')}
+                            onClick={() => handleImagePreview(message.mediaUrl!)}
+                            data-testid={`image-message-${message.id}`}
                           />
                         </div>
                       ) : (
@@ -601,24 +641,13 @@ export default function LiaoliaoChatDetail() {
                     {message.messageType === 'file' && (
                       <div 
                         onClick={() => {
-                          if (message.mediaUrl) {
-                            // 兼容LINE WebView的下载方式
-                            const link = document.createElement('a');
-                            link.href = message.mediaUrl;
-                            link.target = '_blank';
-                            link.rel = 'noopener noreferrer';
-                            // 尝试直接打开链接
-                            window.location.href = message.mediaUrl;
-                          } else {
-                            toast({
-                              title: t('liaoliao.uploadFailed'),
-                              variant: 'destructive'
-                            });
-                          }
+                          const filename = message.content?.replace(/^\[文件\]\s*/, '').replace(/^\[File\]\s*/, '') || 'file';
+                          handleFileDownload(message.mediaUrl || '', filename);
                         }}
                         className={`flex items-center gap-3 p-3 rounded-lg min-w-[200px] cursor-pointer ${
                           isOwn ? 'bg-white/10' : 'bg-background'
                         }`}
+                        data-testid={`file-message-${message.id}`}
                       >
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                           isOwn ? 'bg-white/20' : 'bg-primary/10'
@@ -1096,6 +1125,14 @@ export default function LiaoliaoChatDetail() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* 图片预览 - 使用现有的ImagePreview组件 */}
+      <ImagePreview
+        images={previewImages}
+        initialIndex={previewImageIndex}
+        isOpen={showImagePreview}
+        onClose={() => setShowImagePreview(false)}
+      />
     </div>
   );
 }
