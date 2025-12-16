@@ -277,14 +277,14 @@ export default function LiaoliaoChatDetail() {
     { icon: Camera, label: t('liaoliao.actionCamera'), color: 'bg-green-500' },
     { icon: MapPin, label: t('liaoliao.actionLocation'), color: 'bg-orange-500' },
     { icon: Gift, label: t('liaoliao.actionRedPacket'), color: 'bg-red-500' },
-    { icon: FileText, label: t('liaoliao.actionFile'), color: 'bg-purple-500' },
+    { icon: Folder, label: t('liaoliao.actionFolder'), color: 'bg-purple-500' },
     { icon: UserCircle, label: t('liaoliao.actionContact'), color: 'bg-cyan-500' },
     { icon: Phone, label: t('liaoliao.actionVoiceCall'), color: 'bg-emerald-500' },
     { icon: Video, label: t('liaoliao.actionVideoCall'), color: 'bg-pink-500' },
     { icon: Star, label: t('liaoliao.actionFavorite'), color: 'bg-amber-500' },
     { icon: Wallet, label: t('liaoliao.actionTransfer'), color: 'bg-teal-500' },
     { icon: Music, label: t('liaoliao.actionMusic'), color: 'bg-rose-500' },
-    { icon: Folder, label: t('liaoliao.actionFolder'), color: 'bg-indigo-500' },
+    { icon: FileText, label: t('liaoliao.actionCoupon'), color: 'bg-indigo-500' },
   ];
 
   const closeAllPanels = () => {
