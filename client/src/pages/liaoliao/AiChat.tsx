@@ -440,11 +440,12 @@ export default function LiaoliaoAiChat() {
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
                   target.style.height = 'auto';
-                  const newHeight = Math.max(40, Math.min(target.scrollHeight, 120));
+                  const newHeight = Math.max(40, Math.min(target.scrollHeight, 140));
                   target.style.height = newHeight + 'px';
+                  target.scrollTop = target.scrollHeight;
                 }}
                 placeholder={t('liaoliao.typeMessage')}
-                className="w-full bg-muted/50 rounded-full px-4 py-2.5 text-sm border border-border focus:ring-1 focus:ring-[#38B03B] focus:outline-none resize-none min-h-[40px] max-h-[120px] overflow-y-auto leading-5"
+                className="w-full bg-muted/50 rounded-2xl px-4 py-2.5 text-sm border border-border focus:ring-1 focus:ring-[#38B03B] focus:outline-none resize-none min-h-[40px] max-h-[140px] overflow-y-auto leading-5"
                 rows={1}
                 data-testid="input-message"
               />
