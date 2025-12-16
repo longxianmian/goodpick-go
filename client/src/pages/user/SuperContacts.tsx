@@ -130,6 +130,11 @@ export default function SuperContacts() {
   const contacts = contactsData?.data || [];
   
   const filteredContacts = contacts.filter(contact => {
+    // 方案A：不显示未接受的邀请记录
+    if (contact.contactType === 'pending_invite') {
+      return false;
+    }
+    
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       if (!contact.displayName.toLowerCase().includes(query)) {
