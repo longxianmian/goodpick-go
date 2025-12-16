@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { ensureLiffReady, resetLiffState } from '@/lib/liffClient';
 
 interface Admin {
   id: number;
@@ -6,7 +7,6 @@ interface Admin {
   name: string;
 }
 
-// 用户在某个门店的角色信息
 export interface UserStoreRole {
   storeId: number;
   storeName: string;
@@ -14,13 +14,6 @@ export interface UserStoreRole {
   role: 'owner' | 'operator' | 'verifier';
 }
 
-// 用户角色类型（6种角色）
-// consumer: 消费者（默认）
-// owner: 商户老板
-// operator: 运营人员
-// verifier: 核销员
-// sysadmin: 系统管理员
-// creator: 刷刷号（自媒体）
 export type UserRoleType = 'consumer' | 'owner' | 'operator' | 'verifier' | 'sysadmin' | 'creator' | 'member';
 
 interface User {
@@ -31,7 +24,6 @@ interface User {
   shuaBio?: string | null;
   avatarUrl: string | null;
   language: string;
-  // 新增角色相关字段
   primaryRole?: UserRoleType;
   roles?: UserStoreRole[];
   hasOwnerRole?: boolean;
@@ -40,7 +32,6 @@ interface User {
   hasSysAdminRole?: boolean;
   hasCreatorRole?: boolean;
   hasMemberRole?: boolean;
-  // 🔥 刷刷平台 - 测试账号标记
   isTestAccount?: boolean;
 }
 
@@ -61,7 +52,6 @@ interface AuthContextType {
   isAdminAuthenticated: boolean;
   isUserAuthenticated: boolean;
   isLoading: boolean;
-  // 新增角色相关
   activeRole: UserRoleType;
   setActiveRole: (role: UserRoleType) => void;
   userRoles: UserStoreRole[];
@@ -69,6 +59,18 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// 解析JWT获取lineUserId（不验证签名，仅解码payload）
+function decodeJwtPayload(token: string): { lineUserId?: string } | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1]));
+    return payload;
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [admin, setAdmin] = useState<Admin | null>(null);
@@ -80,7 +82,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
   const [reloadVersion, setReloadVersion] = useState(0);
   
-  // 角色状态管理
   const [activeRole, setActiveRoleState] = useState<UserRoleType>('consumer');
 
   function bootstrapTokenFromUrlAndStorage(): string | null {
@@ -116,6 +117,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('[AUTH] bootstrapTokenFromUrlAndStorage 失败', e);
       setUserToken(null);
       return null;
+    }
+  }
+
+  // 【关键】检查LIFF身份是否与存储的token匹配
+  async function checkLiffIdentityMatch(storedToken: string): Promise<boolean> {
+    console.log('[AUTH] ========== 检查LIFF身份匹配 ==========');
+    
+    try {
+      // 解码存储的token获取lineUserId
+      const decoded = decodeJwtPayload(storedToken);
+      const storedLineUserId = decoded?.lineUserId;
+      
+      if (!storedLineUserId) {
+        console.log('[AUTH] 无法从token解码lineUserId，跳过检查');
+        return true; // 无法解码则不阻止
+      }
+      
+      console.log('[AUTH] 存储token的用户ID:', storedLineUserId);
+      
+      // 初始化LIFF并获取当前用户profile
+      const liffState = await ensureLiffReady();
+      
+      if (!liffState.liff || !liffState.isLoggedIn) {
+        console.log('[AUTH] LIFF未登录，跳过身份检查');
+        return true; // LIFF未登录则不阻止
+      }
+      
+      const profile = await liffState.liff.getProfile();
+      const liffUserId = profile.userId;
+      
+      console.log('[AUTH] 当前LIFF用户ID:', liffUserId);
+      console.log('[AUTH] 当前LIFF用户名:', profile.displayName);
+      
+      // 比较两者
+      if (storedLineUserId !== liffUserId) {
+        console.log('[AUTH] ⚠️⚠️⚠️ 身份不匹配！清除旧token ⚠️⚠️⚠️');
+        console.log('[AUTH] 存储的是:', storedLineUserId);
+        console.log('[AUTH] 当前是:', liffUserId);
+        
+        // 清除旧的登录状态
+        localStorage.removeItem('userToken');
+        localStorage.removeItem('user');
+        localStorage.removeItem('activeRole');
+        resetLiffState();
+        
+        console.log('[AUTH] ✓ 旧登录已清除');
+        return false; // 身份不匹配
+      }
+      
+      console.log('[AUTH] ✓ 身份匹配');
+      return true;
+    } catch (e) {
+      console.error('[AUTH] LIFF身份检查失败:', e);
+      return true; // 检查失败则不阻止
     }
   }
 
@@ -184,6 +239,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        // 【关键】在调用/api/me之前，先检查LIFF身份是否匹配
+        const identityMatch = await checkLiffIdentityMatch(token);
+        if (cancelled) return;
+        
+        if (!identityMatch) {
+          console.log('[AUTH] 身份不匹配，以匿名用户状态继续');
+          setUserToken(null);
+          setUser(null);
+          setAuthPhase('ready');
+          return;
+        }
+
         console.log('[AUTH] 尝试用 token 获取用户信息');
         const me = await fetchCurrentUser(token);
         if (cancelled) return;
@@ -191,11 +258,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (me) {
           console.log('[AUTH] 用户信息获取成功', me);
           setUser(me);
-          // 根据用户的主要角色设置activeRole
           const savedRole = localStorage.getItem('activeRole') as UserRoleType | null;
           const primaryRole = me.primaryRole || 'consumer';
-          // 如果保存的角色是用户拥有的角色，则使用保存的角色；否则使用主要角色
-          // 🔥 测试账号可以访问所有角色
           const isTestUser = me.isTestAccount;
           if (savedRole && (
               savedRole === 'consumer' || 
@@ -278,21 +342,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setReloadVersion(v => v + 1);
   };
 
-  // 设置当前活跃角色
   const setActiveRole = (role: UserRoleType) => {
     console.log('[AUTH] setActiveRole 被调用', role);
     setActiveRoleState(role);
     localStorage.setItem('activeRole', role);
   };
 
-  // 获取用户的所有角色列表
   const userRoles: UserStoreRole[] = user?.roles || [];
 
-  // 检查用户是否拥有某个角色
-  // 🔥 测试账号拥有所有角色权限
   const hasRole = (role: UserRoleType): boolean => {
-    if (user?.isTestAccount) return true; // 测试账号拥有所有角色
-    if (role === 'consumer') return true; // 所有用户都是消费者
+    if (user?.isTestAccount) return true;
+    if (role === 'consumer') return true;
     if (role === 'owner') return !!user?.hasOwnerRole;
     if (role === 'operator') return !!user?.hasOperatorRole;
     if (role === 'verifier') return !!user?.hasVerifierRole;
@@ -319,7 +379,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdminAuthenticated: !!adminToken,
         isUserAuthenticated: !!userToken && !!user,
         isLoading: authPhase === 'booting',
-        // 角色相关
         activeRole,
         setActiveRole,
         userRoles,
