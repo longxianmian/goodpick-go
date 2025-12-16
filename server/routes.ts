@@ -10647,8 +10647,16 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
 
-      // 构建邀请URL
-      const baseUrl = process.env.APP_BASE_URL || 'https://shuashua.app';
+      // 构建邀请URL - 根据环境自动选择正确的baseUrl
+      // 开发环境使用请求的host，生产环境使用APP_BASE_URL
+      let baseUrl: string;
+      if (process.env.NODE_ENV === 'development') {
+        const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+        const host = req.headers['x-forwarded-host'] || req.headers.host;
+        baseUrl = `${protocol}://${host}`;
+      } else {
+        baseUrl = process.env.APP_BASE_URL || 'https://shuashua.app';
+      }
       const inviteUrl = `${baseUrl}/invite?code=${inviteCode}&channel=${channel}`;
 
       // 生成二维码（可选）
