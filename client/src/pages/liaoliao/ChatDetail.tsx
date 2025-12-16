@@ -331,10 +331,12 @@ export default function LiaoliaoChatDetail() {
         
         const uploadEndpoint = '/api/user/upload';
         
+        const token = localStorage.getItem('auth_token');
         const response = await fetch(uploadEndpoint, {
           method: 'POST',
           body: formData,
           credentials: 'include',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         });
         
         const result = await response.json();
