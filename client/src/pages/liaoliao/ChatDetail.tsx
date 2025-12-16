@@ -598,11 +598,24 @@ export default function LiaoliaoChatDetail() {
                       )
                     )}
                     {message.messageType === 'file' && (
-                      <a 
-                        href={message.mediaUrl || '#'} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className={`flex items-center gap-3 p-3 rounded-lg min-w-[200px] ${
+                      <div 
+                        onClick={() => {
+                          if (message.mediaUrl) {
+                            // 兼容LINE WebView的下载方式
+                            const link = document.createElement('a');
+                            link.href = message.mediaUrl;
+                            link.target = '_blank';
+                            link.rel = 'noopener noreferrer';
+                            // 尝试直接打开链接
+                            window.location.href = message.mediaUrl;
+                          } else {
+                            toast({
+                              title: t('liaoliao.uploadFailed'),
+                              variant: 'destructive'
+                            });
+                          }
+                        }}
+                        className={`flex items-center gap-3 p-3 rounded-lg min-w-[200px] cursor-pointer ${
                           isOwn ? 'bg-white/10' : 'bg-background'
                         }`}
                       >
@@ -619,7 +632,7 @@ export default function LiaoliaoChatDetail() {
                             {message.mediaUrl ? t('liaoliao.clickToDownload') : t('liaoliao.uploadFailed')}
                           </p>
                         </div>
-                      </a>
+                      </div>
                     )}
                     {!['text', 'voice', 'image', 'file'].includes(message.messageType || 'text') && (
                       <p className="text-sm whitespace-pre-wrap break-words">
