@@ -289,21 +289,21 @@ export default function LiaoliaoChatDetail() {
             const audioUrl = result.url || result.fileUrl;
             sendMutation.mutate({ 
               content: `[${t('liaoliao.voiceMessage')} ${duration}${t('liaoliao.seconds')}]`, 
-              messageType: 'voice',
+              messageType: 'audio',
               mediaUrl: audioUrl
             });
           } else {
             // 如果上传失败，仍发送文本描述
             sendMutation.mutate({ 
               content: `[${t('liaoliao.voiceMessage')} ${duration}${t('liaoliao.seconds')}]`, 
-              messageType: 'voice' 
+              messageType: 'audio' 
             });
           }
         } catch (error) {
           console.error('Voice upload error:', error);
           sendMutation.mutate({ 
             content: `[${t('liaoliao.voiceMessage')} ${duration}${t('liaoliao.seconds')}]`, 
-            messageType: 'voice' 
+            messageType: 'audio' 
           });
         }
       }
@@ -490,7 +490,7 @@ export default function LiaoliaoChatDetail() {
     }
     sendMutation.mutate({ 
       content: `[${t('liaoliao.redPacketMessage')}] ${amount.toFixed(2)} THB${redPacketMessage ? ` - ${redPacketMessage}` : ''}`, 
-      messageType: 'redpacket' 
+      messageType: 'text' 
     });
     setShowRedPacketDialog(false);
     setRedPacketAmount('');
@@ -505,7 +505,7 @@ export default function LiaoliaoChatDetail() {
     }
     sendMutation.mutate({ 
       content: `[${t('liaoliao.transferMessage')}] ${amount.toFixed(2)} THB${transferNote ? ` - ${transferNote}` : ''}`, 
-      messageType: 'transfer' 
+      messageType: 'text' 
     });
     setShowTransferDialog(false);
     setTransferAmount('');
@@ -527,7 +527,7 @@ export default function LiaoliaoChatDetail() {
     setShowCallDialog(null);
     sendMutation.mutate({ 
       content: `[${callType === 'voice' ? t('liaoliao.voiceCallMessage') : t('liaoliao.videoCallMessage')}]`, 
-      messageType: callType === 'voice' ? 'voicecall' : 'videocall' 
+      messageType: 'call' 
     });
     toast({ 
       title: callType === 'voice' ? t('liaoliao.voiceCallStarted') : t('liaoliao.videoCallStarted'),
@@ -538,7 +538,7 @@ export default function LiaoliaoChatDetail() {
   const handleSendContact = () => {
     sendMutation.mutate({ 
       content: `[${t('liaoliao.contactCard')}] ${user?.displayName || 'User'}`, 
-      messageType: 'contact' 
+      messageType: 'card' 
     });
     setShowContactDialog(false);
   };
@@ -546,7 +546,7 @@ export default function LiaoliaoChatDetail() {
   const handleSendFavorite = () => {
     sendMutation.mutate({ 
       content: `[${t('liaoliao.favoriteMessage')}]`, 
-      messageType: 'favorite' 
+      messageType: 'text' 
     });
     setShowFavoriteDialog(false);
   };
@@ -554,7 +554,7 @@ export default function LiaoliaoChatDetail() {
   const handleSendMusic = () => {
     sendMutation.mutate({ 
       content: `[${t('liaoliao.musicMessage')}]`, 
-      messageType: 'music' 
+      messageType: 'text' 
     });
     setShowMusicDialog(false);
   };
@@ -562,7 +562,7 @@ export default function LiaoliaoChatDetail() {
   const handleSendCoupon = () => {
     sendMutation.mutate({ 
       content: `[${t('liaoliao.couponMessage')}]`, 
-      messageType: 'coupon' 
+      messageType: 'text' 
     });
     setShowCouponDialog(false);
   };
@@ -658,7 +658,7 @@ export default function LiaoliaoChatDetail() {
                         {message.content}
                       </p>
                     )}
-                    {message.messageType === 'voice' && (
+                    {message.messageType === 'audio' && (
                       message.mediaUrl ? (
                         <div className="flex items-center gap-2 min-w-[120px]">
                           <button
@@ -733,7 +733,7 @@ export default function LiaoliaoChatDetail() {
                         </div>
                       </div>
                     )}
-                    {!['text', 'voice', 'image', 'file'].includes(message.messageType || 'text') && (
+                    {!['text', 'audio', 'image', 'file', 'location', 'card', 'call'].includes(message.messageType || 'text') && (
                       <p className="text-sm whitespace-pre-wrap break-words">
                         {message.content}
                       </p>
