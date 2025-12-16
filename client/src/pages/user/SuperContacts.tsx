@@ -214,6 +214,21 @@ export default function SuperContacts() {
     
     const shareText = getShareText(channel, result.inviteUrl);
     
+    const copyToClipboard = async (text: string) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast({
+          title: t('superContacts.textCopied'),
+          description: t('superContacts.pasteToShare'),
+        });
+      } catch (err) {
+        toast({
+          title: t('superContacts.shareReady'),
+          description: shareText,
+        });
+      }
+    };
+    
     if (navigator.share) {
       try {
         await navigator.share({
@@ -221,18 +236,10 @@ export default function SuperContacts() {
           url: result.inviteUrl,
         });
       } catch (err) {
-        await navigator.clipboard.writeText(shareText);
-        toast({
-          title: t('superContacts.textCopied'),
-          description: t('superContacts.pasteToShare'),
-        });
+        await copyToClipboard(shareText);
       }
     } else {
-      await navigator.clipboard.writeText(shareText);
-      toast({
-        title: t('superContacts.textCopied'),
-        description: t('superContacts.pasteToShare'),
-      });
+      await copyToClipboard(shareText);
     }
   };
 
