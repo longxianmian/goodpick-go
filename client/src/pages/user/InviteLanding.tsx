@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { ensureLiffReady, isInLineApp } from '@/lib/liffClient';
 import {
   Users,
   UserPlus,
@@ -34,16 +35,63 @@ interface InviteInfo {
 
 export default function InviteLanding() {
   const { t } = useLanguage();
-  const { user, isUserAuthenticated } = useAuth();
+  const { user, isUserAuthenticated, reloadAuth } = useAuth();
   const [, navigate] = useLocation();
   const searchString = useSearch();
   const { toast } = useToast();
 
   const [accepted, setAccepted] = useState(false);
+  const [identityChecked, setIdentityChecked] = useState(false);
+  const liffCheckDone = useRef(false);
 
   const params = new URLSearchParams(searchString);
   const inviteCode = params.get('code');
   const channel = params.get('channel');
+
+  // 检查LIFF环境中的LINE身份是否与当前登录用户匹配
+  useEffect(() => {
+    if (liffCheckDone.current) return;
+    liffCheckDone.current = true;
+
+    async function checkLiffIdentity() {
+      // 只在LINE App内检查
+      if (!isInLineApp()) {
+        console.log('[InviteLanding] 不在LINE App内，跳过身份验证');
+        setIdentityChecked(true);
+        return;
+      }
+
+      try {
+        const liffState = await ensureLiffReady();
+        
+        if (liffState.isLoggedIn && liffState.liff) {
+          // 获取当前LINE用户的profile
+          const profile = await liffState.liff.getProfile();
+          const currentLineUserId = profile.userId;
+          
+          console.log('[InviteLanding] LIFF用户ID:', currentLineUserId);
+          console.log('[InviteLanding] 已登录用户:', user?.lineUserId);
+          
+          // 如果已有用户登录，但LINE用户ID不匹配，需要清除旧登录
+          if (user && user.lineUserId !== currentLineUserId) {
+            console.log('[InviteLanding] LINE身份不匹配，清除旧登录');
+            localStorage.removeItem('userToken');
+            localStorage.removeItem('user');
+            // 保存邀请码，登录后自动接受
+            localStorage.setItem('pendingInviteCode', inviteCode || '');
+            // 重新加载认证状态
+            reloadAuth?.();
+          }
+        }
+      } catch (err) {
+        console.error('[InviteLanding] LIFF身份检查失败:', err);
+      }
+      
+      setIdentityChecked(true);
+    }
+
+    checkLiffIdentity();
+  }, [user, inviteCode, reloadAuth]);
 
   const { data: inviteInfo, isLoading, error } = useQuery<InviteInfo>({
     queryKey: ['/api/invites', inviteCode],
@@ -112,7 +160,8 @@ export default function InviteLanding() {
     );
   }
 
-  if (isLoading) {
+  // 等待LIFF身份检查和邀请信息加载
+  if (isLoading || !identityChecked) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <Skeleton className="w-24 h-24 rounded-full mb-4" />
