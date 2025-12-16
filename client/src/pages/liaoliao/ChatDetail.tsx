@@ -63,6 +63,7 @@ export default function LiaoliaoChatDetail() {
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const baseInputValueRef = useRef<string>('');
 
   const { data: chatData, isLoading } = useQuery<ChatData>({
     queryKey: ['/api/liaoliao/messages', friendId],
@@ -220,19 +221,28 @@ export default function LiaoliaoChatDetail() {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.lang = 'zh-CN';
 
     recognition.onstart = () => {
+      baseInputValueRef.current = inputValue;
       setIsRecordingToText(true);
     };
 
     recognition.onresult = (event: any) => {
-      const lastResult = event.results[event.results.length - 1];
-      if (lastResult.isFinal) {
-        const transcript = lastResult[0].transcript;
-        setInputValue(prev => prev + transcript);
+      let interimTranscript = '';
+      let finalTranscript = '';
+      
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          finalTranscript += result[0].transcript;
+        } else {
+          interimTranscript += result[0].transcript;
+        }
       }
+      
+      setInputValue(baseInputValueRef.current + finalTranscript + interimTranscript);
     };
 
     recognition.onerror = (event: any) => {
@@ -245,7 +255,7 @@ export default function LiaoliaoChatDetail() {
     };
 
     recognition.start();
-  }, [t]);
+  }, [t, inputValue]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
