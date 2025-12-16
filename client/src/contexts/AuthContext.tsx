@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { ensureLiffReady, resetLiffState } from '@/lib/liffClient';
 
 interface Admin {
   id: number;
@@ -60,18 +59,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// 解析JWT获取lineUserId（不验证签名，仅解码payload）
-function decodeJwtPayload(token: string): { lineUserId?: string } | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(atob(parts[1]));
-    return payload;
-  } catch {
-    return null;
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [admin, setAdmin] = useState<Admin | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -117,60 +104,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('[AUTH] bootstrapTokenFromUrlAndStorage 失败', e);
       setUserToken(null);
       return null;
-    }
-  }
-
-  // 【关键】检查LIFF身份是否与存储的token匹配
-  async function checkLiffIdentityMatch(storedToken: string): Promise<boolean> {
-    console.log('[AUTH] ========== 检查LIFF身份匹配 ==========');
-    
-    try {
-      // 解码存储的token获取lineUserId
-      const decoded = decodeJwtPayload(storedToken);
-      const storedLineUserId = decoded?.lineUserId;
-      
-      if (!storedLineUserId) {
-        console.log('[AUTH] 无法从token解码lineUserId，跳过检查');
-        return true; // 无法解码则不阻止
-      }
-      
-      console.log('[AUTH] 存储token的用户ID:', storedLineUserId);
-      
-      // 初始化LIFF并获取当前用户profile
-      const liffState = await ensureLiffReady();
-      
-      if (!liffState.liff || !liffState.isLoggedIn) {
-        console.log('[AUTH] LIFF未登录，跳过身份检查');
-        return true; // LIFF未登录则不阻止
-      }
-      
-      const profile = await liffState.liff.getProfile();
-      const liffUserId = profile.userId;
-      
-      console.log('[AUTH] 当前LIFF用户ID:', liffUserId);
-      console.log('[AUTH] 当前LIFF用户名:', profile.displayName);
-      
-      // 比较两者
-      if (storedLineUserId !== liffUserId) {
-        console.log('[AUTH] ⚠️⚠️⚠️ 身份不匹配！清除旧token ⚠️⚠️⚠️');
-        console.log('[AUTH] 存储的是:', storedLineUserId);
-        console.log('[AUTH] 当前是:', liffUserId);
-        
-        // 清除旧的登录状态
-        localStorage.removeItem('userToken');
-        localStorage.removeItem('user');
-        localStorage.removeItem('activeRole');
-        resetLiffState();
-        
-        console.log('[AUTH] ✓ 旧登录已清除');
-        return false; // 身份不匹配
-      }
-      
-      console.log('[AUTH] ✓ 身份匹配');
-      return true;
-    } catch (e) {
-      console.error('[AUTH] LIFF身份检查失败:', e);
-      return true; // 检查失败则不阻止
     }
   }
 
@@ -236,18 +169,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(null);
             setAuthPhase('ready');
           }
-          return;
-        }
-
-        // 【关键】在调用/api/me之前，先检查LIFF身份是否匹配
-        const identityMatch = await checkLiffIdentityMatch(token);
-        if (cancelled) return;
-        
-        if (!identityMatch) {
-          console.log('[AUTH] 身份不匹配，以匿名用户状态继续');
-          setUserToken(null);
-          setUser(null);
-          setAuthPhase('ready');
           return;
         }
 

@@ -10711,21 +10711,8 @@ export function registerRoutes(app: Express): Server {
         .set({ clickedCount: sql`${ttInvites.clickedCount} + 1` })
         .where(eq(ttInvites.inviteCode, code));
 
-      // 检查是否是自己的邀请
-      let isOwnInvite = false;
-      const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        try {
-          const token = authHeader.substring(7);
-          const decoded = jwt.verify(token, JWT_SECRET_VALUE) as { id: number; type: string };
-          if (decoded.type === 'user' && decoded.id === invite.invite.inviterUserId) {
-            isOwnInvite = true;
-          }
-        } catch (e) {
-          // Token无效，忽略
-        }
-      }
-
+      // 注意：不在这里检查isOwnInvite，因为LIFF环境下localStorage可能被共享导致token错误
+      // isOwnInvite检查移到 /api/invites/accept 接口
       res.json({
         inviteCode: code,
         channel: invite.invite.inviteChannel,
@@ -10736,7 +10723,6 @@ export function registerRoutes(app: Express): Server {
           avatarUrl: convertHttpToHttps(invite.inviter.avatarUrl || invite.inviter.lineAvatarUrl),
         },
         isUsed: !!invite.invite.usedByUserId,
-        isOwnInvite,
       });
     } catch (error: any) {
       console.error('Get invite error:', error);
