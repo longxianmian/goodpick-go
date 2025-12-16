@@ -94,7 +94,7 @@ export default function LiaoliaoAiChat() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-background border-b px-3 py-2">
+      <header className="sticky top-0 z-50 bg-background border-b px-3 py-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Button
@@ -111,11 +111,11 @@ export default function LiaoliaoAiChat() {
                 <Sparkles className="w-2 h-2 text-amber-900" />
               </div>
             </div>
-            <div>
+            <div className="flex items-center gap-2">
               <h1 className="text-base font-semibold" data-testid="text-ai-chat-title">
                 {t('liaoliao.aiAssistant')}
               </h1>
-              <p className="text-xs text-muted-foreground">AI</p>
+              <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">AI</span>
             </div>
           </div>
           <Button size="icon" variant="ghost" data-testid="button-more">

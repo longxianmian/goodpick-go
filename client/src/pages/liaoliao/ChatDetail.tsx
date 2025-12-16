@@ -110,7 +110,7 @@ export default function LiaoliaoChatDetail() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      <header className="sticky top-0 z-10 bg-background border-b px-2 py-2 flex items-center gap-2">
+      <header className="sticky top-0 z-50 bg-background border-b px-3 py-3 flex items-center gap-2">
         <Button 
           size="icon" 
           variant="ghost" 
