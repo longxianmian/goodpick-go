@@ -203,7 +203,6 @@ function Router() {
   return (
     <Switch>
       {/* 公开页面 - 游客可访问 */}
-      <Route path="/" component={ShuaShuaHome} />
       <Route path="/videos/:id" component={ShortVideoFeed} />
       <Route path="/videos" component={ShortVideoFeed} />
       <Route path="/articles/:id" component={ArticleDetail} />
@@ -412,6 +411,9 @@ function Router() {
       <Route path="/admin/:rest*">
         <ProtectedAdminRoutes />
       </Route>
+      
+      {/* 首页放在最后，避免匹配所有路径 */}
+      <Route path="/" component={ShuaShuaHome} />
       
       <Route component={NotFound} />
     </Switch>
