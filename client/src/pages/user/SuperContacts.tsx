@@ -192,18 +192,41 @@ export default function SuperContacts() {
         setImShareSheetOpen(true);
         break;
       case 'qr':
-        await generateInviteMutation.mutateAsync({ channel: 'generic', scene: 'face_to_face' });
-        setQrDialogOpen(true);
+        try {
+          await generateInviteMutation.mutateAsync({ channel: 'generic', scene: 'face_to_face' });
+          setQrDialogOpen(true);
+        } catch (err) {
+          toast({
+            title: t('common.error'),
+            description: t('superContacts.inviteError'),
+            variant: 'destructive',
+          });
+        }
         break;
       case 'link':
-        const result = await generateInviteMutation.mutateAsync({ channel: 'generic', scene: 'super_contacts' });
-        await navigator.clipboard.writeText(result.inviteUrl);
-        setCopiedLink(true);
-        toast({
-          title: t('superContacts.linkCopied'),
-          description: t('superContacts.linkCopiedDesc'),
-        });
-        setTimeout(() => setCopiedLink(false), 3000);
+        try {
+          const result = await generateInviteMutation.mutateAsync({ channel: 'generic', scene: 'super_contacts' });
+          try {
+            await navigator.clipboard.writeText(result.inviteUrl);
+            setCopiedLink(true);
+            toast({
+              title: t('superContacts.linkCopied'),
+              description: t('superContacts.linkCopiedDesc'),
+            });
+            setTimeout(() => setCopiedLink(false), 3000);
+          } catch (clipboardErr) {
+            toast({
+              title: t('superContacts.shareReady'),
+              description: result.inviteUrl,
+            });
+          }
+        } catch (err) {
+          toast({
+            title: t('common.error'),
+            description: t('superContacts.inviteError'),
+            variant: 'destructive',
+          });
+        }
         break;
     }
   };
