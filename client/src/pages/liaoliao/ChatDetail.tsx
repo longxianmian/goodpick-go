@@ -220,7 +220,7 @@ export default function LiaoliaoChatDetail() {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
-    recognition.interimResults = true;
+    recognition.interimResults = false;
     recognition.lang = 'zh-CN';
 
     recognition.onstart = () => {
@@ -228,10 +228,11 @@ export default function LiaoliaoChatDetail() {
     };
 
     recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((result: any) => result[0].transcript)
-        .join('');
-      setInputValue(prev => prev + transcript);
+      const lastResult = event.results[event.results.length - 1];
+      if (lastResult.isFinal) {
+        const transcript = lastResult[0].transcript;
+        setInputValue(prev => prev + transcript);
+      }
     };
 
     recognition.onerror = (event: any) => {
