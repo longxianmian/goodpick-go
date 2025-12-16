@@ -582,11 +582,14 @@ export default function LiaoliaoChatDetail() {
                     )}
                     {message.messageType === 'image' && (
                       message.mediaUrl ? (
-                        <img 
-                          src={message.mediaUrl} 
-                          alt="Image" 
-                          className="max-w-full rounded-lg"
-                        />
+                        <div className="overflow-hidden rounded-lg">
+                          <img 
+                            src={message.mediaUrl} 
+                            alt="Image" 
+                            className="max-w-[200px] max-h-[200px] object-cover cursor-pointer"
+                            onClick={() => window.open(message.mediaUrl, '_blank')}
+                          />
+                        </div>
                       ) : (
                         <div className="flex items-center gap-2">
                           <ImageIcon className="w-4 h-4" />
@@ -595,22 +598,28 @@ export default function LiaoliaoChatDetail() {
                       )
                     )}
                     {message.messageType === 'file' && (
-                      message.mediaUrl ? (
-                        <a 
-                          href={message.mediaUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 underline"
-                        >
-                          <FileText className="w-4 h-4" />
-                          <span className="text-sm">{message.content}</span>
-                        </a>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4" />
-                          <span className="text-sm">{message.content}</span>
+                      <a 
+                        href={message.mediaUrl || '#'} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className={`flex items-center gap-3 p-3 rounded-lg min-w-[200px] ${
+                          isOwn ? 'bg-white/10' : 'bg-background'
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          isOwn ? 'bg-white/20' : 'bg-primary/10'
+                        }`}>
+                          <FileText className={`w-5 h-5 ${isOwn ? 'text-white' : 'text-primary'}`} />
                         </div>
-                      )
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {message.content?.replace(/^\[文件\]\s*/, '').replace(/^\[File\]\s*/, '') || t('liaoliao.fileMessage')}
+                          </p>
+                          <p className={`text-xs ${isOwn ? 'text-white/70' : 'text-muted-foreground'}`}>
+                            {message.mediaUrl ? t('liaoliao.clickToDownload') : t('liaoliao.uploadFailed')}
+                          </p>
+                        </div>
+                      </a>
                     )}
                     {!['text', 'voice', 'image', 'file'].includes(message.messageType || 'text') && (
                       <p className="text-sm whitespace-pre-wrap break-words">
