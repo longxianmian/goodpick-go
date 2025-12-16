@@ -1,14 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'wouter';
-import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ArrowLeft, Send, Bot, Sparkles, MoreVertical, Mic, Smile, Plus } from 'lucide-react';
+import { ArrowLeft, Send, Bot, Sparkles, MoreVertical, Mic, Smile, Plus, X, Image as ImageIcon, Camera, MapPin, Gift } from 'lucide-react';
 import { VoiceInputIcon } from '@/components/icons/VoiceInputIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserBottomNav } from '@/components/UserBottomNav';
 import { apiRequest } from '@/lib/queryClient';
+import { cn } from '@/lib/utils';
 
 interface Message {
   id: string;
@@ -16,6 +14,17 @@ interface Message {
   content: string;
   timestamp: Date;
 }
+
+const COMMON_EMOJIS = [
+  '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂',
+  '🙂', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗',
+  '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭',
+  '🤔', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄',
+  '😬', '😮', '😯', '😲', '😳', '🥺', '😢', '😭',
+  '😤', '😡', '🤬', '😈', '👿', '💀', '💩', '🤡',
+  '👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '🤙',
+  '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '💔',
+];
 
 export default function LiaoliaoAiChat() {
   const { t } = useLanguage();
@@ -31,11 +40,29 @@ export default function LiaoliaoAiChat() {
     }
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showEmojiPanel, setShowEmojiPanel] = useState(false);
+  const [showActionPanel, setShowActionPanel] = useState(false);
+  const [isRecordingToText, setIsRecordingToText] = useState(false);
+  const [voiceInputMode, setVoiceInputMode] = useState(false);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleSend = async () => {
     const content = inputValue.trim();
@@ -85,11 +112,135 @@ export default function LiaoliaoAiChat() {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
+  const handleEmojiSelect = (emoji: string) => {
+    setInputValue(prev => prev + emoji);
+    textareaRef.current?.focus();
+  };
+
+  const toggleEmojiPanel = () => {
+    setShowEmojiPanel(!showEmojiPanel);
+    setShowActionPanel(false);
+  };
+
+  const toggleActionPanel = () => {
+    setShowActionPanel(!showActionPanel);
+    setShowEmojiPanel(false);
+  };
+
+  const toggleVoiceInputMode = () => {
+    setVoiceInputMode(!voiceInputMode);
+    setShowEmojiPanel(false);
+    setShowActionPanel(false);
+  };
+
+  const startVoiceRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecordingVoice(true);
+      setRecordingDuration(0);
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+    } catch (error) {
+      console.error('Failed to start recording:', error);
     }
+  }, []);
+
+  const stopVoiceRecording = useCallback(() => {
+    if (mediaRecorderRef.current && isRecordingVoice) {
+      mediaRecorderRef.current.stop();
+      setIsRecordingVoice(false);
+      
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+
+      if (recordingDuration >= 1) {
+        const voiceMessage: Message = {
+          id: Date.now().toString(),
+          role: 'user',
+          content: `[${t('liaoliao.voiceMessage')} ${recordingDuration}${t('liaoliao.seconds')}]`,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, voiceMessage]);
+      }
+      setRecordingDuration(0);
+    }
+  }, [isRecordingVoice, recordingDuration, t]);
+
+  const cancelVoiceRecording = useCallback(() => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecordingVoice(false);
+    setRecordingDuration(0);
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+  }, []);
+
+  const startSpeechToText = useCallback(async () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert(t('liaoliao.speechNotSupported'));
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'zh-CN';
+
+    recognition.onstart = () => {
+      setIsRecordingToText(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((result: any) => result[0].transcript)
+        .join('');
+      setInputValue(prev => prev + transcript);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      setIsRecordingToText(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecordingToText(false);
+    };
+
+    recognition.start();
+  }, [t]);
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const actionItems = [
+    { icon: ImageIcon, label: t('liaoliao.actionPhoto'), color: 'bg-blue-500' },
+    { icon: Camera, label: t('liaoliao.actionCamera'), color: 'bg-green-500' },
+    { icon: MapPin, label: t('liaoliao.actionLocation'), color: 'bg-orange-500' },
+    { icon: Gift, label: t('liaoliao.actionRedPacket'), color: 'bg-red-500' },
+  ];
+
+  const closeAllPanels = () => {
+    setShowActionPanel(false);
+    setShowEmojiPanel(false);
   };
 
   return (
@@ -124,7 +275,7 @@ export default function LiaoliaoAiChat() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 space-y-4">
+      <main className="flex-1 overflow-y-auto p-4 space-y-4" onClick={closeAllPanels}>
         {messages.map((message) => (
           <div
             key={message.id}
@@ -164,79 +315,185 @@ export default function LiaoliaoAiChat() {
         <div ref={messagesEndRef} />
       </main>
 
-      <footer className="sticky bottom-0 bg-background border-t px-3 py-2 pb-safe">
-        <div className="flex items-center gap-2">
-          <Button 
-            size="icon"
-            variant="ghost"
-            className="shrink-0 h-10 w-10 rounded-full [&_svg]:size-6"
-            data-testid="button-voice"
-          >
-            <VoiceInputIcon className="text-muted-foreground" />
-          </Button>
-
-          <div className="flex-1 relative">
-            <textarea
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              onInput={(e) => {
-                const target = e.target as HTMLTextAreaElement;
-                target.style.height = 'auto';
-                const newHeight = Math.max(40, Math.min(target.scrollHeight, 120));
-                target.style.height = newHeight + 'px';
-              }}
-              placeholder={t('liaoliao.typeMessage')}
-              className="w-full bg-muted/50 rounded-full px-4 py-2.5 text-sm border border-border focus:ring-1 focus:ring-[#38B03B] focus:outline-none resize-none min-h-[40px] max-h-[120px] overflow-y-auto leading-5"
-              rows={1}
-              data-testid="input-message"
-            />
+      {showEmojiPanel && (
+        <div className="bg-muted/50 border-t px-2 py-3">
+          <div className="grid grid-cols-8 gap-1 max-h-48 overflow-y-auto">
+            {COMMON_EMOJIS.map((emoji, index) => (
+              <button
+                key={index}
+                className="w-10 h-10 flex items-center justify-center text-xl hover:bg-muted rounded-lg transition-colors"
+                onClick={() => handleEmojiSelect(emoji)}
+                data-testid={`emoji-${index}`}
+              >
+                {emoji}
+              </button>
+            ))}
           </div>
-
-          {inputValue.trim() ? (
-            <Button
-              size="icon"
-              onClick={handleSend}
-              disabled={isLoading}
-              className="rounded-full shrink-0 h-10 w-10 bg-[#38B03B] hover:bg-[#2e9632] text-white"
-              data-testid="button-send"
-            >
-              <Send className="w-5 h-5" />
-            </Button>
-          ) : (
-            <>
-              <Button 
-                size="icon"
-                variant="ghost"
-                className="shrink-0 h-10 w-10 rounded-full [&_svg]:size-6"
-                data-testid="button-mic"
-              >
-                <Mic className="text-muted-foreground" />
-              </Button>
-              <Button 
-                size="icon"
-                variant="ghost"
-                className="shrink-0 h-10 w-10 rounded-full [&_svg]:size-6"
-                data-testid="button-emoji"
-              >
-                <Smile className="text-muted-foreground" />
-              </Button>
-              <Button 
-                size="icon"
-                variant="ghost"
-                className="shrink-0 h-10 w-10 rounded-full [&_svg]:size-6"
-                data-testid="button-more"
-              >
-                <Plus className="text-muted-foreground" />
-              </Button>
-            </>
-          )}
         </div>
+      )}
+
+      {showActionPanel && (
+        <div className="bg-muted/50 border-t px-4 py-4">
+          <div className="grid grid-cols-4 gap-4">
+            {actionItems.map((item, index) => (
+              <button
+                key={index}
+                className="flex flex-col items-center gap-2"
+                onClick={() => setShowActionPanel(false)}
+                data-testid={`action-${index}`}
+              >
+                <div className={cn("w-14 h-14 rounded-xl flex items-center justify-center", item.color)}>
+                  <item.icon className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-xs text-muted-foreground">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <footer className="sticky bottom-0 bg-background border-t px-3 py-2 pb-safe">
+        {isRecordingVoice ? (
+          <div className="flex items-center justify-center gap-4 py-2">
+            <Button 
+              size="icon"
+              variant="ghost"
+              onClick={cancelVoiceRecording}
+              className="h-12 w-12 rounded-full bg-destructive/10"
+              data-testid="button-cancel-recording"
+            >
+              <X className="w-6 h-6 text-destructive" />
+            </Button>
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                <span className="text-lg font-medium">{formatDuration(recordingDuration)}</span>
+              </div>
+              <span className="text-xs text-muted-foreground">{t('liaoliao.recording')}</span>
+            </div>
+            <Button 
+              size="icon"
+              onClick={stopVoiceRecording}
+              className="h-12 w-12 rounded-full bg-[#38B03B]"
+              data-testid="button-send-recording"
+            >
+              <Send className="w-6 h-6 text-white" />
+            </Button>
+          </div>
+        ) : voiceInputMode ? (
+          <div className="flex flex-col items-center gap-2 py-2">
+            <button
+              className="w-full py-4 bg-muted rounded-full flex items-center justify-center gap-2 active:bg-muted/80 transition-colors"
+              onTouchStart={startVoiceRecording}
+              onTouchEnd={stopVoiceRecording}
+              onMouseDown={startVoiceRecording}
+              onMouseUp={stopVoiceRecording}
+              onMouseLeave={cancelVoiceRecording}
+              data-testid="button-hold-to-record"
+            >
+              <VoiceInputIcon className="w-6 h-6" />
+              <span className="text-muted-foreground">{t('liaoliao.holdToTalk')}</span>
+            </button>
+            <Button 
+              size="sm"
+              variant="ghost"
+              onClick={toggleVoiceInputMode}
+              data-testid="button-switch-to-text"
+            >
+              {t('liaoliao.switchToText')}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Button 
+              size="icon"
+              variant="ghost"
+              className="shrink-0 h-10 w-10 rounded-full [&_svg]:size-6"
+              onClick={toggleVoiceInputMode}
+              data-testid="button-voice"
+            >
+              <VoiceInputIcon className="text-muted-foreground" />
+            </Button>
+
+            <div className="flex-1 relative">
+              <textarea
+                ref={textareaRef}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  const newHeight = Math.max(40, Math.min(target.scrollHeight, 120));
+                  target.style.height = newHeight + 'px';
+                }}
+                placeholder={t('liaoliao.typeMessage')}
+                className="w-full bg-muted/50 rounded-full px-4 py-2.5 text-sm border border-border focus:ring-1 focus:ring-[#38B03B] focus:outline-none resize-none min-h-[40px] max-h-[120px] overflow-y-auto leading-5"
+                rows={1}
+                data-testid="input-message"
+              />
+            </div>
+
+            {inputValue.trim() ? (
+              <Button
+                size="icon"
+                onClick={handleSend}
+                disabled={isLoading}
+                className="rounded-full shrink-0 h-10 w-10 bg-[#38B03B] hover:bg-[#2e9632] text-white"
+                data-testid="button-send"
+              >
+                <Send className="w-5 h-5" />
+              </Button>
+            ) : (
+              <>
+                <Button 
+                  size="icon"
+                  variant="ghost"
+                  className={cn(
+                    "shrink-0 h-10 w-10 rounded-full [&_svg]:size-6",
+                    isRecordingToText && "bg-red-100 dark:bg-red-900/30"
+                  )}
+                  onClick={startSpeechToText}
+                  data-testid="button-mic"
+                >
+                  <Mic className={cn(
+                    "text-muted-foreground",
+                    isRecordingToText && "text-red-500 animate-pulse"
+                  )} />
+                </Button>
+                <Button 
+                  size="icon"
+                  variant="ghost"
+                  className={cn(
+                    "shrink-0 h-10 w-10 rounded-full [&_svg]:size-6",
+                    showEmojiPanel && "bg-muted"
+                  )}
+                  onClick={toggleEmojiPanel}
+                  data-testid="button-emoji"
+                >
+                  <Smile className="text-muted-foreground" />
+                </Button>
+                <Button 
+                  size="icon"
+                  variant="ghost"
+                  className={cn(
+                    "shrink-0 h-10 w-10 rounded-full [&_svg]:size-6",
+                    showActionPanel && "bg-muted"
+                  )}
+                  onClick={toggleActionPanel}
+                  data-testid="button-more"
+                >
+                  <Plus className="text-muted-foreground" />
+                </Button>
+              </>
+            )}
+          </div>
+        )}
       </footer>
     </div>
   );

@@ -291,6 +291,13 @@ const translations: Record<Language, Record<string, string>> = {
     'liaoliao.actionCamera': '拍摄',
     'liaoliao.actionLocation': '位置',
     'liaoliao.actionRedPacket': '红包',
+    'liaoliao.voiceMessage': '语音消息',
+    'liaoliao.seconds': '秒',
+    'liaoliao.holdToTalk': '按住说话',
+    'liaoliao.switchToText': '切换到文字输入',
+    'liaoliao.recording': '正在录音',
+    'liaoliao.speechNotSupported': '您的浏览器不支持语音识别',
+    'liaoliao.aiError': '抱歉，我遇到了一些问题，请稍后再试。',
     
     // 角色导航
     'roleNav.merchantHome': '商户首页',
@@ -2756,6 +2763,13 @@ const translations: Record<Language, Record<string, string>> = {
     'liaoliao.actionCamera': 'Camera',
     'liaoliao.actionLocation': 'Location',
     'liaoliao.actionRedPacket': 'Red Packet',
+    'liaoliao.voiceMessage': 'Voice Message',
+    'liaoliao.seconds': 's',
+    'liaoliao.holdToTalk': 'Hold to talk',
+    'liaoliao.switchToText': 'Switch to text',
+    'liaoliao.recording': 'Recording',
+    'liaoliao.speechNotSupported': 'Your browser does not support speech recognition',
+    'liaoliao.aiError': 'Sorry, I encountered an issue. Please try again later.',
     
     // Role Navigation
     'roleNav.merchantHome': 'Store Home',
