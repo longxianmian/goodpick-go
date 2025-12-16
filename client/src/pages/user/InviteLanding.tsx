@@ -29,6 +29,7 @@ interface InviteInfo {
     avatarUrl?: string;
   };
   isUsed: boolean;
+  isOwnInvite?: boolean;
 }
 
 export default function InviteLanding() {
@@ -84,11 +85,11 @@ export default function InviteLanding() {
 
   useEffect(() => {
     const pendingCode = localStorage.getItem('pendingInviteCode');
-    if (pendingCode && isUserAuthenticated && pendingCode === inviteCode) {
+    if (pendingCode && isUserAuthenticated && pendingCode === inviteCode && inviteInfo && !inviteInfo.isOwnInvite) {
       localStorage.removeItem('pendingInviteCode');
       acceptInviteMutation.mutate();
     }
-  }, [isUserAuthenticated, inviteCode]);
+  }, [isUserAuthenticated, inviteCode, inviteInfo]);
 
   if (!inviteCode) {
     return (
@@ -129,6 +130,12 @@ export default function InviteLanding() {
       </div>
     );
   }
+
+  useEffect(() => {
+    if (inviteInfo?.isOwnInvite) {
+      navigate('/');
+    }
+  }, [inviteInfo?.isOwnInvite, navigate]);
 
   if (accepted || inviteInfo.isUsed) {
     return (
