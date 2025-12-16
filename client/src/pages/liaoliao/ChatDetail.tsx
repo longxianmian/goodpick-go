@@ -247,8 +247,20 @@ export default function LiaoliaoChatDetail() {
     }
   }, []);
 
-  const stopVoiceRecording = useCallback(() => {
+  const stopVoiceRecording = useCallback(async () => {
     if (mediaRecorderRef.current && isRecordingVoice) {
+      const duration = recordingDuration;
+      
+      // 创建一个Promise来等待录制完成
+      const audioPromise = new Promise<Blob>((resolve) => {
+        if (mediaRecorderRef.current) {
+          mediaRecorderRef.current.onstop = () => {
+            const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+            resolve(audioBlob);
+          };
+        }
+      });
+      
       mediaRecorderRef.current.stop();
       setIsRecordingVoice(false);
       
@@ -257,11 +269,43 @@ export default function LiaoliaoChatDetail() {
         recordingTimerRef.current = null;
       }
 
-      if (recordingDuration >= 1) {
-        sendMutation.mutate({ 
-          content: `[${t('liaoliao.voiceMessage')} ${recordingDuration}${t('liaoliao.seconds')}]`, 
-          messageType: 'voice' 
-        });
+      if (duration >= 1) {
+        try {
+          const audioBlob = await audioPromise;
+          const formData = new FormData();
+          formData.append('file', audioBlob, `voice_${Date.now()}.webm`);
+          
+          const token = localStorage.getItem('userToken');
+          const response = await fetch('/api/user/upload', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+          });
+          
+          const result = await response.json();
+          
+          if (result.success && (result.url || result.fileUrl)) {
+            const audioUrl = result.url || result.fileUrl;
+            sendMutation.mutate({ 
+              content: `[${t('liaoliao.voiceMessage')} ${duration}${t('liaoliao.seconds')}]`, 
+              messageType: 'voice',
+              mediaUrl: audioUrl
+            });
+          } else {
+            // 如果上传失败，仍发送文本描述
+            sendMutation.mutate({ 
+              content: `[${t('liaoliao.voiceMessage')} ${duration}${t('liaoliao.seconds')}]`, 
+              messageType: 'voice' 
+            });
+          }
+        } catch (error) {
+          console.error('Voice upload error:', error);
+          sendMutation.mutate({ 
+            content: `[${t('liaoliao.voiceMessage')} ${duration}${t('liaoliao.seconds')}]`, 
+            messageType: 'voice' 
+          });
+        }
       }
       setRecordingDuration(0);
     }
@@ -615,10 +659,35 @@ export default function LiaoliaoChatDetail() {
                       </p>
                     )}
                     {message.messageType === 'voice' && (
-                      <div className="flex items-center gap-2">
-                        <Play className="w-4 h-4" />
-                        <span className="text-sm">{message.content}</span>
-                      </div>
+                      message.mediaUrl ? (
+                        <div className="flex items-center gap-2 min-w-[120px]">
+                          <button
+                            className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              isOwn ? 'bg-white/20' : 'bg-primary/10'
+                            }`}
+                            onClick={() => {
+                              const audio = new Audio(message.mediaUrl);
+                              audio.play();
+                            }}
+                            data-testid={`voice-play-${message.id}`}
+                          >
+                            <Play className={`w-4 h-4 ${isOwn ? 'text-white' : 'text-primary'}`} />
+                          </button>
+                          <div className="flex-1">
+                            <div className={`h-1 rounded-full ${isOwn ? 'bg-white/30' : 'bg-primary/20'}`}>
+                              <div className={`h-full w-0 rounded-full ${isOwn ? 'bg-white' : 'bg-primary'}`} />
+                            </div>
+                          </div>
+                          <span className={`text-xs ${isOwn ? 'text-white/70' : 'text-muted-foreground'}`}>
+                            {message.content?.match(/\d+/)?.[0] || '0'}s
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Play className="w-4 h-4" />
+                          <span className="text-sm">{message.content}</span>
+                        </div>
+                      )
                     )}
                     {message.messageType === 'image' && (
                       message.mediaUrl ? (
