@@ -32,6 +32,11 @@ import {
   Share2,
   Check,
   Loader2,
+  Clock,
+  Copy,
+  Trash2,
+  ExternalLink,
+  Eye,
 } from 'lucide-react';
 import { SiLine, SiWhatsapp, SiTelegram } from 'react-icons/si';
 import { shareInviteToLineFriends, isShareTargetPickerAvailable } from '@/lib/liffClient';
@@ -43,7 +48,7 @@ interface UnifiedContact {
   id: string;
   displayName: string;
   avatarUrl?: string | null;
-  contactType: 'user' | 'merchant' | 'agent' | 'system';
+  contactType: 'user' | 'merchant' | 'agent' | 'system' | 'pending_invite';
   sources: Array<{
     sourceType: 'platform' | 'phone' | 'im';
     imChannel?: string;
@@ -55,6 +60,12 @@ interface UnifiedContact {
   isRegistered: boolean;
   lastMessageAt?: string;
   languages?: string[];
+  inviteCode?: string;
+  inviteChannel?: string;
+  inviteChannelLabel?: string;
+  scene?: string;
+  clickedCount?: number;
+  createdAt?: string;
 }
 
 interface InviteResult {
@@ -527,38 +538,92 @@ export default function SuperContacts() {
                 }}
                 data-testid={`contact-${contact.id}`}
               >
-                <Avatar className="w-12 h-12">
-                  <AvatarImage src={contact.avatarUrl || undefined} />
-                  <AvatarFallback className="bg-[#38B03B]/10 text-[#38B03B]">
-                    {contact.displayName.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium truncate">{contact.displayName}</span>
-                    {getContactSourceIcon(contact)}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    {getContactStatusBadge(contact)}
-                    {contact.languages && contact.languages.length > 0 && (
-                      <span className="text-xs text-muted-foreground">
-                        {contact.languages.join(', ')}
-                      </span>
+                {contact.contactType === 'pending_invite' ? (
+                  <>
+                    <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
+                      <Clock className="w-6 h-6 text-amber-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">我发出的邀请</span>
+                        <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+                          {contact.inviteChannelLabel}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                        <span>
+                          {contact.createdAt ? new Date(contact.createdAt).toLocaleDateString('zh-CN', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }) : '未知时间'}
+                        </span>
+                        {contact.clickedCount && contact.clickedCount > 0 && (
+                          <span className="flex items-center gap-0.5">
+                            <Eye className="w-3 h-3" />
+                            {contact.clickedCount}次点击
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const baseUrl = window.location.origin;
+                          const inviteUrl = `${baseUrl}/invite/${contact.inviteCode}`;
+                          navigator.clipboard.writeText(inviteUrl);
+                          toast({
+                            title: '链接已复制',
+                            description: '邀请链接已复制到剪贴板',
+                          });
+                        }}
+                        data-testid={`button-copy-${contact.id}`}
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Avatar className="w-12 h-12">
+                      <AvatarImage src={contact.avatarUrl || undefined} />
+                      <AvatarFallback className="bg-[#38B03B]/10 text-[#38B03B]">
+                        {contact.displayName.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium truncate">{contact.displayName}</span>
+                        {getContactSourceIcon(contact)}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        {getContactStatusBadge(contact)}
+                        {contact.languages && contact.languages.length > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            {contact.languages.join(', ')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {!contact.isFriend && contact.isRegistered && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                        data-testid={`button-add-${contact.id}`}
+                      >
+                        <UserPlus className="w-4 h-4" />
+                      </Button>
                     )}
-                  </div>
-                </div>
-                {!contact.isFriend && contact.isRegistered && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                    }}
-                    data-testid={`button-add-${contact.id}`}
-                  >
-                    <UserPlus className="w-4 h-4" />
-                  </Button>
+                  </>
                 )}
               </div>
             ))}

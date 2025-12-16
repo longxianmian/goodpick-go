@@ -10564,11 +10564,29 @@ export function registerRoutes(app: Express): Server {
       // 添加已邀请但未注册的联系人
       for (const invite of invites) {
         if (!invite.usedByUserId) {
+          const channelLabels: Record<string, string> = {
+            line: 'LINE',
+            whatsapp: 'WhatsApp',
+            viber: 'Viber',
+            telegram: 'Telegram',
+            sms: '短信',
+            facebook: 'Facebook',
+            generic: '链接',
+            qr: '二维码',
+          };
+          const channelLabel = channelLabels[invite.inviteChannel] || invite.inviteChannel;
+          
           contacts.push({
             id: `invite_${invite.id}`,
-            displayName: `Invited via ${invite.inviteChannel}`,
+            displayName: `待注册邀请 #${invite.id}`,
             avatarUrl: null,
-            contactType: 'user',
+            contactType: 'pending_invite',
+            inviteCode: invite.inviteCode,
+            inviteChannel: invite.inviteChannel,
+            inviteChannelLabel: channelLabel,
+            scene: invite.scene,
+            clickedCount: invite.clickedCount || 0,
+            createdAt: invite.createdAt?.toISOString(),
             sources: [
               {
                 sourceType: 'im',
