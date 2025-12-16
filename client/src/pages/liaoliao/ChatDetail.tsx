@@ -221,7 +221,7 @@ export default function LiaoliaoChatDetail() {
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'zh-CN';
 
@@ -243,7 +243,15 @@ export default function LiaoliaoChatDetail() {
         }
       }
       
-      setInputValue(baseInputValueRef.current + finalTranscript + interimTranscript);
+      const newValue = baseInputValueRef.current + finalTranscript + interimTranscript;
+      setInputValue(newValue);
+      
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+        const newHeight = Math.max(44, Math.min(textareaRef.current.scrollHeight, 140));
+        textareaRef.current.style.height = newHeight + 'px';
+        textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
+      }
     };
 
     recognition.onerror = (event: any) => {
