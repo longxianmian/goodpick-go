@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation, useSearch } from 'wouter';
@@ -8,8 +8,8 @@ import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest, queryClient } from '@/lib/queryClient';
-import { ensureLiffReady, isInLineApp, resetLiffState, redirectToLineLogin } from '@/lib/liffClient';
+import { queryClient } from '@/lib/queryClient';
+import { redirectToLineLogin } from '@/lib/liffClient';
 import {
   Users,
   UserPlus,
@@ -33,21 +33,14 @@ interface InviteInfo {
   isUsed: boolean;
 }
 
-interface LiffProfile {
-  userId: string;
-  displayName: string;
-  pictureUrl?: string;
-}
-
 export default function InviteLanding() {
   const { t } = useLanguage();
-  const { user, loginUser, logoutUser } = useAuth();
+  const { logoutUser } = useAuth();
   const [, navigate] = useLocation();
   const searchString = useSearch();
   const { toast } = useToast();
 
   const [accepted, setAccepted] = useState(false);
-  const [liffProfile, setLiffProfile] = useState<LiffProfile | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
   const [isOwnInviteError, setIsOwnInviteError] = useState(false);
 
@@ -60,115 +53,80 @@ export default function InviteLanding() {
     enabled: !!inviteCode,
   });
 
-  // 使用LIFF idToken登录并接受邀请
+  // 接受邀请的处理函数
   const handleAcceptInvite = async () => {
     setLoginLoading(true);
     setIsOwnInviteError(false);
     
     try {
-      // 第一步：确保使用正确的LIFF身份登录
-      const liffState = await ensureLiffReady();
-      console.log('[InviteLanding] LIFF状态:', {
-        isInClient: liffState.isInClient,
-        isLoggedIn: liffState.isLoggedIn,
-        isInLineApp: isInLineApp()
-      });
-
-      // 如果LIFF未登录，触发登录
-      if (!liffState.isLoggedIn) {
-        console.log('[InviteLanding] LIFF未登录，触发LINE OAuth登录');
-        // 使用LINE OAuth登录（不依赖LIFF login，避免redirectUri白名单问题）
-        redirectToLineLogin({ redirectPath: `/invite?code=${inviteCode}` });
-        return;
-      }
-
-      // 获取LIFF用户信息
-      if (!liffState.liff) {
-        throw new Error('LIFF初始化失败，请稍后重试');
-      }
-
-      const profile = await liffState.liff.getProfile();
-      console.log('[InviteLanding] 当前LINE用户:', profile.displayName, profile.userId);
+      const currentToken = localStorage.getItem('userToken');
       
-      setLiffProfile({
-        userId: profile.userId,
-        displayName: profile.displayName,
-        pictureUrl: profile.pictureUrl
-      });
-
-      // 检查当前登录用户是否与LIFF用户匹配
-      if (user && user.lineUserId !== profile.userId) {
-        console.log('[InviteLanding] 身份不匹配，清除旧登录');
-        console.log('[InviteLanding] 当前登录:', user.lineUserId);
-        console.log('[InviteLanding] LIFF用户:', profile.userId);
+      // 如果有token，先尝试用当前token接受邀请
+      if (currentToken) {
+        console.log('[InviteLanding] 尝试用当前token接受邀请...');
         
-        // 清除旧登录
-        localStorage.removeItem('userToken');
-        localStorage.removeItem('user');
-        resetLiffState();
-        logoutUser();
-      }
+        const acceptResponse = await fetch('/api/invites/accept', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentToken}`,
+          },
+          body: JSON.stringify({ inviteCode }),
+        });
 
-      // 第二步：使用LIFF idToken登录
-      const idToken = liffState.liff.getIDToken();
-      if (!idToken) {
-        throw new Error('无法获取LINE ID Token');
-      }
+        const acceptResult = await acceptResponse.json();
 
-      console.log('[InviteLanding] 使用LIFF idToken登录...');
-      const loginResponse = await fetch('/api/auth/line/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
-      });
-
-      const loginResult = await loginResponse.json();
-
-      if (!loginResult.success) {
-        throw new Error(loginResult.message || '登录失败');
-      }
-
-      console.log('[InviteLanding] 登录成功:', loginResult.user.displayName);
-      
-      // 保存新的登录状态
-      localStorage.setItem('userToken', loginResult.token);
-      loginUser(loginResult.token, loginResult.user);
-
-      // 第三步：接受邀请
-      console.log('[InviteLanding] 接受邀请...');
-      const acceptResponse = await fetch('/api/invites/accept', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${loginResult.token}`,
-        },
-        body: JSON.stringify({ inviteCode }),
-      });
-
-      const acceptResult = await acceptResponse.json();
-
-      if (!acceptResponse.ok) {
-        if (acceptResult.message === 'Cannot accept your own invite') {
-          setIsOwnInviteError(true);
+        if (acceptResponse.ok) {
+          // 成功！
+          console.log('[InviteLanding] 接受邀请成功！');
+          setAccepted(true);
+          queryClient.invalidateQueries({ queryKey: ['/api/contacts/super'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/contacts/friends'] });
+          
           toast({
-            title: '无法接受邀请',
-            description: '您不能接受自己发出的邀请',
-            variant: 'destructive',
+            title: t('inviteLanding.success'),
+            description: t('inviteLanding.successDesc'),
           });
           return;
         }
+
+        // 如果返回"自己的邀请"错误，说明localStorage中的token是错误的用户
+        // 需要重新登录获取正确的身份
+        if (acceptResult.message === 'Cannot accept your own invite') {
+          console.log('[InviteLanding] 检测到token身份错误，需要重新登录');
+          // 清除错误的token
+          localStorage.removeItem('userToken');
+          localStorage.removeItem('user');
+          logoutUser();
+          
+          // 触发LINE OAuth重新登录
+          toast({
+            title: '需要重新登录',
+            description: '正在跳转到LINE登录...',
+          });
+          
+          setTimeout(() => {
+            redirectToLineLogin({ redirectPath: `/invite?code=${inviteCode}` });
+          }, 500);
+          return;
+        }
+
+        // 其他错误（如token过期），也触发重新登录
+        if (acceptResponse.status === 401) {
+          console.log('[InviteLanding] Token无效，需要登录');
+          localStorage.removeItem('userToken');
+          localStorage.removeItem('user');
+          logoutUser();
+          redirectToLineLogin({ redirectPath: `/invite?code=${inviteCode}` });
+          return;
+        }
+
         throw new Error(acceptResult.message || '接受邀请失败');
       }
 
-      // 成功！
-      setAccepted(true);
-      queryClient.invalidateQueries({ queryKey: ['/api/contacts/super'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/contacts/friends'] });
-      
-      toast({
-        title: t('inviteLanding.success'),
-        description: t('inviteLanding.successDesc'),
-      });
+      // 没有token，直接跳转登录
+      console.log('[InviteLanding] 无token，跳转LINE登录');
+      redirectToLineLogin({ redirectPath: `/invite?code=${inviteCode}` });
 
     } catch (err: any) {
       console.error('[InviteLanding] 处理失败:', err);
@@ -307,25 +265,6 @@ export default function InviteLanding() {
           {t('inviteLanding.inviteDesc')}
         </p>
 
-        {/* 如果已获取LIFF用户信息，显示确认 */}
-        {liffProfile && (
-          <Card className="w-full p-4 mb-6 border-[#38B03B]/30">
-            <div className="flex items-center gap-3">
-              <Avatar className="w-12 h-12">
-                <AvatarImage src={liffProfile.pictureUrl} />
-                <AvatarFallback className="bg-[#06C755] text-white">
-                  {liffProfile.displayName.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">使用此账号</p>
-                <p className="font-medium">{liffProfile.displayName}</p>
-              </div>
-              <Check className="w-5 h-5 text-[#06C755]" />
-            </div>
-          </Card>
-        )}
-
         {/* 功能说明 */}
         <Card className="w-full p-4 mb-6">
           <div className="flex items-center gap-4 mb-4">
@@ -368,11 +307,6 @@ export default function InviteLanding() {
           )}
         </Button>
 
-        {!isInLineApp() && (
-          <p className="text-xs text-muted-foreground text-center mt-4">
-            请在LINE App中打开此链接以接受邀请
-          </p>
-        )}
       </div>
 
       <div className="text-center py-4">
