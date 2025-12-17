@@ -178,7 +178,9 @@ export function LineLoginButton({ returnTo, className, children, showExternalH5S
 
   const isDev = import.meta.env.DEV || window.location.hostname.includes('replit');
 
-  if (isDev) {
+  // 开发环境：只有在非 LINE App 内才显示测试登录选项
+  // 如果在 LINE App 内打开，即使是开发环境也使用正常的 LIFF 登录
+  if (isDev && !isInLine) {
     return (
       <Button 
         className={className}
