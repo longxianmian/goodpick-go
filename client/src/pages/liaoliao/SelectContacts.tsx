@@ -124,12 +124,10 @@ export default function SelectContacts() {
   });
 
   const handleComplete = () => {
-    // 计算选中的真实用户数量（排除AI助理）
-    const realUserCount = Array.from(selectedIds).filter(id => typeof id === 'number').length;
-    
-    if (realUserCount === 0) {
+    // 必须选择至少2个联系人（AI助理算1个）
+    if (selectedIds.size < 2) {
       toast({
-        title: t('liaoliao.selectAtLeastOne') || '请至少选择一位联系人',
+        title: t('liaoliao.selectAtLeastTwo') || '请至少选择2位联系人',
         variant: 'destructive',
       });
       return;
@@ -146,15 +144,6 @@ export default function SelectContacts() {
       }
       // 字符串id（如'ai-assistant'）不加入群聊成员
     });
-    
-    // 群聊需要至少3个人（群主 + 2个成员）
-    if (memberIds.length < 2) {
-      toast({
-        title: t('liaoliao.needMoreMembers') || '群聊需要至少3个人',
-        variant: 'destructive',
-      });
-      return;
-    }
 
     // 获取选中的联系人名称用于生成群名
     const selectedNames = filteredFriends
