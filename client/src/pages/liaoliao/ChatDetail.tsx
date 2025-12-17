@@ -483,8 +483,24 @@ export default function LiaoliaoChatDetail() {
   }, []);
 
   const startVoiceRecording = useCallback(async () => {
+    console.log('[Voice] 开始录音...');
+    
+    // 检查浏览器支持
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.error('[Voice] 浏览器不支持 mediaDevices');
+      toast({
+        variant: 'destructive',
+        title: t('liaoliao.recordingNotSupported') || '录音不支持',
+        description: '您的浏览器不支持录音功能，请使用其他浏览器',
+      });
+      return;
+    }
+    
     try {
+      console.log('[Voice] 请求麦克风权限...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('[Voice] 麦克风权限获取成功');
+      
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -502,14 +518,20 @@ export default function LiaoliaoChatDetail() {
       mediaRecorder.start();
       setIsRecordingVoice(true);
       setRecordingDuration(0);
+      console.log('[Voice] 录音开始');
 
       recordingTimerRef.current = setInterval(() => {
         setRecordingDuration(prev => prev + 1);
       }, 1000);
-    } catch (error) {
-      console.error('Failed to start recording:', error);
+    } catch (error: any) {
+      console.error('[Voice] 录音失败:', error);
+      toast({
+        variant: 'destructive',
+        title: t('liaoliao.recordingFailed') || '录音失败',
+        description: error?.message || '无法访问麦克风，请检查权限设置',
+      });
     }
-  }, []);
+  }, [toast, t]);
 
   const stopVoiceRecording = useCallback(async () => {
     if (mediaRecorderRef.current && isRecordingVoice) {
@@ -588,57 +610,82 @@ export default function LiaoliaoChatDetail() {
   }, []);
 
   const startSpeechToText = useCallback(async () => {
+    console.log('[STT] 开始语音转文字...');
+    
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      alert(t('liaoliao.speechNotSupported'));
+      console.error('[STT] 浏览器不支持 SpeechRecognition');
+      toast({
+        variant: 'destructive',
+        title: t('liaoliao.speechNotSupported') || '语音输入不支持',
+        description: '您的浏览器不支持语音识别功能，请使用 Chrome 浏览器',
+      });
       return;
     }
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'zh-CN';
+    try {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'zh-CN';
 
-    recognition.onstart = () => {
-      baseInputValueRef.current = inputValue;
-      setIsRecordingToText(true);
-    };
+      recognition.onstart = () => {
+        console.log('[STT] 语音识别开始');
+        baseInputValueRef.current = inputValue;
+        setIsRecordingToText(true);
+      };
 
-    recognition.onresult = (event: any) => {
-      let interimTranscript = '';
-      let finalTranscript = '';
-      
-      for (let i = 0; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          finalTranscript += result[0].transcript;
-        } else {
-          interimTranscript += result[0].transcript;
+      recognition.onresult = (event: any) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+        
+        for (let i = 0; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            finalTranscript += result[0].transcript;
+          } else {
+            interimTranscript += result[0].transcript;
+          }
         }
-      }
-      
-      const newValue = baseInputValueRef.current + finalTranscript + interimTranscript;
-      setInputValue(newValue);
-      
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-        const newHeight = Math.max(44, Math.min(textareaRef.current.scrollHeight, 140));
-        textareaRef.current.style.height = newHeight + 'px';
-        textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
-      }
-    };
+        
+        const newValue = baseInputValueRef.current + finalTranscript + interimTranscript;
+        setInputValue(newValue);
+        
+        if (textareaRef.current) {
+          textareaRef.current.style.height = 'auto';
+          const newHeight = Math.max(44, Math.min(textareaRef.current.scrollHeight, 140));
+          textareaRef.current.style.height = newHeight + 'px';
+          textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
+        }
+      };
 
-    recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
-      setIsRecordingToText(false);
-    };
+      recognition.onerror = (event: any) => {
+        console.error('[STT] 语音识别错误:', event.error);
+        setIsRecordingToText(false);
+        toast({
+          variant: 'destructive',
+          title: t('liaoliao.speechError') || '语音识别失败',
+          description: event.error === 'not-allowed' 
+            ? '请允许麦克风权限' 
+            : `错误: ${event.error}`,
+        });
+      };
 
-    recognition.onend = () => {
-      setIsRecordingToText(false);
-    };
+      recognition.onend = () => {
+        console.log('[STT] 语音识别结束');
+        setIsRecordingToText(false);
+      };
 
-    recognition.start();
-  }, [t, inputValue]);
+      recognition.start();
+    } catch (error: any) {
+      console.error('[STT] 启动失败:', error);
+      toast({
+        variant: 'destructive',
+        title: t('liaoliao.speechError') || '语音识别失败',
+        description: error?.message || '无法启动语音识别',
+      });
+    }
+  }, [t, inputValue, toast]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
