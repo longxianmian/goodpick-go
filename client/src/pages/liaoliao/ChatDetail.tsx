@@ -1212,7 +1212,9 @@ export default function LiaoliaoChatDetail() {
   function FileMessageCard({ message, isOwn }: { message: Message; isOwn: boolean }) {
     // 从消息内容中提取文件名
     const filename = message.content?.replace(/^\[文件\]\s*/, '').replace(/^\[File\]\s*/, '') || 'file';
-    const fileUrl = message.mediaUrl || '';
+    // 强制使用HTTPS避免混合内容阻止
+    const rawFileUrl = message.mediaUrl || '';
+    const fileUrl = rawFileUrl.replace(/^http:\/\//i, 'https://');
     const fileSize = message.metadata?.fileSize;
     
     // 获取文件扩展名
