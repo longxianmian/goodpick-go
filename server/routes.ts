@@ -371,6 +371,13 @@ export function registerRoutes(app: Express): Server {
     saveUninitialized: false,
   }));
 
+  // ============ Debug Log Endpoint (临时，用于诊断 LINE WebView 点击问题) ============
+  app.post('/api/debug-log', (req: Request, res: Response) => {
+    const ua = req.headers['user-agent'] || 'no-ua';
+    console.log('[DEBUG-LOG]', new Date().toISOString(), req.body, 'ua=', ua.slice(0, 100));
+    res.json({ success: true });
+  });
+
      // ============ Config Endpoint ============
   app.get('/api/config', (req: Request, res: Response) => {
     const sessionId = req.headers['x-gpgo-session'] || 'no-session-id';

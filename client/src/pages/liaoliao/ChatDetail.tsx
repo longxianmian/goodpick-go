@@ -485,6 +485,13 @@ export default function LiaoliaoChatDetail() {
   }, []);
 
   const startVoiceRecording = useCallback(async () => {
+    // 发送服务端日志来验证点击事件是否触发
+    fetch('/api/debug-log', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'startVoiceRecording clicked', ua: navigator.userAgent.slice(0, 100) })
+    }).catch(() => {});
+    
     console.log('[Voice] 开始录音...');
     
     // 检查浏览器支持
@@ -620,6 +627,13 @@ export default function LiaoliaoChatDetail() {
   }, []);
 
   const startSpeechToText = useCallback(async () => {
+    // 发送服务端日志来验证点击事件是否触发
+    fetch('/api/debug-log', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'startSpeechToText clicked', ua: navigator.userAgent.slice(0, 100) })
+    }).catch(() => {});
+    
     console.log('[STT] 开始语音转文字...');
     
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
