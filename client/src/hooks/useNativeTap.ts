@@ -29,11 +29,16 @@ export function useNativeTap<T extends HTMLElement>(
   const lastTriggerTimeRef = useRef(0);
   const touchHandledRef = useRef(false);
   const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const boundRef = useRef(false);
   
+  // 更新 callback 和 disabled 引用
   useEffect(() => {
     callbackRef.current = callback;
+  }, [callback]);
+  
+  useEffect(() => {
     disabledRef.current = disabled;
-  }, [callback, disabled]);
+  }, [disabled]);
   
   const triggerCallback = useCallback(() => {
     if (disabledRef.current) {
@@ -59,7 +64,10 @@ export function useNativeTap<T extends HTMLElement>(
   
   useEffect(() => {
     const element = ref.current;
-    if (!element) return;
+    if (!element) {
+      console.log('[NativeTap] 元素未找到，等待挂载');
+      return;
+    }
     
     const handleTouchStart = (e: TouchEvent) => {
       console.log('[NativeTap] touchstart 事件');
@@ -71,7 +79,7 @@ export function useNativeTap<T extends HTMLElement>(
     };
     
     const handleTouchEnd = (e: TouchEvent) => {
-      console.log('[NativeTap] touchend 事件');
+      console.log('[NativeTap] touchend 事件, disabled=', disabledRef.current);
       
       if (disabledRef.current) {
         touchStartPosRef.current = null;
@@ -92,7 +100,9 @@ export function useNativeTap<T extends HTMLElement>(
       
       touchStartPosRef.current = null;
       
+      // 阻止默认行为，防止后续 click 事件
       e.preventDefault();
+      e.stopPropagation();
       
       touchHandledRef.current = true;
       
@@ -105,11 +115,12 @@ export function useNativeTap<T extends HTMLElement>(
     };
     
     const handleClick = (e: MouseEvent) => {
-      console.log('[NativeTap] click 事件');
+      console.log('[NativeTap] click 事件, touchHandled=', touchHandledRef.current, 'disabled=', disabledRef.current);
       
       if (touchHandledRef.current) {
         console.log('[NativeTap] click - 已由 touch 处理，跳过');
         e.preventDefault();
+        e.stopPropagation();
         return;
       }
       
@@ -121,19 +132,36 @@ export function useNativeTap<T extends HTMLElement>(
       triggerCallback();
     };
     
-    element.addEventListener('touchstart', handleTouchStart, { passive: true });
-    element.addEventListener('touchend', handleTouchEnd, { passive: false });
-    element.addEventListener('click', handleClick, { passive: false });
+    // 绑定事件
+    element.addEventListener('touchstart', handleTouchStart, { passive: true, capture: false });
+    element.addEventListener('touchend', handleTouchEnd, { passive: false, capture: false });
+    element.addEventListener('click', handleClick, { passive: false, capture: false });
     
-    console.log('[NativeTap] 原生事件监听器已绑定');
+    boundRef.current = true;
+    console.log('[NativeTap] 原生事件监听器已绑定到元素:', element.tagName, element.getAttribute('data-testid'));
     
     return () => {
       element.removeEventListener('touchstart', handleTouchStart);
       element.removeEventListener('touchend', handleTouchEnd);
       element.removeEventListener('click', handleClick);
+      boundRef.current = false;
       console.log('[NativeTap] 原生事件监听器已移除');
     };
   }, [ref, triggerCallback]);
+  
+  // 使用 MutationObserver 监听 ref 变化（处理条件渲染）
+  useEffect(() => {
+    // 定期检查 ref 是否已更新
+    const checkInterval = setInterval(() => {
+      if (ref.current && !boundRef.current) {
+        console.log('[NativeTap] 检测到新元素，重新绑定事件');
+        // 触发重新绑定
+        boundRef.current = false;
+      }
+    }, 500);
+    
+    return () => clearInterval(checkInterval);
+  }, [ref]);
 }
 
 /**
