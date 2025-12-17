@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ImagePreview } from '@/components/ui/image-preview';
 import { LocationPicker } from '@/components/LocationPicker';
-import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause, Square, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder, Loader2, Check, Navigation, Download, Languages, User, Users, Bell, BellOff, Search, Trash2, Flag, UserX, MessageSquare, Settings, PlusCircle } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause, Square, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder, Loader2, Check, Navigation, Download, Languages, User, Users, Bell, BellOff, Search, Trash2, Flag, UserX, MessageSquare, Settings, PlusCircle, ChevronRight } from 'lucide-react';
 import { VoiceInputIcon } from '@/components/icons/VoiceInputIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -129,6 +129,9 @@ export default function LiaoliaoChatDetail() {
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [showSearchMessages, setShowSearchMessages] = useState(false);
   const [showChatSettingsSheet, setShowChatSettingsSheet] = useState(false);
+  const [showChatMenuSheet, setShowChatMenuSheet] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
+  const [isReminded, setIsReminded] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [searchMessageQuery, setSearchMessageQuery] = useState('');
   const [newGroupName, setNewGroupName] = useState('');
@@ -990,81 +993,14 @@ export default function LiaoliaoChatDetail() {
           </h1>
         </div>
         
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="icon" variant="ghost" data-testid="button-chat-more">
-              <MoreVertical className="w-5 h-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 bg-zinc-800 text-white border-zinc-700">
-            <DropdownMenuItem 
-              className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700"
-              onClick={() => setShowProfileDialog(true)}
-              data-testid="menu-view-profile"
-            >
-              <User className="w-4 h-4" />
-              <span>{t('liaoliao.viewProfile') || '查看资料'}</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700"
-              onClick={() => navigate('/liaoliao/groups')}
-              data-testid="menu-my-groups"
-            >
-              <Users className="w-4 h-4" />
-              <span>{t('liaoliao.myGroups') || '我的群组'}</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700"
-              onClick={() => setShowCreateGroupDialog(true)}
-              data-testid="menu-create-group"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span>{t('liaoliao.createGroup') || '创建群聊'}</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-zinc-700" />
-            <DropdownMenuItem 
-              className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700"
-              onClick={() => setShowSearchMessages(true)}
-              data-testid="menu-search-messages"
-            >
-              <Search className="w-4 h-4" />
-              <span>{t('liaoliao.searchMessages') || '搜索消息'}</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700"
-              onClick={() => {
-                const newMuted = !isMuted;
-                setIsMuted(newMuted);
-                toast({ 
-                  title: newMuted 
-                    ? (t('liaoliao.mutedSuccess') || '已开启消息免打扰')
-                    : (t('liaoliao.unmutedSuccess') || '已关闭消息免打扰')
-                });
-              }}
-              data-testid="menu-mute"
-            >
-              {isMuted ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
-              <span>{t('liaoliao.muteNotifications') || '消息免打扰'}</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-zinc-700" />
-            <DropdownMenuItem 
-              className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700"
-              onClick={() => setShowChatSettingsSheet(true)}
-              data-testid="menu-chat-settings"
-            >
-              <Settings className="w-4 h-4" />
-              <span>{t('liaoliao.chatSettings') || '聊天设置'}</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700 text-red-400"
-              onClick={() => setShowDeleteConfirm(true)}
-              data-testid="menu-delete-chat"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>{t('liaoliao.deleteChat') || '删除对话'}</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button 
+          size="icon" 
+          variant="ghost" 
+          onClick={() => setShowChatMenuSheet(true)}
+          data-testid="button-chat-more"
+        >
+          <MoreVertical className="w-5 h-5" />
+        </Button>
       </header>
 
       <main 
@@ -1931,6 +1867,113 @@ export default function LiaoliaoChatDetail() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Chat Menu Sheet */}
+      <Sheet open={showChatMenuSheet} onOpenChange={setShowChatMenuSheet}>
+        <SheetContent side="bottom" className="h-auto rounded-t-2xl">
+          <SheetHeader className="mb-4 pt-2">
+            <div className="flex items-center justify-between">
+              <Avatar className="w-12 h-12">
+                <AvatarImage src={friendInfo.avatarUrl} />
+                <AvatarFallback>{friendInfo.displayName?.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <Button size="icon" variant="outline" className="rounded-full">
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+          </SheetHeader>
+
+          <div className="space-y-1">
+            {/* Search Chat Content */}
+            <button 
+              onClick={() => {
+                setShowChatMenuSheet(false);
+                setShowSearchMessages(true);
+              }}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted rounded-lg text-left"
+              data-testid="menu-search-chat-content"
+            >
+              <span>{t('liaoliao.searchChatContent') || '查找聊天内容'}</span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+
+            {/* Mute Notifications */}
+            <div className="flex items-center justify-between px-4 py-3 hover:bg-muted rounded-lg">
+              <span>{t('liaoliao.muteNotifications') || '消息免打扰'}</span>
+              <Switch 
+                checked={isMuted}
+                onCheckedChange={(checked) => {
+                  setIsMuted(checked);
+                  toast({ 
+                    title: checked 
+                      ? (t('liaoliao.mutedSuccess') || '已开启消息免打扰')
+                      : (t('liaoliao.unmutedSuccess') || '已关闭消息免打扰')
+                  });
+                }}
+                data-testid="switch-mute-menu"
+              />
+            </div>
+
+            {/* Pin Chat */}
+            <div className="flex items-center justify-between px-4 py-3 hover:bg-muted rounded-lg">
+              <span>{t('liaoliao.pinChat') || '置顶聊天'}</span>
+              <Switch 
+                checked={isPinned}
+                onCheckedChange={setIsPinned}
+                data-testid="switch-pin"
+              />
+            </div>
+
+            {/* Reminder */}
+            <div className="flex items-center justify-between px-4 py-3 hover:bg-muted rounded-lg">
+              <span>{t('liaoliao.reminder') || '提醒'}</span>
+              <Switch 
+                checked={isReminded}
+                onCheckedChange={setIsReminded}
+                data-testid="switch-reminder"
+              />
+            </div>
+
+            {/* Set Chat Background */}
+            <button 
+              onClick={() => {
+                setShowChatMenuSheet(false);
+                toast({ title: t('common.comingSoon') || '即将上线' });
+              }}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted rounded-lg text-left"
+              data-testid="menu-set-chat-bg"
+            >
+              <span>{t('liaoliao.setChatBg') || '设置当前聊天背景'}</span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+
+            {/* Clear Chat History */}
+            <button 
+              onClick={() => {
+                setShowChatMenuSheet(false);
+                // 可选: 添加确认对话框
+              }}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted rounded-lg text-left text-destructive"
+              data-testid="menu-clear-history"
+            >
+              <span>{t('liaoliao.clearChatHistory') || '清空聊天记录'}</span>
+            </button>
+
+            {/* Report */}
+            <button 
+              onClick={() => {
+                setShowChatMenuSheet(false);
+                toast({ title: t('common.comingSoon') || '即将上线' });
+              }}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted rounded-lg text-left text-orange-500"
+              data-testid="menu-report"
+            >
+              <span>{t('liaoliao.report') || '投诉'}</span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Chat Settings Sheet */}
       <Sheet open={showChatSettingsSheet} onOpenChange={setShowChatSettingsSheet}>
