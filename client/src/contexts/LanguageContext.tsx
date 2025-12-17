@@ -352,6 +352,11 @@ const translations: Record<Language, Record<string, string>> = {
     'liaoliao.recording': '正在录音',
     'liaoliao.speechNotSupported': '您的浏览器不支持语音识别',
     'liaoliao.aiError': '抱歉，我遇到了一些问题，请稍后再试。',
+    'liaoliao.translating': '翻译中...',
+    'liaoliao.translated': '已翻译',
+    'liaoliao.longPressOriginal': '长按查看原文',
+    'liaoliao.originalText': '原文',
+    'liaoliao.voiceTranslated': '语音译文',
     
     // 角色导航
     'roleNav.merchantHome': '商户首页',
@@ -2878,6 +2883,11 @@ const translations: Record<Language, Record<string, string>> = {
     'liaoliao.recording': 'Recording',
     'liaoliao.speechNotSupported': 'Your browser does not support speech recognition',
     'liaoliao.aiError': 'Sorry, I encountered an issue. Please try again later.',
+    'liaoliao.translating': 'Translating...',
+    'liaoliao.translated': 'Translated',
+    'liaoliao.longPressOriginal': 'Long press to view original',
+    'liaoliao.originalText': 'Original',
+    'liaoliao.voiceTranslated': 'Voice translated',
     
     // Role Navigation
     'roleNav.merchantHome': 'Store Home',
