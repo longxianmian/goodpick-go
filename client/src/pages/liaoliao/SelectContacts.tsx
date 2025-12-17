@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
-import { X, Search, Loader2 } from 'lucide-react';
+import { X, Search, Loader2, Bot, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 
@@ -217,10 +217,19 @@ export default function SelectContacts() {
                   onCheckedChange={() => toggleSelect(friend.id)}
                   className="rounded-full"
                 />
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={friend.avatarUrl} />
-                  <AvatarFallback>{friend.displayName.charAt(0)}</AvatarFallback>
-                </Avatar>
+                {friend.isAI ? (
+                  <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-[#38B03B] to-[#2e9632] flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-white" />
+                    <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-amber-400 rounded-full flex items-center justify-center">
+                      <Sparkles className="w-2 h-2 text-amber-900" />
+                    </div>
+                  </div>
+                ) : (
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={friend.avatarUrl} />
+                    <AvatarFallback>{friend.displayName.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                )}
                 <span className="flex-1 truncate">{friend.displayName}</span>
                 {friend.isAI && (
                   <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">AI</span>
