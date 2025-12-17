@@ -39,9 +39,8 @@ export default function SelectContacts() {
     queryKey: ['/api/liaoliao/chats'],
   });
 
-  // 转换为好友格式并过滤
+  // 转换为好友格式并过滤（显示所有好友，只排除自己）
   const filteredFriends = useMemo(() => {
-    const currentFriendId = friendId ? parseInt(friendId) : null;
     return chatsList
       .filter(chat => chat.type === 'friend' || chat.type === 'ai')
       .map(chat => ({
@@ -51,17 +50,15 @@ export default function SelectContacts() {
         isAI: chat.type === 'ai',
       }))
       .filter(friend => {
-        // 排除自己
+        // 只排除自己
         if (friend.id === user?.id) return false;
-        // 排除当前聊天对象
-        if (friend.id === currentFriendId) return false;
         // 搜索过滤
         if (searchQuery && !friend.displayName.toLowerCase().includes(searchQuery.toLowerCase())) {
           return false;
         }
         return true;
       });
-  }, [chatsList, user?.id, friendId, searchQuery]);
+  }, [chatsList, user?.id, searchQuery]);
 
   // 按首字母分组
   const groupedFriends = useMemo(() => {
