@@ -4465,52 +4465,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // 文件下载代理 API - 解决跨域下载问题
-  app.get('/api/download', async (req: Request, res: Response) => {
-    try {
-      const fileUrl = req.query.url as string;
-      const filename = req.query.filename as string || 'download';
-      
-      if (!fileUrl) {
-        return res.status(400).json({ success: false, message: 'Missing file URL' });
-      }
-      
-      // 验证URL是否来自允许的域名（安全检查）
-      const allowedDomains = [
-        'prodee-h5-assets.oss-ap-southeast-1.aliyuncs.com',
-        'shuashua-video.oss-ap-southeast-1.aliyuncs.com',
-        'oss-ap-southeast-1.aliyuncs.com'
-      ];
-      
-      const url = new URL(fileUrl);
-      const isAllowed = allowedDomains.some(domain => url.hostname.includes(domain));
-      
-      if (!isAllowed) {
-        return res.status(403).json({ success: false, message: 'Domain not allowed' });
-      }
-      
-      // 从远程URL获取文件
-      const response = await fetch(fileUrl);
-      
-      if (!response.ok) {
-        return res.status(response.status).json({ success: false, message: 'Failed to fetch file' });
-      }
-      
-      const contentType = response.headers.get('content-type') || 'application/octet-stream';
-      const buffer = await response.arrayBuffer();
-      
-      // 设置响应头以触发下载
-      res.setHeader('Content-Type', contentType);
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
-      res.setHeader('Content-Length', buffer.byteLength);
-      
-      res.send(Buffer.from(buffer));
-    } catch (error) {
-      console.error('Download proxy error:', error);
-      res.status(500).json({ success: false, message: 'Failed to download file' });
-    }
-  });
-
   // 通用图片上传 API (商户商品图片等)
   app.post('/api/upload/image', userAuthMiddleware, upload.single('file'), async (req: Request, res: Response) => {
     try {

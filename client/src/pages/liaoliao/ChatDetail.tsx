@@ -218,8 +218,8 @@ export default function LiaoliaoChatDetail() {
     setShowImagePreview(true);
   }, [messages]);
 
-  // 处理文件下载 - 通过后端代理解决跨域问题
-  const handleFileDownload = useCallback(async (url: string, filename: string) => {
+  // 处理文件下载 - 直接跳转到文件URL
+  const handleFileDownload = useCallback((url: string, filename: string) => {
     if (!url) {
       toast({
         title: t('liaoliao.uploadFailed'),
@@ -228,38 +228,9 @@ export default function LiaoliaoChatDetail() {
       return;
     }
     
-    toast({
-      title: t('liaoliao.downloading') || '正在下载...',
-      description: filename
-    });
-    
-    try {
-      // 使用后端代理API下载文件（绕过CORS）
-      const proxyUrl = `/api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
-      const response = await fetch(proxyUrl);
-      
-      if (response.ok) {
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
-        toast({
-          title: t('liaoliao.downloadComplete') || '下载完成',
-          description: filename
-        });
-        return;
-      }
-    } catch (error) {
-      console.log('Proxy download failed:', error);
-    }
-    
-    // 如果代理下载失败，直接在新窗口打开
-    window.open(url, '_blank', 'noopener,noreferrer');
+    // 直接跳转到文件URL，浏览器会处理下载或预览
+    // 注意：需要在阿里云OSS配置CORS才能正常工作
+    window.location.href = url;
   }, [toast, t]);
 
   const startVoiceRecording = useCallback(async () => {
