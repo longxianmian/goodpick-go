@@ -47,8 +47,9 @@ export default function SelectContacts() {
     isAI: true,
   };
 
-  // 转换为好友格式并过滤（显示所有好友+AI助理，只排除自己）
+  // 转换为好友格式并过滤（显示所有好友+AI助理，排除自己和当前聊天对象）
   const filteredFriends = useMemo(() => {
+    const currentFriendId = friendId ? parseInt(friendId) : null;
     const friends: Friend[] = chatsList
       .filter(chat => chat.type === 'friend')
       .map(chat => ({
@@ -58,8 +59,10 @@ export default function SelectContacts() {
         isAI: false,
       }))
       .filter(friend => {
-        // 只排除自己
+        // 排除自己
         if (friend.id === user?.id) return false;
+        // 排除当前聊天对象（因为已经是组群的发起人）
+        if (friend.id === currentFriendId) return false;
         // 搜索过滤
         if (searchQuery && !friend.displayName.toLowerCase().includes(searchQuery.toLowerCase())) {
           return false;
@@ -73,7 +76,7 @@ export default function SelectContacts() {
     }
     
     return friends;
-  }, [chatsList, user?.id, searchQuery, aiAssistant.displayName]);
+  }, [chatsList, user?.id, friendId, searchQuery, aiAssistant.displayName]);
 
   // 按首字母分组
   const groupedFriends = useMemo(() => {
