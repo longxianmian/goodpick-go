@@ -46,4 +46,4 @@ expertMode = true
 
 [userenv.shared]
 APP_BASE_URL = "https://www.goodpickgo.com"
-VITE_GOOGLE_MAPS_API_KEY = "${GOOGLE_MAPS_API_KEY}"
+VITE_GOOGLE_MAPS_API_KEY = "AIzaSyBCCsjWGtE1qil8qHwL85GipDrIBk-hp5s"
