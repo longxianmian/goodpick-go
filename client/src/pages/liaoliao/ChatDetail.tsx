@@ -218,8 +218,8 @@ export default function LiaoliaoChatDetail() {
     setShowImagePreview(true);
   }, [messages]);
 
-  // 处理文件下载
-  const handleFileDownload = useCallback((url: string, filename: string) => {
+  // 处理文件下载 - 支持跨域资源
+  const handleFileDownload = useCallback(async (url: string, filename: string) => {
     if (!url) {
       toast({
         title: t('liaoliao.uploadFailed'),
@@ -228,16 +228,37 @@ export default function LiaoliaoChatDetail() {
       return;
     }
     
-    // 创建隐藏的a标签进行下载
-    const link = document.createElement('a');
-    link.href = url;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }, [toast]);
+    toast({
+      title: t('liaoliao.downloading') || '正在下载...',
+      description: filename
+    });
+    
+    try {
+      // 尝试使用fetch获取blob数据（跨域资源需要服务器配置CORS）
+      const response = await fetch(url, { mode: 'cors' });
+      if (response.ok) {
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+        toast({
+          title: t('liaoliao.downloadComplete') || '下载完成',
+          description: filename
+        });
+        return;
+      }
+    } catch (error) {
+      console.log('Fetch download failed, trying direct open:', error);
+    }
+    
+    // 如果fetch失败，直接在新窗口打开（让用户手动保存）
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }, [toast, t]);
 
   const startVoiceRecording = useCallback(async () => {
     try {
