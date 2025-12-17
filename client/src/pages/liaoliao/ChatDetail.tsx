@@ -484,61 +484,6 @@ export default function LiaoliaoChatDetail() {
     };
   }, []);
 
-  // 处理系统录音文件上传（HTML Media Capture 替代方案）
-  const handleAudioFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    
-    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event: 'Audio file selected', fileName: file.name, size: file.size, type: file.type }) }).catch(() => {});
-    
-    try {
-      toast({
-        title: t('liaoliao.uploadingAudio') || '正在上传语音...',
-      });
-      
-      const formData = new FormData();
-      formData.append('file', file, `voice_${Date.now()}.${file.name.split('.').pop() || 'webm'}`);
-      
-      const token = localStorage.getItem('userToken');
-      const response = await fetch('/api/user/upload', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-      });
-      
-      const result = await response.json();
-      
-      if (result.success && (result.url || result.fileUrl)) {
-        const audioUrl = result.url || result.fileUrl;
-        sendMutation.mutate({ 
-          content: `[${t('liaoliao.voiceMessage')}]`, 
-          messageType: 'audio',
-          mediaUrl: audioUrl
-        });
-        
-        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ event: 'Audio file uploaded successfully', url: audioUrl }) }).catch(() => {});
-      } else {
-        toast({
-          variant: 'destructive',
-          title: t('liaoliao.uploadFailed') || '上传失败',
-        });
-      }
-    } catch (error: any) {
-      console.error('[Voice] 文件上传失败:', error);
-      toast({
-        variant: 'destructive',
-        title: t('liaoliao.uploadFailed') || '上传失败',
-        description: error?.message || '语音上传失败',
-      });
-    }
-    
-    // 清空 input 以便重复选择
-    event.target.value = '';
-  }, [toast, t, sendMutation]);
-  
   const startVoiceRecording = useCallback(async () => {
     // 发送服务端日志来验证点击事件是否触发
     fetch('/api/debug-log', { 
@@ -551,11 +496,14 @@ export default function LiaoliaoChatDetail() {
     
     // 检查浏览器支持
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      console.error('[Voice] 浏览器不支持 mediaDevices，显示录音对话框');
+      console.error('[Voice] 浏览器不支持 mediaDevices');
       fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'Voice: mediaDevices not supported, showing fallback dialog' }) }).catch(() => {});
-      // 显示对话框让用户主动点击录音
-      setShowVoiceFallbackDialog(true);
+        body: JSON.stringify({ event: 'Voice: mediaDevices not supported' }) }).catch(() => {});
+      toast({
+        variant: 'destructive',
+        title: t('liaoliao.recordingNotSupported') || '录音不支持',
+        description: '您的浏览器不支持录音功能',
+      });
       return;
     }
     
@@ -571,11 +519,14 @@ export default function LiaoliaoChatDetail() {
         body: JSON.stringify({ event: 'Voice: requestMicrophonePermission returned', hasPermission }) }).catch(() => {});
       
       if (!hasPermission) {
-        console.log('[Voice] 麦克风权限被拒绝，显示录音对话框');
+        console.log('[Voice] 麦克风权限被拒绝');
         fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ event: 'Voice: permission denied, showing fallback dialog' }) }).catch(() => {});
-        // 显示对话框让用户主动点击录音
-        setShowVoiceFallbackDialog(true);
+          body: JSON.stringify({ event: 'Voice: permission denied' }) }).catch(() => {});
+        toast({
+          variant: 'destructive',
+          title: t('liaoliao.microphonePermissionDenied') || '麦克风权限被拒绝',
+          description: '请在浏览器设置中允许麦克风权限',
+        });
         return;
       }
       
@@ -609,11 +560,14 @@ export default function LiaoliaoChatDetail() {
         setRecordingDuration(prev => prev + 1);
       }, 1000);
     } catch (error: any) {
-      console.error('[Voice] 录音失败，显示录音对话框:', error);
+      console.error('[Voice] 录音失败:', error);
       fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'Voice: error caught, showing fallback dialog', error: error?.message || String(error) }) }).catch(() => {});
-      // 显示对话框让用户主动点击录音
-      setShowVoiceFallbackDialog(true);
+        body: JSON.stringify({ event: 'Voice: error caught', error: error?.message || String(error) }) }).catch(() => {});
+      toast({
+        variant: 'destructive',
+        title: t('liaoliao.recordingFailed') || '录音失败',
+        description: error?.message || '无法访问麦克风',
+      });
     }
   }, [toast, t]);
 
