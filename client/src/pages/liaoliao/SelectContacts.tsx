@@ -10,6 +10,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { X, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+interface ChatItem {
+  type: 'friend' | 'group' | 'ai';
+  id: number;
+  name: string;
+  avatarUrl?: string;
+}
+
 interface Friend {
   id: number;
   displayName: string;
@@ -27,26 +34,34 @@ export default function SelectContacts() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-  // 获取所有好友列表
-  const { data: friendsList = [] } = useQuery<Friend[]>({
-    queryKey: ['/api/liaoliao/friends'],
+  // 获取聊天列表（包含所有好友来源）
+  const { data: chatsList = [] } = useQuery<ChatItem[]>({
+    queryKey: ['/api/liaoliao/chats'],
   });
 
-  // 过滤好友列表：排除自己和当前聊天对象
+  // 转换为好友格式并过滤
   const filteredFriends = useMemo(() => {
     const currentFriendId = friendId ? parseInt(friendId) : null;
-    return friendsList.filter(friend => {
-      // 排除自己
-      if (friend.id === user?.id) return false;
-      // 排除当前聊天对象
-      if (friend.id === currentFriendId) return false;
-      // 搜索过滤
-      if (searchQuery && !friend.displayName.toLowerCase().includes(searchQuery.toLowerCase())) {
-        return false;
-      }
-      return true;
-    });
-  }, [friendsList, user?.id, friendId, searchQuery]);
+    return chatsList
+      .filter(chat => chat.type === 'friend' || chat.type === 'ai')
+      .map(chat => ({
+        id: chat.id,
+        displayName: chat.name,
+        avatarUrl: chat.avatarUrl,
+        isAI: chat.type === 'ai',
+      }))
+      .filter(friend => {
+        // 排除自己
+        if (friend.id === user?.id) return false;
+        // 排除当前聊天对象
+        if (friend.id === currentFriendId) return false;
+        // 搜索过滤
+        if (searchQuery && !friend.displayName.toLowerCase().includes(searchQuery.toLowerCase())) {
+          return false;
+        }
+        return true;
+      });
+  }, [chatsList, user?.id, friendId, searchQuery]);
 
   // 按首字母分组
   const groupedFriends = useMemo(() => {
