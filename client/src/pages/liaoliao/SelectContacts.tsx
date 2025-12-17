@@ -127,10 +127,10 @@ export default function SelectContacts() {
   });
 
   const handleComplete = () => {
-    // 必须选择至少2个联系人（AI助理算1个）
-    if (selectedIds.size < 2) {
+    // 群聊需要至少3人：群主(自动) + 当前聊天对象(自动) + 至少1位选中的联系人
+    if (selectedIds.size < 1) {
       toast({
-        title: t('liaoliao.selectAtLeastTwo') || '请至少选择2位联系人',
+        title: t('liaoliao.selectAtLeastOne') || '请至少选择1位联系人',
         variant: 'destructive',
       });
       return;
