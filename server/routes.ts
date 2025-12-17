@@ -10359,14 +10359,33 @@ export function registerRoutes(app: Express): Server {
         .where(eq(liaoliaoGroupMembers.userId, userId))
         .orderBy(desc(liaoliaoGroups.updatedAt));
 
-      res.json(groupList.map(({ group, member }) => ({
-        id: group.id,
-        name: group.name,
-        avatarUrl: group.avatarUrl,
-        description: group.description,
-        role: member.role,
-        isMuted: member.isMuted,
-      })));
+      // 获取每个群的成员头像（最多4个用于组合头像）
+      const groupsWithMembers = await Promise.all(groupList.map(async ({ group, member }) => {
+        const membersData = await db
+          .select({
+            user: users,
+          })
+          .from(liaoliaoGroupMembers)
+          .innerJoin(users, eq(liaoliaoGroupMembers.userId, users.id))
+          .where(eq(liaoliaoGroupMembers.groupId, group.id))
+          .limit(4);
+
+        return {
+          id: group.id,
+          name: group.name,
+          avatarUrl: group.avatarUrl,
+          description: group.description,
+          role: member.role,
+          isMuted: member.isMuted,
+          members: membersData.map(({ user }) => ({
+            id: user.id,
+            displayName: user.displayName || user.lineDisplayName || 'Unknown',
+            avatarUrl: user.avatarUrl || user.lineAvatarUrl,
+          })),
+        };
+      }));
+
+      res.json(groupsWithMembers);
     } catch (error: any) {
       console.error('Get groups error:', error);
       res.status(500).json({ message: 'Failed to get groups' });
@@ -10933,6 +10952,14 @@ export function registerRoutes(app: Express): Server {
           .orderBy(desc(liaoliaoMessages.createdAt))
           .limit(1);
 
+        // 获取群成员头像（最多4个用于组合头像）
+        const membersData = await db
+          .select({ user: users })
+          .from(liaoliaoGroupMembers)
+          .innerJoin(users, eq(liaoliaoGroupMembers.userId, users.id))
+          .where(eq(liaoliaoGroupMembers.groupId, group.id))
+          .limit(4);
+
         chats.push({
           type: 'group',
           id: group.id,
@@ -10941,6 +10968,11 @@ export function registerRoutes(app: Express): Server {
           lastMessage: lastMessage?.content,
           lastMessageAt: lastMessage?.createdAt,
           unreadCount: 0,
+          members: membersData.map(({ user }) => ({
+            id: user.id,
+            displayName: user.displayName || user.lineDisplayName || 'Unknown',
+            avatarUrl: user.avatarUrl || user.lineAvatarUrl,
+          })),
         });
       }
 

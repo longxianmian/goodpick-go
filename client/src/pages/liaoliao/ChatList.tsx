@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Search, PlusCircle, MoreVertical, MessageSquare, MessageCircle, UserPlus, ScanLine, Wallet, Bot, Sparkles, Users, Trash2 } from 'lucide-react';
+import { GroupAvatar } from '@/components/GroupAvatar';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -20,6 +21,12 @@ import { zhCN, th, vi } from 'date-fns/locale';
 import { UserBottomNav } from '@/components/UserBottomNav';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+
+interface ChatMember {
+  id: number;
+  displayName: string;
+  avatarUrl?: string;
+}
 
 interface ChatItem {
   type: 'friend' | 'group' | 'ai';
@@ -30,6 +37,7 @@ interface ChatItem {
   lastMessageAt?: string;
   unreadCount: number;
   isAI?: boolean;
+  members?: ChatMember[];
 }
 
 function getDateLocale(lang: string) {
@@ -259,6 +267,8 @@ export default function LiaoliaoChatList() {
                       <Sparkles className="w-2.5 h-2.5 text-amber-900" />
                     </div>
                   </div>
+                ) : chat.type === 'group' && chat.members && chat.members.length > 0 ? (
+                  <GroupAvatar members={chat.members} size="md" />
                 ) : (
                   <Avatar className="w-12 h-12">
                     <AvatarImage src={chat.avatarUrl} />
