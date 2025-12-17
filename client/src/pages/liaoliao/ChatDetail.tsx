@@ -57,6 +57,9 @@ interface Message {
     contactAvatar?: string;
     fileSize?: number;
     fileName?: string;
+    transcript?: string;
+    transcriptLanguage?: string;
+    transcriptionStatus?: string;
   };
   createdAt: string;
   fromUser: {
@@ -364,42 +367,19 @@ export default function LiaoliaoChatDetail() {
     });
   }, []);
 
-  // 翻译单条消息 - 使用 ref 来追踪正在进行的翻译
-  const pendingTranslationsRef = useRef<Set<number>>(new Set());
-  // 追踪已翻译的原文，用于检测内容变化（如语音转录更新）
-  const translatedOriginalTextsRef = useRef<Map<number, string>>(new Map());
-  
-  const translateMessage = useCallback(async (messageId: number, text: string) => {
-    // 如果已经在翻译中，跳过
-    if (pendingTranslationsRef.current.has(messageId)) {
-      return;
+  // 简化的翻译函数
+  const translateText = useCallback(async (messageId: number, text: string, cacheKey: string) => {
+    // 检查是否已翻译过相同内容
+    const cached = translationCache[messageId];
+    if (cached && cached.originalText === text && !cached.isLoading) {
+      return; // 已翻译过相同内容
     }
     
-    // 检查是否需要重新翻译（原文是否变化）
-    const previousOriginalText = translatedOriginalTextsRef.current.get(messageId);
-    const needsRetranslation = previousOriginalText !== text;
-    
-    // 标记为正在翻译
-    pendingTranslationsRef.current.add(messageId);
-    translatedOriginalTextsRef.current.set(messageId, text);
-    
     // 设置加载状态
-    setTranslationCache(prev => {
-      // 如果已经在缓存中且原文没变，跳过
-      if (prev[messageId] && !prev[messageId].isLoading && !needsRetranslation) {
-        pendingTranslationsRef.current.delete(messageId);
-        return prev;
-      }
-      return {
-        ...prev,
-        [messageId]: {
-          translatedText: text,
-          originalText: text,
-          needsTranslation: false,
-          isLoading: true
-        }
-      };
-    });
+    setTranslationCache(prev => ({
+      ...prev,
+      [messageId]: { translatedText: text, originalText: text, needsTranslation: false, isLoading: true }
+    }));
     
     try {
       const token = localStorage.getItem('userToken');
@@ -410,96 +390,59 @@ export default function LiaoliaoChatDetail() {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         credentials: 'include',
-        body: JSON.stringify({
-          text,
-          targetLang: browserLanguage
-        })
+        body: JSON.stringify({ text, targetLang: browserLanguage })
       });
       
       const result = await response.json();
       
-      if (result.success) {
-        setTranslationCache(prev => ({
-          ...prev,
-          [messageId]: {
-            translatedText: result.translatedText,
-            originalText: result.originalText,
-            needsTranslation: result.needsTranslation,
-            isLoading: false
-          }
-        }));
-      } else {
-        setTranslationCache(prev => ({
-          ...prev,
-          [messageId]: {
-            translatedText: text,
-            originalText: text,
-            needsTranslation: false,
-            isLoading: false
-          }
-        }));
-      }
+      setTranslationCache(prev => ({
+        ...prev,
+        [messageId]: {
+          translatedText: result.success ? result.translatedText : text,
+          originalText: text,
+          needsTranslation: result.success ? result.needsTranslation : false,
+          isLoading: false
+        }
+      }));
     } catch (error) {
       console.error('Translation error:', error);
       setTranslationCache(prev => ({
         ...prev,
-        [messageId]: {
-          translatedText: text,
-          originalText: text,
-          needsTranslation: false,
-          isLoading: false
-        }
+        [messageId]: { translatedText: text, originalText: text, needsTranslation: false, isLoading: false }
       }));
-    } finally {
-      pendingTranslationsRef.current.delete(messageId);
     }
-  }, [browserLanguage]);
+  }, [browserLanguage, translationCache]);
 
-  // 对收到的消息进行翻译 - 使用 ref 追踪已处理的消息
-  const processedMessagesRef = useRef<Set<number>>(new Set());
-  // 追踪语音消息的转录状态，用于检测转录完成
-  const processedTranscriptsRef = useRef<Map<number, string>>(new Map());
-  
+  // 简化的翻译触发逻辑
   useEffect(() => {
     if (!messages.length || !user) return;
     
-    // 找出需要翻译的新消息（收到的文本消息和语音消息）
-    const messagesToTranslate = messages.filter(msg => {
+    messages.forEach(msg => {
       const isOwn = msg.fromUserId === user.id;
-      if (isOwn) return false;
+      if (isOwn) return;
       
-      // 对于语音消息，检查是否有新的转录文本
+      // 确定要翻译的文本
+      let textToTranslate: string | null = null;
+      
       if (msg.messageType === 'audio') {
+        // 语音消息：使用转录文本
         const transcript = msg.metadata?.transcript as string | undefined;
-        const hasTranscript = transcript && transcript.trim();
-        if (!hasTranscript) return false;
-        
-        // 检查转录是否是新的（之前没有处理过，或者转录内容变了）
-        const previousTranscript = processedTranscriptsRef.current.get(msg.id);
-        if (previousTranscript === transcript) return false; // 已经翻译过这个转录
-        
-        return true;
+        if (transcript && transcript.trim()) {
+          textToTranslate = transcript;
+        }
+      } else if (msg.messageType === 'text') {
+        // 文本消息：使用 content
+        if (msg.content && msg.content.trim()) {
+          textToTranslate = msg.content;
+        }
       }
       
-      // 对于文本消息，使用常规逻辑
-      const isText = msg.messageType === 'text';
-      const notProcessed = !processedMessagesRef.current.has(msg.id);
-      const hasContent = msg.content && msg.content.trim();
-      return isText && notProcessed && hasContent;
-    });
-    
-    // 标记为已处理并翻译
-    messagesToTranslate.forEach(msg => {
-      if (msg.messageType === 'audio') {
-        const transcript = msg.metadata?.transcript as string;
-        processedTranscriptsRef.current.set(msg.id, transcript);
-        translateMessage(msg.id, transcript);
-      } else {
-        processedMessagesRef.current.add(msg.id);
-        translateMessage(msg.id, msg.content);
+      // 有文本就翻译
+      if (textToTranslate) {
+        translateText(msg.id, textToTranslate, `${msg.id}-${textToTranslate}`);
       }
     });
-  }, [messages, user, translateMessage]);
+  }, [messages, user, translateText]);
 
   // 长按开始 - 显示原文
   const handleLongPressStart = useCallback((messageId: number) => {
