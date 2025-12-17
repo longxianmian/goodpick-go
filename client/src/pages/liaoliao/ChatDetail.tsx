@@ -4,7 +4,11 @@ import { useParams, useLocation } from 'wouter';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Label } from '@/components/ui/label';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Switch } from '@/components/ui/switch';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ImagePreview } from '@/components/ui/image-preview';
 import { LocationPicker } from '@/components/LocationPicker';
-import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause, Square, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder, Loader2, Check, Navigation, Download, Languages, User, Users, Bell, BellOff, Search, Trash2, Flag, UserX, MessageSquare, Settings } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause, Square, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder, Loader2, Check, Navigation, Download, Languages, User, Users, Bell, BellOff, Search, Trash2, Flag, UserX, MessageSquare, Settings, PlusCircle } from 'lucide-react';
 import { VoiceInputIcon } from '@/components/icons/VoiceInputIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -118,6 +122,16 @@ export default function LiaoliaoChatDetail() {
   const [showFavoriteDialog, setShowFavoriteDialog] = useState(false);
   const [showMusicDialog, setShowMusicDialog] = useState(false);
   const [showCallDialog, setShowCallDialog] = useState<'voice' | 'video' | null>(null);
+  
+  // 菜单功能对话框状态
+  const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [showCreateGroupDialog, setShowCreateGroupDialog] = useState(false);
+  const [showSearchMessages, setShowSearchMessages] = useState(false);
+  const [showChatSettingsSheet, setShowChatSettingsSheet] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [searchMessageQuery, setSearchMessageQuery] = useState('');
+  const [newGroupName, setNewGroupName] = useState('');
+  const [isMuted, setIsMuted] = useState(false);
   
   const [redPacketAmount, setRedPacketAmount] = useState('');
   const [redPacketMessage, setRedPacketMessage] = useState('');
@@ -984,7 +998,7 @@ export default function LiaoliaoChatDetail() {
           <DropdownMenuContent align="end" className="w-48 bg-zinc-800 text-white border-zinc-700">
             <DropdownMenuItem 
               className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700"
-              onClick={() => navigate(`/liaoliao/profile/${friendId}`)}
+              onClick={() => setShowProfileDialog(true)}
               data-testid="menu-view-profile"
             >
               <User className="w-4 h-4" />
@@ -1000,7 +1014,7 @@ export default function LiaoliaoChatDetail() {
             </DropdownMenuItem>
             <DropdownMenuItem 
               className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700"
-              onClick={() => navigate('/liaoliao/new-group')}
+              onClick={() => setShowCreateGroupDialog(true)}
               data-testid="menu-create-group"
             >
               <MessageSquare className="w-4 h-4" />
@@ -1009,9 +1023,7 @@ export default function LiaoliaoChatDetail() {
             <DropdownMenuSeparator className="bg-zinc-700" />
             <DropdownMenuItem 
               className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700"
-              onClick={() => {
-                toast({ title: t('liaoliao.searchMessages') || '搜索消息', description: t('common.comingSoon') || '即将推出' });
-              }}
+              onClick={() => setShowSearchMessages(true)}
               data-testid="menu-search-messages"
             >
               <Search className="w-4 h-4" />
@@ -1020,17 +1032,23 @@ export default function LiaoliaoChatDetail() {
             <DropdownMenuItem 
               className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700"
               onClick={() => {
-                toast({ title: t('liaoliao.muteNotifications') || '消息免打扰', description: t('common.comingSoon') || '即将推出' });
+                const newMuted = !isMuted;
+                setIsMuted(newMuted);
+                toast({ 
+                  title: newMuted 
+                    ? (t('liaoliao.mutedSuccess') || '已开启消息免打扰')
+                    : (t('liaoliao.unmutedSuccess') || '已关闭消息免打扰')
+                });
               }}
               data-testid="menu-mute"
             >
-              <BellOff className="w-4 h-4" />
+              {isMuted ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
               <span>{t('liaoliao.muteNotifications') || '消息免打扰'}</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-zinc-700" />
             <DropdownMenuItem 
               className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700"
-              onClick={() => navigate('/liaoliao/settings')}
+              onClick={() => setShowChatSettingsSheet(true)}
               data-testid="menu-chat-settings"
             >
               <Settings className="w-4 h-4" />
@@ -1038,9 +1056,7 @@ export default function LiaoliaoChatDetail() {
             </DropdownMenuItem>
             <DropdownMenuItem 
               className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700 text-red-400"
-              onClick={() => {
-                toast({ title: t('liaoliao.deleteChat') || '删除对话', description: t('common.comingSoon') || '即将推出' });
-              }}
+              onClick={() => setShowDeleteConfirm(true)}
               data-testid="menu-delete-chat"
             >
               <Trash2 className="w-4 h-4" />
@@ -1778,6 +1794,217 @@ export default function LiaoliaoChatDetail() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* View Profile Dialog */}
+      <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('liaoliao.friendProfile') || '好友资料'}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center py-4">
+            <Avatar className="w-20 h-20 mb-4">
+              <AvatarImage src={friendInfo.avatarUrl} />
+              <AvatarFallback className="text-2xl">{friendInfo.displayName?.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <h3 className="text-lg font-semibold mb-1">{friendInfo.displayName}</h3>
+            <p className="text-sm text-muted-foreground mb-4">ID: {friendId}</p>
+            <Button 
+              className="w-full" 
+              onClick={() => setShowProfileDialog(false)}
+              data-testid="button-close-profile"
+            >
+              {t('liaoliao.sendMessage') || '发消息'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Group Dialog */}
+      <Dialog open={showCreateGroupDialog} onOpenChange={setShowCreateGroupDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('liaoliao.createGroup') || '创建群聊'}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="groupName">{t('liaoliao.groupName') || '群组名称'}</Label>
+              <Input
+                id="groupName"
+                placeholder={t('liaoliao.enterGroupName') || '请输入群组名称'}
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                data-testid="input-group-name"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowCreateGroupDialog(false);
+                setNewGroupName('');
+              }}
+            >
+              {t('liaoliao.cancel') || '取消'}
+            </Button>
+            <Button 
+              onClick={async () => {
+                if (!newGroupName.trim()) {
+                  toast({ title: t('liaoliao.enterGroupName') || '请输入群组名称', variant: 'destructive' });
+                  return;
+                }
+                try {
+                  await apiRequest('POST', '/api/liaoliao/groups', { 
+                    name: newGroupName.trim(),
+                    memberIds: [friendId]
+                  });
+                  queryClient.invalidateQueries({ queryKey: ['/api/liaoliao/groups'] });
+                  queryClient.invalidateQueries({ queryKey: ['/api/liaoliao/chats'] });
+                  toast({ title: t('liaoliao.groupCreated') || '群组创建成功' });
+                  setShowCreateGroupDialog(false);
+                  setNewGroupName('');
+                  navigate('/liaoliao/groups');
+                } catch (error) {
+                  toast({ title: t('common.error') || '创建失败', variant: 'destructive' });
+                }
+              }}
+              data-testid="button-create-group-confirm"
+            >
+              {t('liaoliao.confirm') || '确定'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Search Messages Dialog */}
+      <Dialog open={showSearchMessages} onOpenChange={setShowSearchMessages}>
+        <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{t('liaoliao.searchMessages') || '搜索消息'}</DialogTitle>
+          </DialogHeader>
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder={t('liaoliao.searchInChat') || '在聊天记录中搜索'}
+              value={searchMessageQuery}
+              onChange={(e) => setSearchMessageQuery(e.target.value)}
+              className="pl-9"
+              data-testid="input-search-messages"
+            />
+          </div>
+          <div className="flex-1 overflow-y-auto space-y-2">
+            {searchMessageQuery.trim() ? (
+              messages.filter(m => 
+                m.content?.toLowerCase().includes(searchMessageQuery.toLowerCase())
+              ).length > 0 ? (
+                messages.filter(m => 
+                  m.content?.toLowerCase().includes(searchMessageQuery.toLowerCase())
+                ).map((m) => (
+                  <div 
+                    key={m.id} 
+                    className="p-3 rounded-lg bg-muted hover-elevate cursor-pointer"
+                    onClick={() => {
+                      setShowSearchMessages(false);
+                      setSearchMessageQuery('');
+                    }}
+                  >
+                    <p className="text-sm font-medium">{m.fromUser.displayName}</p>
+                    <p className="text-sm text-muted-foreground truncate">{m.content}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-muted-foreground py-8">
+                  {t('liaoliao.noSearchResults') || '未找到相关消息'}
+                </p>
+              )
+            ) : (
+              <p className="text-center text-muted-foreground py-8">
+                {t('liaoliao.searchInChat') || '在聊天记录中搜索'}
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Chat Settings Sheet */}
+      <Sheet open={showChatSettingsSheet} onOpenChange={setShowChatSettingsSheet}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>{t('liaoliao.chatSettings') || '聊天设置'}</SheetTitle>
+          </SheetHeader>
+          <div className="py-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">{t('liaoliao.muteNotifications') || '消息免打扰'}</p>
+                <p className="text-sm text-muted-foreground">
+                  {isMuted 
+                    ? (t('liaoliao.mutedSuccess') || '已开启') 
+                    : (t('liaoliao.unmutedSuccess') || '已关闭')}
+                </p>
+              </div>
+              <Switch 
+                checked={isMuted} 
+                onCheckedChange={(checked) => {
+                  setIsMuted(checked);
+                  toast({ 
+                    title: checked 
+                      ? (t('liaoliao.mutedSuccess') || '已开启消息免打扰')
+                      : (t('liaoliao.unmutedSuccess') || '已关闭消息免打扰')
+                  });
+                }}
+                data-testid="switch-mute"
+              />
+            </div>
+            <div className="pt-4 border-t">
+              <Button 
+                variant="destructive" 
+                className="w-full"
+                onClick={() => {
+                  setShowChatSettingsSheet(false);
+                  setShowDeleteConfirm(true);
+                }}
+                data-testid="button-delete-from-settings"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                {t('liaoliao.deleteChat') || '删除对话'}
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Delete Chat Confirmation */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('liaoliao.deleteChat') || '删除对话'}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('liaoliao.confirmDeleteChat') || '确定要删除此对话吗？'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">
+              {t('liaoliao.cancel') || '取消'}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                try {
+                  await apiRequest('DELETE', `/api/liaoliao/chats/${friendId}`);
+                  queryClient.invalidateQueries({ queryKey: ['/api/liaoliao/chats'] });
+                  toast({ title: t('liaoliao.chatDeleted') || '对话已删除' });
+                  navigate('/liaoliao');
+                } catch (error) {
+                  toast({ title: t('common.error') || '删除失败', variant: 'destructive' });
+                }
+              }}
+              data-testid="button-confirm-delete"
+            >
+              {t('liaoliao.delete') || '删除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 

@@ -10737,6 +10737,37 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // 删除聊天记录（软删除 - 清除消息但保留好友关系）
+  app.delete('/api/liaoliao/chats/:friendId', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const friendId = parseInt(req.params.friendId);
+
+      if (!friendId) {
+        return res.status(400).json({ message: 'Invalid friend ID' });
+      }
+
+      // 删除双方之间的消息记录
+      await db
+        .delete(liaoliaoMessages)
+        .where(or(
+          and(
+            eq(liaoliaoMessages.fromUserId, userId),
+            eq(liaoliaoMessages.toUserId, friendId)
+          ),
+          and(
+            eq(liaoliaoMessages.fromUserId, friendId),
+            eq(liaoliaoMessages.toUserId, userId)
+          )
+        ));
+
+      res.json({ success: true, message: 'Chat deleted successfully' });
+    } catch (error: any) {
+      console.error('Delete chat error:', error);
+      res.status(500).json({ message: 'Failed to delete chat' });
+    }
+  });
+
   // ==================== 超级通讯录 API ====================
 
   // 获取超级通讯录列表
