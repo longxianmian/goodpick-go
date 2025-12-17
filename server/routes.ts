@@ -10287,11 +10287,15 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       // 如果是语音消息，异步进行语音转文字（前端发送 'audio' 类型）
+      console.log(`[Liaoliao] 消息类型: ${messageType}, mediaUrl: ${mediaUrl ? '有' : '无'}`);
       if ((messageType === 'voice' || messageType === 'audio') && mediaUrl) {
+        console.log(`[Liaoliao] 🎤 开始异步转录语音消息 ${message.id}...`);
         // 异步转录，不阻塞响应
         (async () => {
           try {
+            console.log(`[Liaoliao] 📥 下载并转录: ${mediaUrl}`);
             const result = await transcribeAudio(mediaUrl);
+            console.log(`[Liaoliao] 转录结果:`, result);
             if (result && result.transcript) {
               // 更新消息的 metadata，添加转录文本
               const existingMetadata = metadata || {};
