@@ -1301,22 +1301,12 @@ export default function LiaoliaoChatDetail() {
             )}
             
             {filePreviewData.type === 'pdf' && filePreviewData.url && (
-              <div className="flex flex-col items-center justify-center py-8 h-[60vh]">
-                <div className={cn("w-24 h-24 rounded-lg flex items-center justify-center mb-4", filePreviewData.iconConfig.bgColor)}>
-                  <span className={cn("text-2xl font-bold", filePreviewData.iconConfig.color)}>PDF</span>
-                </div>
-                <p className="text-sm font-medium mb-2">{filePreviewData.filename}</p>
-                <p className="text-xs text-muted-foreground mb-6 text-center px-4">
-                  {t('liaoliao.pdfPreviewHint') || '移动端无法直接预览PDF，请点击下载按钮查看文件'}
-                </p>
-                <Button 
-                  onClick={() => handleFileDownload(filePreviewData.url, filePreviewData.filename)}
-                  data-testid="button-download-pdf"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  {t('liaoliao.downloadAndView') || '下载查看'}
-                </Button>
-              </div>
+              <iframe 
+                src={`https://docs.google.com/viewer?url=${encodeURIComponent(filePreviewData.url)}&embedded=true`}
+                className="w-full h-[70vh] border-0"
+                title={filePreviewData.filename}
+                data-testid="preview-pdf"
+              />
             )}
           </div>
         </DialogContent>
