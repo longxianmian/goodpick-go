@@ -111,6 +111,7 @@ export default function LiaoliaoChatDetail() {
   const [showFavoriteDialog, setShowFavoriteDialog] = useState(false);
   const [showMusicDialog, setShowMusicDialog] = useState(false);
   const [showCallDialog, setShowCallDialog] = useState<'voice' | 'video' | null>(null);
+  const [showVoiceFallbackDialog, setShowVoiceFallbackDialog] = useState(false);
   
   const [redPacketAmount, setRedPacketAmount] = useState('');
   const [redPacketMessage, setRedPacketMessage] = useState('');
@@ -552,11 +553,11 @@ export default function LiaoliaoChatDetail() {
     
     // 检查浏览器支持
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      console.error('[Voice] 浏览器不支持 mediaDevices，使用系统录音');
+      console.error('[Voice] 浏览器不支持 mediaDevices，显示录音对话框');
       fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'Voice: mediaDevices not supported, using file input' }) }).catch(() => {});
-      // 使用系统录音替代
-      audioInputRef.current?.click();
+        body: JSON.stringify({ event: 'Voice: mediaDevices not supported, showing fallback dialog' }) }).catch(() => {});
+      // 显示对话框让用户主动点击录音
+      setShowVoiceFallbackDialog(true);
       return;
     }
     
@@ -572,11 +573,11 @@ export default function LiaoliaoChatDetail() {
         body: JSON.stringify({ event: 'Voice: requestMicrophonePermission returned', hasPermission }) }).catch(() => {});
       
       if (!hasPermission) {
-        console.log('[Voice] 麦克风权限被拒绝，使用系统录音替代');
+        console.log('[Voice] 麦克风权限被拒绝，显示录音对话框');
         fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ event: 'Voice: permission denied, falling back to file input' }) }).catch(() => {});
-        // 使用系统录音替代
-        audioInputRef.current?.click();
+          body: JSON.stringify({ event: 'Voice: permission denied, showing fallback dialog' }) }).catch(() => {});
+        // 显示对话框让用户主动点击录音
+        setShowVoiceFallbackDialog(true);
         return;
       }
       
@@ -610,11 +611,11 @@ export default function LiaoliaoChatDetail() {
         setRecordingDuration(prev => prev + 1);
       }, 1000);
     } catch (error: any) {
-      console.error('[Voice] 录音失败，使用系统录音替代:', error);
+      console.error('[Voice] 录音失败，显示录音对话框:', error);
       fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'Voice: error caught, falling back to file input', error: error?.message || String(error) }) }).catch(() => {});
-      // 使用系统录音替代
-      audioInputRef.current?.click();
+        body: JSON.stringify({ event: 'Voice: error caught, showing fallback dialog', error: error?.message || String(error) }) }).catch(() => {});
+      // 显示对话框让用户主动点击录音
+      setShowVoiceFallbackDialog(true);
     }
   }, [toast, t]);
 
@@ -1484,15 +1485,6 @@ export default function LiaoliaoChatDetail() {
         onChange={(e) => handleFileChange(e, 'file')}
         data-testid="input-file"
       />
-      <input
-        ref={audioInputRef}
-        type="file"
-        accept="audio/*"
-        capture="user"
-        className="hidden"
-        onChange={handleAudioFileUpload}
-        data-testid="input-audio"
-      />
 
       <Dialog open={showRedPacketDialog} onOpenChange={setShowRedPacketDialog}>
         <DialogContent className="max-w-sm">
@@ -1623,6 +1615,40 @@ export default function LiaoliaoChatDetail() {
                 {showCallDialog === 'voice' ? <Phone className="w-6 h-6" /> : <Video className="w-6 h-6" />}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showVoiceFallbackDialog} onOpenChange={setShowVoiceFallbackDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center">{t('liaoliao.recordVoice') || '录制语音'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4 text-center">
+            <div className="bg-primary/10 rounded-full p-6 w-24 h-24 mx-auto flex items-center justify-center">
+              <Mic className="w-10 h-10 text-primary" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {t('liaoliao.voiceFallbackHint') || '点击下方按钮使用系统录音功能'}
+            </p>
+            <label 
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg cursor-pointer"
+              data-testid="button-system-record"
+            >
+              <Mic className="w-5 h-5" />
+              <span>{t('liaoliao.startRecording') || '开始录音'}</span>
+              <input
+                ref={audioInputRef}
+                type="file"
+                accept="audio/*"
+                capture="user"
+                className="hidden"
+                onChange={(e) => {
+                  handleAudioFileUpload(e);
+                  setShowVoiceFallbackDialog(false);
+                }}
+              />
+            </label>
           </div>
         </DialogContent>
       </Dialog>
