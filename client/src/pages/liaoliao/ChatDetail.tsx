@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useHybridTap, getWebViewType } from '@/hooks/useHybridTap';
 import { requestMicrophonePermission } from '@/lib/liffClient';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -704,6 +705,19 @@ export default function LiaoliaoChatDetail() {
     }
   }, [t, inputValue, toast]);
 
+  // 使用 Hybrid Tap Hook 处理多平台 WebView 兼容性
+  // 支持 LINE、Telegram、Viber 等应用内浏览器
+  const voiceRecordingTapHandlers = useHybridTap(startVoiceRecording, { disabled: isRecordingVoice });
+  const speechToTextTapHandlers = useHybridTap(startSpeechToText, { disabled: isRecordingToText });
+  const stopRecordingTapHandlers = useHybridTap(stopVoiceRecording, { disabled: !isRecordingVoice });
+  const cancelRecordingTapHandlers = useHybridTap(cancelVoiceRecording, { disabled: !isRecordingVoice });
+
+  // 调试：记录当前 WebView 类型
+  useEffect(() => {
+    const webViewType = getWebViewType();
+    console.log('[ChatDetail] WebView 类型:', webViewType);
+  }, []);
+
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -1206,8 +1220,10 @@ export default function LiaoliaoChatDetail() {
             <Button 
               size="icon"
               variant="ghost"
-              onClick={cancelVoiceRecording}
-              className="h-12 w-12 rounded-full bg-destructive/10"
+              onTouchStart={cancelRecordingTapHandlers.onTouchStart}
+              onTouchEnd={cancelRecordingTapHandlers.onTouchEnd}
+              onClick={cancelRecordingTapHandlers.onClick}
+              className="h-12 w-12 rounded-full bg-destructive/10 touch-manipulation"
               data-testid="button-cancel-recording"
             >
               <X className="w-6 h-6 text-destructive" />
@@ -1233,8 +1249,10 @@ export default function LiaoliaoChatDetail() {
             </div>
             <Button 
               size="icon"
-              onClick={stopVoiceRecording}
-              className="h-12 w-12 rounded-full bg-[#38B03B]"
+              onTouchStart={stopRecordingTapHandlers.onTouchStart}
+              onTouchEnd={stopRecordingTapHandlers.onTouchEnd}
+              onClick={stopRecordingTapHandlers.onClick}
+              className="h-12 w-12 rounded-full bg-[#38B03B] touch-manipulation"
               data-testid="button-send-recording"
             >
               <Send className="w-6 h-6 text-white" />
@@ -1245,8 +1263,10 @@ export default function LiaoliaoChatDetail() {
             <Button 
               size="icon"
               variant="ghost"
-              className="shrink-0 h-10 w-10 rounded-full [&_svg]:size-6"
-              onClick={startVoiceRecording}
+              className="shrink-0 h-10 w-10 rounded-full [&_svg]:size-6 touch-manipulation"
+              onTouchStart={voiceRecordingTapHandlers.onTouchStart}
+              onTouchEnd={voiceRecordingTapHandlers.onTouchEnd}
+              onClick={voiceRecordingTapHandlers.onClick}
               data-testid="button-voice"
             >
               <VoiceInputIcon className="text-muted-foreground" />
@@ -1286,10 +1306,12 @@ export default function LiaoliaoChatDetail() {
                   size="icon"
                   variant="ghost"
                   className={cn(
-                    "shrink-0 h-10 w-10 rounded-full [&_svg]:size-6",
+                    "shrink-0 h-10 w-10 rounded-full [&_svg]:size-6 touch-manipulation",
                     isRecordingToText && "bg-red-100 dark:bg-red-900/30"
                   )}
-                  onClick={startSpeechToText}
+                  onTouchStart={speechToTextTapHandlers.onTouchStart}
+                  onTouchEnd={speechToTextTapHandlers.onTouchEnd}
+                  onClick={speechToTextTapHandlers.onClick}
                   data-testid="button-mic"
                 >
                   <Mic className={cn(
