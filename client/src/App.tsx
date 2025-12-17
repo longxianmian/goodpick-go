@@ -77,6 +77,7 @@ import PaySuccessPage from "@/pages/payment/PaySuccessPage";
 import LiaoliaoChatList from "@/pages/liaoliao/ChatList";
 import LiaoliaoChatDetail from "@/pages/liaoliao/ChatDetail";
 import LiaoliaoAiChat from "@/pages/liaoliao/AiChat";
+import LiaoliaoGroups from "@/pages/liaoliao/Groups";
 import SuperContacts from "@/pages/user/SuperContacts";
 import PhoneImport from "@/pages/user/PhoneImport";
 import InviteLanding from "@/pages/user/InviteLanding";
@@ -228,6 +229,9 @@ function Router() {
       {/* 聊聊模块 - 首页公开可见，聊天和添加好友需要登录 */}
       <Route path="/liaoliao" component={LiaoliaoChatList} />
       <Route path="/liaoliao/ai-chat" component={LiaoliaoAiChat} />
+      <Route path="/liaoliao/groups">
+        {() => <ProtectedRoute><LiaoliaoGroups /></ProtectedRoute>}
+      </Route>
       <Route path="/liaoliao/chat/:friendId">
         {() => <ProtectedRoute><LiaoliaoChatDetail /></ProtectedRoute>}
       </Route>
