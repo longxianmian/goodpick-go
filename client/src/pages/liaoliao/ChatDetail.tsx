@@ -24,6 +24,21 @@ interface Message {
   messageType: string;
   content: string;
   mediaUrl?: string;
+  metadata?: {
+    latitude?: number;
+    longitude?: number;
+    address?: string;
+    title?: string;
+    mapUrl?: string;
+    callType?: 'voice' | 'video';
+    status?: string;
+    duration?: number;
+    timestamp?: string;
+    contactId?: string;
+    contactUsername?: string;
+    contactName?: string;
+    contactAvatar?: string;
+  };
   createdAt: string;
   fromUser: {
     id: number;
@@ -112,12 +127,13 @@ export default function LiaoliaoChatDetail() {
   };
 
   const sendMutation = useMutation({
-    mutationFn: async (data: { content: string; messageType: string; mediaUrl?: string }) => {
+    mutationFn: async (data: { content: string; messageType: string; mediaUrl?: string; metadata?: any }) => {
       return apiRequest('POST', '/api/liaoliao/messages', {
         toUserId: friendId,
         content: data.content,
         messageType: data.messageType,
         mediaUrl: data.mediaUrl,
+        metadata: data.metadata,
       });
     },
     onSuccess: () => {
@@ -475,12 +491,21 @@ export default function LiaoliaoChatDetail() {
 
   const handleSendLocation = () => {
     if (currentLocation) {
+      const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${currentLocation.lat},${currentLocation.lng}`;
       sendMutation.mutate({ 
-        content: `[${t('liaoliao.locationMessage')}] ${currentLocation.address}`, 
-        messageType: 'location' 
+        content: googleMapsUrl,
+        messageType: 'location',
+        metadata: {
+          mapUrl: googleMapsUrl,
+          address: currentLocation.address,
+          latitude: currentLocation.lat,
+          longitude: currentLocation.lng,
+          title: t('liaoliao.myLocation')
+        }
       });
       setShowLocationDialog(false);
       setCurrentLocation(null);
+      toast({ title: t('liaoliao.locationSent') || '位置已发送' });
     }
   };
 
@@ -526,11 +551,23 @@ export default function LiaoliaoChatDetail() {
 
   const handleStartCall = () => {
     const callType = showCallDialog;
+    if (!callType) return;
+    
     setShowCallDialog(null);
+    
+    const callData = {
+      callType: callType,
+      status: 'initiated' as const,
+      duration: 0,
+      timestamp: new Date().toISOString(),
+    };
+    
     sendMutation.mutate({ 
-      content: `[${callType === 'voice' ? t('liaoliao.voiceCallMessage') : t('liaoliao.videoCallMessage')}]`, 
-      messageType: 'call' 
+      content: JSON.stringify(callData),
+      messageType: 'call',
+      metadata: callData
     });
+    
     toast({ 
       title: callType === 'voice' ? t('liaoliao.voiceCallStarted') : t('liaoliao.videoCallStarted'),
       description: t('liaoliao.callFeatureDemo')
@@ -1222,21 +1259,35 @@ export default function LiaoliaoChatDetail() {
   const mapRef = useRef<L.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
-  const locationMeta = (message as any)?.metadata || {};
-  let lat = locationMeta?.latitude;
-  let lng = locationMeta?.longitude;
-  let title = locationMeta?.title || locationMeta?.address || '位置';
+  // 优先使用 metadata 中的坐标
+  let lat = message.metadata?.latitude;
+  let lng = message.metadata?.longitude;
+  let title = message.metadata?.title || message.metadata?.address || t('liaoliao.location');
+  let googleMapsUrl = message.metadata?.mapUrl;
 
+  // 如果没有 metadata，尝试从 content 解析
   if ((!lat || !lng) && message.content) {
-    const latMatch = message.content.match(/纬度[：:]\s*([\d.-]+)/);
-    const lngMatch = message.content.match(/经度[：:]\s*([\d.-]+)/);
-    if (latMatch && lngMatch) {
-      lat = parseFloat(latMatch[1]);
-      lng = parseFloat(lngMatch[1]);
+    // 尝试匹配 Google Maps URL
+    const urlMatch = message.content.match(/query=([\d.-]+),([\d.-]+)/);
+    if (urlMatch) {
+      lat = parseFloat(urlMatch[1]);
+      lng = parseFloat(urlMatch[2]);
+    } else {
+      // 尝试匹配中文格式
+      const latMatch = message.content.match(/纬度[：:]\s*([\d.-]+)/);
+      const lngMatch = message.content.match(/经度[：:]\s*([\d.-]+)/);
+      if (latMatch && lngMatch) {
+        lat = parseFloat(latMatch[1]);
+        lng = parseFloat(lngMatch[1]);
+      }
     }
   }
 
-  const googleMapsUrl = lat && lng ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}` : null;
+  // 如果没有 mapUrl，生成一个
+  if (!googleMapsUrl && lat && lng) {
+    googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+  }
+  
   const coordsDisplay = lat && lng ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : null;
 
   useEffect(() => {
@@ -1378,8 +1429,47 @@ export default function LiaoliaoChatDetail() {
 
   // Call Record Message Component
   function CallRecordMessage({ message, isOwn }: { message: Message; isOwn: boolean }) {
-  const isVideo = message.content?.includes('video') || message.content?.includes('视频');
-  const duration = message.content?.match(/\d+/)?.[0] || '0';
+  // 优先从 metadata 获取通话信息
+  let isVideo = message.metadata?.callType === 'video';
+  let duration = message.metadata?.duration || 0;
+  let status = message.metadata?.status || 'initiated';
+  
+  // 如果没有 metadata，从 content 解析（兼容旧消息）
+  if (!message.metadata) {
+    try {
+      const parsed = JSON.parse(message.content);
+      isVideo = parsed.callType === 'video';
+      duration = parsed.duration || 0;
+      status = parsed.status || 'initiated';
+    } catch {
+      isVideo = message.content?.includes('video') || message.content?.includes('视频');
+      const durationMatch = message.content?.match(/(\d+)s?/);
+      duration = durationMatch ? parseInt(durationMatch[1]) : 0;
+    }
+  }
+
+  // 格式化时长
+  const formatCallDuration = (seconds: number) => {
+    if (seconds === 0) return '';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins > 0) {
+      return ` ${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+    return ` ${secs}s`;
+  };
+
+  // 获取状态显示
+  const getStatusText = () => {
+    switch (status) {
+      case 'answered': return t('liaoliao.callAnswered');
+      case 'missed': return t('liaoliao.callMissed');
+      case 'rejected': return t('liaoliao.callRejected');
+      case 'cancelled': return t('liaoliao.callCancelled');
+      case 'failed': return t('liaoliao.callFailed');
+      default: return isVideo ? t('liaoliao.videoCall') : t('liaoliao.voiceCall');
+    }
+  };
 
     return (
       <div 
@@ -1396,7 +1486,7 @@ export default function LiaoliaoChatDetail() {
         )}
         <div className="flex-1">
           <p className={cn("text-sm", isOwn ? "text-white" : "text-foreground")}>
-            {isVideo ? '视频通话' : '语音通话'} {duration}s
+            {getStatusText()}{formatCallDuration(duration)}
           </p>
         </div>
       </div>

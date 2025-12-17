@@ -10143,6 +10143,7 @@ export function registerRoutes(app: Express): Server {
           messageType: message.messageType,
           content: message.content,
           mediaUrl: message.mediaUrl,
+          metadata: message.mediaMetadata ? JSON.parse(message.mediaMetadata) : null,
           createdAt: message.createdAt,
           fromUser: {
             id: fromUser.id,
@@ -10162,7 +10163,7 @@ export function registerRoutes(app: Express): Server {
   app.post('/api/liaoliao/messages', userAuthMiddleware, async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
-      const { toUserId, content, messageType = 'text', mediaUrl } = req.body;
+      const { toUserId, content, messageType = 'text', mediaUrl, metadata } = req.body;
 
       if (!toUserId || !content) {
         return res.status(400).json({ message: 'Missing required fields' });
@@ -10174,6 +10175,7 @@ export function registerRoutes(app: Express): Server {
         content,
         messageType,
         mediaUrl,
+        mediaMetadata: metadata ? JSON.stringify(metadata) : null,
       }).returning();
 
       // 获取发送者信息
@@ -10190,6 +10192,7 @@ export function registerRoutes(app: Express): Server {
         messageType: message.messageType,
         content: message.content,
         mediaUrl: message.mediaUrl,
+        metadata: message.mediaMetadata ? JSON.parse(message.mediaMetadata) : null,
         createdAt: message.createdAt,
         fromUser: {
           id: sender.id,
