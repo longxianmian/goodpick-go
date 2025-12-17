@@ -367,18 +367,29 @@ export default function LiaoliaoChatDetail() {
     });
   }, []);
 
+  // 追踪正在进行的翻译请求
+  const pendingRequestsRef = useRef<Set<string>>(new Set());
+  
   // 简化的翻译函数
-  const translateText = useCallback(async (messageId: number, text: string, cacheKey: string) => {
+  const translateText = useCallback(async (messageId: number, text: string) => {
+    const cacheKey = `${messageId}:${text}`;
+    
     // 检查是否已翻译过相同内容
     const cached = translationCache[messageId];
-    if (cached && cached.originalText === text && !cached.isLoading) {
-      return; // 已翻译过相同内容
+    if (cached && cached.originalText === text) {
+      return; // 已翻译过相同内容（无论成功与否）
     }
     
-    // 设置加载状态
+    // 检查是否正在翻译中
+    if (pendingRequestsRef.current.has(cacheKey)) {
+      return;
+    }
+    
+    // 标记为加载中（不设置 translatedText，保持 undefined 直到获得结果）
+    pendingRequestsRef.current.add(cacheKey);
     setTranslationCache(prev => ({
       ...prev,
-      [messageId]: { translatedText: text, originalText: text, needsTranslation: false, isLoading: true }
+      [messageId]: { translatedText: '', originalText: text, needsTranslation: true, isLoading: true }
     }));
     
     try {
@@ -410,6 +421,8 @@ export default function LiaoliaoChatDetail() {
         ...prev,
         [messageId]: { translatedText: text, originalText: text, needsTranslation: false, isLoading: false }
       }));
+    } finally {
+      pendingRequestsRef.current.delete(cacheKey);
     }
   }, [browserLanguage, translationCache]);
 
@@ -426,7 +439,7 @@ export default function LiaoliaoChatDetail() {
       
       if (msg.messageType === 'audio') {
         // 语音消息：使用转录文本
-        const transcript = msg.metadata?.transcript as string | undefined;
+        const transcript = msg.metadata?.transcript;
         if (transcript && transcript.trim()) {
           textToTranslate = transcript;
         }
@@ -439,7 +452,7 @@ export default function LiaoliaoChatDetail() {
       
       // 有文本就翻译
       if (textToTranslate) {
-        translateText(msg.id, textToTranslate, `${msg.id}-${textToTranslate}`);
+        translateText(msg.id, textToTranslate);
       }
     });
   }, [messages, user, translateText]);
