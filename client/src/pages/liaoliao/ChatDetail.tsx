@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { useHybridTap, getWebViewType } from '@/hooks/useHybridTap';
+import { useNativeTap, getWebViewType } from '@/hooks/useNativeTap';
 import { requestMicrophonePermission } from '@/lib/liffClient';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -158,6 +158,12 @@ export default function LiaoliaoChatDetail() {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // 语音按钮 refs - 用于原生事件绑定
+  const voiceRecordingBtnRef = useRef<HTMLButtonElement>(null);
+  const speechToTextBtnRef = useRef<HTMLButtonElement>(null);
+  const stopRecordingBtnRef = useRef<HTMLButtonElement>(null);
+  const cancelRecordingBtnRef = useRef<HTMLButtonElement>(null);
 
   const { data: chatData, isLoading } = useQuery<ChatData>({
     queryKey: ['/api/liaoliao/messages', friendId],
@@ -705,17 +711,18 @@ export default function LiaoliaoChatDetail() {
     }
   }, [t, inputValue, toast]);
 
-  // 使用 Hybrid Tap Hook 处理多平台 WebView 兼容性
+  // 使用原生事件 Hook 处理多平台 WebView 兼容性
   // 支持 LINE、Telegram、Viber 等应用内浏览器
-  const voiceRecordingTapHandlers = useHybridTap(startVoiceRecording, { disabled: isRecordingVoice });
-  const speechToTextTapHandlers = useHybridTap(startSpeechToText, { disabled: isRecordingToText });
-  const stopRecordingTapHandlers = useHybridTap(stopVoiceRecording, { disabled: !isRecordingVoice });
-  const cancelRecordingTapHandlers = useHybridTap(cancelVoiceRecording, { disabled: !isRecordingVoice });
+  // 原生事件绑定解决 React 合成事件在 WebView 中被当作 passive 监听器的问题
+  useNativeTap(voiceRecordingBtnRef, startVoiceRecording, { disabled: isRecordingVoice });
+  useNativeTap(speechToTextBtnRef, startSpeechToText, { disabled: isRecordingToText });
+  useNativeTap(stopRecordingBtnRef, stopVoiceRecording, { disabled: !isRecordingVoice });
+  useNativeTap(cancelRecordingBtnRef, cancelVoiceRecording, { disabled: !isRecordingVoice });
 
   // 调试：记录当前 WebView 类型
   useEffect(() => {
     const webViewType = getWebViewType();
-    console.log('[ChatDetail] WebView 类型:', webViewType);
+    console.log('[ChatDetail] WebView 类型:', webViewType, '| UA:', navigator.userAgent.substring(0, 100));
   }, []);
 
   const formatDuration = (seconds: number) => {
@@ -1218,11 +1225,9 @@ export default function LiaoliaoChatDetail() {
         {isRecordingVoice ? (
           <div className="flex items-center justify-center gap-4 py-2">
             <Button 
+              ref={cancelRecordingBtnRef}
               size="icon"
               variant="ghost"
-              onTouchStart={cancelRecordingTapHandlers.onTouchStart}
-              onTouchEnd={cancelRecordingTapHandlers.onTouchEnd}
-              onClick={cancelRecordingTapHandlers.onClick}
               className="h-12 w-12 rounded-full bg-destructive/10 touch-manipulation"
               data-testid="button-cancel-recording"
             >
@@ -1248,10 +1253,8 @@ export default function LiaoliaoChatDetail() {
               <span className="text-xs text-muted-foreground">{t('liaoliao.recording')}</span>
             </div>
             <Button 
+              ref={stopRecordingBtnRef}
               size="icon"
-              onTouchStart={stopRecordingTapHandlers.onTouchStart}
-              onTouchEnd={stopRecordingTapHandlers.onTouchEnd}
-              onClick={stopRecordingTapHandlers.onClick}
               className="h-12 w-12 rounded-full bg-[#38B03B] touch-manipulation"
               data-testid="button-send-recording"
             >
@@ -1261,12 +1264,10 @@ export default function LiaoliaoChatDetail() {
         ) : (
           <div className="flex items-center gap-2">
             <Button 
+              ref={voiceRecordingBtnRef}
               size="icon"
               variant="ghost"
               className="shrink-0 h-10 w-10 rounded-full [&_svg]:size-6 touch-manipulation"
-              onTouchStart={voiceRecordingTapHandlers.onTouchStart}
-              onTouchEnd={voiceRecordingTapHandlers.onTouchEnd}
-              onClick={voiceRecordingTapHandlers.onClick}
               data-testid="button-voice"
             >
               <VoiceInputIcon className="text-muted-foreground" />
@@ -1303,15 +1304,13 @@ export default function LiaoliaoChatDetail() {
             ) : (
               <>
                 <Button 
+                  ref={speechToTextBtnRef}
                   size="icon"
                   variant="ghost"
                   className={cn(
                     "shrink-0 h-10 w-10 rounded-full [&_svg]:size-6 touch-manipulation",
                     isRecordingToText && "bg-red-100 dark:bg-red-900/30"
                   )}
-                  onTouchStart={speechToTextTapHandlers.onTouchStart}
-                  onTouchEnd={speechToTextTapHandlers.onTouchEnd}
-                  onClick={speechToTextTapHandlers.onClick}
                   data-testid="button-mic"
                 >
                   <Mic className={cn(
