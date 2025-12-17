@@ -622,6 +622,19 @@ export default function LiaoliaoChatDetail() {
       return;
     }
 
+    // 先检查并请求麦克风权限
+    try {
+      console.log('[STT] 请求麦克风权限...');
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // 立即停止，只是为了触发权限请求
+      stream.getTracks().forEach(track => track.stop());
+      console.log('[STT] 麦克风权限获取成功');
+    } catch (error: any) {
+      console.error('[STT] 麦克风权限被拒绝:', error);
+      // 权限被拒绝，不继续
+      return;
+    }
+
     try {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
