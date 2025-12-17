@@ -1,14 +1,15 @@
 import { useState, useMemo } from 'react';
 import { useLocation, useRoute } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
-import { X, Search } from 'lucide-react';
+import { X, Search, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 
 interface ChatItem {
   type: 'friend' | 'group' | 'ai';
@@ -100,6 +101,28 @@ export default function SelectContacts() {
     setSelectedIds(newSet);
   };
 
+  // 创建群聊mutation
+  const createGroupMutation = useMutation({
+    mutationFn: async (data: { name: string; memberIds: number[] }) => {
+      const res = await apiRequest('POST', '/api/liaoliao/groups', data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/liaoliao/chats'] });
+      toast({
+        title: t('liaoliao.groupCreated') || '群组创建成功',
+      });
+      // 导航到新创建的群聊
+      navigate(`/liaoliao/group/${data.id}`);
+    },
+    onError: () => {
+      toast({
+        title: t('common.error') || '创建失败',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const handleComplete = () => {
     if (selectedIds.size === 0) {
       toast({
@@ -108,11 +131,34 @@ export default function SelectContacts() {
       });
       return;
     }
-    toast({
-      title: t('liaoliao.addedToGroup') || '已添加到群聊',
-      description: `${selectedIds.size} ${t('liaoliao.contactsSelected') || '位联系人'}`,
+    
+    // 收集所有成员ID（当前聊天对象 + 选中的联系人，排除AI助理）
+    const memberIds: number[] = [];
+    if (friendId) {
+      memberIds.push(parseInt(friendId));
+    }
+    selectedIds.forEach(id => {
+      if (typeof id === 'number') {
+        memberIds.push(id);
+      }
+      // 字符串id（如'ai-assistant'）不加入群聊成员
     });
-    navigate(`/liaoliao/chat/${friendId}`);
+
+    // 获取选中的联系人名称用于生成群名
+    const selectedNames = filteredFriends
+      .filter(f => selectedIds.has(f.id))
+      .map(f => f.displayName)
+      .slice(0, 3);
+    
+    // 找到当前聊天对象的名称
+    const currentFriend = chatsList.find(c => c.id === parseInt(friendId || '0'));
+    const allNames = currentFriend ? [currentFriend.name, ...selectedNames] : selectedNames;
+    const groupName = allNames.slice(0, 4).join('、');
+
+    createGroupMutation.mutate({
+      name: groupName,
+      memberIds,
+    });
   };
 
   const handleClose = () => {
@@ -194,9 +240,12 @@ export default function SelectContacts() {
         </Button>
         <Button
           onClick={handleComplete}
-          disabled={selectedIds.size === 0}
+          disabled={selectedIds.size === 0 || createGroupMutation.isPending}
           data-testid="button-complete-select"
         >
+          {createGroupMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+          ) : null}
           {t('liaoliao.complete') || '完成'}
           {selectedIds.size > 0 && ` (${selectedIds.size})`}
         </Button>
