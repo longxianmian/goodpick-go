@@ -1285,14 +1285,13 @@ export default function LiaoliaoChatDetail() {
     };
     
     return (
-      <a 
-        href={fileUrl || '#'}
-        target="_blank"
-        rel="noopener noreferrer"
+      <div 
         onClick={(e) => {
           e.stopPropagation();
-          if (!fileUrl) e.preventDefault();
+          if (!fileUrl) return;
           console.log('[FileMessageCard] 链接点击:', fileUrl);
+          // 直接跳转到文件URL（用户可以用返回按钮回来）
+          window.location.href = fileUrl;
         }}
         className={cn(
           "flex items-center gap-3 p-3 rounded-lg min-w-[220px] max-w-[280px] cursor-pointer transition-opacity hover:opacity-90",
@@ -1325,7 +1324,7 @@ export default function LiaoliaoChatDetail() {
             <span>{fileUrl ? t('liaoliao.clickToOpen') || '点击打开' : t('liaoliao.uploadFailed')}</span>
           </div>
         </div>
-      </a>
+      </div>
     );
   }
 
