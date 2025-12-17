@@ -81,6 +81,7 @@ import LiaoliaoGroups from "@/pages/liaoliao/Groups";
 import LiaoliaoSelectContacts from "@/pages/liaoliao/SelectContacts";
 import LiaoliaoChatMenu from "@/pages/liaoliao/ChatMenu";
 import LiaoliaoGroupChat from "@/pages/liaoliao/GroupChat";
+import LiaoliaoGroupSettings from "@/pages/liaoliao/GroupSettings";
 import SuperContacts from "@/pages/user/SuperContacts";
 import PhoneImport from "@/pages/user/PhoneImport";
 import InviteLanding from "@/pages/user/InviteLanding";
@@ -237,6 +238,9 @@ function Router() {
       </Route>
       <Route path="/liaoliao/group/:groupId">
         {() => <ProtectedRoute><LiaoliaoGroupChat /></ProtectedRoute>}
+      </Route>
+      <Route path="/liaoliao/group/:groupId/settings">
+        {() => <ProtectedRoute><LiaoliaoGroupSettings /></ProtectedRoute>}
       </Route>
       <Route path="/liaoliao/chat/:friendId/select-contacts">
         {() => <ProtectedRoute><LiaoliaoSelectContacts /></ProtectedRoute>}

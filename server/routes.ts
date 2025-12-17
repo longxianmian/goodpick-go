@@ -10509,6 +10509,75 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // 获取群组详细信息（包括成员列表）
+  app.get('/api/liaoliao/groups/:groupId/details', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const groupId = parseInt(req.params.groupId);
+
+      if (!groupId) {
+        return res.status(400).json({ message: 'Invalid group ID' });
+      }
+
+      // 验证用户是否是群成员
+      const [member] = await db
+        .select()
+        .from(liaoliaoGroupMembers)
+        .where(and(
+          eq(liaoliaoGroupMembers.groupId, groupId),
+          eq(liaoliaoGroupMembers.userId, userId)
+        ))
+        .limit(1);
+
+      if (!member) {
+        return res.status(403).json({ message: 'Not a member of this group' });
+      }
+
+      // 获取群组信息
+      const [group] = await db
+        .select()
+        .from(liaoliaoGroups)
+        .where(eq(liaoliaoGroups.id, groupId))
+        .limit(1);
+
+      if (!group) {
+        return res.status(404).json({ message: 'Group not found' });
+      }
+
+      // 获取所有成员信息
+      const membersResult = await db
+        .select({
+          member: liaoliaoGroupMembers,
+          user: users,
+        })
+        .from(liaoliaoGroupMembers)
+        .innerJoin(users, eq(liaoliaoGroupMembers.userId, users.id))
+        .where(eq(liaoliaoGroupMembers.groupId, groupId));
+
+      const members = membersResult.map(({ member, user }) => ({
+        id: member.id,
+        userId: user.id,
+        displayName: user.displayName || user.lineDisplayName || 'Unknown',
+        avatarUrl: user.avatarUrl || user.lineAvatarUrl,
+        role: member.role,
+        joinedAt: member.joinedAt,
+      }));
+
+      res.json({
+        id: group.id,
+        name: group.name,
+        avatarUrl: group.avatarUrl,
+        ownerId: group.ownerId,
+        memberCount: members.length,
+        members,
+        createdAt: group.createdAt,
+      });
+    } catch (error: any) {
+      console.error('Get group details error:', error);
+      res.status(500).json({ message: 'Failed to get group details' });
+    }
+  });
+
   // 获取单个群组信息
   app.get('/api/liaoliao/groups/:groupId', userAuthMiddleware, async (req: Request, res: Response) => {
     try {

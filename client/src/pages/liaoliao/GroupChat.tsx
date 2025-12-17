@@ -111,7 +111,12 @@ export default function GroupChat() {
             {groupInfo?.memberCount || 0} {t('liaoliao.members') || '成员'}
           </p>
         </div>
-        <Button variant="ghost" size="icon" data-testid="button-group-menu">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => navigate(`/liaoliao/group/${groupId}/settings`)}
+          data-testid="button-group-menu"
+        >
           <MoreVertical className="h-5 w-5" />
         </Button>
       </header>
