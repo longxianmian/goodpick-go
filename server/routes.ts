@@ -10509,6 +10509,63 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // 获取单个群组信息
+  app.get('/api/liaoliao/groups/:groupId', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const groupId = parseInt(req.params.groupId);
+
+      if (!groupId) {
+        return res.status(400).json({ message: 'Invalid group ID' });
+      }
+
+      // 验证用户是否是群成员
+      const [member] = await db
+        .select()
+        .from(liaoliaoGroupMembers)
+        .where(and(
+          eq(liaoliaoGroupMembers.groupId, groupId),
+          eq(liaoliaoGroupMembers.userId, userId)
+        ))
+        .limit(1);
+
+      if (!member) {
+        return res.status(403).json({ message: 'Not a member of this group' });
+      }
+
+      // 获取群组信息
+      const [group] = await db
+        .select()
+        .from(liaoliaoGroups)
+        .where(eq(liaoliaoGroups.id, groupId))
+        .limit(1);
+
+      if (!group) {
+        return res.status(404).json({ message: 'Group not found' });
+      }
+
+      // 获取成员数量
+      const memberCountResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(liaoliaoGroupMembers)
+        .where(eq(liaoliaoGroupMembers.groupId, groupId));
+
+      const memberCount = memberCountResult[0]?.count || 0;
+
+      res.json({
+        id: group.id,
+        name: group.name,
+        avatarUrl: group.avatarUrl,
+        ownerId: group.ownerId,
+        memberCount: Number(memberCount),
+        createdAt: group.createdAt,
+      });
+    } catch (error: any) {
+      console.error('Get group info error:', error);
+      res.status(500).json({ message: 'Failed to get group info' });
+    }
+  });
+
   // 获取群消息
   app.get('/api/liaoliao/groups/:groupId/messages', userAuthMiddleware, async (req: Request, res: Response) => {
     try {
