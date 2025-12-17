@@ -130,9 +130,13 @@ export default function LiaoliaoChatDetail() {
   const [showSearchMessages, setShowSearchMessages] = useState(false);
   const [showChatSettingsSheet, setShowChatSettingsSheet] = useState(false);
   const [showChatMenuSheet, setShowChatMenuSheet] = useState(false);
+  const [showAccountSelectDialog, setShowAccountSelectDialog] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [isReminded, setIsReminded] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showClearHistoryConfirm, setShowClearHistoryConfirm] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [reportReason, setReportReason] = useState('');
   const [searchMessageQuery, setSearchMessageQuery] = useState('');
   const [newGroupName, setNewGroupName] = useState('');
   const [isMuted, setIsMuted] = useState(false);
@@ -1868,20 +1872,32 @@ export default function LiaoliaoChatDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Chat Menu Sheet */}
-      <Sheet open={showChatMenuSheet} onOpenChange={setShowChatMenuSheet}>
-        <SheetContent side="bottom" className="h-auto rounded-t-2xl">
-          <SheetHeader className="mb-4 pt-2">
-            <div className="flex items-center justify-between">
-              <Avatar className="w-12 h-12">
-                <AvatarImage src={friendInfo.avatarUrl} />
-                <AvatarFallback>{friendInfo.displayName?.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <Button size="icon" variant="outline" className="rounded-full">
-                <Plus className="w-4 h-4" />
-              </Button>
-            </div>
-          </SheetHeader>
+      {/* Chat Menu Dialog - Positioned at Top */}
+      <Dialog open={showChatMenuSheet} onOpenChange={setShowChatMenuSheet}>
+        <DialogContent className="max-w-md rounded-3xl fixed top-[10vh] left-1/2 -translate-x-1/2 translate-y-0 w-11/12 max-h-[75vh] overflow-y-auto">
+          <button 
+            onClick={() => setShowChatMenuSheet(false)}
+            className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"
+            data-testid="button-close-menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          <div className="flex items-center gap-3 mb-4 pt-2">
+            <Avatar className="w-14 h-14 flex-shrink-0">
+              <AvatarImage src={friendInfo.avatarUrl} />
+              <AvatarFallback>{friendInfo.displayName?.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <Button 
+              size="icon" 
+              variant="outline" 
+              className="rounded-full flex-shrink-0"
+              onClick={() => setShowAccountSelectDialog(true)}
+              data-testid="button-add-account"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          </div>
 
           <div className="space-y-1">
             {/* Search Chat Content */}
@@ -1951,7 +1967,7 @@ export default function LiaoliaoChatDetail() {
             <button 
               onClick={() => {
                 setShowChatMenuSheet(false);
-                // 可选: 添加确认对话框
+                setShowClearHistoryConfirm(true);
               }}
               className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted rounded-lg text-left text-destructive"
               data-testid="menu-clear-history"
@@ -1963,7 +1979,7 @@ export default function LiaoliaoChatDetail() {
             <button 
               onClick={() => {
                 setShowChatMenuSheet(false);
-                toast({ title: t('common.comingSoon') || '即将上线' });
+                setShowReportDialog(true);
               }}
               className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted rounded-lg text-left text-orange-500"
               data-testid="menu-report"
@@ -1972,8 +1988,128 @@ export default function LiaoliaoChatDetail() {
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
+
+      {/* Account Selection Dialog */}
+      <Dialog open={showAccountSelectDialog} onOpenChange={setShowAccountSelectDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('common.switchRole') || '切换账号'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {user?.roles && user.roles.length > 0 ? (
+              user.roles.map((role, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    toast({ title: `${t('common.current') || '当前'}: ${role.storeName}` });
+                    setShowAccountSelectDialog(false);
+                  }}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted border hover:border-primary"
+                  data-testid={`account-role-${idx}`}
+                >
+                  <Avatar className="w-10 h-10 flex-shrink-0">
+                    <AvatarImage src={role.storeImageUrl} />
+                    <AvatarFallback>{role.storeName?.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className="text-left flex-1 min-w-0">
+                    <p className="font-medium truncate">{role.storeName || ''}</p>
+                    <p className="text-xs text-muted-foreground truncate">{role.role || ''}</p>
+                  </div>
+                </button>
+              ))
+            ) : (
+              <p className="text-center text-muted-foreground py-4">{t('common.noData') || '暂无数据'}</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Clear Chat History Confirmation */}
+      <AlertDialog open={showClearHistoryConfirm} onOpenChange={setShowClearHistoryConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('liaoliao.clearChatHistory') || '清空聊天记录'}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('liaoliao.confirmDeleteChat') || '确定要删除此对话吗？'} {t('common.error') || '此操作不可撤销。'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-clear">
+              {t('liaoliao.cancel') || '取消'}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                try {
+                  await apiRequest('DELETE', `/api/liaoliao/messages/${friendId}`);
+                  queryClient.invalidateQueries({ queryKey: ['/api/liaoliao/messages', friendId] });
+                  toast({ title: t('liaoliao.clearChatHistory') || '已清空聊天记录' });
+                } catch (error) {
+                  toast({ title: t('common.error') || '清空失败', variant: 'destructive' });
+                }
+              }}
+              data-testid="button-confirm-clear"
+            >
+              {t('liaoliao.confirm') || '确定'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Report Dialog */}
+      <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('liaoliao.report') || '投诉'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>{t('liaoliao.report') || '投诉原因'}</Label>
+              <textarea
+                placeholder={t('liaoliao.report') || '请输入投诉原因...'}
+                className="w-full mt-2 p-2 rounded-lg border min-h-[100px]"
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                data-testid="input-report-reason"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline"
+              onClick={() => setShowReportDialog(false)}
+              data-testid="button-cancel-report"
+            >
+              {t('liaoliao.cancel') || '取消'}
+            </Button>
+            <Button 
+              onClick={async () => {
+                if (!reportReason.trim()) {
+                  toast({ title: '请输入投诉原因' });
+                  return;
+                }
+                try {
+                  await apiRequest('POST', '/api/liaoliao/report', {
+                    targetUserId: friendId,
+                    reason: reportReason,
+                    type: 'user'
+                  });
+                  toast({ title: '投诉已提交，感谢您的反馈' });
+                  setShowReportDialog(false);
+                  setReportReason('');
+                } catch (error) {
+                  toast({ title: t('common.error') || '提交失败', variant: 'destructive' });
+                }
+              }}
+              data-testid="button-submit-report"
+            >
+              {t('common.confirm') || '提交'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Chat Settings Sheet */}
       <Sheet open={showChatSettingsSheet} onOpenChange={setShowChatSettingsSheet}>

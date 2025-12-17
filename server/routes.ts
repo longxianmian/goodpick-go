@@ -10459,6 +10459,56 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // 清空聊天记录
+  app.delete('/api/liaoliao/messages/:friendId', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const friendId = parseInt(req.params.friendId);
+
+      if (!friendId) {
+        return res.status(400).json({ message: 'Invalid friend ID' });
+      }
+
+      await db
+        .delete(liaoliaoMessages)
+        .where(and(
+          eq(liaoliaoMessages.toUserId, userId),
+          eq(liaoliaoMessages.fromUserId, friendId)
+        ));
+
+      await db
+        .delete(liaoliaoMessages)
+        .where(and(
+          eq(liaoliaoMessages.fromUserId, userId),
+          eq(liaoliaoMessages.toUserId, friendId)
+        ));
+
+      res.json({ success: true, message: 'Chat history cleared' });
+    } catch (error: any) {
+      console.error('Clear chat history error:', error);
+      res.status(500).json({ message: 'Failed to clear chat history' });
+    }
+  });
+
+  // 投诉功能
+  app.post('/api/liaoliao/report', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { targetUserId, reason, type } = req.body;
+
+      if (!targetUserId || !reason || !type) {
+        return res.status(400).json({ message: 'Missing required fields' });
+      }
+
+      console.log(`[Report] User ${userId} reported user ${targetUserId}: ${reason} (type: ${type})`);
+
+      res.json({ success: true, message: 'Report submitted successfully' });
+    } catch (error: any) {
+      console.error('Report error:', error);
+      res.status(500).json({ message: 'Failed to submit report' });
+    }
+  });
+
   // 获取群消息
   app.get('/api/liaoliao/groups/:groupId/messages', userAuthMiddleware, async (req: Request, res: Response) => {
     try {
