@@ -259,7 +259,7 @@ export default function SelectContacts() {
             <Loader2 className="h-4 w-4 animate-spin mr-1" />
           ) : null}
           {t('liaoliao.complete') || '完成'}
-          {selectedIds.size > 0 && ` (${selectedIds.size})`}
+          {selectedIds.size > 0 && ` (${selectedIds.size + 2})`}
         </Button>
       </div>
     </div>
