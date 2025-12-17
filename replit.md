@@ -1,5 +1,16 @@
 # ShuaShua (刷刷) O2O Platform
 
+## 分析问题天条（最高准则，分析任何问题前必须先阅读）
+
+### 1. 只允许说已验证事实
+你只能输出：已验证的事实 + 证据（日志/截图/代码行号/命令输出）。没证据就说"不知道"。
+
+### 2. 先给验证步骤，再给结论
+先给一条条可执行的检查步骤；每一步用户给你输出，你再推进下一步。
+
+### 3. 任何"已检查/已确认"必须附上"怎么检查的"
+如果说检查了什么，必须同时给出具体命令/路径/控制台输出依据。
+
 ## Overview
 ShuaShua (刷刷) is a multi-merchant O2O local life platform connecting consumers with local businesses through deal discovery and coupon redemption, primarily via LINE. It supports Consumer, Merchant Portal, and Staff Workstation terminals, features a multi-role authorization system, multi-platform login, and payment-as-membership. The platform is designed for future AI agent integration, aiming to become a comprehensive local life service akin to Meituan.
 
