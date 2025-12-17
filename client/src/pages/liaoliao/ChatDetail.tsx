@@ -5,9 +5,16 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ImagePreview } from '@/components/ui/image-preview';
 import { LocationPicker } from '@/components/LocationPicker';
-import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause, Square, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder, Loader2, Check, Navigation, Download, Languages } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause, Square, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder, Loader2, Check, Navigation, Download, Languages, User, Users, Bell, BellOff, Search, Trash2, Flag, UserX, MessageSquare, Settings } from 'lucide-react';
 import { VoiceInputIcon } from '@/components/icons/VoiceInputIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -968,9 +975,79 @@ export default function LiaoliaoChatDetail() {
           </h1>
         </div>
         
-        <Button size="icon" variant="ghost" data-testid="button-chat-more">
-          <MoreVertical className="w-5 h-5" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="icon" variant="ghost" data-testid="button-chat-more">
+              <MoreVertical className="w-5 h-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48 bg-zinc-800 text-white border-zinc-700">
+            <DropdownMenuItem 
+              className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700"
+              onClick={() => navigate(`/liaoliao/profile/${friendId}`)}
+              data-testid="menu-view-profile"
+            >
+              <User className="w-4 h-4" />
+              <span>{t('liaoliao.viewProfile') || '查看资料'}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700"
+              onClick={() => navigate('/liaoliao/groups')}
+              data-testid="menu-my-groups"
+            >
+              <Users className="w-4 h-4" />
+              <span>{t('liaoliao.myGroups') || '我的群组'}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700"
+              onClick={() => navigate('/liaoliao/new-group')}
+              data-testid="menu-create-group"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>{t('liaoliao.createGroup') || '创建群聊'}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-zinc-700" />
+            <DropdownMenuItem 
+              className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700"
+              onClick={() => {
+                toast({ title: t('liaoliao.searchMessages') || '搜索消息', description: t('common.comingSoon') || '即将推出' });
+              }}
+              data-testid="menu-search-messages"
+            >
+              <Search className="w-4 h-4" />
+              <span>{t('liaoliao.searchMessages') || '搜索消息'}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700"
+              onClick={() => {
+                toast({ title: t('liaoliao.muteNotifications') || '消息免打扰', description: t('common.comingSoon') || '即将推出' });
+              }}
+              data-testid="menu-mute"
+            >
+              <BellOff className="w-4 h-4" />
+              <span>{t('liaoliao.muteNotifications') || '消息免打扰'}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-zinc-700" />
+            <DropdownMenuItem 
+              className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700"
+              onClick={() => navigate('/liaoliao/settings')}
+              data-testid="menu-chat-settings"
+            >
+              <Settings className="w-4 h-4" />
+              <span>{t('liaoliao.chatSettings') || '聊天设置'}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              className="gap-3 py-2.5 cursor-pointer hover:bg-zinc-700 text-red-400"
+              onClick={() => {
+                toast({ title: t('liaoliao.deleteChat') || '删除对话', description: t('common.comingSoon') || '即将推出' });
+              }}
+              data-testid="menu-delete-chat"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>{t('liaoliao.deleteChat') || '删除对话'}</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </header>
 
       <main 
