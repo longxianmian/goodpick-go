@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { X, Plus, Search, ChevronRight, Bell, Pin, Clock, Image, Trash2, Flag } from 'lucide-react';
+import { ArrowLeft, X, Plus, Search, ChevronRight, Bell, Pin, Clock, Image, Trash2, Flag } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface ChatMenuProps {
@@ -181,19 +181,23 @@ export default function ChatMenu() {
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* 顶部导航 */}
-      <header className="flex items-center justify-end px-4 py-3">
+      <header className="sticky top-0 z-50 bg-background border-b px-3 py-3 flex items-center gap-2">
         <Button
           variant="ghost"
           size="icon"
           onClick={handleClose}
-          data-testid="button-close-menu"
+          data-testid="button-back-menu"
         >
-          <X className="h-5 w-5" />
+          <ArrowLeft className="h-5 w-5" />
         </Button>
+        <h1 className="flex-1 text-center font-semibold">
+          {t('liaoliao.chatDetails') || '聊天详情'}
+        </h1>
+        <div className="w-9" />
       </header>
 
-      {/* 头像区域 */}
-      <div className="flex items-center justify-center gap-4 py-6">
+      {/* 头像区域 - 左对齐 */}
+      <div className="flex items-center gap-4 px-4 py-6">
         <Avatar className="h-14 w-14">
           <AvatarImage src={friendInfo.avatarUrl} />
           <AvatarFallback>{friendInfo.displayName?.charAt(0) || '?'}</AvatarFallback>
