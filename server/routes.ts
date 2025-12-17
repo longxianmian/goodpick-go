@@ -10414,6 +10414,51 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // 删除群组
+  app.delete('/api/liaoliao/groups/:groupId', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const groupId = parseInt(req.params.groupId);
+
+      if (!groupId) {
+        return res.status(400).json({ message: 'Invalid group ID' });
+      }
+
+      // 验证用户是否是群主
+      const [group] = await db
+        .select()
+        .from(liaoliaoGroups)
+        .where(and(
+          eq(liaoliaoGroups.id, groupId),
+          eq(liaoliaoGroups.ownerId, userId)
+        ));
+
+      if (!group) {
+        return res.status(403).json({ message: 'Only group owner can delete group' });
+      }
+
+      // 删除群组的所有成员
+      await db
+        .delete(liaoliaoGroupMembers)
+        .where(eq(liaoliaoGroupMembers.groupId, groupId));
+
+      // 删除群组的所有消息
+      await db
+        .delete(liaoliaoMessages)
+        .where(eq(liaoliaoMessages.groupId, groupId));
+
+      // 删除群组
+      await db
+        .delete(liaoliaoGroups)
+        .where(eq(liaoliaoGroups.id, groupId));
+
+      res.json({ success: true, message: 'Group deleted successfully' });
+    } catch (error: any) {
+      console.error('Delete group error:', error);
+      res.status(500).json({ message: 'Failed to delete group' });
+    }
+  });
+
   // 获取群消息
   app.get('/api/liaoliao/groups/:groupId/messages', userAuthMiddleware, async (req: Request, res: Response) => {
     try {

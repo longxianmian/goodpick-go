@@ -1,22 +1,25 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, PlusCircle, MoreVertical, MessageSquare, MessageCircle, UserPlus, ScanLine, Wallet, Bot, Sparkles, Users } from 'lucide-react';
+import { Search, PlusCircle, MoreVertical, MessageSquare, MessageCircle, UserPlus, ScanLine, Wallet, Bot, Sparkles, Users, Trash2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN, th, vi } from 'date-fns/locale';
 import { UserBottomNav } from '@/components/UserBottomNav';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface ChatItem {
   type: 'friend' | 'group' | 'ai';
@@ -57,7 +60,12 @@ export default function LiaoliaoChatList() {
   const { t, language } = useLanguage();
   const { user, isUserAuthenticated } = useAuth();
   const [, navigate] = useLocation();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
+  const [longPressChat, setLongPressChat] = useState<ChatItem | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   const { data: chats = [], isLoading } = useQuery<ChatItem[]>({
     queryKey: ['/api/liaoliao/chats'],
@@ -89,6 +97,44 @@ export default function LiaoliaoChatList() {
       navigate(`/liaoliao/chat/${chat.id}`);
     } else if (chat.type === 'group') {
       navigate(`/liaoliao/group/${chat.id}`);
+    }
+  };
+
+  const handleLongPressStart = (chat: ChatItem) => {
+    if (chat.isAI) return;
+    longPressTimerRef.current = setTimeout(() => {
+      setLongPressChat(chat);
+      setShowDeleteConfirm(true);
+    }, 500);
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleDeleteChat = async () => {
+    if (!longPressChat || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      if (longPressChat.type === 'friend') {
+        await apiRequest('DELETE', `/api/liaoliao/chats/${longPressChat.id}`);
+        queryClient.invalidateQueries({ queryKey: ['/api/liaoliao/chats'] });
+        toast({ title: t('liaoliao.chatDeleted') || '聊天已删除' });
+      } else if (longPressChat.type === 'group') {
+        await apiRequest('DELETE', `/api/liaoliao/groups/${longPressChat.id}`);
+        queryClient.invalidateQueries({ queryKey: ['/api/liaoliao/chats'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/liaoliao/groups'] });
+        toast({ title: t('liaoliao.groupDeleted') || '群组已删除' });
+      }
+      setShowDeleteConfirm(false);
+      setLongPressChat(null);
+    } catch (error) {
+      toast({ title: t('common.error') || '删除失败', variant: 'destructive' });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -198,7 +244,12 @@ export default function LiaoliaoChatList() {
               <div 
                 key={chat.isAI ? 'ai-assistant' : `${chat.type}-${chat.id}`}
                 onClick={() => handleChatClick(chat)}
-                className="flex items-center gap-3 px-4 py-3 hover-elevate active-elevate-2 cursor-pointer"
+                onMouseDown={() => handleLongPressStart(chat)}
+                onMouseUp={handleLongPressEnd}
+                onMouseLeave={handleLongPressEnd}
+                onTouchStart={() => handleLongPressStart(chat)}
+                onTouchEnd={handleLongPressEnd}
+                className="flex items-center gap-3 px-4 py-3 hover-elevate active-elevate-2 cursor-pointer select-none"
                 data-testid={chat.isAI ? 'chat-item-ai' : `chat-item-${chat.type}-${chat.id}`}
               >
                 {chat.isAI ? (
@@ -254,6 +305,34 @@ export default function LiaoliaoChatList() {
           </div>
         )}
       </main>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('liaoliao.confirmDelete') || '删除确认'}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {longPressChat?.type === 'friend' 
+                ? `${t('liaoliao.deleteConfirmFriend') || '确定要删除好友'} "${longPressChat?.name}" ${t('common.confirmQ') || '吗？'}`
+                : `${t('liaoliao.deleteConfirmGroup') || '确定要删除群组'} "${longPressChat?.name}" ${t('common.confirmQ') || '吗？'}`
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting} data-testid="button-cancel-delete">
+              {t('common.cancel') || '取消'}
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              disabled={isDeleting}
+              onClick={handleDeleteChat}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {isDeleting ? `${t('common.deleting') || '删除中'}...` : (t('common.delete') || '删除')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       <UserBottomNav />
     </div>
