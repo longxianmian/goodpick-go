@@ -126,6 +126,7 @@ export default function LiaoliaoChatDetail() {
   // 菜单功能对话框状态
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [showCreateGroupDialog, setShowCreateGroupDialog] = useState(false);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [showSearchMessages, setShowSearchMessages] = useState(false);
   const [showChatSettingsSheet, setShowChatSettingsSheet] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -1848,11 +1849,14 @@ export default function LiaoliaoChatDetail() {
               {t('liaoliao.cancel') || '取消'}
             </Button>
             <Button 
+              disabled={isCreatingGroup}
               onClick={async () => {
                 if (!newGroupName.trim()) {
                   toast({ title: t('liaoliao.enterGroupName') || '请输入群组名称', variant: 'destructive' });
                   return;
                 }
+                if (isCreatingGroup) return;
+                setIsCreatingGroup(true);
                 try {
                   await apiRequest('POST', '/api/liaoliao/groups', { 
                     name: newGroupName.trim(),
@@ -1866,11 +1870,13 @@ export default function LiaoliaoChatDetail() {
                   navigate('/liaoliao/groups');
                 } catch (error) {
                   toast({ title: t('common.error') || '创建失败', variant: 'destructive' });
+                } finally {
+                  setIsCreatingGroup(false);
                 }
               }}
               data-testid="button-create-group-confirm"
             >
-              {t('liaoliao.confirm') || '确定'}
+              {isCreatingGroup ? <Loader2 className="w-4 h-4 animate-spin" /> : (t('liaoliao.confirm') || '确定')}
             </Button>
           </DialogFooter>
         </DialogContent>
