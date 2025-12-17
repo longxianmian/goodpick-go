@@ -1055,10 +1055,22 @@ export default function LiaoliaoChatDetail() {
             >
               <X className="w-6 h-6 text-destructive" />
             </Button>
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center flex-1">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-                <span className="text-lg font-medium">{formatDuration(recordingDuration)}</span>
+                <div className="flex items-center gap-1 h-8">
+                  {[...Array(12)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="w-1 bg-[#38B03B] rounded-full animate-pulse"
+                      style={{
+                        height: `${Math.random() * 24 + 8}px`,
+                        animationDelay: `${i * 0.1}s`,
+                        animationDuration: `${0.3 + Math.random() * 0.3}s`
+                      }}
+                    />
+                  ))}
+                </div>
+                <span className="text-lg font-medium ml-2">{formatDuration(recordingDuration)}</span>
               </div>
               <span className="text-xs text-muted-foreground">{t('liaoliao.recording')}</span>
             </div>
@@ -1075,15 +1087,11 @@ export default function LiaoliaoChatDetail() {
           <div className="flex flex-col items-center gap-2 py-2">
             <button
               className="w-full py-4 bg-muted rounded-full flex items-center justify-center gap-2 active:bg-muted/80 transition-colors"
-              onTouchStart={startVoiceRecording}
-              onTouchEnd={stopVoiceRecording}
-              onMouseDown={startVoiceRecording}
-              onMouseUp={stopVoiceRecording}
-              onMouseLeave={cancelVoiceRecording}
-              data-testid="button-hold-to-record"
+              onClick={startVoiceRecording}
+              data-testid="button-tap-to-record"
             >
               <VoiceInputIcon className="w-6 h-6" />
-              <span className="text-muted-foreground">{t('liaoliao.holdToTalk')}</span>
+              <span className="text-muted-foreground">{t('liaoliao.tapToRecord')}</span>
             </button>
             <Button 
               size="sm"
