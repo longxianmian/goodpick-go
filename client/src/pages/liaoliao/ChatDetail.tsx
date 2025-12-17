@@ -1083,32 +1083,13 @@ export default function LiaoliaoChatDetail() {
               <Send className="w-6 h-6 text-white" />
             </Button>
           </div>
-        ) : voiceInputMode ? (
-          <div className="flex flex-col items-center gap-2 py-2">
-            <button
-              className="w-full py-4 bg-muted rounded-full flex items-center justify-center gap-2 active:bg-muted/80 transition-colors"
-              onClick={startVoiceRecording}
-              data-testid="button-tap-to-record"
-            >
-              <VoiceInputIcon className="w-6 h-6" />
-              <span className="text-muted-foreground">{t('liaoliao.tapToRecord')}</span>
-            </button>
-            <Button 
-              size="sm"
-              variant="ghost"
-              onClick={toggleVoiceInputMode}
-              data-testid="button-switch-to-text"
-            >
-              {t('liaoliao.switchToText')}
-            </Button>
-          </div>
         ) : (
           <div className="flex items-center gap-2">
             <Button 
               size="icon"
               variant="ghost"
               className="shrink-0 h-10 w-10 rounded-full [&_svg]:size-6"
-              onClick={toggleVoiceInputMode}
+              onClick={startVoiceRecording}
               data-testid="button-voice"
             >
               <VoiceInputIcon className="text-muted-foreground" />
