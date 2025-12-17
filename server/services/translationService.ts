@@ -283,3 +283,84 @@ export function getSupportedLanguages(): Array<{ code: string; name: string }> {
  * 规范化语言代码的导出版本
  */
 export { normalizeLanguageCode };
+
+/**
+ * 语音转文字（Speech-to-Text）
+ * 使用 OpenAI Whisper API 将音频转录为文本
+ * @param audioUrl - 音频文件的URL
+ * @returns 转录的文本内容，失败时返回 null
+ */
+export async function transcribeAudio(audioUrl: string): Promise<{ transcript: string; detectedLanguage: string } | null> {
+  if (!openai) {
+    console.warn('⚠️ OpenAI 未配置，无法进行语音转文字');
+    return null;
+  }
+
+  try {
+    // 下载音频文件
+    const response = await fetch(audioUrl);
+    if (!response.ok) {
+      console.error('❌ 无法下载音频文件:', audioUrl);
+      return null;
+    }
+    
+    const audioBuffer = await response.arrayBuffer();
+    const audioBlob = new Blob([audioBuffer], { type: 'audio/webm' });
+    
+    // 创建 File 对象用于 Whisper API
+    const audioFile = new File([audioBlob], 'audio.webm', { type: 'audio/webm' });
+    
+    // 调用 Whisper API 进行转录
+    const transcription = await openai.audio.transcriptions.create({
+      file: audioFile,
+      model: 'whisper-1',
+      response_format: 'verbose_json',
+    });
+    
+    const transcript = transcription.text?.trim() || '';
+    const detectedLanguage = (transcription as any).language || 'unknown';
+    
+    console.log(`✅ 语音转文字成功: "${transcript.slice(0, 50)}..." (语言: ${detectedLanguage})`);
+    
+    return {
+      transcript,
+      detectedLanguage: normalizeWhisperLanguage(detectedLanguage),
+    };
+  } catch (error: any) {
+    console.error('❌ 语音转文字失败:', error?.message || error);
+    return null;
+  }
+}
+
+/**
+ * 将 Whisper 返回的语言代码转换为我们的格式
+ */
+function normalizeWhisperLanguage(whisperLang: string): string {
+  const mapping: Record<string, string> = {
+    'chinese': 'zh-cn',
+    'mandarin': 'zh-cn',
+    'zh': 'zh-cn',
+    'english': 'en-us',
+    'en': 'en-us',
+    'thai': 'th-th',
+    'th': 'th-th',
+    'indonesian': 'id-id',
+    'id': 'id-id',
+    'vietnamese': 'vi-vn',
+    'vi': 'vi-vn',
+    'burmese': 'my-mm',
+    'my': 'my-mm',
+    'japanese': 'ja-jp',
+    'ja': 'ja-jp',
+    'korean': 'ko-kr',
+    'ko': 'ko-kr',
+    'malay': 'ms-my',
+    'ms': 'ms-my',
+    'tagalog': 'tl-ph',
+    'tl': 'tl-ph',
+    'filipino': 'tl-ph',
+  };
+  
+  const normalized = whisperLang.toLowerCase();
+  return mapping[normalized] || 'en-us';
+}

@@ -366,6 +366,8 @@ export default function LiaoliaoChatDetail() {
 
   // 翻译单条消息 - 使用 ref 来追踪正在进行的翻译
   const pendingTranslationsRef = useRef<Set<number>>(new Set());
+  // 追踪已翻译的原文，用于检测内容变化（如语音转录更新）
+  const translatedOriginalTextsRef = useRef<Map<number, string>>(new Map());
   
   const translateMessage = useCallback(async (messageId: number, text: string) => {
     // 如果已经在翻译中，跳过
@@ -373,13 +375,18 @@ export default function LiaoliaoChatDetail() {
       return;
     }
     
+    // 检查是否需要重新翻译（原文是否变化）
+    const previousOriginalText = translatedOriginalTextsRef.current.get(messageId);
+    const needsRetranslation = previousOriginalText !== text;
+    
     // 标记为正在翻译
     pendingTranslationsRef.current.add(messageId);
+    translatedOriginalTextsRef.current.set(messageId, text);
     
     // 设置加载状态
     setTranslationCache(prev => {
-      // 如果已经在缓存中且不是加载状态，跳过
-      if (prev[messageId] && !prev[messageId].isLoading) {
+      // 如果已经在缓存中且原文没变，跳过
+      if (prev[messageId] && !prev[messageId].isLoading && !needsRetranslation) {
         pendingTranslationsRef.current.delete(messageId);
         return prev;
       }
@@ -450,6 +457,8 @@ export default function LiaoliaoChatDetail() {
 
   // 对收到的消息进行翻译 - 使用 ref 追踪已处理的消息
   const processedMessagesRef = useRef<Set<number>>(new Set());
+  // 追踪语音消息的转录状态，用于检测转录完成
+  const processedTranscriptsRef = useRef<Map<number, string>>(new Map());
   
   useEffect(() => {
     if (!messages.length || !user) return;
@@ -457,18 +466,38 @@ export default function LiaoliaoChatDetail() {
     // 找出需要翻译的新消息（收到的文本消息和语音消息）
     const messagesToTranslate = messages.filter(msg => {
       const isOwn = msg.fromUserId === user.id;
-      const isTextOrAudio = msg.messageType === 'text' || msg.messageType === 'audio';
+      if (isOwn) return false;
+      
+      // 对于语音消息，检查是否有新的转录文本
+      if (msg.messageType === 'audio') {
+        const transcript = msg.metadata?.transcript as string | undefined;
+        const hasTranscript = transcript && transcript.trim();
+        if (!hasTranscript) return false;
+        
+        // 检查转录是否是新的（之前没有处理过，或者转录内容变了）
+        const previousTranscript = processedTranscriptsRef.current.get(msg.id);
+        if (previousTranscript === transcript) return false; // 已经翻译过这个转录
+        
+        return true;
+      }
+      
+      // 对于文本消息，使用常规逻辑
+      const isText = msg.messageType === 'text';
       const notProcessed = !processedMessagesRef.current.has(msg.id);
       const hasContent = msg.content && msg.content.trim();
-      
-      // 只翻译收到的消息（不是自己发的）
-      return !isOwn && isTextOrAudio && notProcessed && hasContent;
+      return isText && notProcessed && hasContent;
     });
     
     // 标记为已处理并翻译
     messagesToTranslate.forEach(msg => {
-      processedMessagesRef.current.add(msg.id);
-      translateMessage(msg.id, msg.content);
+      if (msg.messageType === 'audio') {
+        const transcript = msg.metadata?.transcript as string;
+        processedTranscriptsRef.current.set(msg.id, transcript);
+        translateMessage(msg.id, transcript);
+      } else {
+        processedMessagesRef.current.add(msg.id);
+        translateMessage(msg.id, msg.content);
+      }
     });
   }, [messages, user, translateMessage]);
 
@@ -1053,34 +1082,52 @@ export default function LiaoliaoChatDetail() {
                               {message.content?.match(/\d+/)?.[0] || '0'}s
                             </span>
                           </div>
-                          {!isOwn && (
-                            <div className="pt-1 border-t border-current/10">
-                              {isLoading ? (
-                                <div className="flex items-center gap-1">
-                                  <Loader2 className="w-3 h-3 animate-spin opacity-50" />
-                                  <span className={cn("text-xs opacity-50", "text-muted-foreground")}>
-                                    {t('liaoliao.translating') || '翻译中...'}
-                                  </span>
-                                </div>
-                              ) : hasTranslation ? (
-                                <div>
-                                  <p className="text-sm whitespace-pre-wrap break-words">
-                                    {showOriginal ? cached.originalText : cached.translatedText}
-                                  </p>
-                                  <div className="flex items-center gap-1 mt-1">
-                                    <Languages className="w-3 h-3 opacity-50" />
+                          {!isOwn && (() => {
+                            const transcript = message.metadata?.transcript as string | undefined;
+                            const hasTranscript = transcript && transcript.trim();
+                            
+                            return (
+                              <div className="pt-1 border-t border-current/10">
+                                {!hasTranscript ? (
+                                  <div className="flex items-center gap-1">
+                                    <Loader2 className="w-3 h-3 animate-spin opacity-50" />
                                     <span className="text-xs opacity-50 text-muted-foreground">
-                                      {showOriginal 
-                                        ? (t('liaoliao.originalText') || '原文')
-                                        : (t('liaoliao.voiceTranslated') || '语音译文')}
+                                      {t('liaoliao.transcribing') || '正在转录...'}
                                     </span>
                                   </div>
-                                </div>
-                              ) : cached ? (
-                                <p className="text-xs opacity-60">{cached.translatedText || message.content}</p>
-                              ) : null}
-                            </div>
-                          )}
+                                ) : isLoading ? (
+                                  <div className="flex items-center gap-1">
+                                    <Loader2 className="w-3 h-3 animate-spin opacity-50" />
+                                    <span className={cn("text-xs opacity-50", "text-muted-foreground")}>
+                                      {t('liaoliao.translating') || '翻译中...'}
+                                    </span>
+                                  </div>
+                                ) : hasTranslation ? (
+                                  <div
+                                    onTouchStart={() => handleLongPressStart(message.id)}
+                                    onTouchEnd={handleLongPressEnd}
+                                    onMouseDown={() => handleLongPressStart(message.id)}
+                                    onMouseUp={handleLongPressEnd}
+                                    onMouseLeave={handleLongPressEnd}
+                                  >
+                                    <p className="text-sm whitespace-pre-wrap break-words">
+                                      {showOriginal ? cached.originalText : cached.translatedText}
+                                    </p>
+                                    <div className="flex items-center gap-1 mt-1">
+                                      <Languages className="w-3 h-3 opacity-50" />
+                                      <span className="text-xs opacity-50 text-muted-foreground">
+                                        {showOriginal 
+                                          ? (t('liaoliao.originalText') || '原文')
+                                          : `${t('liaoliao.voiceTranslated') || '语音译文'} · ${t('liaoliao.longPressOriginal') || '长按查看原文'}`}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ) : hasTranscript ? (
+                                  <p className="text-sm opacity-80">{transcript}</p>
+                                ) : null}
+                              </div>
+                            );
+                          })()}
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">

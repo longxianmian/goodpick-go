@@ -13,7 +13,7 @@ import QRCode from 'qrcode';
 import { eq, and, desc, sql, inArray, isNotNull, or, gte, gt } from 'drizzle-orm';
 import { AliOssService } from './services/aliOssService';
 import { verifyLineIdToken, exchangeLineAuthCode } from './services/lineService';
-import { translateText } from './services/translationService';
+import { translateText, transcribeAudio } from './services/translationService';
 import { sendWelcomeMessageIfNeeded } from './services/welcomeService';
 import { createCampaignBroadcast, runBroadcastTask } from './services/broadcastService';
 import { triggerTranscodeAfterUpload } from './services/transcodeService';
@@ -10286,6 +10286,32 @@ export function registerRoutes(app: Express): Server {
         .where(eq(users.id, userId))
         .limit(1);
 
+      // 如果是语音消息，异步进行语音转文字（前端发送 'audio' 类型）
+      if ((messageType === 'voice' || messageType === 'audio') && mediaUrl) {
+        // 异步转录，不阻塞响应
+        (async () => {
+          try {
+            const result = await transcribeAudio(mediaUrl);
+            if (result && result.transcript) {
+              // 更新消息的 metadata，添加转录文本
+              const existingMetadata = metadata || {};
+              const updatedMetadata = {
+                ...existingMetadata,
+                transcript: result.transcript,
+                transcriptLanguage: result.detectedLanguage,
+                transcriptionStatus: 'completed',
+              };
+              await db.update(liaoliaoMessages)
+                .set({ mediaMetadata: JSON.stringify(updatedMetadata) })
+                .where(eq(liaoliaoMessages.id, message.id));
+              console.log(`✅ 语音消息 ${message.id} 转录完成`);
+            }
+          } catch (err) {
+            console.error(`❌ 语音消息 ${message.id} 转录失败:`, err);
+          }
+        })();
+      }
+
       res.json({
         id: message.id,
         fromUserId: message.fromUserId,
@@ -10440,7 +10466,7 @@ export function registerRoutes(app: Express): Server {
     try {
       const userId = req.user!.id;
       const groupId = parseInt(req.params.groupId);
-      const { content, messageType = 'text', mediaUrl } = req.body;
+      const { content, messageType = 'text', mediaUrl, metadata } = req.body;
 
       // 验证用户是否是群成员
       const [member] = await db
@@ -10462,6 +10488,7 @@ export function registerRoutes(app: Express): Server {
         content,
         messageType,
         mediaUrl,
+        mediaMetadata: metadata ? JSON.stringify(metadata) : null,
       }).returning();
 
       const [sender] = await db
@@ -10470,12 +10497,38 @@ export function registerRoutes(app: Express): Server {
         .where(eq(users.id, userId))
         .limit(1);
 
+      // 如果是语音消息，异步进行语音转文字（前端发送 'audio' 类型）
+      if ((messageType === 'voice' || messageType === 'audio') && mediaUrl) {
+        (async () => {
+          try {
+            const result = await transcribeAudio(mediaUrl);
+            if (result && result.transcript) {
+              const existingMetadata = metadata || {};
+              const updatedMetadata = {
+                ...existingMetadata,
+                transcript: result.transcript,
+                transcriptLanguage: result.detectedLanguage,
+                transcriptionStatus: 'completed',
+              };
+              await db.update(liaoliaoMessages)
+                .set({ mediaMetadata: JSON.stringify(updatedMetadata) })
+                .where(eq(liaoliaoMessages.id, message.id));
+              console.log(`✅ 群组语音消息 ${message.id} 转录完成`);
+            }
+          } catch (err) {
+            console.error(`❌ 群组语音消息 ${message.id} 转录失败:`, err);
+          }
+        })();
+      }
+
       res.json({
         id: message.id,
         fromUserId: message.fromUserId,
         groupId: message.groupId,
         messageType: message.messageType,
         content: message.content,
+        mediaUrl: message.mediaUrl,
+        metadata: message.mediaMetadata ? JSON.parse(message.mediaMetadata) : null,
         createdAt: message.createdAt,
         fromUser: {
           id: sender.id,
