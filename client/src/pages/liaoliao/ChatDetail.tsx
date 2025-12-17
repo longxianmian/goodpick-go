@@ -1190,6 +1190,7 @@ export default function LiaoliaoChatDetail() {
               size="icon"
               variant="ghost"
               onClick={cancelVoiceRecording}
+              onTouchStart={(e) => { e.preventDefault(); cancelVoiceRecording(); }}
               className="h-12 w-12 rounded-full bg-destructive/10"
               data-testid="button-cancel-recording"
             >
@@ -1217,6 +1218,7 @@ export default function LiaoliaoChatDetail() {
             <Button 
               size="icon"
               onClick={stopVoiceRecording}
+              onTouchStart={(e) => { e.preventDefault(); stopVoiceRecording(); }}
               className="h-12 w-12 rounded-full bg-[#38B03B]"
               data-testid="button-send-recording"
             >
@@ -1230,6 +1232,7 @@ export default function LiaoliaoChatDetail() {
               variant="ghost"
               className="shrink-0 h-10 w-10 rounded-full [&_svg]:size-6"
               onClick={startVoiceRecording}
+              onTouchStart={(e) => { e.preventDefault(); startVoiceRecording(); }}
               data-testid="button-voice"
             >
               <VoiceInputIcon className="text-muted-foreground" />
@@ -1273,6 +1276,7 @@ export default function LiaoliaoChatDetail() {
                     isRecordingToText && "bg-red-100 dark:bg-red-900/30"
                   )}
                   onClick={startSpeechToText}
+                  onTouchStart={(e) => { e.preventDefault(); startSpeechToText(); }}
                   data-testid="button-mic"
                 >
                   <Mic className={cn(
