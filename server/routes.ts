@@ -10818,23 +10818,8 @@ export function registerRoutes(app: Express): Server {
         });
       }
 
-      // 添加AI助理到列表中
-      const AI_ASSISTANT_ID = -1; // AI助理使用特殊ID
-      chats.push({
-        type: 'ai',
-        id: AI_ASSISTANT_ID,
-        name: '刷刷小助手',
-        avatarUrl: '/ai-assistant-avatar.png',
-        lastMessage: null,
-        lastMessageAt: null,
-        unreadCount: 0,
-      });
-
-      // 按最后消息时间排序（AI助理放在末尾）
+      // 按最后消息时间排序
       chats.sort((a, b) => {
-        // AI助理始终放在最后
-        if ((a as any).type === 'ai') return 1;
-        if ((b as any).type === 'ai') return -1;
         const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
         const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
         return timeB - timeA;

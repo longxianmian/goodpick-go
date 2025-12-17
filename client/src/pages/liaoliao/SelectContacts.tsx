@@ -12,13 +12,13 @@ import { useToast } from '@/hooks/use-toast';
 
 interface ChatItem {
   type: 'friend' | 'group' | 'ai';
-  id: number;
+  id: number | string;
   name: string;
   avatarUrl?: string;
 }
 
 interface Friend {
-  id: number;
+  id: number | string;
   displayName: string;
   avatarUrl?: string;
   isAI?: boolean;
@@ -32,22 +32,30 @@ export default function SelectContacts() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<number | string>>(new Set());
 
   // 获取聊天列表（包含所有好友来源）
   const { data: chatsList = [] } = useQuery<ChatItem[]>({
     queryKey: ['/api/liaoliao/chats'],
   });
 
-  // 转换为好友格式并过滤（显示所有好友，只排除自己）
+  // 构建AI助理
+  const aiAssistant: Friend = {
+    id: 'ai-assistant',
+    displayName: t('liaoliao.aiAssistant') || '刷刷小助手',
+    avatarUrl: undefined,
+    isAI: true,
+  };
+
+  // 转换为好友格式并过滤（显示所有好友+AI助理，只排除自己）
   const filteredFriends = useMemo(() => {
-    return chatsList
-      .filter(chat => chat.type === 'friend' || chat.type === 'ai')
+    const friends: Friend[] = chatsList
+      .filter(chat => chat.type === 'friend')
       .map(chat => ({
         id: chat.id,
         displayName: chat.name,
         avatarUrl: chat.avatarUrl,
-        isAI: chat.type === 'ai',
+        isAI: false,
       }))
       .filter(friend => {
         // 只排除自己
@@ -58,7 +66,14 @@ export default function SelectContacts() {
         }
         return true;
       });
-  }, [chatsList, user?.id, searchQuery]);
+    
+    // 添加AI助理并应用搜索过滤
+    if (!searchQuery || aiAssistant.displayName.toLowerCase().includes(searchQuery.toLowerCase())) {
+      friends.unshift(aiAssistant);
+    }
+    
+    return friends;
+  }, [chatsList, user?.id, searchQuery, aiAssistant.displayName]);
 
   // 按首字母分组
   const groupedFriends = useMemo(() => {
@@ -72,7 +87,7 @@ export default function SelectContacts() {
     return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
   }, [filteredFriends]);
 
-  const toggleSelect = (id: number) => {
+  const toggleSelect = (id: number | string) => {
     const newSet = new Set(selectedIds);
     if (newSet.has(id)) {
       newSet.delete(id);
