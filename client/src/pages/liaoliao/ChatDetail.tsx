@@ -130,7 +130,7 @@ export default function LiaoliaoChatDetail() {
   const [showSearchMessages, setShowSearchMessages] = useState(false);
   const [showChatSettingsSheet, setShowChatSettingsSheet] = useState(false);
   const [showChatMenuSheet, setShowChatMenuSheet] = useState(false);
-  const [showAccountSelectDialog, setShowAccountSelectDialog] = useState(false);
+  const [showAddFriendsDialog, setShowAddFriendsDialog] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [isReminded, setIsReminded] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -200,6 +200,17 @@ export default function LiaoliaoChatDetail() {
     id: friendId,
     displayName: t('liaoliao.unknownUser'),
   };
+
+  // 从消息中提取所有好友列表（用于添加到群聊）
+  const allFriends = useMemo(() => {
+    const friendsMap = new Map();
+    messages.forEach(msg => {
+      if (msg.fromUser && msg.fromUserId !== user?.id) {
+        friendsMap.set(msg.fromUserId, msg.fromUser);
+      }
+    });
+    return Array.from(friendsMap.values());
+  }, [messages, user?.id]);
 
   const sendMutation = useMutation({
     mutationFn: async (data: { content: string; messageType: string; mediaUrl?: string; metadata?: any }) => {
@@ -1892,8 +1903,8 @@ export default function LiaoliaoChatDetail() {
               size="icon" 
               variant="outline" 
               className="rounded-full flex-shrink-0"
-              onClick={() => setShowAccountSelectDialog(true)}
-              data-testid="button-add-account"
+              onClick={() => setShowAddFriendsDialog(true)}
+              data-testid="button-add-friends"
             >
               <Plus className="w-4 h-4" />
             </Button>
@@ -1991,36 +2002,35 @@ export default function LiaoliaoChatDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Account Selection Dialog */}
-      <Dialog open={showAccountSelectDialog} onOpenChange={setShowAccountSelectDialog}>
+      {/* Add Friends to Group Dialog */}
+      <Dialog open={showAddFriendsDialog} onOpenChange={setShowAddFriendsDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('common.switchRole') || '切换账号'}</DialogTitle>
+            <DialogTitle>{t('liaoliao.addFriends') || '添加好友'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
-            {user?.roles && user.roles.length > 0 ? (
-              user.roles.map((role, idx) => (
+            {allFriends && allFriends.length > 0 ? (
+              allFriends.map((friend: any, idx: number) => (
                 <button
-                  key={idx}
+                  key={friend.id}
                   onClick={() => {
-                    toast({ title: `${t('common.current') || '当前'}: ${role.storeName}` });
-                    setShowAccountSelectDialog(false);
+                    toast({ title: `${friend.displayName} ${t('liaoliao.addedToGroup') || '已添加到群聊'}` });
+                    setShowAddFriendsDialog(false);
                   }}
                   className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted border hover:border-primary"
-                  data-testid={`account-role-${idx}`}
+                  data-testid={`friend-${idx}`}
                 >
                   <Avatar className="w-10 h-10 flex-shrink-0">
-                    <AvatarImage src={role.storeImageUrl} />
-                    <AvatarFallback>{role.storeName?.charAt(0)}</AvatarFallback>
+                    <AvatarImage src={friend.avatarUrl} />
+                    <AvatarFallback>{friend.displayName?.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div className="text-left flex-1 min-w-0">
-                    <p className="font-medium truncate">{role.storeName || ''}</p>
-                    <p className="text-xs text-muted-foreground truncate">{role.role || ''}</p>
+                    <p className="font-medium truncate">{friend.displayName || ''}</p>
                   </div>
                 </button>
               ))
             ) : (
-              <p className="text-center text-muted-foreground py-4">{t('common.noData') || '暂无数据'}</p>
+              <p className="text-center text-muted-foreground py-4">{t('common.noData') || '暂无好友'}</p>
             )}
           </div>
         </DialogContent>
