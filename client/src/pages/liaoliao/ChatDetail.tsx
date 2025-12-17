@@ -1271,27 +1271,29 @@ export default function LiaoliaoChatDetail() {
     const iconConfig = getFileIconConfig(ext);
     
     // 处理点击事件 - 使用<a>标签打开文件（兼容移动端）
-    const handleClick = () => {
+    const handleClick = (e: React.MouseEvent) => {
+      e.stopPropagation(); // 阻止事件冒泡
       console.log('[FileMessageCard] 点击文件:', { filename, fileUrl, fileSize });
       if (!fileUrl) {
         console.log('[FileMessageCard] fileUrl为空，无法打开');
         return;
       }
       
-      // 创建临时<a>标签并触发点击
-      const link = document.createElement('a');
-      link.href = fileUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      console.log('[FileMessageCard] 触发链接点击:', fileUrl);
-      link.click();
-      document.body.removeChild(link);
+      // 直接打开URL
+      console.log('[FileMessageCard] 正在打开文件:', fileUrl);
+      window.open(fileUrl, '_blank');
     };
     
     return (
-      <div 
-        onClick={handleClick}
+      <a 
+        href={fileUrl || '#'}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!fileUrl) e.preventDefault();
+          console.log('[FileMessageCard] 链接点击:', fileUrl);
+        }}
         className={cn(
           "flex items-center gap-3 p-3 rounded-lg min-w-[220px] max-w-[280px] cursor-pointer transition-opacity hover:opacity-90",
           isOwn ? "bg-white/10" : "bg-background border"
@@ -1323,7 +1325,7 @@ export default function LiaoliaoChatDetail() {
             <span>{fileUrl ? t('liaoliao.clickToOpen') || '点击打开' : t('liaoliao.uploadFailed')}</span>
           </div>
         </div>
-      </div>
+      </a>
     );
   }
 
