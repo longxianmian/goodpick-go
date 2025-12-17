@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useLocation, useRoute } from 'wouter';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { apiRequest } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -33,13 +34,39 @@ interface ChatMenuProps {
   friendAvatar?: string;
 }
 
+interface Message {
+  fromUserId: number;
+  fromUser: {
+    id: number;
+    displayName: string;
+    avatarUrl?: string;
+  };
+}
+
+interface ChatData {
+  messages: Message[];
+}
+
 export default function ChatMenu() {
   const [, navigate] = useLocation();
   const [, params] = useRoute('/liaoliao/chat/:friendId/menu');
-  const friendId = params?.friendId;
+  const friendId = params?.friendId ? parseInt(params.friendId) : 0;
   const { t } = useLanguage();
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // 获取聊天消息以提取好友信息
+  const { data: chatData } = useQuery<ChatData>({
+    queryKey: ['/api/liaoliao/messages', friendId],
+    enabled: !!friendId,
+  });
+
+  const messages = chatData?.messages || [];
+  const friendInfo = messages.find(m => m.fromUserId === friendId)?.fromUser || {
+    id: friendId,
+    displayName: t('liaoliao.unknownUser') || '未知用户',
+  };
 
   // 状态
   const [isMuted, setIsMuted] = useState(false);
@@ -130,7 +157,7 @@ export default function ChatMenu() {
     },
     {
       icon: Image,
-      label: t('liaoliao.setChatBackground') || '设置聊天背景',
+      label: t('liaoliao.setChatBg') || '设置聊天背景',
       onClick: handleSetBackground,
       showArrow: true,
     },
@@ -167,7 +194,8 @@ export default function ChatMenu() {
       {/* 头像区域 */}
       <div className="flex items-center justify-center gap-4 py-6">
         <Avatar className="h-14 w-14">
-          <AvatarFallback>?</AvatarFallback>
+          <AvatarImage src={friendInfo.avatarUrl} />
+          <AvatarFallback>{friendInfo.displayName?.charAt(0) || '?'}</AvatarFallback>
         </Avatar>
         <Button
           variant="outline"
