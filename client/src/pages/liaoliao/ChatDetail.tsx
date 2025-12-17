@@ -497,6 +497,8 @@ export default function LiaoliaoChatDetail() {
     // 检查浏览器支持
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       console.error('[Voice] 浏览器不支持 mediaDevices');
+      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'Voice: mediaDevices not supported' }) }).catch(() => {});
       toast({
         variant: 'destructive',
         title: t('liaoliao.recordingNotSupported') || '录音不支持',
@@ -505,10 +507,17 @@ export default function LiaoliaoChatDetail() {
       return;
     }
     
+    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'Voice: mediaDevices supported, requesting permission' }) }).catch(() => {});
+    
     try {
       // 先请求麦克风权限（支持 LIFF 和普通浏览器）
       console.log('[Voice] 请求麦克风权限...');
       const hasPermission = await requestMicrophonePermission();
+      
+      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'Voice: requestMicrophonePermission returned', hasPermission }) }).catch(() => {});
+      
       if (!hasPermission) {
         console.error('[Voice] 麦克风权限被拒绝');
         return;
@@ -517,6 +526,9 @@ export default function LiaoliaoChatDetail() {
       // 权限获取成功，开始录音
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       console.log('[Voice] 麦克风权限获取成功');
+      
+      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'Voice: getUserMedia success, starting recording' }) }).catch(() => {});
       
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
@@ -542,6 +554,8 @@ export default function LiaoliaoChatDetail() {
       }, 1000);
     } catch (error: any) {
       console.error('[Voice] 录音失败:', error);
+      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'Voice: error caught', error: error?.message || String(error) }) }).catch(() => {});
       toast({
         variant: 'destructive',
         title: t('liaoliao.recordingFailed') || '录音失败',
