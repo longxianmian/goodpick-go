@@ -218,7 +218,7 @@ export default function LiaoliaoChatDetail() {
     setShowImagePreview(true);
   }, [messages]);
 
-  // 处理文件下载 - 支持跨域资源
+  // 处理文件下载 - 通过后端代理解决跨域问题
   const handleFileDownload = useCallback(async (url: string, filename: string) => {
     if (!url) {
       toast({
@@ -234,8 +234,10 @@ export default function LiaoliaoChatDetail() {
     });
     
     try {
-      // 尝试使用fetch获取blob数据（跨域资源需要服务器配置CORS）
-      const response = await fetch(url, { mode: 'cors' });
+      // 使用后端代理API下载文件（绕过CORS）
+      const proxyUrl = `/api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+      const response = await fetch(proxyUrl);
+      
       if (response.ok) {
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
@@ -253,10 +255,10 @@ export default function LiaoliaoChatDetail() {
         return;
       }
     } catch (error) {
-      console.log('Fetch download failed, trying direct open:', error);
+      console.log('Proxy download failed:', error);
     }
     
-    // 如果fetch失败，直接在新窗口打开（让用户手动保存）
+    // 如果代理下载失败，直接在新窗口打开
     window.open(url, '_blank', 'noopener,noreferrer');
   }, [toast, t]);
 
