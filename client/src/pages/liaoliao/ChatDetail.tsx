@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ImagePreview } from '@/components/ui/image-preview';
 import { LocationPicker } from '@/components/LocationPicker';
-import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder, Loader2, Check, Navigation, Download, Languages } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause, Square, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder, Loader2, Check, Navigation, Download, Languages } from 'lucide-react';
 import { VoiceInputIcon } from '@/components/icons/VoiceInputIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -120,6 +120,11 @@ export default function LiaoliaoChatDetail() {
   const [showImagePreview, setShowImagePreview] = useState(false);
   const [previewImageIndex, setPreviewImageIndex] = useState(0);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
+  
+  // 语音播放状态
+  const [playingVoiceId, setPlayingVoiceId] = useState<number | null>(null);
+  const [voiceProgress, setVoiceProgress] = useState(0);
+  const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
   
   // 文件预览状态 - 提升到父组件防止嵌套函数组件状态重置
   const [filePreviewData, setFilePreviewData] = useState<{
@@ -250,6 +255,71 @@ export default function LiaoliaoChatDetail() {
     setPreviewImageIndex(index >= 0 ? index : 0);
     setShowImagePreview(true);
   }, [messages]);
+
+  // 清理语音播放资源
+  const cleanupVoicePlayback = useCallback(() => {
+    if (voiceAudioRef.current) {
+      voiceAudioRef.current.pause();
+      voiceAudioRef.current.src = '';
+      voiceAudioRef.current = null;
+    }
+    setPlayingVoiceId(null);
+    setVoiceProgress(0);
+  }, []);
+
+  // 组件卸载时清理语音播放
+  useEffect(() => {
+    return () => {
+      if (voiceAudioRef.current) {
+        voiceAudioRef.current.pause();
+        voiceAudioRef.current.src = '';
+        voiceAudioRef.current = null;
+      }
+    };
+  }, []);
+
+  // 播放语音消息
+  const playVoiceMessage = useCallback((messageId: number, audioUrl: string) => {
+    // 如果当前正在播放同一条消息，停止播放
+    if (playingVoiceId === messageId && voiceAudioRef.current) {
+      cleanupVoicePlayback();
+      return;
+    }
+    
+    // 停止之前的播放
+    if (voiceAudioRef.current) {
+      voiceAudioRef.current.pause();
+      voiceAudioRef.current.src = '';
+    }
+    
+    const audio = new Audio(audioUrl);
+    voiceAudioRef.current = audio;
+    setPlayingVoiceId(messageId);
+    setVoiceProgress(0);
+    
+    const handleTimeUpdate = () => {
+      if (audio.duration > 0) {
+        setVoiceProgress((audio.currentTime / audio.duration) * 100);
+      }
+    };
+    
+    const handleEnded = () => {
+      cleanupVoicePlayback();
+    };
+    
+    const handleError = () => {
+      cleanupVoicePlayback();
+    };
+    
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
+    
+    audio.play().catch(err => {
+      console.error('Voice playback error:', err);
+      cleanupVoicePlayback();
+    });
+  }, [playingVoiceId, cleanupVoicePlayback]);
 
   // 处理文件下载 - 使用a标签不离开页面
   const handleFileDownload = useCallback((url: string, filename: string) => {
@@ -938,28 +1008,48 @@ export default function LiaoliaoChatDetail() {
                       const showOriginal = showOriginalMessageId === message.id;
                       const hasTranslation = !isOwn && cached && cached.needsTranslation;
                       const isLoading = !isOwn && cached && cached.isLoading;
+                      const isPlayingThis = playingVoiceId === message.id;
+                      const currentProgress = isPlayingThis ? voiceProgress : 0;
                       
                       return message.mediaUrl ? (
                         <div className="space-y-2">
-                          <div className="flex items-center gap-2 min-w-[120px]">
+                          <div className="flex items-center gap-2 min-w-[140px]">
                             <button
-                              className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                                 isOwn ? 'bg-white/20' : 'bg-primary/10'
-                              }`}
-                              onClick={() => {
-                                const audio = new Audio(message.mediaUrl);
-                                audio.play();
-                              }}
+                              } ${isPlayingThis ? 'animate-pulse' : ''}`}
+                              onClick={() => playVoiceMessage(message.id, message.mediaUrl!)}
                               data-testid={`voice-play-${message.id}`}
                             >
-                              <Play className={`w-4 h-4 ${isOwn ? 'text-white' : 'text-primary'}`} />
+                              {isPlayingThis ? (
+                                <Square className={`w-3 h-3 ${isOwn ? 'text-white' : 'text-primary'}`} />
+                              ) : (
+                                <Play className={`w-4 h-4 ${isOwn ? 'text-white' : 'text-primary'}`} />
+                              )}
                             </button>
-                            <div className="flex-1">
-                              <div className={`h-1 rounded-full ${isOwn ? 'bg-white/30' : 'bg-primary/20'}`}>
-                                <div className={`h-full w-0 rounded-full ${isOwn ? 'bg-white' : 'bg-primary'}`} />
-                              </div>
+                            <div className="flex-1 flex items-center gap-0.5 h-4">
+                              {isPlayingThis ? (
+                                [...Array(12)].map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className={`w-1 rounded-full ${isOwn ? 'bg-white' : 'bg-primary'}`}
+                                    style={{
+                                      height: `${Math.max(4, Math.random() * 16)}px`,
+                                      animation: `waveform 0.5s ease-in-out infinite`,
+                                      animationDelay: `${i * 0.05}s`,
+                                    }}
+                                  />
+                                ))
+                              ) : (
+                                <div className={`flex-1 h-1 rounded-full ${isOwn ? 'bg-white/30' : 'bg-primary/20'}`}>
+                                  <div 
+                                    className={`h-full rounded-full transition-all ${isOwn ? 'bg-white' : 'bg-primary'}`}
+                                    style={{ width: `${currentProgress}%` }}
+                                  />
+                                </div>
+                              )}
                             </div>
-                            <span className={`text-xs ${isOwn ? 'text-white/70' : 'text-muted-foreground'}`}>
+                            <span className={`text-xs min-w-[24px] text-right ${isOwn ? 'text-white/70' : 'text-muted-foreground'}`}>
                               {message.content?.match(/\d+/)?.[0] || '0'}s
                             </span>
                           </div>

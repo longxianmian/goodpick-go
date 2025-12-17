@@ -372,3 +372,13 @@ video::-webkit-media-controls-start-playback-button {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;  /* Chrome, Safari and Opera */
 }
+
+/* 语音消息播放波形动画 */
+@keyframes waveform {
+  0%, 100% {
+    transform: scaleY(0.5);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}

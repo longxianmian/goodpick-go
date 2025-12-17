@@ -4444,14 +4444,8 @@ export function registerRoutes(app: Express): Server {
 
       const fileType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
 
-      await db.insert(mediaFiles).values({
-        fileName: req.file.originalname,
-        fileUrl,
-        fileType,
-        fileSize: req.file.size,
-        uploadedBy: userId,
-        isPublic: true,
-      });
+      // 注意：不写入 media_files 表，因为该表的 uploaded_by 字段是外键约束到 admins 表
+      // 普通用户上传的文件直接返回 URL 即可，无需记录到 media_files
 
       res.json({
         success: true,
@@ -4489,14 +4483,8 @@ export function registerRoutes(app: Express): Server {
         req.file.mimetype
       );
 
-      await db.insert(mediaFiles).values({
-        fileName: req.file.originalname,
-        fileUrl,
-        fileType: 'image',
-        fileSize: req.file.size,
-        uploadedBy: userId,
-        isPublic: true,
-      });
+      // 注意：不写入 media_files 表，因为该表的 uploaded_by 字段是外键约束到 admins 表
+      // 普通用户上传的文件直接返回 URL 即可
 
       res.json({
         success: true,
