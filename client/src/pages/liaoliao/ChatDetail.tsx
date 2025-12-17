@@ -111,7 +111,6 @@ export default function LiaoliaoChatDetail() {
   const [showFavoriteDialog, setShowFavoriteDialog] = useState(false);
   const [showMusicDialog, setShowMusicDialog] = useState(false);
   const [showCallDialog, setShowCallDialog] = useState<'voice' | 'video' | null>(null);
-  const [showVoiceFallbackDialog, setShowVoiceFallbackDialog] = useState(false);
   
   const [redPacketAmount, setRedPacketAmount] = useState('');
   const [redPacketMessage, setRedPacketMessage] = useState('');
@@ -159,7 +158,6 @@ export default function LiaoliaoChatDetail() {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const audioInputRef = useRef<HTMLInputElement>(null);
 
   const { data: chatData, isLoading } = useQuery<ChatData>({
     queryKey: ['/api/liaoliao/messages', friendId],
@@ -1615,58 +1613,6 @@ export default function LiaoliaoChatDetail() {
                 {showCallDialog === 'voice' ? <Phone className="w-6 h-6" /> : <Video className="w-6 h-6" />}
               </Button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showVoiceFallbackDialog} onOpenChange={setShowVoiceFallbackDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-center">{t('liaoliao.recordVoice') || '录制语音'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4 text-center">
-            <div className="bg-primary/10 rounded-full p-6 w-24 h-24 mx-auto flex items-center justify-center">
-              <Mic className="w-10 h-10 text-primary" />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {t('liaoliao.voiceFallbackHint') || '点击下方按钮使用系统录音功能'}
-            </p>
-            <label 
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg cursor-pointer"
-              data-testid="button-system-record"
-            >
-              <Mic className="w-5 h-5" />
-              <span>{t('liaoliao.startRecording') || '开始录音'}</span>
-              <input
-                ref={audioInputRef}
-                type="file"
-                accept="audio/*"
-                capture
-                className="hidden"
-                onChange={(e) => {
-                  handleAudioFileUpload(e);
-                  setShowVoiceFallbackDialog(false);
-                }}
-              />
-            </label>
-            <p className="text-xs text-muted-foreground mt-2">
-              {t('liaoliao.orSelectFile') || '或从文件中选择已录制的音频'}
-            </p>
-            <label 
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-input rounded-lg cursor-pointer text-sm"
-              data-testid="button-select-audio-file"
-            >
-              <span>{t('liaoliao.selectAudioFile') || '选择音频文件'}</span>
-              <input
-                type="file"
-                accept="audio/*"
-                className="hidden"
-                onChange={(e) => {
-                  handleAudioFileUpload(e);
-                  setShowVoiceFallbackDialog(false);
-                }}
-              />
-            </label>
           </div>
         </DialogContent>
       </Dialog>
