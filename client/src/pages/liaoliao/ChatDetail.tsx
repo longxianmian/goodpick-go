@@ -1641,7 +1641,25 @@ export default function LiaoliaoChatDetail() {
                 ref={audioInputRef}
                 type="file"
                 accept="audio/*"
-                capture="user"
+                capture
+                className="hidden"
+                onChange={(e) => {
+                  handleAudioFileUpload(e);
+                  setShowVoiceFallbackDialog(false);
+                }}
+              />
+            </label>
+            <p className="text-xs text-muted-foreground mt-2">
+              {t('liaoliao.orSelectFile') || '或从文件中选择已录制的音频'}
+            </p>
+            <label 
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-input rounded-lg cursor-pointer text-sm"
+              data-testid="button-select-audio-file"
+            >
+              <span>{t('liaoliao.selectAudioFile') || '选择音频文件'}</span>
+              <input
+                type="file"
+                accept="audio/*"
                 className="hidden"
                 onChange={(e) => {
                   handleAudioFileUpload(e);
