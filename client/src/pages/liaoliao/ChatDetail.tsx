@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ImagePreview } from '@/components/ui/image-preview';
 import { LocationPicker } from '@/components/LocationPicker';
-import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder, Loader2, Check, Navigation } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder, Loader2, Check, Navigation, Download } from 'lucide-react';
 import { VoiceInputIcon } from '@/components/icons/VoiceInputIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -104,6 +104,15 @@ export default function LiaoliaoChatDetail() {
   const [showImagePreview, setShowImagePreview] = useState(false);
   const [previewImageIndex, setPreviewImageIndex] = useState(0);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
+  
+  // 文件预览状态 - 提升到父组件防止嵌套函数组件状态重置
+  const [filePreviewData, setFilePreviewData] = useState<{
+    show: boolean;
+    url: string;
+    filename: string;
+    type: 'image' | 'video' | 'audio' | 'pdf' | 'none';
+    iconConfig: { icon: string; color: string; bgColor: string };
+  }>({ show: false, url: '', filename: '', type: 'none', iconConfig: { icon: '', color: '', bgColor: '' } });
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -218,20 +227,48 @@ export default function LiaoliaoChatDetail() {
     setShowImagePreview(true);
   }, [messages]);
 
-  // 处理文件下载 - 直接跳转到文件URL
+  // 处理文件下载 - 使用a标签不离开页面
   const handleFileDownload = useCallback((url: string, filename: string) => {
     if (!url) {
       toast({
-        title: t('liaoliao.uploadFailed'),
+        title: t('liaoliao.uploadFailed') || '文件上传失败',
         variant: 'destructive'
       });
       return;
     }
     
-    // 直接跳转到文件URL，浏览器会处理下载或预览
-    // 注意：需要在阿里云OSS配置CORS才能正常工作
-    window.location.href = url;
+    toast({ title: t('liaoliao.downloadStarted') || '正在下载...' });
+    
+    // 使用隐藏的a标签触发下载
+    const link = document.createElement('a');
+    link.href = url.replace(/^http:\/\//i, 'https://');
+    link.target = '_blank';
+    link.download = filename;
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    setTimeout(() => {
+      toast({ title: t('liaoliao.downloadComplete') || '文件已开始下载' });
+    }, 800);
   }, [toast, t]);
+  
+  // 处理文件预览
+  const handleFilePreview = useCallback((
+    url: string, 
+    filename: string, 
+    type: 'image' | 'video' | 'audio' | 'pdf' | 'none',
+    iconConfig: { icon: string; color: string; bgColor: string }
+  ) => {
+    setFilePreviewData({
+      show: true,
+      url: url.replace(/^http:\/\//i, 'https://'),
+      filename,
+      type,
+      iconConfig
+    });
+  }, []);
 
   const startVoiceRecording = useCallback(async () => {
     try {
@@ -1205,10 +1242,80 @@ export default function LiaoliaoChatDetail() {
         isOpen={showImagePreview}
         onClose={() => setShowImagePreview(false)}
       />
+      
+      {/* 文件预览对话框 - 状态提升到父组件 */}
+      <Dialog 
+        open={filePreviewData.show} 
+        onOpenChange={(open) => setFilePreviewData(prev => ({ ...prev, show: open }))}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+          <DialogHeader className="p-4 pb-2 flex flex-row items-center justify-between gap-2">
+            <DialogTitle className="truncate text-sm flex-1">{filePreviewData.filename}</DialogTitle>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => handleFileDownload(filePreviewData.url, filePreviewData.filename)}
+                data-testid="button-download-file"
+              >
+                <Download className="w-4 h-4" />
+                <span className="ml-1">{t('liaoliao.download') || '下载'}</span>
+              </Button>
+            </div>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto p-4 pt-0 max-h-[calc(90vh-80px)]">
+            {filePreviewData.type === 'image' && filePreviewData.url && (
+              <img 
+                src={filePreviewData.url} 
+                alt={filePreviewData.filename}
+                className="max-w-full max-h-full mx-auto object-contain"
+                data-testid="preview-image"
+              />
+            )}
+            
+            {filePreviewData.type === 'video' && filePreviewData.url && (
+              <video 
+                src={filePreviewData.url}
+                controls
+                autoPlay
+                className="max-w-full max-h-full mx-auto"
+                data-testid="preview-video"
+              />
+            )}
+            
+            {filePreviewData.type === 'audio' && filePreviewData.url && (
+              <div className="flex flex-col items-center justify-center py-8">
+                <div className={cn("w-24 h-24 rounded-full flex items-center justify-center mb-4", filePreviewData.iconConfig.bgColor)}>
+                  <span className={cn("text-2xl font-bold", filePreviewData.iconConfig.color)}>{filePreviewData.iconConfig.icon}</span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">{filePreviewData.filename}</p>
+                <audio 
+                  src={filePreviewData.url}
+                  controls
+                  autoPlay
+                  className="w-full max-w-md"
+                  data-testid="preview-audio"
+                />
+              </div>
+            )}
+            
+            {filePreviewData.type === 'pdf' && filePreviewData.url && (
+              <iframe 
+                src={filePreviewData.url}
+                className="w-full h-[70vh] border-0"
+                title={filePreviewData.filename}
+                data-testid="preview-pdf"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
   // File Message Card Component - 微信风格文件消息卡片
+  // 使用父组件的回调来触发预览和下载，避免嵌套函数组件状态重置问题
   function FileMessageCard({ message, isOwn }: { message: Message; isOwn: boolean }) {
     // 从消息内容中提取文件名
     const filename = message.content?.replace(/^\[文件\]\s*/, '').replace(/^\[File\]\s*/, '') || 'file';
@@ -1244,6 +1351,7 @@ export default function LiaoliaoChatDetail() {
         ppt: { icon: 'P', color: 'text-orange-600', bgColor: 'bg-orange-100 dark:bg-orange-900/30' },
         pptx: { icon: 'P', color: 'text-orange-600', bgColor: 'bg-orange-100 dark:bg-orange-900/30' },
         txt: { icon: 'TXT', color: 'text-gray-600', bgColor: 'bg-gray-100 dark:bg-gray-800' },
+        md: { icon: 'MD', color: 'text-gray-600', bgColor: 'bg-gray-100 dark:bg-gray-800' },
         // 压缩包
         zip: { icon: 'ZIP', color: 'text-yellow-600', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30' },
         rar: { icon: 'RAR', color: 'text-purple-600', bgColor: 'bg-purple-100 dark:bg-purple-900/30' },
@@ -1269,32 +1377,46 @@ export default function LiaoliaoChatDetail() {
       return configs[ext] || { icon: ext.toUpperCase().slice(0, 3) || 'FILE', color: 'text-slate-600', bgColor: 'bg-slate-100 dark:bg-slate-800' };
     };
     
+    // 判断是否可预览
+    const isPreviewable = (ext: string): boolean => {
+      const previewableTypes = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'mp4', 'mov', 'webm', 'mp3', 'wav', 'ogg', 'pdf'];
+      return previewableTypes.includes(ext);
+    };
+    
+    // 获取预览类型
+    const getPreviewType = (ext: string): 'image' | 'video' | 'audio' | 'pdf' | 'none' => {
+      if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(ext)) return 'image';
+      if (['mp4', 'mov', 'webm'].includes(ext)) return 'video';
+      if (['mp3', 'wav', 'ogg'].includes(ext)) return 'audio';
+      if (ext === 'pdf') return 'pdf';
+      return 'none';
+    };
+    
     const ext = getFileExtension(filename);
     const iconConfig = getFileIconConfig(ext);
+    const previewType = getPreviewType(ext);
+    const canPreview = isPreviewable(ext);
     
-    // 处理点击事件 - 使用<a>标签打开文件（兼容移动端）
+    // 处理点击事件 - 使用父组件的回调
     const handleClick = (e: React.MouseEvent) => {
-      e.stopPropagation(); // 阻止事件冒泡
-      console.log('[FileMessageCard] 点击文件:', { filename, fileUrl, fileSize });
+      e.stopPropagation();
       if (!fileUrl) {
-        console.log('[FileMessageCard] fileUrl为空，无法打开');
+        toast({ title: t('liaoliao.uploadFailed') || '文件上传失败', variant: 'destructive' });
         return;
       }
       
-      // 直接打开URL
-      console.log('[FileMessageCard] 正在打开文件:', fileUrl);
-      window.open(fileUrl, '_blank');
+      if (canPreview) {
+        // 调用父组件的预览回调
+        handleFilePreview(fileUrl, filename, previewType, iconConfig);
+      } else {
+        // 调用父组件的下载回调
+        handleFileDownload(fileUrl, filename);
+      }
     };
     
     return (
       <div 
-        onClick={(e) => {
-          e.stopPropagation();
-          if (!fileUrl) return;
-          console.log('[FileMessageCard] 链接点击:', fileUrl);
-          // 直接跳转到文件URL（用户可以用返回按钮回来）
-          window.location.href = fileUrl;
-        }}
+        onClick={handleClick}
         className={cn(
           "flex items-center gap-3 p-3 rounded-lg min-w-[220px] max-w-[280px] cursor-pointer transition-opacity hover:opacity-90",
           isOwn ? "bg-white/10" : "bg-background border"
@@ -1323,7 +1445,14 @@ export default function LiaoliaoChatDetail() {
           )}>
             {fileSize && <span>{formatFileSize(fileSize)}</span>}
             {fileSize && <span>·</span>}
-            <span>{fileUrl ? t('liaoliao.clickToOpen') || '点击打开' : t('liaoliao.uploadFailed')}</span>
+            <span>
+              {!fileUrl 
+                ? (t('liaoliao.uploadFailed') || '上传失败')
+                : canPreview 
+                  ? (t('liaoliao.clickToPreview') || '点击预览')
+                  : (t('liaoliao.clickToDownload') || '点击下载')
+              }
+            </span>
           </div>
         </div>
       </div>
