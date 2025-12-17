@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams, useLocation } from 'wouter';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ImagePreview } from '@/components/ui/image-preview';
 import { LocationPicker } from '@/components/LocationPicker';
-import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder, Loader2, Check, Navigation, Download } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder, Loader2, Check, Navigation, Download, Languages } from 'lucide-react';
 import { VoiceInputIcon } from '@/components/icons/VoiceInputIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,6 +16,22 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
+// 翻译结果缓存接口
+interface TranslationCache {
+  [messageId: number]: {
+    translatedText: string;
+    originalText: string;
+    needsTranslation: boolean;
+    isLoading: boolean;
+  };
+}
+
+// 获取用户浏览器语言偏好
+function getBrowserLanguage(): string {
+  const lang = navigator.language || (navigator as any).userLanguage || 'en-US';
+  return lang.toLowerCase().replace('_', '-');
+}
 
 interface Message {
   id: number;
@@ -113,6 +129,14 @@ export default function LiaoliaoChatDetail() {
     type: 'image' | 'video' | 'audio' | 'pdf' | 'none';
     iconConfig: { icon: string; color: string; bgColor: string };
   }>({ show: false, url: '', filename: '', type: 'none', iconConfig: { icon: '', color: '', bgColor: '' } });
+  
+  // 翻译相关状态
+  const [translationCache, setTranslationCache] = useState<TranslationCache>({});
+  const [showOriginalMessageId, setShowOriginalMessageId] = useState<number | null>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // 获取浏览器语言偏好
+  const browserLanguage = useMemo(() => getBrowserLanguage(), []);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -268,6 +292,122 @@ export default function LiaoliaoChatDetail() {
       type,
       iconConfig
     });
+  }, []);
+
+  // 翻译单条消息
+  const translateMessage = useCallback(async (messageId: number, text: string) => {
+    // 如果已经在缓存中且不是加载状态，跳过
+    if (translationCache[messageId] && !translationCache[messageId].isLoading) {
+      return;
+    }
+    
+    // 设置加载状态
+    setTranslationCache(prev => ({
+      ...prev,
+      [messageId]: {
+        translatedText: text,
+        originalText: text,
+        needsTranslation: false,
+        isLoading: true
+      }
+    }));
+    
+    try {
+      const token = localStorage.getItem('userToken');
+      const response = await fetch('/api/translate/message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          text,
+          targetLang: browserLanguage
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setTranslationCache(prev => ({
+          ...prev,
+          [messageId]: {
+            translatedText: result.translatedText,
+            originalText: result.originalText,
+            needsTranslation: result.needsTranslation,
+            isLoading: false
+          }
+        }));
+      } else {
+        setTranslationCache(prev => ({
+          ...prev,
+          [messageId]: {
+            translatedText: text,
+            originalText: text,
+            needsTranslation: false,
+            isLoading: false
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Translation error:', error);
+      setTranslationCache(prev => ({
+        ...prev,
+        [messageId]: {
+          translatedText: text,
+          originalText: text,
+          needsTranslation: false,
+          isLoading: false
+        }
+      }));
+    }
+  }, [browserLanguage, translationCache]);
+
+  // 对收到的消息进行翻译
+  useEffect(() => {
+    if (!messages.length || !user) return;
+    
+    // 找出需要翻译的消息（收到的文本消息和语音消息）
+    const messagesToTranslate = messages.filter(msg => {
+      const isOwn = msg.fromUserId === user.id;
+      const isTextOrAudio = msg.messageType === 'text' || msg.messageType === 'audio';
+      const notInCache = !translationCache[msg.id];
+      const hasContent = msg.content && msg.content.trim();
+      
+      // 只翻译收到的消息（不是自己发的）
+      return !isOwn && isTextOrAudio && notInCache && hasContent;
+    });
+    
+    // 批量翻译（限制并发数）
+    messagesToTranslate.slice(0, 5).forEach(msg => {
+      translateMessage(msg.id, msg.content);
+    });
+  }, [messages, user, translationCache, translateMessage]);
+
+  // 长按开始 - 显示原文
+  const handleLongPressStart = useCallback((messageId: number) => {
+    longPressTimerRef.current = setTimeout(() => {
+      setShowOriginalMessageId(messageId);
+    }, 500); // 500ms 长按
+  }, []);
+
+  // 长按结束 - 恢复显示译文
+  const handleLongPressEnd = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    setShowOriginalMessageId(null);
+  }, []);
+
+  // 清理长按定时器
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    };
   }, []);
 
   const startVoiceRecording = useCallback(async () => {
@@ -726,43 +866,122 @@ export default function LiaoliaoChatDetail() {
                         ? 'bg-[#38B03B] text-white rounded-br-md'
                         : 'bg-muted rounded-bl-md'
                     }`}
+                    onTouchStart={() => !isOwn && handleLongPressStart(message.id)}
+                    onTouchEnd={handleLongPressEnd}
+                    onTouchCancel={handleLongPressEnd}
+                    onMouseDown={() => !isOwn && handleLongPressStart(message.id)}
+                    onMouseUp={handleLongPressEnd}
+                    onMouseLeave={handleLongPressEnd}
                   >
-                    {message.messageType === 'text' && (
-                      <p className="text-sm whitespace-pre-wrap break-words">
-                        {message.content}
-                      </p>
-                    )}
-                    {message.messageType === 'audio' && (
-                      message.mediaUrl ? (
-                        <div className="flex items-center gap-2 min-w-[120px]">
-                          <button
-                            className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                              isOwn ? 'bg-white/20' : 'bg-primary/10'
-                            }`}
-                            onClick={() => {
-                              const audio = new Audio(message.mediaUrl);
-                              audio.play();
-                            }}
-                            data-testid={`voice-play-${message.id}`}
-                          >
-                            <Play className={`w-4 h-4 ${isOwn ? 'text-white' : 'text-primary'}`} />
-                          </button>
-                          <div className="flex-1">
-                            <div className={`h-1 rounded-full ${isOwn ? 'bg-white/30' : 'bg-primary/20'}`}>
-                              <div className={`h-full w-0 rounded-full ${isOwn ? 'bg-white' : 'bg-primary'}`} />
+                    {message.messageType === 'text' && (() => {
+                      const cached = translationCache[message.id];
+                      const showOriginal = showOriginalMessageId === message.id;
+                      const displayText = !isOwn && cached && cached.needsTranslation && !showOriginal
+                        ? cached.translatedText
+                        : message.content;
+                      const isTranslated = !isOwn && cached && cached.needsTranslation && !showOriginal;
+                      const isLoading = !isOwn && cached && cached.isLoading;
+                      
+                      return (
+                        <div className="relative">
+                          <p className="text-sm whitespace-pre-wrap break-words">
+                            {displayText}
+                          </p>
+                          {isLoading && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <Loader2 className="w-3 h-3 animate-spin opacity-50" />
+                              <span className={cn("text-xs opacity-50", isOwn ? "text-white/70" : "text-muted-foreground")}>
+                                {t('liaoliao.translating') || '翻译中...'}
+                              </span>
                             </div>
+                          )}
+                          {isTranslated && !isLoading && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <Languages className="w-3 h-3 opacity-50" />
+                              <span className={cn("text-xs opacity-50", isOwn ? "text-white/70" : "text-muted-foreground")}>
+                                {t('liaoliao.translated') || '已翻译'} · {t('liaoliao.longPressOriginal') || '长按查看原文'}
+                              </span>
+                            </div>
+                          )}
+                          {showOriginal && cached && cached.needsTranslation && (
+                            <div className="mt-2 pt-2 border-t border-current/20">
+                              <p className={cn("text-xs opacity-70", isOwn ? "text-white/80" : "text-foreground/80")}>
+                                {t('liaoliao.originalText') || '原文'}:
+                              </p>
+                              <p className="text-sm whitespace-pre-wrap break-words mt-1">
+                                {cached.originalText}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    {message.messageType === 'audio' && (() => {
+                      const cached = translationCache[message.id];
+                      const showOriginal = showOriginalMessageId === message.id;
+                      const hasTranslation = !isOwn && cached && cached.needsTranslation;
+                      const isLoading = !isOwn && cached && cached.isLoading;
+                      
+                      return message.mediaUrl ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 min-w-[120px]">
+                            <button
+                              className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                isOwn ? 'bg-white/20' : 'bg-primary/10'
+                              }`}
+                              onClick={() => {
+                                const audio = new Audio(message.mediaUrl);
+                                audio.play();
+                              }}
+                              data-testid={`voice-play-${message.id}`}
+                            >
+                              <Play className={`w-4 h-4 ${isOwn ? 'text-white' : 'text-primary'}`} />
+                            </button>
+                            <div className="flex-1">
+                              <div className={`h-1 rounded-full ${isOwn ? 'bg-white/30' : 'bg-primary/20'}`}>
+                                <div className={`h-full w-0 rounded-full ${isOwn ? 'bg-white' : 'bg-primary'}`} />
+                              </div>
+                            </div>
+                            <span className={`text-xs ${isOwn ? 'text-white/70' : 'text-muted-foreground'}`}>
+                              {message.content?.match(/\d+/)?.[0] || '0'}s
+                            </span>
                           </div>
-                          <span className={`text-xs ${isOwn ? 'text-white/70' : 'text-muted-foreground'}`}>
-                            {message.content?.match(/\d+/)?.[0] || '0'}s
-                          </span>
+                          {!isOwn && (
+                            <div className="pt-1 border-t border-current/10">
+                              {isLoading ? (
+                                <div className="flex items-center gap-1">
+                                  <Loader2 className="w-3 h-3 animate-spin opacity-50" />
+                                  <span className={cn("text-xs opacity-50", "text-muted-foreground")}>
+                                    {t('liaoliao.translating') || '翻译中...'}
+                                  </span>
+                                </div>
+                              ) : hasTranslation ? (
+                                <div>
+                                  <p className="text-sm whitespace-pre-wrap break-words">
+                                    {showOriginal ? cached.originalText : cached.translatedText}
+                                  </p>
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <Languages className="w-3 h-3 opacity-50" />
+                                    <span className="text-xs opacity-50 text-muted-foreground">
+                                      {showOriginal 
+                                        ? (t('liaoliao.originalText') || '原文')
+                                        : (t('liaoliao.voiceTranslated') || '语音译文')}
+                                    </span>
+                                  </div>
+                                </div>
+                              ) : cached ? (
+                                <p className="text-xs opacity-60">{cached.translatedText || message.content}</p>
+                              ) : null}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
                           <Play className="w-4 h-4" />
                           <span className="text-sm">{message.content}</span>
                         </div>
-                      )
-                    )}
+                      );
+                    })()}
                     {message.messageType === 'image' && (
                       message.mediaUrl ? (
                         <div className="overflow-hidden rounded-lg">
