@@ -25,6 +25,9 @@ interface Friend {
   isAI?: boolean;
 }
 
+// AI助理的固定用户ID（对应数据库中的用户记录）
+const AI_ASSISTANT_USER_ID = 4;
+
 export default function SelectContacts() {
   const [, navigate] = useLocation();
   const [, params] = useRoute('/liaoliao/chat/:friendId/select-contacts');
@@ -40,9 +43,9 @@ export default function SelectContacts() {
     queryKey: ['/api/liaoliao/chats'],
   });
 
-  // 构建AI助理
+  // 构建AI助理（使用固定的数据库用户ID）
   const aiAssistant: Friend = {
-    id: 'ai-assistant',
+    id: AI_ASSISTANT_USER_ID,
     displayName: t('liaoliao.aiAssistant') || '刷刷小助手',
     avatarUrl: undefined,
     isAI: true,
@@ -133,7 +136,7 @@ export default function SelectContacts() {
       return;
     }
     
-    // 收集所有成员ID（当前聊天对象 + 选中的联系人，排除AI助理）
+    // 收集所有成员ID（当前聊天对象 + 选中的联系人，包括AI助理）
     const memberIds: number[] = [];
     if (friendId) {
       memberIds.push(parseInt(friendId));
@@ -142,7 +145,6 @@ export default function SelectContacts() {
       if (typeof id === 'number') {
         memberIds.push(id);
       }
-      // 字符串id（如'ai-assistant'）不加入群聊成员
     });
 
     // 获取选中的联系人名称用于生成群名
