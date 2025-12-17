@@ -10433,6 +10433,45 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // 更新群组信息（群名称等）
+  app.patch('/api/liaoliao/groups/:groupId', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const groupId = parseInt(req.params.groupId);
+      const { name } = req.body;
+
+      if (!groupId) {
+        return res.status(400).json({ message: 'Invalid group ID' });
+      }
+
+      // 验证用户是群成员
+      const [membership] = await db
+        .select()
+        .from(liaoliaoGroupMembers)
+        .where(and(
+          eq(liaoliaoGroupMembers.groupId, groupId),
+          eq(liaoliaoGroupMembers.userId, userId)
+        ));
+
+      if (!membership) {
+        return res.status(403).json({ message: 'Not a member of this group' });
+      }
+
+      // 更新群名称
+      if (name && name.trim()) {
+        await db
+          .update(liaoliaoGroups)
+          .set({ name: name.trim() })
+          .where(eq(liaoliaoGroups.id, groupId));
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Update group error:', error);
+      res.status(500).json({ message: 'Failed to update group' });
+    }
+  });
+
   // 删除群组
   app.delete('/api/liaoliao/groups/:groupId', userAuthMiddleware, async (req: Request, res: Response) => {
     try {
