@@ -66,6 +66,7 @@ export default function ChatMenu() {
   const friendInfo = messages.find(m => m.fromUserId === friendId)?.fromUser || {
     id: friendId,
     displayName: t('liaoliao.unknownUser') || '未知用户',
+    avatarUrl: undefined,
   };
 
   // 状态
