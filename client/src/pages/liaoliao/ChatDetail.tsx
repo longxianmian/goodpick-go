@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ImagePreview } from '@/components/ui/image-preview';
+import { LocationPicker } from '@/components/LocationPicker';
 import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder, Loader2, Check, Navigation } from 'lucide-react';
 import { VoiceInputIcon } from '@/components/icons/VoiceInputIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -1068,46 +1069,26 @@ export default function LiaoliaoChatDetail() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showLocationDialog} onOpenChange={setShowLocationDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-center">{t('liaoliao.shareLocation')}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="bg-orange-100 dark:bg-orange-900/30 rounded-lg p-6 text-center">
-              <MapPin className="w-12 h-12 mx-auto mb-2 text-orange-500" />
-              {currentLocation ? (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">{t('liaoliao.locationObtained')}</p>
-                  <p className="text-xs text-muted-foreground">{currentLocation.address}</p>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">{t('liaoliao.clickToGetLocation')}</p>
-              )}
-            </div>
-            {!currentLocation ? (
-              <Button 
-                className="w-full" 
-                onClick={handleGetLocation}
-                disabled={isGettingLocation}
-                data-testid="button-get-location"
-              >
-                {isGettingLocation ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Navigation className="w-4 h-4 mr-2" />}
-                {t('liaoliao.getCurrentLocation')}
-              </Button>
-            ) : (
-              <Button 
-                className="w-full bg-orange-500 hover:bg-orange-600" 
-                onClick={handleSendLocation}
-                disabled={sendMutation.isPending}
-                data-testid="button-send-location"
-              >
-                {sendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t('liaoliao.sendLocation')}
-              </Button>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {showLocationDialog && (
+        <LocationPicker
+          onClose={() => setShowLocationDialog(false)}
+          onSelectLocation={(location) => {
+            sendMutation.mutate({ 
+              content: location.mapUrl,
+              messageType: 'location',
+              metadata: {
+                mapUrl: location.mapUrl,
+                address: location.address,
+                latitude: location.latitude,
+                longitude: location.longitude,
+                title: location.name
+              }
+            });
+            setShowLocationDialog(false);
+            toast({ title: t('liaoliao.locationSent') || '位置已发送' });
+          }}
+        />
+      )}
 
       <Dialog open={showCallDialog !== null} onOpenChange={() => setShowCallDialog(null)}>
         <DialogContent className="max-w-sm">
@@ -1367,18 +1348,14 @@ export default function LiaoliaoChatDetail() {
           </div>
           
           <div className={cn("p-3", isOwn ? "bg-[#38B03B] text-white" : "bg-white dark:bg-slate-800")}>
-            <p className={cn("text-[14px] font-medium", isOwn ? "text-white" : "text-slate-900 dark:text-slate-100")}>
+            <p className={cn("text-[14px] font-medium truncate", isOwn ? "text-white" : "text-slate-900 dark:text-slate-100")}>
               {title}
             </p>
-            {coordsDisplay && (
-              <p className={cn("text-xs mt-0.5", isOwn ? "text-white/70" : "text-slate-500 dark:text-slate-400")}>
-                {coordsDisplay}
+            {message.metadata?.address && (
+              <p className={cn("text-xs mt-0.5 line-clamp-2", isOwn ? "text-white/70" : "text-slate-500 dark:text-slate-400")}>
+                {message.metadata.address}
               </p>
             )}
-            <div className={cn("flex items-center gap-1 mt-1.5 text-xs", isOwn ? "text-white/80" : "text-emerald-600 dark:text-emerald-400")}>
-              <MapPin className="w-3 h-3" />
-              <span>点击打开地图</span>
-            </div>
           </div>
         </div>
       </div>
