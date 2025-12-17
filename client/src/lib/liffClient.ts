@@ -260,6 +260,56 @@ export async function isShareTargetPickerAvailable(): Promise<boolean> {
 }
 
 /**
+ * 请求麦克风权限
+ * 在 LINE WebView 中使用 LIFF permission API，在普通浏览器中使用 getUserMedia
+ */
+export async function requestMicrophonePermission(): Promise<boolean> {
+  try {
+    // 检查是否在 LINE 内部浏览器
+    if (isInLineApp() && window.liff) {
+      console.log('[LiffClient] 在 LINE 内，尝试使用 LIFF permission API');
+      
+      // 确保 LIFF 已初始化
+      await ensureLiffReady();
+      
+      // 检查 permission API 是否可用
+      if (window.liff.permission && typeof window.liff.permission.query === 'function') {
+        const permissionStatus = await window.liff.permission.query('microphone');
+        console.log('[LiffClient] 麦克风权限状态:', permissionStatus);
+        
+        if (permissionStatus === 'granted') {
+          return true;
+        }
+        
+        if (permissionStatus === 'prompt' && typeof window.liff.permission.request === 'function') {
+          const result = await window.liff.permission.request({ scopes: ['microphone'] });
+          console.log('[LiffClient] 权限请求结果:', result);
+          return result?.microphone === 'granted';
+        }
+        
+        // 如果是 denied，返回 false
+        if (permissionStatus === 'denied') {
+          console.log('[LiffClient] 麦克风权限被拒绝');
+          return false;
+        }
+      }
+      
+      // LIFF permission API 不可用，回退到 getUserMedia
+      console.log('[LiffClient] LIFF permission API 不可用，回退到 getUserMedia');
+    }
+    
+    // 普通浏览器或 LIFF API 不可用时，使用标准 Web API
+    console.log('[LiffClient] 使用 getUserMedia 请求麦克风权限');
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(track => track.stop());
+    return true;
+  } catch (error) {
+    console.error('[LiffClient] 麦克风权限请求失败:', error);
+    return false;
+  }
+}
+
+/**
  * 使用 shareTargetPicker 发送邀请消息给LINE好友
  */
 export async function shareInviteToLineFriends(inviteUrl: string, inviterName: string): Promise<boolean> {

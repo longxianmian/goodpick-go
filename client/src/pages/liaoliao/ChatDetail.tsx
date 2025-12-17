@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { requestMicrophonePermission } from '@/lib/liffClient';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -497,7 +498,15 @@ export default function LiaoliaoChatDetail() {
     }
     
     try {
+      // 先请求麦克风权限（支持 LIFF 和普通浏览器）
       console.log('[Voice] 请求麦克风权限...');
+      const hasPermission = await requestMicrophonePermission();
+      if (!hasPermission) {
+        console.error('[Voice] 麦克风权限被拒绝');
+        return;
+      }
+      
+      // 权限获取成功，开始录音
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       console.log('[Voice] 麦克风权限获取成功');
       
@@ -622,16 +631,11 @@ export default function LiaoliaoChatDetail() {
       return;
     }
 
-    // 先检查并请求麦克风权限
-    try {
-      console.log('[STT] 请求麦克风权限...');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // 立即停止，只是为了触发权限请求
-      stream.getTracks().forEach(track => track.stop());
-      console.log('[STT] 麦克风权限获取成功');
-    } catch (error: any) {
-      console.error('[STT] 麦克风权限被拒绝:', error);
-      // 权限被拒绝，不继续
+    // 先请求麦克风权限（支持 LIFF 和普通浏览器）
+    console.log('[STT] 请求麦克风权限...');
+    const hasPermission = await requestMicrophonePermission();
+    if (!hasPermission) {
+      console.error('[STT] 麦克风权限被拒绝');
       return;
     }
 
