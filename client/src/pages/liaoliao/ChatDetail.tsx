@@ -39,6 +39,8 @@ interface Message {
     contactUsername?: string;
     contactName?: string;
     contactAvatar?: string;
+    fileSize?: number;
+    fileName?: string;
   };
   createdAt: string;
   fromUser: {
@@ -453,7 +455,8 @@ export default function LiaoliaoChatDetail() {
           sendMutation.mutate({ 
             content: messageContent, 
             messageType: type === 'file' ? 'file' : 'image',
-            mediaUrl: fileUrl
+            mediaUrl: fileUrl,
+            metadata: type === 'file' ? { fileSize: file.size, fileName: file.name } : undefined
           });
           toast({ title: t('liaoliao.messageSent'), description: file.name });
         } else {
@@ -748,30 +751,7 @@ export default function LiaoliaoChatDetail() {
                       )
                     )}
                     {message.messageType === 'file' && (
-                      <div 
-                        onClick={() => {
-                          const filename = message.content?.replace(/^\[文件\]\s*/, '').replace(/^\[File\]\s*/, '') || 'file';
-                          handleFileDownload(message.mediaUrl || '', filename);
-                        }}
-                        className={`flex items-center gap-3 p-3 rounded-lg min-w-[200px] cursor-pointer ${
-                          isOwn ? 'bg-white/10' : 'bg-background'
-                        }`}
-                        data-testid={`file-message-${message.id}`}
-                      >
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          isOwn ? 'bg-white/20' : 'bg-primary/10'
-                        }`}>
-                          <FileText className={`w-5 h-5 ${isOwn ? 'text-white' : 'text-primary'}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {message.content?.replace(/^\[文件\]\s*/, '').replace(/^\[File\]\s*/, '') || t('liaoliao.fileMessage')}
-                          </p>
-                          <p className={`text-xs ${isOwn ? 'text-white/70' : 'text-muted-foreground'}`}>
-                            {message.mediaUrl ? t('liaoliao.clickToDownload') : t('liaoliao.uploadFailed')}
-                          </p>
-                        </div>
-                      </div>
+                      <FileMessageCard message={message} isOwn={isOwn} />
                     )}
                     {message.messageType === 'location' && (
                       <LocationMapCard message={message} isOwn={isOwn} />
@@ -1233,6 +1213,120 @@ export default function LiaoliaoChatDetail() {
       />
     </div>
   );
+
+  // File Message Card Component - 微信风格文件消息卡片
+  function FileMessageCard({ message, isOwn }: { message: Message; isOwn: boolean }) {
+    // 从消息内容中提取文件名
+    const filename = message.content?.replace(/^\[文件\]\s*/, '').replace(/^\[File\]\s*/, '') || 'file';
+    const fileUrl = message.mediaUrl || '';
+    const fileSize = message.metadata?.fileSize;
+    
+    // 获取文件扩展名
+    const getFileExtension = (name: string): string => {
+      const ext = name.split('.').pop()?.toLowerCase() || '';
+      return ext;
+    };
+    
+    // 格式化文件大小
+    const formatFileSize = (bytes?: number): string => {
+      if (!bytes) return '';
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+    };
+    
+    // 根据文件类型获取图标配置
+    const getFileIconConfig = (ext: string): { icon: string; color: string; bgColor: string } => {
+      const configs: Record<string, { icon: string; color: string; bgColor: string }> = {
+        // 文档类
+        pdf: { icon: 'PDF', color: 'text-red-600', bgColor: 'bg-red-100 dark:bg-red-900/30' },
+        doc: { icon: 'W', color: 'text-blue-600', bgColor: 'bg-blue-100 dark:bg-blue-900/30' },
+        docx: { icon: 'W', color: 'text-blue-600', bgColor: 'bg-blue-100 dark:bg-blue-900/30' },
+        xls: { icon: 'X', color: 'text-green-600', bgColor: 'bg-green-100 dark:bg-green-900/30' },
+        xlsx: { icon: 'X', color: 'text-green-600', bgColor: 'bg-green-100 dark:bg-green-900/30' },
+        ppt: { icon: 'P', color: 'text-orange-600', bgColor: 'bg-orange-100 dark:bg-orange-900/30' },
+        pptx: { icon: 'P', color: 'text-orange-600', bgColor: 'bg-orange-100 dark:bg-orange-900/30' },
+        txt: { icon: 'TXT', color: 'text-gray-600', bgColor: 'bg-gray-100 dark:bg-gray-800' },
+        // 压缩包
+        zip: { icon: 'ZIP', color: 'text-yellow-600', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30' },
+        rar: { icon: 'RAR', color: 'text-purple-600', bgColor: 'bg-purple-100 dark:bg-purple-900/30' },
+        '7z': { icon: '7Z', color: 'text-purple-600', bgColor: 'bg-purple-100 dark:bg-purple-900/30' },
+        // 音频
+        mp3: { icon: 'MP3', color: 'text-pink-600', bgColor: 'bg-pink-100 dark:bg-pink-900/30' },
+        wav: { icon: 'WAV', color: 'text-pink-600', bgColor: 'bg-pink-100 dark:bg-pink-900/30' },
+        // 视频
+        mp4: { icon: 'MP4', color: 'text-indigo-600', bgColor: 'bg-indigo-100 dark:bg-indigo-900/30' },
+        mov: { icon: 'MOV', color: 'text-indigo-600', bgColor: 'bg-indigo-100 dark:bg-indigo-900/30' },
+        avi: { icon: 'AVI', color: 'text-indigo-600', bgColor: 'bg-indigo-100 dark:bg-indigo-900/30' },
+        // 代码
+        js: { icon: 'JS', color: 'text-yellow-500', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30' },
+        ts: { icon: 'TS', color: 'text-blue-500', bgColor: 'bg-blue-100 dark:bg-blue-900/30' },
+        json: { icon: 'JSON', color: 'text-gray-600', bgColor: 'bg-gray-100 dark:bg-gray-800' },
+        // 图片（作为文件发送时）
+        png: { icon: 'PNG', color: 'text-teal-600', bgColor: 'bg-teal-100 dark:bg-teal-900/30' },
+        jpg: { icon: 'JPG', color: 'text-teal-600', bgColor: 'bg-teal-100 dark:bg-teal-900/30' },
+        jpeg: { icon: 'JPG', color: 'text-teal-600', bgColor: 'bg-teal-100 dark:bg-teal-900/30' },
+        gif: { icon: 'GIF', color: 'text-teal-600', bgColor: 'bg-teal-100 dark:bg-teal-900/30' },
+        svg: { icon: 'SVG', color: 'text-teal-600', bgColor: 'bg-teal-100 dark:bg-teal-900/30' },
+      };
+      return configs[ext] || { icon: ext.toUpperCase().slice(0, 3) || 'FILE', color: 'text-slate-600', bgColor: 'bg-slate-100 dark:bg-slate-800' };
+    };
+    
+    const ext = getFileExtension(filename);
+    const iconConfig = getFileIconConfig(ext);
+    
+    // 处理点击事件 - 打开或下载
+    const handleClick = () => {
+      if (!fileUrl) return;
+      
+      // 可预览的文件类型在新窗口打开
+      const previewableTypes = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'mp4', 'mov', 'mp3', 'wav', 'txt'];
+      if (previewableTypes.includes(ext)) {
+        window.open(fileUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        // 其他类型下载
+        handleFileDownload(fileUrl, filename);
+      }
+    };
+    
+    return (
+      <div 
+        onClick={handleClick}
+        className={cn(
+          "flex items-center gap-3 p-3 rounded-lg min-w-[220px] max-w-[280px] cursor-pointer transition-opacity hover:opacity-90",
+          isOwn ? "bg-white/10" : "bg-background border"
+        )}
+        data-testid={`file-message-${message.id}`}
+      >
+        {/* 文件图标 */}
+        <div className={cn(
+          "w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-xs",
+          isOwn ? "bg-white/20 text-white" : iconConfig.bgColor + ' ' + iconConfig.color
+        )}>
+          {iconConfig.icon}
+        </div>
+        
+        {/* 文件信息 */}
+        <div className="flex-1 min-w-0">
+          <p className={cn(
+            "text-sm font-medium truncate",
+            isOwn ? "text-white" : "text-foreground"
+          )}>
+            {filename}
+          </p>
+          <div className={cn(
+            "flex items-center gap-2 text-xs mt-0.5",
+            isOwn ? "text-white/70" : "text-muted-foreground"
+          )}>
+            {fileSize && <span>{formatFileSize(fileSize)}</span>}
+            {fileSize && <span>·</span>}
+            <span>{fileUrl ? t('liaoliao.clickToOpen') || '点击打开' : t('liaoliao.uploadFailed')}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Location Map Card Component
   function LocationMapCard({ message, isOwn }: { message: Message; isOwn: boolean }) {
