@@ -1270,18 +1270,23 @@ export default function LiaoliaoChatDetail() {
     const ext = getFileExtension(filename);
     const iconConfig = getFileIconConfig(ext);
     
-    // 处理点击事件 - 打开或下载
+    // 处理点击事件 - 使用<a>标签打开文件（兼容移动端）
     const handleClick = () => {
-      if (!fileUrl) return;
-      
-      // 可预览的文件类型在新窗口打开
-      const previewableTypes = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'mp4', 'mov', 'mp3', 'wav', 'txt'];
-      if (previewableTypes.includes(ext)) {
-        window.open(fileUrl, '_blank', 'noopener,noreferrer');
-      } else {
-        // 其他类型下载
-        handleFileDownload(fileUrl, filename);
+      console.log('[FileMessageCard] 点击文件:', { filename, fileUrl, fileSize });
+      if (!fileUrl) {
+        console.log('[FileMessageCard] fileUrl为空，无法打开');
+        return;
       }
+      
+      // 创建临时<a>标签并触发点击
+      const link = document.createElement('a');
+      link.href = fileUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      console.log('[FileMessageCard] 触发链接点击:', fileUrl);
+      link.click();
+      document.body.removeChild(link);
     };
     
     return (
