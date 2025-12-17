@@ -264,18 +264,35 @@ export async function isShareTargetPickerAvailable(): Promise<boolean> {
  * 在 LINE WebView 中使用 LIFF permission API，在普通浏览器中使用 getUserMedia
  */
 export async function requestMicrophonePermission(): Promise<boolean> {
+  const debugLog = (event: string, data?: any) => {
+    fetch('/api/debug-log', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event, ...data })
+    }).catch(() => {});
+  };
+  
   try {
+    const inLine = isInLineApp();
+    const hasLiff = !!window.liff;
+    debugLog('requestMicrophonePermission start', { inLine, hasLiff });
+    
     // 检查是否在 LINE 内部浏览器
-    if (isInLineApp() && window.liff) {
+    if (inLine && hasLiff) {
       console.log('[LiffClient] 在 LINE 内，尝试使用 LIFF permission API');
       
       // 确保 LIFF 已初始化
       await ensureLiffReady();
+      debugLog('LIFF ready');
       
       // 检查 permission API 是否可用
-      if (window.liff.permission && typeof window.liff.permission.query === 'function') {
+      const hasPermissionApi = window.liff.permission && typeof window.liff.permission.query === 'function';
+      debugLog('permission API check', { hasPermissionApi });
+      
+      if (hasPermissionApi) {
         const permissionStatus = await window.liff.permission.query('microphone');
         console.log('[LiffClient] 麦克风权限状态:', permissionStatus);
+        debugLog('permission query result', { permissionStatus });
         
         if (permissionStatus === 'granted') {
           return true;
@@ -284,6 +301,7 @@ export async function requestMicrophonePermission(): Promise<boolean> {
         if (permissionStatus === 'prompt' && typeof window.liff.permission.request === 'function') {
           const result = await window.liff.permission.request({ scopes: ['microphone'] });
           console.log('[LiffClient] 权限请求结果:', result);
+          debugLog('permission request result', { result: JSON.stringify(result) });
           return result?.microphone === 'granted';
         }
         
@@ -296,15 +314,19 @@ export async function requestMicrophonePermission(): Promise<boolean> {
       
       // LIFF permission API 不可用，回退到 getUserMedia
       console.log('[LiffClient] LIFF permission API 不可用，回退到 getUserMedia');
+      debugLog('fallback to getUserMedia');
     }
     
     // 普通浏览器或 LIFF API 不可用时，使用标准 Web API
     console.log('[LiffClient] 使用 getUserMedia 请求麦克风权限');
+    debugLog('calling getUserMedia');
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     stream.getTracks().forEach(track => track.stop());
+    debugLog('getUserMedia success');
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('[LiffClient] 麦克风权限请求失败:', error);
+    debugLog('error caught', { error: error?.message || String(error) });
     return false;
   }
 }
