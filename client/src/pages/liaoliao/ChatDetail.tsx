@@ -111,6 +111,7 @@ export default function LiaoliaoChatDetail() {
   const [showFavoriteDialog, setShowFavoriteDialog] = useState(false);
   const [showMusicDialog, setShowMusicDialog] = useState(false);
   const [showCallDialog, setShowCallDialog] = useState<'voice' | 'video' | null>(null);
+  const [showMicPermissionDialog, setShowMicPermissionDialog] = useState(false);
   
   const [redPacketAmount, setRedPacketAmount] = useState('');
   const [redPacketMessage, setRedPacketMessage] = useState('');
@@ -484,8 +485,68 @@ export default function LiaoliaoChatDetail() {
     };
   }, []);
 
+  // 检查是否已经授权过麦克风（使用 localStorage 记住）
+  const hasMicPermissionGranted = useCallback(() => {
+    return localStorage.getItem('micPermissionGranted') === 'true';
+  }, []);
+
+  // 标记麦克风权限已授权
+  const setMicPermissionGranted = useCallback(() => {
+    localStorage.setItem('micPermissionGranted', 'true');
+  }, []);
+
+  // 实际开始录音的函数
+  const doStartRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('[Voice] 麦克风权限获取成功');
+      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'Voice: getUserMedia success' }) }).catch(() => {});
+      
+      // 记住授权状态，下次不再询问
+      setMicPermissionGranted();
+      setShowMicPermissionDialog(false);
+
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecordingVoice(true);
+      setRecordingDuration(0);
+      console.log('[Voice] 录音开始');
+      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'Voice: recording started' }) }).catch(() => {});
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+      return true;
+    } catch (error: any) {
+      console.error('[Voice] 录音失败:', error);
+      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'Voice: error caught', error: error?.message || String(error) }) }).catch(() => {});
+      toast({
+        variant: 'destructive',
+        title: t('liaoliao.recordingFailed') || '录音失败',
+        description: error?.message || '无法访问麦克风',
+      });
+      return false;
+    }
+  }, [toast, t, setMicPermissionGranted]);
+
+  // 开始语音录制 - 点击即开始录音
   const startVoiceRecording = useCallback(async () => {
-    // 发送服务端日志来验证点击事件是否触发
     fetch('/api/debug-log', { 
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' },
@@ -507,69 +568,29 @@ export default function LiaoliaoChatDetail() {
       return;
     }
     
-    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event: 'Voice: mediaDevices supported, requesting permission' }) }).catch(() => {});
-    
-    try {
-      // 先请求麦克风权限（支持 LIFF 和普通浏览器）
-      console.log('[Voice] 请求麦克风权限...');
-      const hasPermission = await requestMicrophonePermission();
-      
+    // 如果已经授权过，直接开始录音
+    if (hasMicPermissionGranted()) {
+      console.log('[Voice] 已有授权记录，直接开始录音');
       fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'Voice: requestMicrophonePermission returned', hasPermission }) }).catch(() => {});
-      
-      if (!hasPermission) {
-        console.log('[Voice] 麦克风权限被拒绝');
-        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ event: 'Voice: permission denied' }) }).catch(() => {});
-        toast({
-          variant: 'destructive',
-          title: t('liaoliao.microphonePermissionDenied') || '麦克风权限被拒绝',
-          description: '请在浏览器设置中允许麦克风权限',
-        });
-        return;
-      }
-      
-      // 权限获取成功，开始录音
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.log('[Voice] 麦克风权限获取成功');
-      
-      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'Voice: getUserMedia success, starting recording' }) }).catch(() => {});
-      
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      mediaRecorder.start();
-      setIsRecordingVoice(true);
-      setRecordingDuration(0);
-      console.log('[Voice] 录音开始');
-
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingDuration(prev => prev + 1);
-      }, 1000);
-    } catch (error: any) {
-      console.error('[Voice] 录音失败:', error);
-      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'Voice: error caught', error: error?.message || String(error) }) }).catch(() => {});
-      toast({
-        variant: 'destructive',
-        title: t('liaoliao.recordingFailed') || '录音失败',
-        description: error?.message || '无法访问麦克风',
-      });
+        body: JSON.stringify({ event: 'Voice: has permission record, starting directly' }) }).catch(() => {});
+      await doStartRecording();
+      return;
     }
-  }, [toast, t]);
+    
+    // 首次使用，显示居中的授权对话框
+    console.log('[Voice] 首次使用，显示授权对话框');
+    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'Voice: first time, showing permission dialog' }) }).catch(() => {});
+    setShowMicPermissionDialog(true);
+  }, [toast, t, hasMicPermissionGranted, doStartRecording]);
+
+  // 用户点击允许按钮
+  const handleAllowMicrophone = useCallback(async () => {
+    console.log('[Voice] 用户点击允许按钮');
+    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'Voice: user clicked allow button' }) }).catch(() => {});
+    await doStartRecording();
+  }, [doStartRecording]);
 
   const stopVoiceRecording = useCallback(async () => {
     if (mediaRecorderRef.current && isRecordingVoice) {
@@ -1530,6 +1551,32 @@ export default function LiaoliaoChatDetail() {
           }}
         />
       )}
+
+      {/* 麦克风权限对话框 - 居中显示 */}
+      <Dialog open={showMicPermissionDialog} onOpenChange={setShowMicPermissionDialog}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-center">
+              {t('liaoliao.microphonePermission') || '麦克风权限'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4 text-center">
+            <div className="w-16 h-16 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
+              <Mic className="w-8 h-8 text-primary" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {t('liaoliao.microphonePermissionDescription') || '需要使用麦克风来录制语音消息'}
+            </p>
+            <Button 
+              className="w-full"
+              onClick={handleAllowMicrophone}
+              data-testid="button-allow-microphone"
+            >
+              {t('liaoliao.allowMicrophone') || '允许'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showCallDialog !== null} onOpenChange={() => setShowCallDialog(null)}>
         <DialogContent className="max-w-sm">
