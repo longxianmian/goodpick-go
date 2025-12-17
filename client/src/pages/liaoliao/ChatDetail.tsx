@@ -205,12 +205,13 @@ export default function LiaoliaoChatDetail() {
   const allFriends = useMemo(() => {
     const friendsMap = new Map();
     messages.forEach(msg => {
-      if (msg.fromUser && msg.fromUserId !== user?.id) {
+      // 排除自己和当前正在聊天的好友
+      if (msg.fromUser && msg.fromUserId !== user?.id && msg.fromUserId !== friendId) {
         friendsMap.set(msg.fromUserId, msg.fromUser);
       }
     });
     return Array.from(friendsMap.values());
-  }, [messages, user?.id]);
+  }, [messages, user?.id, friendId]);
 
   const sendMutation = useMutation({
     mutationFn: async (data: { content: string; messageType: string; mediaUrl?: string; metadata?: any }) => {
