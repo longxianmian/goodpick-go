@@ -1012,7 +1012,7 @@ export default function LiaoliaoChatDetail() {
         <Button 
           size="icon" 
           variant="ghost" 
-          onClick={() => setShowChatMenuSheet(true)}
+          onClick={() => navigate(`/liaoliao/chat/${friendId}/menu`)}
           data-testid="button-chat-more"
         >
           <MoreVertical className="w-5 h-5" />
