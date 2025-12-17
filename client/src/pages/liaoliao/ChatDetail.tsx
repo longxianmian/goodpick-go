@@ -7,12 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ImagePreview } from '@/components/ui/image-preview';
 import { LocationPicker } from '@/components/LocationPicker';
-import { ArrowLeft, Send, MoreVertical, Smile, Plus, Image as ImageIcon, Camera, MapPin, Gift, X, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder, Loader2, Check, Navigation, Download, Languages } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, Smile, Plus, Mic, Image as ImageIcon, Camera, MapPin, Gift, X, Play, Pause, Square, FileText, Phone, Video, Star, UserCircle, Wallet, Music, Folder, Loader2, Check, Navigation, Download, Languages } from 'lucide-react';
+import { VoiceInputIcon } from '@/components/icons/VoiceInputIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { requestMicrophonePermission } from '@/lib/liffClient';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -95,6 +97,10 @@ export default function LiaoliaoChatDetail() {
   const [inputValue, setInputValue] = useState('');
   const [showActionPanel, setShowActionPanel] = useState(false);
   const [showEmojiPanel, setShowEmojiPanel] = useState(false);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [isRecordingToText, setIsRecordingToText] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [voiceInputMode, setVoiceInputMode] = useState(false);
   
   const [showRedPacketDialog, setShowRedPacketDialog] = useState(false);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
@@ -119,6 +125,10 @@ export default function LiaoliaoChatDetail() {
   const [previewImageIndex, setPreviewImageIndex] = useState(0);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   
+  // 语音播放状态
+  const [playingVoiceId, setPlayingVoiceId] = useState<number | null>(null);
+  const [voiceProgress, setVoiceProgress] = useState(0);
+  const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
   
   // 文件预览状态 - 提升到父组件防止嵌套函数组件状态重置
   const [filePreviewData, setFilePreviewData] = useState<{
@@ -140,6 +150,9 @@ export default function LiaoliaoChatDetail() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const baseInputValueRef = useRef<string>('');
   const photoInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
