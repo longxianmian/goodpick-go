@@ -9893,6 +9893,119 @@ export function registerRoutes(app: Express): Server {
   // 聊聊模块 API - LiaoLiao Social Chat
   // ============================================
 
+  // 消息翻译 API - 将消息翻译成用户浏览器语言
+  app.post('/api/translate/message', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { translateMessage, isTranslationEnabled } = await import('./services/translationService');
+      
+      const { text, targetLang } = req.body;
+      
+      if (!text || typeof text !== 'string') {
+        return res.status(400).json({ success: false, message: '文本不能为空' });
+      }
+      
+      if (!targetLang || typeof targetLang !== 'string') {
+        return res.status(400).json({ success: false, message: '目标语言不能为空' });
+      }
+      
+      // 检查翻译服务是否可用
+      if (!isTranslationEnabled()) {
+        return res.json({ 
+          success: true, 
+          translatedText: text,
+          originalText: text,
+          detectedLang: 'unknown',
+          needsTranslation: false,
+          serviceAvailable: false
+        });
+      }
+      
+      const result = await translateMessage(text, targetLang);
+      
+      res.json({ 
+        success: true,
+        translatedText: result.translatedText,
+        originalText: text,
+        detectedLang: result.detectedLang,
+        needsTranslation: result.needsTranslation,
+        serviceAvailable: true
+      });
+    } catch (error: any) {
+      console.error('Translation error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: '翻译服务出错',
+        translatedText: req.body?.text || '',
+        originalText: req.body?.text || ''
+      });
+    }
+  });
+
+  // 批量翻译消息 API - 一次翻译多条消息
+  app.post('/api/translate/messages', userAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { translateMessage, isTranslationEnabled } = await import('./services/translationService');
+      
+      const { messages, targetLang } = req.body;
+      
+      if (!messages || !Array.isArray(messages)) {
+        return res.status(400).json({ success: false, message: '消息列表不能为空' });
+      }
+      
+      if (!targetLang || typeof targetLang !== 'string') {
+        return res.status(400).json({ success: false, message: '目标语言不能为空' });
+      }
+      
+      // 检查翻译服务是否可用
+      if (!isTranslationEnabled()) {
+        return res.json({ 
+          success: true,
+          translations: messages.map((msg: { id: number; text: string }) => ({
+            id: msg.id,
+            translatedText: msg.text,
+            originalText: msg.text,
+            detectedLang: 'unknown',
+            needsTranslation: false
+          })),
+          serviceAvailable: false
+        });
+      }
+      
+      // 并行翻译所有消息
+      const translations = await Promise.all(
+        messages.map(async (msg: { id: number; text: string }) => {
+          try {
+            const result = await translateMessage(msg.text, targetLang);
+            return {
+              id: msg.id,
+              translatedText: result.translatedText,
+              originalText: msg.text,
+              detectedLang: result.detectedLang,
+              needsTranslation: result.needsTranslation
+            };
+          } catch (error) {
+            return {
+              id: msg.id,
+              translatedText: msg.text,
+              originalText: msg.text,
+              detectedLang: 'unknown',
+              needsTranslation: false
+            };
+          }
+        })
+      );
+      
+      res.json({ 
+        success: true,
+        translations,
+        serviceAvailable: true
+      });
+    } catch (error: any) {
+      console.error('Batch translation error:', error);
+      res.status(500).json({ success: false, message: '翻译服务出错' });
+    }
+  });
+
   // AI聊天接口
   app.post('/api/liaoliao/ai-chat', userAuthMiddleware, async (req: Request, res: Response) => {
     try {
