@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
   ArrowLeft, Send, MoreVertical, Loader2, Mic, Smile, Plus, X,
-  ImageIcon, Camera, FileText, MapPin, Wallet, Gift, Music, CreditCard, Bot, Sparkles
+  ImageIcon, Camera, MapPin, Gift, Folder, UserCircle, Phone, Video, Star, Wallet, Music, FileText, Bot, Sparkles
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -324,14 +324,18 @@ export default function GroupChat() {
   };
 
   const actionItems = [
-    { icon: ImageIcon, label: t('liaoliao.photo') || '照片', color: 'bg-blue-500', action: () => photoInputRef.current?.click() },
-    { icon: Camera, label: t('liaoliao.camera') || '拍照', color: 'bg-green-500', action: () => cameraInputRef.current?.click() },
-    { icon: FileText, label: t('liaoliao.file') || '文件', color: 'bg-orange-500', action: () => fileInputRef.current?.click() },
-    { icon: MapPin, label: t('liaoliao.location') || '位置', color: 'bg-purple-500', action: () => toast({ title: t('liaoliao.comingSoon') || '即将推出' }) },
-    { icon: Gift, label: t('liaoliao.redPacket') || '红包', color: 'bg-red-500', action: () => setShowRedPacketDialog(true) },
-    { icon: Wallet, label: t('liaoliao.transfer') || '转账', color: 'bg-amber-500', action: () => toast({ title: t('liaoliao.comingSoon') || '即将推出' }) },
-    { icon: CreditCard, label: t('liaoliao.coupon') || '优惠券', color: 'bg-pink-500', action: () => toast({ title: t('liaoliao.comingSoon') || '即将推出' }) },
-    { icon: Music, label: t('liaoliao.music') || '音乐', color: 'bg-indigo-500', action: () => toast({ title: t('liaoliao.comingSoon') || '即将推出' }) },
+    { icon: ImageIcon, label: t('liaoliao.actionPhoto'), color: 'bg-blue-500', action: () => { photoInputRef.current?.click(); setShowActionPanel(false); } },
+    { icon: Camera, label: t('liaoliao.actionCamera'), color: 'bg-green-500', action: () => { cameraInputRef.current?.click(); setShowActionPanel(false); } },
+    { icon: MapPin, label: t('liaoliao.actionLocation'), color: 'bg-orange-500', action: () => toast({ title: t('liaoliao.comingSoon') }) },
+    { icon: Gift, label: t('liaoliao.actionRedPacket'), color: 'bg-red-500', action: () => { setShowRedPacketDialog(true); setShowActionPanel(false); } },
+    { icon: Folder, label: t('liaoliao.actionFolder'), color: 'bg-purple-500', action: () => { fileInputRef.current?.click(); setShowActionPanel(false); } },
+    { icon: UserCircle, label: t('liaoliao.actionContact'), color: 'bg-cyan-500', action: () => toast({ title: t('liaoliao.comingSoon') }) },
+    { icon: Phone, label: t('liaoliao.actionVoiceCall'), color: 'bg-emerald-500', action: () => toast({ title: t('liaoliao.comingSoon') }) },
+    { icon: Video, label: t('liaoliao.actionVideoCall'), color: 'bg-pink-500', action: () => toast({ title: t('liaoliao.comingSoon') }) },
+    { icon: Star, label: t('liaoliao.actionFavorite'), color: 'bg-amber-500', action: () => toast({ title: t('liaoliao.comingSoon') }) },
+    { icon: Wallet, label: t('liaoliao.actionTransfer'), color: 'bg-teal-500', action: () => toast({ title: t('liaoliao.comingSoon') }) },
+    { icon: Music, label: t('liaoliao.actionMusic'), color: 'bg-rose-500', action: () => toast({ title: t('liaoliao.comingSoon') }) },
+    { icon: FileText, label: t('liaoliao.actionCoupon'), color: 'bg-indigo-500', action: () => toast({ title: t('liaoliao.comingSoon') }) },
   ];
 
   useEffect(() => {
