@@ -111,7 +111,6 @@ export default function LiaoliaoChatDetail() {
   const [showFavoriteDialog, setShowFavoriteDialog] = useState(false);
   const [showMusicDialog, setShowMusicDialog] = useState(false);
   const [showCallDialog, setShowCallDialog] = useState<'voice' | 'video' | null>(null);
-  const [showMicPermissionDialog, setShowMicPermissionDialog] = useState(false);
   
   const [redPacketAmount, setRedPacketAmount] = useState('');
   const [redPacketMessage, setRedPacketMessage] = useState('');
@@ -485,28 +484,23 @@ export default function LiaoliaoChatDetail() {
     };
   }, []);
 
-  // 检查是否已经授权过麦克风（使用 localStorage 记住）
-  const hasMicPermissionGranted = useCallback(() => {
-    return localStorage.getItem('micPermissionGranted') === 'true';
-  }, []);
-
-  // 标记麦克风权限已授权
-  const setMicPermissionGranted = useCallback(() => {
-    localStorage.setItem('micPermissionGranted', 'true');
-  }, []);
-
-  // 实际开始录音的函数
-  const doStartRecording = useCallback(async () => {
+  // 开始语音录制 - 点击即开始录音
+  const startVoiceRecording = useCallback(async () => {
+    console.log('[Voice] 开始录音...');
+    
+    // 检查浏览器支持
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast({
+        variant: 'destructive',
+        title: t('liaoliao.recordingNotSupported') || '录音不支持',
+        description: '您的浏览器不支持录音功能',
+      });
+      return;
+    }
+    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.log('[Voice] 麦克风权限获取成功');
-      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'Voice: getUserMedia success' }) }).catch(() => {});
       
-      // 记住授权状态，下次不再询问
-      setMicPermissionGranted();
-      setShowMicPermissionDialog(false);
-
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -524,73 +518,18 @@ export default function LiaoliaoChatDetail() {
       mediaRecorder.start();
       setIsRecordingVoice(true);
       setRecordingDuration(0);
-      console.log('[Voice] 录音开始');
-      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'Voice: recording started' }) }).catch(() => {});
 
       recordingTimerRef.current = setInterval(() => {
         setRecordingDuration(prev => prev + 1);
       }, 1000);
-      return true;
     } catch (error: any) {
-      console.error('[Voice] 录音失败:', error);
-      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'Voice: error caught', error: error?.message || String(error) }) }).catch(() => {});
       toast({
         variant: 'destructive',
         title: t('liaoliao.recordingFailed') || '录音失败',
         description: error?.message || '无法访问麦克风',
       });
-      return false;
     }
-  }, [toast, t, setMicPermissionGranted]);
-
-  // 开始语音录制 - 点击即开始录音
-  const startVoiceRecording = useCallback(async () => {
-    fetch('/api/debug-log', { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event: 'startVoiceRecording clicked', ua: navigator.userAgent.slice(0, 100) })
-    }).catch(() => {});
-    
-    console.log('[Voice] 开始录音...');
-    
-    // 检查浏览器支持
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      console.error('[Voice] 浏览器不支持 mediaDevices');
-      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'Voice: mediaDevices not supported' }) }).catch(() => {});
-      toast({
-        variant: 'destructive',
-        title: t('liaoliao.recordingNotSupported') || '录音不支持',
-        description: '您的浏览器不支持录音功能',
-      });
-      return;
-    }
-    
-    // 如果已经授权过，直接开始录音
-    if (hasMicPermissionGranted()) {
-      console.log('[Voice] 已有授权记录，直接开始录音');
-      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'Voice: has permission record, starting directly' }) }).catch(() => {});
-      await doStartRecording();
-      return;
-    }
-    
-    // 首次使用，显示居中的授权对话框
-    console.log('[Voice] 首次使用，显示授权对话框');
-    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event: 'Voice: first time, showing permission dialog' }) }).catch(() => {});
-    setShowMicPermissionDialog(true);
-  }, [toast, t, hasMicPermissionGranted, doStartRecording]);
-
-  // 用户点击允许按钮
-  const handleAllowMicrophone = useCallback(async () => {
-    console.log('[Voice] 用户点击允许按钮');
-    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event: 'Voice: user clicked allow button' }) }).catch(() => {});
-    await doStartRecording();
-  }, [doStartRecording]);
+  }, [toast, t]);
 
   const stopVoiceRecording = useCallback(async () => {
     if (mediaRecorderRef.current && isRecordingVoice) {
@@ -1551,32 +1490,6 @@ export default function LiaoliaoChatDetail() {
           }}
         />
       )}
-
-      {/* 麦克风权限对话框 - 居中显示 */}
-      <Dialog open={showMicPermissionDialog} onOpenChange={setShowMicPermissionDialog}>
-        <DialogContent className="max-w-xs">
-          <DialogHeader>
-            <DialogTitle className="text-center">
-              {t('liaoliao.microphonePermission') || '麦克风权限'}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4 text-center">
-            <div className="w-16 h-16 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-              <Mic className="w-8 h-8 text-primary" />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {t('liaoliao.microphonePermissionDescription') || '需要使用麦克风来录制语音消息'}
-            </p>
-            <Button 
-              className="w-full"
-              onClick={handleAllowMicrophone}
-              data-testid="button-allow-microphone"
-            >
-              {t('liaoliao.allowMicrophone') || '允许'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={showCallDialog !== null} onOpenChange={() => setShowCallDialog(null)}>
         <DialogContent className="max-w-sm">
