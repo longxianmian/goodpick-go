@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { useNativeTap, getWebViewType } from '@/hooks/useNativeTap';
+import { getWebViewType } from '@/hooks/useNativeTap';
 import { requestMicrophonePermission } from '@/lib/liffClient';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -158,12 +158,6 @@ export default function LiaoliaoChatDetail() {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // 语音按钮 refs - 用于原生事件绑定
-  const voiceRecordingBtnRef = useRef<HTMLButtonElement>(null);
-  const speechToTextBtnRef = useRef<HTMLButtonElement>(null);
-  const stopRecordingBtnRef = useRef<HTMLButtonElement>(null);
-  const cancelRecordingBtnRef = useRef<HTMLButtonElement>(null);
 
   const { data: chatData, isLoading } = useQuery<ChatData>({
     queryKey: ['/api/liaoliao/messages', friendId],
@@ -711,14 +705,6 @@ export default function LiaoliaoChatDetail() {
     }
   }, [t, inputValue, toast]);
 
-  // 使用原生事件 Hook 处理多平台 WebView 兼容性
-  // 支持 LINE、Telegram、Viber 等应用内浏览器
-  // 原生事件绑定解决 React 合成事件在 WebView 中被当作 passive 监听器的问题
-  useNativeTap(voiceRecordingBtnRef, startVoiceRecording, { disabled: isRecordingVoice });
-  useNativeTap(speechToTextBtnRef, startSpeechToText, { disabled: isRecordingToText });
-  useNativeTap(stopRecordingBtnRef, stopVoiceRecording, { disabled: !isRecordingVoice });
-  useNativeTap(cancelRecordingBtnRef, cancelVoiceRecording, { disabled: !isRecordingVoice });
-
   // 调试：记录当前 WebView 类型
   useEffect(() => {
     const webViewType = getWebViewType();
@@ -1225,10 +1211,10 @@ export default function LiaoliaoChatDetail() {
         {isRecordingVoice ? (
           <div className="flex items-center justify-center gap-4 py-2">
             <Button 
-              ref={cancelRecordingBtnRef}
               size="icon"
               variant="ghost"
-              className="h-12 w-12 rounded-full bg-destructive/10 touch-manipulation"
+              onClick={cancelVoiceRecording}
+              className="h-12 w-12 rounded-full bg-destructive/10"
               data-testid="button-cancel-recording"
             >
               <X className="w-6 h-6 text-destructive" />
@@ -1253,9 +1239,9 @@ export default function LiaoliaoChatDetail() {
               <span className="text-xs text-muted-foreground">{t('liaoliao.recording')}</span>
             </div>
             <Button 
-              ref={stopRecordingBtnRef}
               size="icon"
-              className="h-12 w-12 rounded-full bg-[#38B03B] touch-manipulation"
+              onClick={stopVoiceRecording}
+              className="h-12 w-12 rounded-full bg-[#38B03B]"
               data-testid="button-send-recording"
             >
               <Send className="w-6 h-6 text-white" />
@@ -1264,10 +1250,10 @@ export default function LiaoliaoChatDetail() {
         ) : (
           <div className="flex items-center gap-2">
             <Button 
-              ref={voiceRecordingBtnRef}
               size="icon"
               variant="ghost"
-              className="shrink-0 h-10 w-10 rounded-full [&_svg]:size-6 touch-manipulation"
+              onClick={startVoiceRecording}
+              className="shrink-0 h-10 w-10 rounded-full [&_svg]:size-6"
               data-testid="button-voice"
             >
               <VoiceInputIcon className="text-muted-foreground" />
@@ -1304,11 +1290,11 @@ export default function LiaoliaoChatDetail() {
             ) : (
               <>
                 <Button 
-                  ref={speechToTextBtnRef}
                   size="icon"
                   variant="ghost"
+                  onClick={startSpeechToText}
                   className={cn(
-                    "shrink-0 h-10 w-10 rounded-full [&_svg]:size-6 touch-manipulation",
+                    "shrink-0 h-10 w-10 rounded-full [&_svg]:size-6",
                     isRecordingToText && "bg-red-100 dark:bg-red-900/30"
                   )}
                   data-testid="button-mic"
