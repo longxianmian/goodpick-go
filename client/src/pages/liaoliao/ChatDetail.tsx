@@ -158,6 +158,7 @@ export default function LiaoliaoChatDetail() {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
 
   const { data: chatData, isLoading } = useQuery<ChatData>({
     queryKey: ['/api/liaoliao/messages', friendId],
@@ -484,6 +485,61 @@ export default function LiaoliaoChatDetail() {
     };
   }, []);
 
+  // 处理系统录音文件上传（HTML Media Capture 替代方案）
+  const handleAudioFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'Audio file selected', fileName: file.name, size: file.size, type: file.type }) }).catch(() => {});
+    
+    try {
+      toast({
+        title: t('liaoliao.uploadingAudio') || '正在上传语音...',
+      });
+      
+      const formData = new FormData();
+      formData.append('file', file, `voice_${Date.now()}.${file.name.split('.').pop() || 'webm'}`);
+      
+      const token = localStorage.getItem('userToken');
+      const response = await fetch('/api/user/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && (result.url || result.fileUrl)) {
+        const audioUrl = result.url || result.fileUrl;
+        sendMutation.mutate({ 
+          content: `[${t('liaoliao.voiceMessage')}]`, 
+          messageType: 'audio',
+          mediaUrl: audioUrl
+        });
+        
+        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event: 'Audio file uploaded successfully', url: audioUrl }) }).catch(() => {});
+      } else {
+        toast({
+          variant: 'destructive',
+          title: t('liaoliao.uploadFailed') || '上传失败',
+        });
+      }
+    } catch (error: any) {
+      console.error('[Voice] 文件上传失败:', error);
+      toast({
+        variant: 'destructive',
+        title: t('liaoliao.uploadFailed') || '上传失败',
+        description: error?.message || '语音上传失败',
+      });
+    }
+    
+    // 清空 input 以便重复选择
+    event.target.value = '';
+  }, [toast, t, sendMutation]);
+  
   const startVoiceRecording = useCallback(async () => {
     // 发送服务端日志来验证点击事件是否触发
     fetch('/api/debug-log', { 
@@ -496,14 +552,11 @@ export default function LiaoliaoChatDetail() {
     
     // 检查浏览器支持
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      console.error('[Voice] 浏览器不支持 mediaDevices');
+      console.error('[Voice] 浏览器不支持 mediaDevices，使用系统录音');
       fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'Voice: mediaDevices not supported' }) }).catch(() => {});
-      toast({
-        variant: 'destructive',
-        title: t('liaoliao.recordingNotSupported') || '录音不支持',
-        description: '您的浏览器不支持录音功能，请使用其他浏览器',
-      });
+        body: JSON.stringify({ event: 'Voice: mediaDevices not supported, using file input' }) }).catch(() => {});
+      // 使用系统录音替代
+      audioInputRef.current?.click();
       return;
     }
     
@@ -519,7 +572,11 @@ export default function LiaoliaoChatDetail() {
         body: JSON.stringify({ event: 'Voice: requestMicrophonePermission returned', hasPermission }) }).catch(() => {});
       
       if (!hasPermission) {
-        console.error('[Voice] 麦克风权限被拒绝');
+        console.log('[Voice] 麦克风权限被拒绝，使用系统录音替代');
+        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event: 'Voice: permission denied, falling back to file input' }) }).catch(() => {});
+        // 使用系统录音替代
+        audioInputRef.current?.click();
         return;
       }
       
@@ -553,14 +610,11 @@ export default function LiaoliaoChatDetail() {
         setRecordingDuration(prev => prev + 1);
       }, 1000);
     } catch (error: any) {
-      console.error('[Voice] 录音失败:', error);
+      console.error('[Voice] 录音失败，使用系统录音替代:', error);
       fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: 'Voice: error caught', error: error?.message || String(error) }) }).catch(() => {});
-      toast({
-        variant: 'destructive',
-        title: t('liaoliao.recordingFailed') || '录音失败',
-        description: error?.message || '无法访问麦克风，请检查权限设置',
-      });
+        body: JSON.stringify({ event: 'Voice: error caught, falling back to file input', error: error?.message || String(error) }) }).catch(() => {});
+      // 使用系统录音替代
+      audioInputRef.current?.click();
     }
   }, [toast, t]);
 
@@ -664,7 +718,13 @@ export default function LiaoliaoChatDetail() {
     console.log('[STT] 请求麦克风权限...');
     const hasPermission = await requestMicrophonePermission();
     if (!hasPermission) {
-      console.error('[STT] 麦克风权限被拒绝');
+      console.log('[STT] 麦克风权限被拒绝，提示使用语音消息');
+      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'STT: permission denied, showing toast' }) }).catch(() => {});
+      toast({
+        title: t('liaoliao.useVoiceMessage') || '请使用语音消息',
+        description: t('liaoliao.voiceMessageHint') || '点击左侧语音按钮录制语音消息，系统会自动转成文字',
+      });
       return;
     }
 
@@ -1423,6 +1483,15 @@ export default function LiaoliaoChatDetail() {
         className="hidden"
         onChange={(e) => handleFileChange(e, 'file')}
         data-testid="input-file"
+      />
+      <input
+        ref={audioInputRef}
+        type="file"
+        accept="audio/*"
+        capture="user"
+        className="hidden"
+        onChange={handleAudioFileUpload}
+        data-testid="input-audio"
       />
 
       <Dialog open={showRedPacketDialog} onOpenChange={setShowRedPacketDialog}>
