@@ -7,11 +7,15 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Search, Plus, Minus, ChevronRight, QrCode, Loader2 } from 'lucide-react';
+import { ArrowLeft, Search, Plus, Minus, ChevronRight, QrCode, Loader2, Bot, Sparkles } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+
 import { useAuth } from '@/contexts/AuthContext';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+
+// AI助理的固定用户ID
+const AI_ASSISTANT_USER_ID = 4;
 
 interface GroupMember {
   id: number;
@@ -125,10 +129,19 @@ export default function GroupSettings() {
           <div className="flex flex-wrap gap-3">
             {members.slice(0, 8).map((member) => (
               <div key={member.userId} className="flex flex-col items-center w-14">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={member.avatarUrl} />
-                  <AvatarFallback>{member.displayName?.charAt(0)}</AvatarFallback>
-                </Avatar>
+                {member.userId === AI_ASSISTANT_USER_ID ? (
+                  <div className="relative w-12 h-12 rounded-full bg-gradient-to-br from-[#38B03B] to-[#2e9632] flex items-center justify-center">
+                    <Bot className="w-6 h-6 text-white" />
+                    <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-amber-400 rounded-full flex items-center justify-center">
+                      <Sparkles className="w-2.5 h-2.5 text-amber-900" />
+                    </div>
+                  </div>
+                ) : (
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src={member.avatarUrl} />
+                    <AvatarFallback>{member.displayName?.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                )}
                 <span className="text-xs text-muted-foreground mt-1 truncate w-full text-center">
                   {member.displayName}
                 </span>
