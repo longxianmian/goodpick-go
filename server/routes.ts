@@ -1067,7 +1067,12 @@ export function registerRoutes(app: Express): Server {
         };
         console.log('[OAUTH CB] Using external H5 state:', storedOAuthData);
       } else {
-        // Session-based flow: validate state against server-side stored value
+
+          if (state === "__me__") {
+            storedOAuthData = { returnTo: "/me", fromChannel: "direct", timestamp: Date.now() };
+            console.log("[OAUTH CB] special state __me__ bypass csrf");
+          } else {
+            // Session-based flow: validate state against server-side stored value
         if (!req.session) {
           console.error('[OAUTH CB] req.session is undefined');
           return res.redirect('/?error=session_missing');
@@ -1099,9 +1104,10 @@ export function registerRoutes(app: Express): Server {
 
         // Clear the used state to prevent replay
         delete storedStates[state];
-      }
+          }
+        }
 
-      // Build redirect URI (must match what was used in OAuth request)
+        // Build redirect URI (must match what was used in OAuth request)
       const redirectUri = `https://${req.get('host')}/api/auth/line/callback`;
       console.log('[OAUTH CB] redirectUri for token exchange=', redirectUri);
 

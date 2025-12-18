@@ -7,3 +7,6 @@ vite.config.ts.*
 # Local prod env & logs
 .env.production*
 logs/
+
+# local backups
+*.bak_*
