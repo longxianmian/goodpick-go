@@ -11343,6 +11343,27 @@ export function registerRoutes(app: Express): Server {
         })
         .onConflictDoNothing();
 
+      // 同时写入liaoliaoFriends表（好友列表查询使用此表）
+      // 邀请人 -> 被邀请人
+      await db
+        .insert(liaoliaoFriends)
+        .values({
+          userId: invite.inviterUserId,
+          friendId: userId,
+          status: 'accepted',
+        })
+        .onConflictDoNothing();
+
+      // 被邀请人 -> 邀请人
+      await db
+        .insert(liaoliaoFriends)
+        .values({
+          userId: userId,
+          friendId: invite.inviterUserId,
+          status: 'accepted',
+        })
+        .onConflictDoNothing();
+
       // 获取邀请人信息返回
       const [inviter] = await db
         .select()
