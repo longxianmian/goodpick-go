@@ -1,0 +1,295 @@
+# goodpick-go｜归因闭环改造清单（给 replitAI 执行）
+
+> 目标：把「流量 → 领券/预约 → 到店核销/支付/外卖 → 归因报表（ROI）」打通。
+>
+> 约束：生产级稳定；不改动现有业务逻辑的前提下，增量加字段/埋点/报表；默认部署在阿里云（ECS + Nginx + PM2 + Postgres）。
+
+---
+
+## A. P0 必做（1~2 天可落地）
+
+### A1｜统一“归因三件套”字段（全链路贯穿）
+
+**新增统一字段：**
+
+* `trace_id`：一次访问链路的唯一标识（uuid 或 nanoid）
+* `src`：来源渠道（枚举/字符串：tiktok、fb、ig、line、offline_qr、referral、unknown）
+* `bind_id`：推广绑定/达人/代理 ID（可空；对应 `promotion_bindings.id` 或你自定义推广关系）
+
+**落地原则：**
+
+* 只要用户是从落地页进入（视频/活动/店铺/支付二维码），就生成或透传 `trace_id/src/bind_id`。
+* 后续所有动作（领券、下单、支付、核销）都把这三件套写入各自业务记录。
+
+---
+
+### A2｜数据库改造（迁移脚本）
+
+> 使用你项目里的 `migrations/` SQL 风格新增一份 migration（建议命名 `0003_attribution_trace.sql`）。
+
+#### A2-1：给关键业务表加字段
+
+1. `coupons`（领券记录）
+
+* 新增列：`trace_id text`, `src text`, `bind_id integer`
+* 索引：`idx_coupons_trace_id`, `idx_coupons_campaign_id`, `idx_coupons_user_id`
+
+2. `qr_payments`（支付即会员/收款单）
+
+* 新增列：`trace_id text`, `src text`, `bind_id integer`
+* 索引：`idx_qr_payments_trace_id`, `idx_qr_payments_store_id`, `idx_qr_payments_user_id`, `idx_qr_payments_status`
+
+3. `delivery_orders`（外卖订单）
+
+* 新增列：`trace_id text`, `src text`, `bind_id integer`
+* 索引：`idx_delivery_orders_trace_id`, `idx_delivery_orders_store_id`, `idx_delivery_orders_user_id`, `idx_delivery_orders_status`
+
+4. （可选但建议）`behavior_events`
+
+* 已存在表则补索引：`idx_behavior_events_trace_id`, `idx_behavior_events_user_id`, `idx_behavior_events_store_id`, `idx_behavior_events_event_time`
+
+#### A2-2：约束与默认
+
+* `src` 默认 `'unknown'`
+* `bind_id` 可空
+* `trace_id` 可空（兼容老数据），新链路尽量填。
+
+---
+
+### A3｜前端：统一生成/透传 trace（不侵入现有页面）
+
+#### A3-1：新增一个工具模块（建议路径）
+
+* 文件：`client/src/lib/attribution.ts`
+
+功能：
+
+1. 从 URL 解析 `trace_id/src/bind_id`
+2. 若无 `trace_id`：生成一个（uuid/nanoid）并写入 `localStorage`（key：`gp_trace_id`）
+3. `src/bind_id` 也写入 `localStorage`（key：`gp_src`, `gp_bind_id`）
+4. 提供方法：`getAttribution()` 返回 `{ traceId, src, bindId }`
+5. 提供方法：`appendAttributionToUrl(url)`（用于跳转外部平台/内链保持参数）
+
+#### A3-2：在 SPA 初始化处调用一次
+
+* 在 `client/src/main.tsx` 或 `client/src/App.tsx`（应用初始化最早处）调用：
+
+  * `initAttributionFromLocation()`（解析当前 URL，落本地存储）
+
+---
+
+### A4｜后端：在 4 个关键动作写入归因三件套
+
+> 文件主战场：`server/routes.ts`（你项目路由都集中在此）。
+
+#### A4-1：新增一个解析器（服务端兜底）
+
+* 新增函数 `getAttributionFromReq(req)`：
+
+  * 优先从 `req.query.trace_id/src/bind_id` 读取
+  * 其次从 `req.headers['x-trace-id'] / x-src / x-bind-id` 读取
+  * 都没有则返回默认：`trace_id=null, src='unknown', bind_id=null`
+
+同时允许前端在每次 API 请求带上 headers：
+
+* `x-trace-id`, `x-src`, `x-bind-id`
+
+#### A4-2：领券写入（Claim）
+
+* 路由：`POST /api/campaigns/:id/claim`
+* 在创建 `coupons` 记录时写入：`trace_id/src/bind_id`
+
+#### A4-3：支付单写入（QR Payment create）
+
+* 找到创建 `qr_payments` 的接口（如：`/api/payments/qrcode/create` 或类似命名）
+* 写入：`trace_id/src/bind_id`
+
+#### A4-4：外卖订单写入（Delivery order create/checkout）
+
+* 找到生成 `delivery_orders` 的路由
+* 写入：`trace_id/src/bind_id`
+
+#### A4-5：到店核销写入（Redeem execute）
+
+* 路由：`POST /api/staff/redeem/execute`
+* 规则：核销事件本身建议写入 `behavior_events` 一条（见 A5）
+* 如果你有单独“核销流水表”，也写入 `trace_id/src/bind_id`（若暂无流水表，先写行为事件即可）
+
+---
+
+### A5｜行为事件埋点（最小化、可报表）
+
+> 目标：先把“关键事件”入库，后续报表与 AI 优化才有数据。
+
+#### A5-1：统一写入函数
+
+* `logBehaviorEvent({event, userId, storeId, campaignId, videoId, traceId, src, bindId, meta})`
+* 写入表：`behavior_events`
+
+#### A5-2：P0 必打 6 个事件
+
+* `landing_view`：打开落地页（video/campaign/store/qr）
+* `coupon_claim`：领券
+* `delivery_checkout`：外卖下单（创建订单）
+* `qr_payment_created`：创建支付单
+* `redeem_success`：核销成功
+* `membership_bound`：支付即会员绑定成功（或权益发放成功）
+
+> 事件触发点：服务端为准（避免前端丢失），前端可作为补充。
+
+---
+
+### A6｜P0 报表接口（先做到“能算 ROI”）
+
+新增接口（建议）：
+
+* `GET /api/admin/reports/attribution?storeId=...&dateFrom=...&dateTo=...&groupBy=src|bind_id|campaignId|videoId`
+
+输出字段（最小）：
+
+* `views`（landing_view 数）
+* `claims`（coupon_claim 数）
+* `redeems`（redeem_success 数）
+* `orders`（delivery_checkout 数 / delivery_orders 数）
+* `gmv`（qr_payments 已支付金额 + delivery_orders 已支付金额）
+* `roi`：先按 `gmv / cost`，其中 `cost` 允许外部传入或暂时留空
+
+> P0 不强求“曝光数据”，只要把点击/到店/支付/核销算清楚就能卖。
+
+---
+
+## B. P1 建议（3~7 天，商业化能力明显增强）
+
+### B1｜推广绑定体系（达人/代理结算基础）
+
+* 落地链接统一支持：`bind_id`
+* 如果 `promotion_bindings` 已存在：
+
+  * 增加 `type`（达人/代理/广告组）
+  * 增加 `payout_model`（CPA/CPC/CPM）
+  * 增加 `payout_value`（每核销/每点击/每千次展示）
+
+### B2｜收益事件自动生成（promotion_earnings）
+
+* 当 `coupon_claim`：若绑定 CPC，写入 earnings
+* 当 `redeem_success` 或 `payment_success`：若绑定 CPA，写入 earnings
+* 增加对账状态：`pending/approved/paid/rejected`
+
+### B3｜风控最小策略（避免被薅）
+
+* 同一用户/同设备/同 IP：短时间领券次数阈值
+* 同一券：重复核销拦截
+* 跨门店核销：强校验
+* 异常触发写 `behavior_events`：`risk_flag`
+
+---
+
+## C. P2（AI 服务商核心增值，形成“系统自动产出”）
+
+### C1｜一键出活动（模板 + AI）
+
+输入：行业（餐饮/美业）、目标（引流/复购/客单/填时段）、门店信息、招牌品类
+输出：
+
+* `campaign` 规则草案（含风险提示）
+* 门店 SOP（店员话术 + 海报文案 + 群发话术）
+
+### C2｜一键出素材包（可投放）
+
+输出：
+
+* 3 条短视频脚本（不同角度）
+* 10 条标题
+* 封面文案
+* 店员口播
+* 多语言（泰语优先 + 中文备用）
+
+### C3｜一键出优化建议（读 P0 报表）
+
+输入：Attribution 报表 + 最近 7/14 天数据
+输出：
+
+* 哪些 src/bind_id/视频带来核销更高
+* 掉链子位置（看转化漏斗）
+* 下周动作（加预算/换素材/改时段/改券力度）
+
+---
+
+## D. replitAI 执行任务拆分（必须按顺序完成）
+
+### D1｜创建 migration + 更新 schema
+
+1. 新增 `migrations/0003_attribution_trace.sql`
+2. 同步更新 `shared/schema.ts`（若使用 Drizzle schema 作为单一真源）
+3. 提供回滚策略（至少可手动 drop columns）
+
+### D2｜前端 attribution 工具与全局初始化
+
+1. 新增 `client/src/lib/attribution.ts`
+2. 在 `main.tsx` 或 `App.tsx` 初始化
+3. 修改 API 请求封装：所有请求自动带 headers `x-trace-id/x-src/x-bind-id`
+
+### D3｜后端 4 个关键写入点
+
+1. Claim 写入 coupons 字段
+2. QR payment create 写入 qr_payments 字段
+3. Delivery order create 写入 delivery_orders 字段
+4. Redeem execute 写入 behavior_events（并尽量补充到核销流水）
+
+### D4｜行为事件写入函数与 6 个事件
+
+1. 实现 `logBehaviorEvent`
+2. 在关键路由插入事件写入
+
+### D5｜新增 P0 报表接口
+
+1. 新增 admin 报表路由
+2. 输出 groupBy 聚合结果
+3. 增加权限校验（仅 admin/merchant_owner/staff_manager 可访问）
+
+### D6｜本地/测试环境自检脚本
+
+1. 提供 `npm run migrate` 或同等命令说明
+2. 提供 curl 验证（至少：落地 view、claim、redeem、report）
+
+---
+
+## E. 验收标准（必须可量化）
+
+1. 任意入口（带或不带参数）进入 H5 后：
+
+* localStorage 必须生成 `trace_id`
+* 所有 API 请求 header 都带 `x-trace-id`
+
+2. 用户从带参数落地页进入：
+
+* `src/bind_id/trace_id` 必须能贯穿写入：`coupons`、`qr_payments`、`delivery_orders`（对应动作发生时）
+
+3. 核销成功后：
+
+* `behavior_events` 必须出现 `redeem_success`，且携带 `trace_id/src/bind_id`
+
+4. 报表接口：
+
+* 同一门店指定日期范围，能按 `src` 聚合输出 views/claims/redeems/orders/gmv
+
+---
+
+## F. 注意事项（生产级）
+
+* 任何新增字段都要保持向后兼容（允许 null），避免影响老数据。
+* 所有写入行为事件不得阻塞主业务流程：
+
+  * 写入失败只记录 warning，不影响领券/核销/支付主流程返回。
+* 不把任何密钥写入仓库；环境变量统一走 `.env` 与阿里云部署配置。
+
+---
+
+## G. 交付物清单（replitAI 最终必须提交）
+
+* migration SQL 文件 + schema 更新
+* 前端 attribution 工具 + 全局注入 headers
+* 后端归因解析器 + 关键路由写入改造
+* behavior_events 写入与 6 个事件落地
+* P0 报表接口 + 权限
+* README/DEPLOY 补充：如何验证归因链路
