@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getAttributionHeaders } from "./attribution";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -39,6 +40,10 @@ export async function apiRequest(
   // Add language header for campaign title translation
   const currentLanguage = localStorage.getItem('language') || 'th-th';
   headers['Accept-Language'] = currentLanguage;
+
+  // 添加归因追踪 headers
+  const attributionHeaders = getAttributionHeaders();
+  Object.assign(headers, attributionHeaders);
 
   const res = await fetch(url, {
     method,
@@ -83,6 +88,10 @@ export const getQueryFn: <T>(options: {
     // Add language header for campaign title translation
     const currentLanguage = localStorage.getItem('language') || 'th-th';
     headers['Accept-Language'] = currentLanguage;
+
+    // 添加归因追踪 headers
+    const attributionHeaders = getAttributionHeaders();
+    Object.assign(headers, attributionHeaders);
 
     const res = await fetch(queryKey.join("/") as string, {
       credentials: "include",

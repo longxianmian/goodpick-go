@@ -227,6 +227,21 @@ async function staffAuthMiddleware(req: Request, res: Response, next: express.Ne
 
 // ============ Helper Functions ============
 
+// 归因追踪：从请求头解析追踪信息
+interface AttributionData {
+  traceId: string | null;
+  src: string | null;
+  bindId: string | null;
+}
+
+function getAttributionFromReq(req: Request): AttributionData {
+  return {
+    traceId: (req.headers['x-trace-id'] as string) || null,
+    src: (req.headers['x-src'] as string) || null,
+    bindId: (req.headers['x-bind-id'] as string) || null,
+  };
+}
+
 async function generateUniqueCouponCode(): Promise<string> {
   const maxRetries = 10;
   
@@ -1817,6 +1832,9 @@ export function registerRoutes(app: Express): Server {
       const code = await generateUniqueCouponCode();
       console.log(`[生成优惠券] 8位数核销码: ${code}`);
       
+      // 获取归因追踪数据
+      const attribution = getAttributionFromReq(req);
+      
       const [newCoupon] = await db
         .insert(coupons)
         .values({
@@ -1826,6 +1844,9 @@ export function registerRoutes(app: Express): Server {
           status: 'unused',
           expiredAt: campaign.endAt,
           channel: channel as any,
+          traceId: attribution.traceId,
+          src: attribution.src,
+          bindId: attribution.bindId,
         })
         .returning();
 
@@ -7638,6 +7659,9 @@ export function registerRoutes(app: Express): Server {
         return res.status(500).json({ success: false, message: chargeResult.error || 'Failed to create charge' });
       }
 
+      // 获取归因追踪数据
+      const attribution = getAttributionFromReq(req);
+      
       // 保存支付记录（包含 orderId 和验证后的用户信息用于自动积分）
       const [payment] = await db
         .insert(qrPayments)
@@ -7657,6 +7681,9 @@ export function registerRoutes(app: Express): Server {
           paymentMethod: 'promptpay',
           status: 'pending',
           redirectUrl: chargeResult.redirectUrl,
+          traceId: attribution.traceId,
+          src: attribution.src,
+          bindId: attribution.bindId,
         })
         .returning();
 
@@ -9511,6 +9538,9 @@ export function registerRoutes(app: Express): Server {
       // 生成订单号
       const orderNo = `D${Date.now()}${nanoid(4).toUpperCase()}`;
 
+      // 获取归因追踪数据
+      const attribution = getAttributionFromReq(req);
+
       // 创建订单
       const [order] = await db
         .insert(deliveryOrders)
@@ -9534,6 +9564,9 @@ export function registerRoutes(app: Express): Server {
           estimatedDeliveryTime: orderType === 'delivery' ? Math.ceil(distance * 5) + 15 : null,
           customerNote,
           paymentMethod,
+          traceId: attribution.traceId,
+          src: attribution.src,
+          bindId: attribution.bindId,
         })
         .returning();
 

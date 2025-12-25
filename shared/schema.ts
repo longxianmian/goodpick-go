@@ -414,6 +414,11 @@ export const coupons = pgTable('coupons', {
   channel: channelEnum('channel').notNull().default('other'),
   redeemedStoreId: integer('redeemed_store_id').references(() => stores.id),
   notes: text('notes'),
+  
+  // 归因三件套 - Attribution tracking
+  traceId: text('trace_id'),                    // 访问链路唯一标识
+  src: text('src').default('unknown'),          // 来源渠道: tiktok, fb, ig, line, offline_qr, referral, unknown
+  bindId: integer('bind_id'),                   // 推广绑定/达人/代理 ID
 });
 
 export const insertCouponSchema = createInsertSchema(coupons).omit({
@@ -1278,7 +1283,7 @@ export const behaviorEvents = pgTable('behavior_events', {
   sessionId: text('session_id'),
   
   // 事件信息
-  eventType: text('event_type').notNull(),    // 'page_view', 'product_click', 'search', 'add_cart', 'purchase', etc.
+  eventType: text('event_type').notNull(),    // 'landing_view', 'coupon_claim', 'delivery_checkout', 'qr_payment_created', 'redeem_success', 'membership_bound', etc.
   eventSource: text('event_source'),          // 'app', 'web', 'line', 'agent'
   
   // 事件数据 (JSON)
@@ -1288,8 +1293,15 @@ export const behaviorEvents = pgTable('behavior_events', {
   targetType: text('target_type'),            // 'product', 'campaign', 'store', 'video'
   targetId: integer('target_id'),
   
-  // 追踪
-  traceId: text('trace_id'),
+  // 归因三件套 - Attribution tracking (完整版)
+  traceId: text('trace_id'),                  // 访问链路唯一标识
+  src: text('src').default('unknown'),        // 来源渠道: tiktok, fb, ig, line, offline_qr, referral, unknown
+  bindId: integer('bind_id'),                 // 推广绑定/达人/代理 ID
+  
+  // 关联业务对象 (用于报表聚合)
+  storeId: integer('store_id').references(() => stores.id, { onDelete: 'set null' }),
+  campaignId: integer('campaign_id').references(() => campaigns.id, { onDelete: 'set null' }),
+  videoId: integer('video_id').references(() => shortVideos.id, { onDelete: 'set null' }),
   
   // 合规字段
   consentFlag: boolean('consent_flag').default(true),
@@ -1517,6 +1529,11 @@ export const qrPayments = pgTable('qr_payments', {
   
   // 跳转 URL
   redirectUrl: text('redirect_url'),
+  
+  // 归因三件套 - Attribution tracking
+  traceId: text('trace_id'),                    // 访问链路唯一标识
+  src: text('src').default('unknown'),          // 来源渠道
+  bindId: integer('bind_id'),                   // 推广绑定ID
   
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -1952,6 +1969,11 @@ export const deliveryOrders = pgTable('delivery_orders', {
   paymentMethod: text('payment_method'),
   paymentReference: text('payment_reference'),
   paidAt: timestamp('paid_at'),
+  
+  // 归因三件套 - Attribution tracking
+  traceId: text('trace_id'),                    // 访问链路唯一标识
+  src: text('src').default('unknown'),          // 来源渠道
+  bindId: integer('bind_id'),                   // 推广绑定ID
   
   // 时间戳
   acceptedAt: timestamp('accepted_at'),      // 商家接单时间

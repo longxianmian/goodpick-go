@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { initAttributionFromLocation } from "@/lib/attribution";
 import NotFound from "@/pages/not-found";
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminStores from "@/pages/admin/AdminStores";
@@ -445,6 +446,9 @@ function App() {
 
   useEffect(() => {
     console.log('[App] App组件挂载 at', new Date().toISOString());
+    
+    // 初始化归因追踪 - 从 URL 解析并存储 trace_id/src/bind_id
+    initAttributionFromLocation();
     
     let cancelled = false;
 

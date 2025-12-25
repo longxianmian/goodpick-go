@@ -66,6 +66,13 @@ The backend is built with Express.js and Node.js, using PostgreSQL via Drizzle O
 -   **Operations Backend**: Platform-level control for global management, including data dashboards, merchant ecosystem management (onboarding, verification), content and activity management (short video and campaign review), user and role management, and system configuration.
 -   **Payment QR Code System**: Enables merchants to accept payments via QR codes, automatically enrolling customers as members. Integrates with multiple Payment Service Providers (PSPs) like Opn Payments and 2C2P through a pluggable architecture, supporting PromptPay, and planned for TrueMoney, Rabbit LINE Pay, credit cards, Alipay, and WeChat Pay. Includes merchant PSP account management (manual ID or connect onboarding) and LINE OA membership binding.
 -   **Super Contacts (超级通讯录)**: Privacy-first contact import and multi-IM friend invitation system. Supports phone contact import with SHA256 hash matching (no plaintext upload), multi-channel invitations (LINE, WhatsApp, Viber, Telegram, Facebook, SMS), face-to-face QR code, and invite link sharing. Friend status tracking (not_known → invited → registered → friend) with unified contact management for users, merchants, and AI agents.
+-   **Attribution Tracking (归因追踪)**: End-to-end marketing ROI tracking system that traces user journeys from traffic source to conversion. Supports three-piece tracking suite:
+    - `trace_id`: Unique visit identifier (nanoid 21 chars), persisted in localStorage
+    - `src`: Traffic source channel (tiktok, fb, ig, line, offline_qr, referral, etc.)
+    - `bind_id`: Affiliate/creator ID for commission tracking
+    - Frontend auto-parses URL params (?src=xxx&bind_id=xxx) and injects headers on all API requests
+    - Backend captures attribution on key write points: coupon claims, QR payments, delivery orders
+    - Key files: `client/src/lib/attribution.ts`, `client/src/lib/queryClient.ts`
 
 ## External Dependencies
 
