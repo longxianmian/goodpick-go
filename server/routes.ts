@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
-import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, shortVideoBookmarks, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints, chatConversations, chatMessages, discoverApplications, shuashuaApplications, insertDiscoverApplicationSchema, insertShuashuaApplicationSchema, carts, cartItems, deliveryAddresses, deliveryOrders, orderItems, deliveryAssignments, insertCartSchema, insertCartItemSchema, insertDeliveryAddressSchema, insertDeliveryOrderSchema, insertOrderItemSchema, liaoliaoFriends, liaoliaoGroups, liaoliaoGroupMembers, liaoliaoMessages, liaoliaoTranslations, liaoliaoFavorites, insertLiaoliaoFriendSchema, insertLiaoliaoGroupSchema, insertLiaoliaoMessageSchema, ttFriends, ttInvites, phoneHashRegistry, insertTtFriendSchema, insertTtInviteSchema, insertPhoneHashRegistrySchema } from '@shared/schema';
+import { admins, stores, campaigns, campaignStores, users, coupons, mediaFiles, staffPresets, oaUserLinks, campaignBroadcasts, merchantStaffRoles, oauthAccounts, agentTokens, paymentConfigs, paymentTransactions, membershipRules, userStoreMemberships, creatorContents, promotionBindings, promotionEarnings, shortVideos, shortVideoLikes, shortVideoComments, shortVideoCommentLikes, shortVideoBookmarks, userFollows, products, productCategories, pspProviders, merchantPspAccounts, storeQrCodes, qrPayments, paymentPoints, chatConversations, chatMessages, discoverApplications, shuashuaApplications, insertDiscoverApplicationSchema, insertShuashuaApplicationSchema, carts, cartItems, deliveryAddresses, deliveryOrders, orderItems, deliveryAssignments, insertCartSchema, insertCartItemSchema, insertDeliveryAddressSchema, insertDeliveryOrderSchema, insertOrderItemSchema, liaoliaoFriends, liaoliaoGroups, liaoliaoGroupMembers, liaoliaoMessages, liaoliaoTranslations, liaoliaoFavorites, insertLiaoliaoFriendSchema, insertLiaoliaoGroupSchema, insertLiaoliaoMessageSchema, ttFriends, ttInvites, phoneHashRegistry, insertTtFriendSchema, insertTtInviteSchema, insertPhoneHashRegistrySchema, behaviorEvents } from '@shared/schema';
 import { getPaymentProvider } from './services/paymentProvider';
 import QRCode from 'qrcode';
 import { eq, and, desc, sql, inArray, isNotNull, or, gte, gt } from 'drizzle-orm';
@@ -240,6 +240,43 @@ function getAttributionFromReq(req: Request): AttributionData {
     src: (req.headers['x-src'] as string) || null,
     bindId: (req.headers['x-bind-id'] as string) || null,
   };
+}
+
+// 行为事件日志函数 (非阻塞写入)
+interface BehaviorEventParams {
+  event: string;
+  userId?: number | null;
+  storeId?: number | null;
+  campaignId?: number | null;
+  videoId?: number | null;
+  traceId?: string | null;
+  src?: string | null;
+  bindId?: string | null;
+  meta?: Record<string, any>;
+  sessionId?: string | null;
+  eventSource?: string;
+}
+
+async function logBehaviorEvent(params: BehaviorEventParams): Promise<void> {
+  try {
+    await db.insert(behaviorEvents).values({
+      userId: params.userId || null,
+      sessionId: params.sessionId || null,
+      eventType: params.event,
+      eventSource: params.eventSource || 'server',
+      payload: params.meta ? JSON.stringify(params.meta) : null,
+      traceId: params.traceId || null,
+      src: params.src || 'unknown',
+      bindId: params.bindId ? parseInt(params.bindId) : null,
+      storeId: params.storeId || null,
+      campaignId: params.campaignId || null,
+      videoId: params.videoId || null,
+    });
+    console.log(`[BehaviorEvent] ${params.event} logged for user ${params.userId || 'anonymous'}`);
+  } catch (error) {
+    // 事件记录失败不阻塞主业务
+    console.warn(`[BehaviorEvent] Failed to log ${params.event}:`, error);
+  }
 }
 
 async function generateUniqueCouponCode(): Promise<string> {
@@ -1858,6 +1895,18 @@ export function registerRoutes(app: Express): Server {
 
       console.log(`[领券成功] 用户ID: ${userId}, 活动ID: ${campaignId}, 优惠券ID: ${newCoupon.id}, 新的已领数: ${campaign.currentClaimed + 1}`);
 
+      // 埋点: coupon_claim 事件
+      logBehaviorEvent({
+        event: 'coupon_claim',
+        userId,
+        storeId: campaign.storeId,
+        campaignId,
+        traceId: attribution.traceId,
+        src: attribution.src,
+        bindId: attribution.bindId,
+        meta: { couponId: newCoupon.id, couponCode: newCoupon.code, channel },
+      });
+
       res.json({
         success: true,
         message: '领取成功',
@@ -2322,6 +2371,18 @@ export function registerRoutes(app: Express): Server {
         .returning();
 
       console.log(`[核销成功] 优惠券ID: ${couponId}, 核销码: ${coupon.code}, 店员: ${staffInfo.name}, 门店ID: ${staffInfo.storeId}`);
+
+      // 埋点: redeem_success 事件 (使用优惠券上的归因信息)
+      logBehaviorEvent({
+        event: 'redeem_success',
+        userId: coupon.userId,
+        storeId: staffInfo.storeId,
+        campaignId: campaign.id,
+        traceId: coupon.traceId,
+        src: coupon.src,
+        bindId: coupon.bindId,
+        meta: { couponId, couponCode: coupon.code, staffId: staffInfo.staffId },
+      });
 
       res.json({ 
         success: true, 
@@ -3805,6 +3866,113 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Get store stats error:', error);
       res.status(500).json({ success: false, message: '获取门店统计失败' });
+    }
+  });
+
+  // ============ G2. Attribution Reports API ============
+  
+  // P0 归因报表接口 - 计算 ROI
+  app.get('/api/admin/reports/attribution', adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { storeId, dateFrom, dateTo, groupBy = 'src' } = req.query;
+      
+      // 日期范围默认最近30天
+      const endDate = dateTo ? new Date(dateTo as string) : new Date();
+      const startDate = dateFrom ? new Date(dateFrom as string) : new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      // 验证 groupBy 参数
+      const validGroupBy = ['src', 'bind_id', 'campaignId', 'videoId'];
+      const groupField = validGroupBy.includes(groupBy as string) ? groupBy as string : 'src';
+      
+      // 基础查询条件
+      let storeCondition = storeId ? sql`AND store_id = ${parseInt(storeId as string)}` : sql``;
+      
+      // 聚合查询 - 从 behavior_events 表获取事件统计
+      const eventStats = await db.execute(sql`
+        SELECT 
+          COALESCE(${sql.raw(groupField === 'bind_id' ? 'bind_id::text' : groupField)}, 'unknown') as group_key,
+          COUNT(CASE WHEN event_type = 'landing_view' THEN 1 END) as views,
+          COUNT(CASE WHEN event_type = 'coupon_claim' THEN 1 END) as claims,
+          COUNT(CASE WHEN event_type = 'redeem_success' THEN 1 END) as redeems,
+          COUNT(CASE WHEN event_type = 'delivery_checkout' THEN 1 END) as orders,
+          COUNT(CASE WHEN event_type = 'qr_payment_created' THEN 1 END) as payments
+        FROM behavior_events
+        WHERE created_at >= ${startDate}
+          AND created_at <= ${endDate}
+          ${storeCondition}
+        GROUP BY ${sql.raw(groupField === 'bind_id' ? 'bind_id::text' : groupField)}
+        ORDER BY claims DESC
+        LIMIT 100
+      `);
+      
+      // 从 qr_payments 表获取 GMV (已支付金额)
+      const qrGmv = await db.execute(sql`
+        SELECT 
+          COALESCE(${sql.raw(groupField === 'bind_id' ? 'bind_id::text' : groupField)}, 'unknown') as group_key,
+          SUM(CASE WHEN status = 'success' THEN amount::numeric ELSE 0 END) as gmv
+        FROM qr_payments
+        WHERE created_at >= ${startDate}
+          AND created_at <= ${endDate}
+          ${storeCondition}
+        GROUP BY ${sql.raw(groupField === 'bind_id' ? 'bind_id::text' : groupField)}
+      `);
+      
+      // 从 delivery_orders 表获取 GMV
+      const deliveryGmv = await db.execute(sql`
+        SELECT 
+          COALESCE(${sql.raw(groupField === 'bind_id' ? 'bind_id::text' : groupField)}, 'unknown') as group_key,
+          SUM(CASE WHEN status IN ('delivered', 'completed') THEN total::numeric ELSE 0 END) as gmv
+        FROM delivery_orders
+        WHERE created_at >= ${startDate}
+          AND created_at <= ${endDate}
+          ${storeCondition}
+        GROUP BY ${sql.raw(groupField === 'bind_id' ? 'bind_id::text' : groupField)}
+      `);
+      
+      // 合并 GMV 数据
+      const gmvMap = new Map<string, number>();
+      const qrRows = qrGmv.rows as any[] || [];
+      const deliveryRows = deliveryGmv.rows as any[] || [];
+      
+      for (const row of qrRows) {
+        const key = row.group_key || 'unknown';
+        gmvMap.set(key, (gmvMap.get(key) || 0) + parseFloat(row.gmv || 0));
+      }
+      for (const row of deliveryRows) {
+        const key = row.group_key || 'unknown';
+        gmvMap.set(key, (gmvMap.get(key) || 0) + parseFloat(row.gmv || 0));
+      }
+      
+      // 组装最终结果
+      const eventRows = eventStats.rows as any[] || [];
+      const results = eventRows.map((row: any) => {
+        const gmv = gmvMap.get(row.group_key) || 0;
+        return {
+          groupKey: row.group_key,
+          views: parseInt(row.views) || 0,
+          claims: parseInt(row.claims) || 0,
+          redeems: parseInt(row.redeems) || 0,
+          orders: parseInt(row.orders) || 0,
+          payments: parseInt(row.payments) || 0,
+          gmv: Math.round(gmv * 100) / 100,
+          // 转化率
+          claimRate: row.views > 0 ? Math.round((row.claims / row.views) * 10000) / 100 : 0,
+          redeemRate: row.claims > 0 ? Math.round((row.redeems / row.claims) * 10000) / 100 : 0,
+        };
+      });
+      
+      res.json({
+        success: true,
+        data: {
+          groupBy: groupField,
+          dateRange: { from: startDate.toISOString(), to: endDate.toISOString() },
+          storeId: storeId ? parseInt(storeId as string) : null,
+          results,
+        },
+      });
+    } catch (error) {
+      console.error('Attribution report error:', error);
+      res.status(500).json({ success: false, message: '获取归因报表失败' });
     }
   });
 
@@ -7687,6 +7855,17 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
 
+      // 埋点: qr_payment_created 事件
+      logBehaviorEvent({
+        event: 'qr_payment_created',
+        userId: verifiedUserId,
+        storeId: qrCode.storeId,
+        traceId: attribution.traceId,
+        src: attribution.src,
+        bindId: attribution.bindId,
+        meta: { orderId, amount, currency, paymentMethod: 'promptpay' },
+      });
+
       res.json({
         success: true,
         data: {
@@ -9569,6 +9748,17 @@ export function registerRoutes(app: Express): Server {
           bindId: attribution.bindId,
         })
         .returning();
+
+      // 埋点: delivery_checkout 事件
+      logBehaviorEvent({
+        event: 'delivery_checkout',
+        userId,
+        storeId,
+        traceId: attribution.traceId,
+        src: attribution.src,
+        bindId: attribution.bindId,
+        meta: { orderNo, total: total.toFixed(2), orderType, itemCount: items.length },
+      });
 
       // 创建订单商品快照
       for (const { item, product } of items) {
